@@ -173,9 +173,6 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
 `;
 
-
-// ── LOGO PRODU ─────────────────────────────────────────────
-const PRODU_LOGO = "data:image/png;base64,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";
 // ── UI PRIMITIVES ────────────────────────────────────────────
 const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>;
 
@@ -254,7 +251,15 @@ function Login({users,onLogin}){
     <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
     <div style={{position:"relative",width:440,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:16,padding:40,boxShadow:"0 24px 80px #0009"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
-        <img src={PRODU_LOGO} alt="Produ" style={{height:70,objectFit:"contain",marginBottom:4}}/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
+          <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
+            <svg viewBox="0 0 24 24" fill="var(--bg)" width="22" height="22"><polygon points="5,3 20,12 5,21"/></svg>
+          </div>
+          <div style={{textAlign:"left"}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
+            <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
+          </div>
+        </div>
       </div>
       <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--fh)",marginBottom:4,textAlign:"center"}}>Bienvenido de vuelta</div>
       <div style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
@@ -272,7 +277,15 @@ function EmpresaSelector({empresas,onSelect}){
   const [q,setQ]=useState("");
   const fd=(empresas||[]).filter(e=>e.nombre.toLowerCase().includes(q.toLowerCase()));
   return <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
-    <img src={PRODU_LOGO} alt="Produ" style={{height:60,objectFit:"contain",marginBottom:12}}/>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6,justifyContent:"center"}}>
+      <div style={{width:44,height:44,borderRadius:10,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 20px var(--cm)"}}>
+        <svg viewBox="0 0 24 24" fill="var(--bg)" width="20" height="20"><polygon points="5,3 20,12 5,21"/></svg>
+      </div>
+      <div>
+        <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
+        <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
+      </div>
+    </div>
     <div style={{fontSize:12,color:"var(--gr2)",letterSpacing:1,textTransform:"uppercase",marginBottom:28,textAlign:"center"}}>Super Admin · Seleccionar empresa</div>
     <div style={{width:460}}>
       <SearchBar value={q} onChange={setQ} placeholder="Buscar empresa..."/>
@@ -323,13 +336,21 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const SW=collapsed?64:240;
   return <aside style={{width:SW,minHeight:"100vh",background:"var(--sur)",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
-    <div style={{padding:"12px 14px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
+    <div style={{padding:"14px 14px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
-        <img src={PRODU_LOGO} alt="Produ" style={{height:36,objectFit:"contain",maxWidth:160}}/>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 16px var(--cm)",flexShrink:0}}>
+            <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--fh)",fontSize:17,fontWeight:800,letterSpacing:-.5,lineHeight:1,color:"var(--cy)"}}>produ</div>
+            <div style={{fontSize:8,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
+          </div>
+        </div>
         <button onClick={onToggle} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>‹</button>
       </>:
         <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
-          <svg viewBox="0 0 24 24" fill="var(--bg)" width="14" height="14"><polygon points="5,3 20,12 5,21"/></svg>
+          <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
         </div>}
     </div>
     {/* Empresa chip */}

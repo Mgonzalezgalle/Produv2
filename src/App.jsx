@@ -127,12 +127,14 @@ const SEED_DATA = (empId) => ({
 // ── DB HOOK ──────────────────────────────────────────────────
 function useDB(key, initial=null) {
   const [data,setData]=useState(initial);
+  const [loading,setLoading]=useState(true);
   const saving=useRef(false);
   const loaded=useRef(false);
   useEffect(()=>{
     if(!key||loaded.current) return;
     loaded.current=true;
-    dbGet(key).then(v=>{ if(v!==null) setData(v); });
+    setLoading(true);
+    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
   },[key]);
   const save=useCallback(async d=>{
     saving.current=true; setData(d);
@@ -140,7 +142,7 @@ function useDB(key, initial=null) {
     await new Promise(r=>setTimeout(r,1500));
     saving.current=false;
   },[key]);
-  return [data,save,saving];
+  return [data,save,saving,loading];
 }
 function usePoll(key,setter,savingRef,ms=20000){
   useEffect(()=>{
@@ -171,12 +173,33 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
 `;
 
 // ── UI PRIMITIVES ────────────────────────────────────────────
 const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>;
+
+// ── SKELETON LOADER ──────────────────────────────────────────
+function Skeleton({w="100%",h=14,r=6,mb=8}){
+  return <div style={{width:w,height:h,borderRadius:r,marginBottom:mb,background:"linear-gradient(90deg,var(--bdr) 25%,var(--bdr2) 50%,var(--bdr) 75%)",backgroundSize:"200% 100%",animation:"shimmer 1.4s infinite"}}/>
+}
+function SkeletonCard(){
+  return <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:20}}>
+    <Skeleton h={18} w="60%" mb={12}/>
+    <Skeleton h={12} w="90%" mb={8}/>
+    <Skeleton h={12} w="75%" mb={8}/>
+    <Skeleton h={12} w="80%"/>
+  </div>;
+}
+function LoadingScreen(){
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:16}}>
+    <div style={{width:48,height:48,border:"3px solid var(--bdr2)",borderTop:"3px solid var(--cy)",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+    <div style={{fontSize:13,color:"var(--gr2)"}}>Cargando datos...</div>
+  </div>;
+}
 
 function Toast({msg,type,onDone}){
   useEffect(()=>{const t=setTimeout(onDone,2800);return()=>clearTimeout(t);},[]);
@@ -674,9 +697,9 @@ export default function App(){
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
-  const [clientes,setClientes,savCli]=useDB(`produ:${eId}:clientes`);
-  const [producciones,setProducciones,savPro]=useDB(`produ:${eId}:producciones`);
-  const [programas,setProgramas,savPg]=useDB(`produ:${eId}:programas`);
+  const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
+  const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
+  const [programas,setProgramas,savPg,ldPg]=useDB(`produ:${eId}:programas`);
   const [episodios,setEpisodios,savEp]=useDB(`produ:${eId}:episodios`);
   const [auspiciadores,setAuspiciadores,savAus]=useDB(`produ:${eId}:auspiciadores`);
   const [contratos,setContratos,savCt]=useDB(`produ:${eId}:contratos`);
@@ -686,6 +709,7 @@ export default function App(){
   const [presupuestos,setPresupuestos,savPres]=useDB(`produ:${eId}:presupuestos`);
   const [facturas,setFacturas,savFact]=useDB(`produ:${eId}:facturas`);
   const [activos,setActivos,savAct]=useDB(`produ:${eId}:activos`);
+  const isLoading = curEmp && (ldCli || ldPro || ldPg);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
@@ -834,7 +858,9 @@ export default function App(){
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:24}}>
-        <div className="va" key={view+detId+superPanel}>{renderView()}</div>
+        <div className="va" key={view+detId+superPanel}>
+          {isLoading ? <LoadingScreen/> : renderView()}
+        </div>
       </div>
     </main>
     {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}

@@ -48,14 +48,16 @@ function canDo(user, action) {
 }
 
 const ADDONS = {
-  presupuestos:{ label:"Presupuestos",   icon:"◧" },
-  facturacion: { label:"Facturación",    icon:"◨" },
-  activos:     { label:"Activos",        icon:"◪" },
+  presupuestos:{ label:"Presupuestos",   icon:"📋" },
+  facturacion: { label:"Facturación",    icon:"🧾" },
+  activos:     { label:"Gestión Activos",icon:"📦" },
+  contratos:   { label:"Contratos",      icon:"📄" },
+  crew:        { label:"Equipo / Crew",  icon:"🎬" },
 };
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["presupuestos","facturacion","activos"], active:true, plan:"pro",     cr:today() },
+  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
   { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", cr:today() },
 ];
 const SEED_USERS = [
@@ -382,14 +384,14 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro},{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg}]},
     {group:"Comercial",items:[
       {id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus},
-      {id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct},
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
     ]},
-    ...(empresa?.addons?.some(a=>["facturacion","activos"].includes(a))?[{group:"Addons",items:[
+    ...(empresa?.addons?.some(a=>["facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
+      ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
+      ...(empresa?.addons?.includes("crew")?[{id:"crew",icon:"🎬",label:"Equipo / Crew",need:"crew",cnt:counts.crew}]:[]),
     ]}]:[]),
-    {group:"Interno",items:[{id:"crew",icon:"🎬",label:"Equipo / Crew",need:"crew",cnt:counts.crew}]},
   ];
   const SW=collapsed?64:240;
   return <aside style={{width:SW,minHeight:"100vh",background:"var(--sur)",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
@@ -534,7 +536,7 @@ function SuperAdminPanel({empresas,users,onSave}){
         <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{eid?"Editar Empresa":"Nueva Empresa"}</div>
         <R2><FG label="Nombre *"><FI value={ef.nombre||""} onChange={e=>setEf(p=>({...p,nombre:e.target.value}))} placeholder="Play Media SpA"/></FG><FG label="RUT"><FI value={ef.rut||""} onChange={e=>setEf(p=>({...p,rut:e.target.value}))} placeholder="78.118.348-2"/></FG></R2>
         <R2><FG label="Email"><FI value={ef.ema||""} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG><FG label="Plan"><FSl value={ef.plan||"starter"} onChange={e=>setEf(p=>({...p,plan:e.target.value}))}><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></FSl></FG></R2>
-        <FG label="Addons activados"><MultiSelect options={Object.entries(ADDONS).map(([v,a])=>({value:v,label:a.label}))} value={ef.addons||[]} onChange={v=>setEf(p=>({...p,addons:v}))} placeholder="Seleccionar addons..."/></FG>
+        <FG label="Addons activados"><MultiSelect options={Object.entries(ADDONS).map(([v,a])=>({value:v,label:a.icon+" "+a.label}))} value={ef.addons||[]} onChange={v=>setEf(p=>({...p,addons:v}))} placeholder="Seleccionar addons..."/></FG>
         <R2><FG label="Color acento"><FI type="color" value={ef.color||"#00d4e8"} onChange={e=>setEf(p=>({...p,color:e.target.value}))}/></FG><FG label="Estado"><FSl value={ef.active===false?"false":"true"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveEmp}>{eid?"Actualizar":"Crear Empresa"}</Btn>{eid&&<GBtn onClick={()=>{setEid(null);setEf({});}}>Cancelar</GBtn>}</div>
       </div>

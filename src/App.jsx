@@ -1635,8 +1635,9 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
     <R2>
       <FG label="Título / Descripción *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Producción Programa Q2 2025"/></FG>
-      <FG label="Cliente *"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Seleccionar cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
+      <FG label="N° Correlativo"><FI value={f.correlativo||""} onChange={e=>u("correlativo",e.target.value)} placeholder="PRES-2025-001"/></FG>
     </R2>
+    <FG label="Cliente *"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Seleccionar cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
     <R2>
       <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}><option value="produccion">Producción</option><option value="programa">Programa TV</option><option value="servicio">Servicio</option></FSl></FG>
       <FG label="Estado"><FSl value={f.estado||"Borrador"} onChange={e=>u("estado",e.target.value)}><option>Borrador</option><option>Enviado</option><option>En Revisión</option><option>Aceptado</option><option>Rechazado</option></FSl></FG>
@@ -1681,137 +1682,382 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
   </Modal>;
 }
 
-// ── PDF GENERATOR ─────────────────────────────────────────────
-function generarPDF(pres,cliente,empresa){
-  const contacto=(cliente?.contactos||[])[0];
-  const subtotal=pres.subtotal||0;
-  const ivaVal=pres.ivaVal||0;
-  const total=pres.total||0;
-  const accentColor = empresa?.color || "#00d4e8";
-  const html=`<!DOCTYPE html>
+// ── PDF GENERATOR — PRESUPUESTO ──────────────────────────────
+function generarPDF(pres, cliente, empresa) {
+  const contacto = (cliente?.contactos||[])[0];
+  const subtotal  = Number(pres.subtotal||0);
+  const ivaVal    = Number(pres.ivaVal||0);
+  const total     = Number(pres.total||0);
+  const ac        = empresa?.color || "#00d4e8";
+  const acLight   = ac + "18";
+  const correlativo = pres.correlativo || ("PRES-" + String(Date.now()).slice(-6));
+  const estadoBadgeColor = {Borrador:"#f0f0f0,#888",Enviado:"#e0f0ff,#0066cc","En Revisión":"#fff3cd,#856404",Aceptado:"#d4edda,#155724",Rechazado:"#f8d7da,#721c24"}[pres.estado||"Borrador"]||"#f0f0f0,#888";
+  const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
+
+  const logoHtml = empresa?.logo
+    ? `<img src="${empresa.logo}" style="max-height:80px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px;" alt="${empresa?.nombre||""}">`
+    : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
+
+  const html = `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>Presupuesto ${pres.titulo}</title>
+<head>
+<meta charset="UTF-8">
+<title>Presupuesto ${correlativo}</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a2e;background:#fff;padding:40px}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:24px;border-bottom:3px solid ${accentColor}}
-  .logo-area h1{font-size:32px;font-weight:900;color:${accentColor};letter-spacing:-1px;margin-bottom:4px}
-  .logo-area p{font-size:11px;color:#666;letter-spacing:2px;text-transform:uppercase}
-  .empresa-data{text-align:right;font-size:12px;color:#444;line-height:1.6}
-  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-  .badge-borrador{background:#f0f0f0;color:#888}
-  .badge-aceptado{background:#e0f7ea;color:#00a854}
-  .badge-enviado{background:#e0f0ff;color:#0066cc}
-  .doc-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
-  .doc-title h2{font-size:22px;font-weight:800;color:#1a1a2e}
-  .doc-info{display:flex;gap:8px;flex-direction:column;align-items:flex-end;font-size:11px;color:#666}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}
-  .box{background:#f8f9fc;border-radius:10px;padding:18px}
-  .box h3{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:12px}
-  .box p{font-size:13px;color:#1a1a2e;line-height:1.6;margin-bottom:4px}
-  .box .name{font-size:16px;font-weight:700;margin-bottom:6px}
-  table{width:100%;border-collapse:collapse;margin-bottom:24px}
-  thead tr{background:${accentColor};color:#fff}
-  thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.5px}
-  thead th.right{text-align:right}
+  body{font-family:'Inter',Arial,sans-serif;font-size:13px;color:#1e1e2e;background:#fff;padding:48px;line-height:1.5}
+  /* HEADER */
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
+  .header-left{}
+  .empresa-name{font-size:13px;color:#555;margin-top:6px}
+  .empresa-sub{font-size:11px;color:#888;margin-top:2px}
+  .header-right{text-align:right}
+  .doc-type{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:6px}
+  .doc-num{font-size:22px;font-weight:800;color:#1e1e2e;margin-bottom:12px}
+  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:${badgeBg};color:${badgeFg};margin-bottom:12px}
+  .meta{font-size:11px;color:#666;line-height:1.8}
+  .meta strong{color:#1e1e2e;font-weight:600}
+  /* DIVIDER */
+  .divider{height:3px;background:linear-gradient(90deg,${ac},${ac}44);border-radius:2px;margin-bottom:32px}
+  /* TÍTULO */
+  .doc-title{font-size:18px;font-weight:700;color:#1e1e2e;margin-bottom:28px;padding-bottom:12px;border-bottom:1px solid #eee}
+  /* GRID DATOS */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px}
+  .box{background:#f8f9fc;border-radius:10px;padding:18px;border-left:3px solid ${ac}}
+  .box-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:12px}
+  .box-name{font-size:15px;font-weight:700;color:#1e1e2e;margin-bottom:8px}
+  .box-line{font-size:12px;color:#555;margin-bottom:3px}
+  /* TABLA */
+  .table-wrap{margin-bottom:0}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:${ac}}
+  thead th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff}
+  thead th.r{text-align:right}
   tbody tr:nth-child(even){background:#f8f9fc}
   tbody tr{border-bottom:1px solid #eee}
-  tbody td{padding:10px 14px;font-size:12px;color:#1a1a2e}
-  tbody td.right{text-align:right;font-family:'Courier New',monospace}
-  .totals{margin-left:auto;width:300px;margin-bottom:32px}
-  .totals table{width:100%}
-  .totals td{padding:8px 14px;font-size:13px}
-  .totals tr.subtotal td{color:#555}
-  .totals tr.iva td{color:#555}
-  .totals tr.total{background:${accentColor};border-radius:8px}
-  .totals tr.total td{color:#fff;font-weight:700;font-size:15px}
-  .totals .right{text-align:right;font-family:'Courier New',monospace}
-  .pago{background:#f8f9fc;border-radius:10px;padding:18px;margin-bottom:24px}
-  .pago h3{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:10px}
-  .obs{background:#fff9e6;border:1px solid #ffe066;border-radius:10px;padding:16px;margin-bottom:32px}
-  .obs h3{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b8860b;margin-bottom:8px}
-  .footer{text-align:center;font-size:11px;color:#aaa;padding-top:24px;border-top:1px solid #eee}
-  @media print{body{padding:0}}
+  tbody td{padding:11px 14px;font-size:12px;color:#1e1e2e}
+  tbody td.r{text-align:right;font-family:'Courier New',monospace;font-size:12px}
+  /* TOTALES */
+  .totals-wrap{display:flex;justify-content:flex-end;margin-top:0;margin-bottom:32px;border-top:1px solid #eee;padding-top:16px}
+  .totals{width:280px}
+  .tot-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#555;border-bottom:1px solid #f0f0f0}
+  .tot-row.final{background:${ac};border-radius:8px;padding:10px 14px;margin-top:8px;color:#fff;font-weight:700;font-size:15px;border:none}
+  .tot-row.final span:last-child{font-family:'Courier New',monospace}
+  /* SECCIONES */
+  .section{margin-bottom:24px}
+  .section-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${acLight}}
+  .section-content{font-size:12px;color:#444;line-height:1.8;white-space:pre-line}
+  /* FIRMA */
+  .firma-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;margin-bottom:32px}
+  .firma-box{border-top:2px solid #ddd;padding-top:10px;text-align:center}
+  .firma-label{font-size:11px;color:#888;margin-top:4px}
+  .firma-name{font-size:12px;font-weight:600;color:#1e1e2e;margin-top:2px}
+  /* OBS */
+  .obs-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:24px}
+  .obs-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#92400e;margin-bottom:8px}
+  .obs-text{font-size:12px;color:#78350f}
+  /* FOOTER */
+  .footer{text-align:center;font-size:10px;color:#bbb;padding-top:20px;border-top:1px solid #eee;margin-top:16px}
+  @media print{body{padding:24px}@page{margin:0}}
 </style>
 </head>
 <body>
+
+<!-- HEADER -->
 <div class="header">
-  <div class="logo-area">
-    ${empresa?.logo
-      ? `<img src="${empresa.logo}" style="max-height:70px;max-width:200px;object-fit:contain;margin-bottom:10px;display:block;" alt="${empresa?.nombre||''}"/>`
-      : `<h1>${empresa?.nombre||"Produ"}</h1><p>Gestión de Productoras</p>`}
-    <div style="margin-top:8px">
-      <strong style="font-size:15px">${empresa?.nombre||""}</strong><br>
-      <span style="font-size:12px;color:#666">${empresa?.rut||""}</span><br>
-      <span style="font-size:11px;color:#888">${empresa?.dir||""}</span>
+  <div class="header-left">
+    ${logoHtml}
+    ${empresa?.logo ? `<div class="empresa-name">${empresa?.nombre||""}</div>` : ""}
+    <div class="empresa-sub">${empresa?.rut||""}</div>
+    <div class="empresa-sub">${empresa?.dir||""}</div>
+    <div class="empresa-sub">${empresa?.ema||""} ${empresa?.tel ? "· " + empresa.tel : ""}</div>
+  </div>
+  <div class="header-right">
+    <div class="doc-type">Presupuesto / Cotización</div>
+    <div class="doc-num">${correlativo}</div>
+    <div class="badge">${pres.estado||"Borrador"}</div>
+    <div class="meta">
+      <strong>Fecha emisión</strong><br>${fmtD(today())}<br>
+      <strong>Válido por</strong><br>${pres.validez||30} días<br>
+      ${pres.moneda ? `<strong>Moneda</strong><br>${pres.moneda}` : ""}
     </div>
   </div>
-  <div class="empresa-data">
-    <div class="badge badge-${(pres.estado||"Borrador").toLowerCase().replace(" ","-")}">${pres.estado||"Borrador"}</div>
-    <br><br>
-    <strong>N° Presupuesto</strong><br>
-    PRES-${String(Date.now()).slice(-6)}<br><br>
-    <strong>Fecha emisión</strong><br>
-    ${fmtD(today())}<br><br>
-    <strong>Válido por</strong><br>
-    ${pres.validez||30} días
-  </div>
 </div>
 
-<div class="doc-title">
-  <h2>${pres.titulo||"Presupuesto"}</h2>
-</div>
+<div class="divider"></div>
 
+<div class="doc-title">${pres.titulo||"Presupuesto"}</div>
+
+<!-- DATOS EMISOR / CLIENTE -->
 <div class="grid2">
   <div class="box">
-    <h3>Datos del Emisor</h3>
-    <p class="name">${empresa?.nombre||""}</p>
-    <p>RUT: ${empresa?.rut||""}</p>
-    <p>${empresa?.dir||""}</p>
-    <p>${empresa?.ema||""}</p>
-    <p>${empresa?.tel||""}</p>
+    <div class="box-title">Datos del Emisor</div>
+    <div class="box-name">${empresa?.nombre||""}</div>
+    ${empresa?.rut ? `<div class="box-line">RUT: ${empresa.rut}</div>` : ""}
+    ${empresa?.dir ? `<div class="box-line">${empresa.dir}</div>` : ""}
+    ${empresa?.ema ? `<div class="box-line">${empresa.ema}</div>` : ""}
+    ${empresa?.tel ? `<div class="box-line">${empresa.tel}</div>` : ""}
   </div>
   <div class="box">
-    <h3>Datos del Cliente</h3>
-    <p class="name">${cliente?.nom||""}</p>
-    <p>RUT: ${cliente?.rut||"—"}</p>
-    <p>${cliente?.dir||"—"}</p>
-    ${contacto?`<p>Contacto: ${contacto.nom}</p><p>${contacto.ema||""} · ${contacto.tel||""}</p>`:""}
+    <div class="box-title">Datos del Cliente</div>
+    <div class="box-name">${cliente?.nom||"—"}</div>
+    ${cliente?.rut ? `<div class="box-line">RUT: ${cliente.rut}</div>` : ""}
+    ${cliente?.dir ? `<div class="box-line">${cliente.dir}</div>` : ""}
+    ${contacto ? `<div class="box-line">Contacto: ${contacto.nom}${contacto.car ? " · " + contacto.car : ""}</div>
+    <div class="box-line">${contacto.ema||""} ${contacto.tel ? "· " + contacto.tel : ""}</div>` : ""}
   </div>
 </div>
 
-<table>
-  <thead><tr><th>Descripción</th><th class="right" style="width:60px">Qty</th><th class="right" style="width:120px">Precio Unit.</th><th class="right" style="width:130px">Total</th></tr></thead>
-  <tbody>
-    ${(pres.items||[]).map(it=>`<tr><td>${it.desc||"—"}</td><td class="right">${it.qty||0}</td><td class="right">${fmtM(it.precio||0)}</td><td class="right">${fmtM(Number(it.qty||0)*Number(it.precio||0))}</td></tr>`).join("")}
-  </tbody>
-</table>
-
-<div class="totals">
+<!-- TABLA DE ÍTEMS -->
+<div class="table-wrap">
   <table>
-    <tr class="subtotal"><td>Subtotal Neto</td><td class="right">${fmtM(subtotal)}</td></tr>
-    <tr class="iva"><td>IVA 19%</td><td class="right">${pres.iva?fmtM(ivaVal):"No aplica"}</td></tr>
-    <tr class="total"><td>Total Final</td><td class="right">${fmtM(total)}</td></tr>
+    <thead>
+      <tr>
+        <th>Descripción</th>
+        <th class="r" style="width:70px">Cant.</th>
+        <th class="r" style="width:130px">Precio Unit.</th>
+        <th class="r" style="width:140px">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(pres.items||[]).length > 0
+        ? (pres.items||[]).map(it => `<tr>
+            <td>${it.desc||"—"}</td>
+            <td class="r">${it.qty||0}</td>
+            <td class="r">${fmtM(it.precio||0)}</td>
+            <td class="r">${fmtM(Number(it.qty||0)*Number(it.precio||0))}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Sin ítems</td></tr>`}
+    </tbody>
   </table>
 </div>
 
-${pres.metodoPago||pres.notasPago?`<div class="pago">
-  <h3>Información de Pago</h3>
-  ${pres.metodoPago?`<p><strong>Método:</strong> ${pres.metodoPago}</p>`:""}
-  ${pres.fechaPago?`<p><strong>Fecha de pago:</strong> ${fmtD(pres.fechaPago)}</p>`:""}
-  ${pres.notasPago?`<p style="margin-top:8px;white-space:pre-line">${pres.notasPago}</p>`:""}
-</div>`:""}
-
-${pres.obs?`<div class="obs"><h3>Observaciones</h3><p>${pres.obs}</p></div>`:""}
-
-<div class="footer">
-  <p>${empresa?.nombre||"Produ"} · ${empresa?.rut||""} · Generado con Produ — Gestión de Productoras</p>
+<!-- TOTALES -->
+<div class="totals-wrap">
+  <div class="totals">
+    <div class="tot-row"><span>Subtotal Neto</span><span style="font-family:monospace">${fmtM(subtotal)}</span></div>
+    <div class="tot-row"><span>IVA 19%</span><span style="font-family:monospace">${pres.iva ? fmtM(ivaVal) : "No aplica"}</span></div>
+    <div class="tot-row final"><span>Total Final</span><span>${fmtM(total)}</span></div>
+  </div>
 </div>
-</body></html>`;
-  const w=window.open("","_blank");
+
+<!-- PAGO -->
+${pres.metodoPago || pres.notasPago ? `
+<div class="section">
+  <div class="section-title">Información de Pago</div>
+  <div class="section-content">${[
+    pres.metodoPago ? "Método de pago: " + pres.metodoPago : "",
+    pres.fechaPago  ? "Fecha de pago: "  + fmtD(pres.fechaPago) : "",
+    pres.notasPago  ? "
+" + pres.notasPago : ""
+  ].filter(Boolean).join("
+")}</div>
+</div>` : ""}
+
+<!-- OBSERVACIONES -->
+${pres.obs ? `
+<div class="obs-box">
+  <div class="obs-title">Observaciones</div>
+  <div class="obs-text">${pres.obs}</div>
+</div>` : ""}
+
+<!-- FIRMA -->
+<div class="firma-grid">
+  <div class="firma-box">
+    <div style="height:50px"></div>
+    <div class="firma-label">Firma y Timbre</div>
+    <div class="firma-name">${empresa?.nombre||""}</div>
+  </div>
+  <div class="firma-box">
+    <div style="height:50px"></div>
+    <div class="firma-label">Firma de Aceptación</div>
+    <div class="firma-name">${cliente?.nom||"Cliente"}</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  ${empresa?.nombre||""} · ${empresa?.rut||""} · ${empresa?.ema||""} &nbsp;|&nbsp; Generado con Produ
+</div>
+
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
   w.document.write(html);
   w.document.close();
-  setTimeout(()=>w.print(),500);
+  setTimeout(() => w.print(), 800);
+}
+
+// ── PDF GENERATOR — FACTURA ───────────────────────────────────
+function generarPDFFactura(fact, entidad, ref, empresa) {
+  const ac       = empresa?.color || "#00d4e8";
+  const acLight  = ac + "18";
+  const correlativo = fact.correlativo || ("OC-" + String(Date.now()).slice(-6));
+  const estadoBadgeColor = {Pendiente:"#fff3cd,#856404",Emitida:"#cce5ff,#004085",Pagada:"#d4edda,#155724",Vencida:"#f8d7da,#721c24",Anulada:"#e2e3e5,#383d41"}[fact.estado||"Pendiente"]||"#fff3cd,#856404";
+  const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
+  const mn    = Number(fact.montoNeto||0);
+  const ivaV  = fact.iva ? Math.round(mn*0.19) : 0;
+  const total = mn + ivaV;
+
+  const logoHtml = empresa?.logo
+    ? `<img src="${empresa.logo}" style="max-height:80px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px;" alt="${empresa?.nombre||""}">`
+    : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Orden de Factura ${correlativo}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',Arial,sans-serif;font-size:13px;color:#1e1e2e;background:#fff;padding:48px;line-height:1.5}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
+  .doc-type{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:6px}
+  .doc-num{font-size:22px;font-weight:800;color:#1e1e2e;margin-bottom:12px}
+  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:${badgeBg};color:${badgeFg};margin-bottom:12px}
+  .meta{font-size:11px;color:#666;line-height:1.8}
+  .meta strong{color:#1e1e2e;font-weight:600}
+  .empresa-sub{font-size:11px;color:#888;margin-top:2px}
+  .divider{height:3px;background:linear-gradient(90deg,${ac},${ac}44);border-radius:2px;margin-bottom:32px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
+  .box{background:#f8f9fc;border-radius:10px;padding:18px;border-left:3px solid ${ac}}
+  .box-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:12px}
+  .box-name{font-size:15px;font-weight:700;color:#1e1e2e;margin-bottom:8px}
+  .box-line{font-size:12px;color:#555;margin-bottom:3px}
+  /* TABLA MONTO */
+  .amount-section{background:#f8f9fc;border-radius:10px;padding:24px;margin-bottom:28px}
+  .amount-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:16px}
+  .amount-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px;color:#555}
+  .amount-row.total-row{background:${ac};border-radius:8px;padding:12px 16px;margin-top:12px;color:#fff;font-weight:700;font-size:16px;border:none}
+  .amount-row.total-row span:last-child{font-family:'Courier New',monospace}
+  /* REF */
+  .ref-box{background:${acLight};border:1px solid ${ac}44;border-radius:10px;padding:16px;margin-bottom:28px;display:flex;align-items:center;gap:16px}
+  .ref-icon{font-size:28px;flex-shrink:0}
+  .ref-label{font-size:10px;color:${ac};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+  .ref-name{font-size:14px;font-weight:700;color:#1e1e2e}
+  .ref-type{font-size:11px;color:#666;margin-top:2px}
+  /* PAGO */
+  .pago-box{background:#f8f9fc;border-radius:10px;padding:20px;margin-bottom:28px}
+  .pago-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:14px}
+  .pago-content{font-size:12px;color:#444;line-height:1.9;white-space:pre-line}
+  /* FIRMA */
+  .firma-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;margin-bottom:28px}
+  .firma-box{border-top:2px solid #ddd;padding-top:10px;text-align:center}
+  .firma-label{font-size:11px;color:#888;margin-top:4px}
+  .firma-name{font-size:12px;font-weight:600;color:#1e1e2e;margin-top:2px}
+  /* OBS */
+  .obs-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:24px}
+  .obs-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#92400e;margin-bottom:8px}
+  .obs-text{font-size:12px;color:#78350f}
+  /* FOOTER */
+  .footer{text-align:center;font-size:10px;color:#bbb;padding-top:20px;border-top:1px solid #eee;margin-top:16px}
+  @media print{body{padding:24px}@page{margin:0}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    ${logoHtml}
+    ${empresa?.logo ? `<div style="font-size:13px;color:#555;margin-top:6px">${empresa?.nombre||""}</div>` : ""}
+    <div class="empresa-sub">${empresa?.rut||""}</div>
+    <div class="empresa-sub">${empresa?.dir||""}</div>
+    <div class="empresa-sub">${empresa?.ema||""} ${empresa?.tel ? "· " + empresa.tel : ""}</div>
+  </div>
+  <div style="text-align:right">
+    <div class="doc-type">Orden de Factura</div>
+    <div class="doc-num">${correlativo}</div>
+    <div class="badge">${fact.estado||"Pendiente"}</div>
+    <div class="meta">
+      <strong>Fecha emisión</strong><br>${fact.fechaEmision ? fmtD(fact.fechaEmision) : fmtD(today())}<br>
+      ${fact.fechaVencimiento ? `<strong>Fecha vencimiento</strong><br>${fmtD(fact.fechaVencimiento)}<br>` : ""}
+      <strong>Tipo</strong><br>${fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente"}
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- DATOS -->
+<div class="grid2">
+  <div class="box">
+    <div class="box-title">Datos del Emisor</div>
+    <div class="box-name">${empresa?.nombre||""}</div>
+    ${empresa?.rut ? `<div class="box-line">RUT: ${empresa.rut}</div>` : ""}
+    ${empresa?.dir ? `<div class="box-line">${empresa.dir}</div>` : ""}
+    ${empresa?.ema ? `<div class="box-line">${empresa.ema}</div>` : ""}
+    ${empresa?.tel ? `<div class="box-line">${empresa.tel}</div>` : ""}
+  </div>
+  <div class="box">
+    <div class="box-title">${fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente"}</div>
+    <div class="box-name">${entidad?.nom||"—"}</div>
+    ${entidad?.rut ? `<div class="box-line">RUT: ${entidad.rut}</div>` : ""}
+    ${entidad?.con ? `<div class="box-line">Contacto: ${entidad.con}</div>` : ""}
+    ${entidad?.ema ? `<div class="box-line">${entidad.ema}</div>` : ""}
+    ${entidad?.tel ? `<div class="box-line">${entidad.tel}</div>` : ""}
+  </div>
+</div>
+
+<!-- REFERENCIA -->
+${ref ? `<div class="ref-box">
+  <div class="ref-icon">${fact.tipoRef === "produccion" ? "📽" : "📺"}</div>
+  <div>
+    <div class="ref-label">${fact.tipoRef === "produccion" ? "Producción" : "Programa TV"} asociado</div>
+    <div class="ref-name">${ref.nom||""}</div>
+    ${ref.est ? `<div class="ref-type">Estado: ${ref.est}</div>` : ""}
+  </div>
+</div>` : ""}
+
+<!-- MONTO -->
+<div class="amount-section">
+  <div class="amount-title">Detalle del Cobro</div>
+  <div class="amount-row"><span>Monto Neto</span><span style="font-family:monospace">${fmtM(mn)}</span></div>
+  <div class="amount-row"><span>IVA 19%</span><span style="font-family:monospace">${fact.iva ? fmtM(ivaV) : "No aplica"}</span></div>
+  <div class="amount-row total-row"><span>Total a Pagar</span><span>${fmtM(total)}</span></div>
+</div>
+
+<!-- DATOS DE PAGO -->
+${fact.obs ? `<div class="pago-box">
+  <div class="pago-title">Datos de Pago / Instrucciones</div>
+  <div class="pago-content">${fact.obs}</div>
+</div>` : ""}
+
+<!-- OBSERVACIONES -->
+${fact.obs2 ? `<div class="obs-box">
+  <div class="obs-title">Observaciones</div>
+  <div class="obs-text">${fact.obs2}</div>
+</div>` : ""}
+
+<!-- FIRMA -->
+<div class="firma-grid">
+  <div class="firma-box">
+    <div style="height:50px"></div>
+    <div class="firma-label">Emitido por</div>
+    <div class="firma-name">${empresa?.nombre||""}</div>
+  </div>
+  <div class="firma-box">
+    <div style="height:50px"></div>
+    <div class="firma-label">Recibido / Conforme</div>
+    <div class="firma-name">${entidad?.nom||""}</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  ${empresa?.nombre||""} · ${empresa?.rut||""} · ${empresa?.ema||""} &nbsp;|&nbsp; Generado con Produ
+</div>
+
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 800);
 }
 
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────
@@ -1970,7 +2216,8 @@ function MFact({open,data,clientes,auspiciadores,producciones,programas,onClose,
       <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG>
       <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={e=>u("fechaVencimiento",e.target.value)}/></FG>
     </R2>
-    <FG label="Observaciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Notas adicionales..."/></FG>
+    <FG label="Datos de Pago / Instrucciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Banco: BancoEstado&#10;Cuenta Corriente: 123456789&#10;RUT: 78.118.348-2&#10;Email: pagos@empresa.cl"/></FG>
+    <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,ivaVal:ivaV,total});}}/>
   </Modal>;
 }
@@ -2018,6 +2265,11 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
               <TD mono style={{fontSize:11,color:f.estado==="Vencida"?"#ff5566":"inherit"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"—"}</TD>
               <TD><div style={{display:"flex",gap:4}}>
                 {_cd&&_cd("facturacion")&&<><GBtn sm onClick={()=>openM("fact",f)}>✏</GBtn><XBtn onClick={()=>cDel(facturas,setFacturas,f.id,null,"Eliminada")}/></>}
+                <GBtn sm onClick={()=>{
+                  const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
+                  const ref=f.tipoRef==="produccion"?(producciones||[]).find(x=>x.id===f.proId):(programas||[]).find(x=>x.id===f.proId);
+                  generarPDFFactura(f,ent,ref,empresa);
+                }}>⬇ PDF</GBtn>
               </div></TD>
             </tr>;
           })}

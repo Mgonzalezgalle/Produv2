@@ -371,11 +371,11 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
         const items=grp.items.filter(n=>!n.need||canDo(user,n.need)||user?.role==="admin"||user?.role==="superadmin");
         if(!items.length) return null;
         return <div key={grp.group} style={{marginBottom:16}}>
-          {!collapsed&&<div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"var(--gr)",padding:"0 8px",marginBottom:5,fontWeight:600}}>{grp.group}</div>}
+          {!collapsed&&<div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"var(--gr2)",padding:"0 10px",marginBottom:6,marginTop:4,fontWeight:700}}>{grp.group}</div>}
           {items.map(n=>{const active=base===n.id;return(
-            <div key={n.id} onClick={()=>onNav(n.id)} title={collapsed?n.label:undefined} style={{display:"flex",alignItems:"center",gap:collapsed?0:9,padding:8,borderRadius:6,cursor:"pointer",color:active?"var(--cy)":"var(--gr2)",fontSize:12.5,fontWeight:500,marginBottom:2,background:active?"var(--cg)":"transparent",border:active?"1px solid var(--cm)":"1px solid transparent",justifyContent:collapsed?"center":"flex-start",transition:".1s"}}>
-              <span style={{fontSize:15,flexShrink:0}}>{n.icon}</span>
-              {!collapsed&&<><span style={{flex:1,whiteSpace:"nowrap"}}>{n.label}</span>{n.cnt!==undefined&&<span style={{background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 6px",borderRadius:20,fontFamily:"var(--fm)"}}>{n.cnt}</span>}</>}
+            <div key={n.id} onClick={()=>onNav(n.id)} title={collapsed?n.label:undefined} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:6,cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?600:400,marginBottom:1,background:active?"var(--cg)":"transparent",border:active?"1px solid var(--cm)":"1px solid transparent",justifyContent:collapsed?"center":"flex-start",transition:".1s"}}>
+              <span style={{fontSize:16,flexShrink:0,width:20,textAlign:"center"}}>{n.icon}</span>
+              {!collapsed&&<><span style={{flex:1,whiteSpace:"nowrap",textAlign:"left"}}>{n.label}</span>{n.cnt!==undefined&&<span style={{background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 6px",borderRadius:20,fontFamily:"var(--fm)"}}>{n.cnt}</span>}</>}
             </div>
           );})}
         </div>;

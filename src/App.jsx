@@ -1695,7 +1695,7 @@ function generarPDF(pres, cliente, empresa) {
   const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
 
   const logoHtml = empresa?.logo
-    ? `<img src="${empresa.logo}" style="max-height:80px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px;" alt="${empresa?.nombre||""}">`
+    ? `<img src="${empresa.logo}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" alt="${empresa?.nombre||""}">`
     : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
 
   const html = `<!DOCTYPE html>
@@ -1843,15 +1843,7 @@ function generarPDF(pres, cliente, empresa) {
 </div>
 
 <!-- PAGO -->
-${pres.metodoPago || pres.notasPago ? `
-<div class="section">
-  <div class="section-title">Información de Pago</div>
-  <div class="section-content">${[
-    pres.metodoPago ? "Método de pago: " + pres.metodoPago : "",
-    pres.fechaPago  ? "Fecha de pago: "  + fmtD(pres.fechaPago) : "",
-    pres.notasPago  ? "\n" + pres.notasPago : ""
-  ].filter(Boolean).join("\n")}</div>
-</div>` : ""}
+${pres.metodoPago || pres.notasPago ? '<div class="section"><div class="section-title">Información de Pago</div><div class="section-content">' + [pres.metodoPago ? "Método de pago: " + pres.metodoPago : "", pres.fechaPago ? "Fecha de pago: " + fmtD(pres.fechaPago) : "", pres.notasPago || ""].filter(Boolean).join(" · ") + '</div></div>' : ""}
 
 <!-- OBSERVACIONES -->
 ${pres.obs ? `
@@ -1900,7 +1892,7 @@ function generarPDFFactura(fact, entidad, ref, empresa) {
   const total = mn + ivaV;
 
   const logoHtml = empresa?.logo
-    ? `<img src="${empresa.logo}" style="max-height:80px;max-width:220px;object-fit:contain;display:block;margin-bottom:8px;" alt="${empresa?.nombre||""}">`
+    ? `<img src="${empresa.logo}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" alt="${empresa?.nombre||""}">`
     : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
 
   const html = `<!DOCTYPE html>

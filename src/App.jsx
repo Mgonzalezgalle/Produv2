@@ -353,7 +353,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
         {/* Group header */}
         <div onClick={() => toggle(grp.group)}
           style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px 6px",cursor:"pointer",userSelect:"none" }}>
-          <span style={{ fontSize:10,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,color:"var(--gr2)" }}>{grp.group}</span>
+          <span style={{ fontSize:11,letterSpacing:1.5,textTransform:"uppercase",fontWeight:800,color:"var(--wh)" }}>{grp.group}</span>
           <span style={{ fontSize:10,color:"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
         </div>
         {/* Items */}
@@ -363,7 +363,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
             return <div key={n.id} onClick={() => onNav(n.id)}
               style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 16px",cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?600:400,background:active?"var(--cg)":"transparent",borderLeft:active?"3px solid var(--cy)":"3px solid transparent",transition:".1s",marginBottom:1 }}>
               <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>
-              <span style={{ flex:1,whiteSpace:"nowrap" }}>{n.label}</span>
+              <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
               {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
             </div>;
           })}
@@ -380,7 +380,6 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const NAV=[
     {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"}]},
     {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro},{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg}]},
-    {group:"Interno",items:[{id:"crew",icon:"🎬",label:"Equipo / Crew",need:"crew",cnt:counts.crew}]},
     {group:"Comercial",items:[
       {id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus},
       {id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct},
@@ -390,6 +389,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
     ]}]:[]),
+    {group:"Interno",items:[{id:"crew",icon:"🎬",label:"Equipo / Crew",need:"crew",cnt:counts.crew}]},
   ];
   const SW=collapsed?64:240;
   return <aside style={{width:SW,minHeight:"100vh",background:"var(--sur)",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>

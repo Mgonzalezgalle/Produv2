@@ -55,6 +55,14 @@ const ADDONS = {
   crew:        { label:"Equipo / Crew",  icon:"🎬" },
 };
 
+// ── LISTAS ADMINISTRABLES — valores por defecto ─────────────
+const DEFAULT_LISTAS = {
+  tiposPro:    ["Programa de TV","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Videoclip","Evento","Otro"],
+  catMov:      ["General","Honorarios","Equipamiento","Locación","Post-Producción","Transporte","Alimentación","Marketing","Producción","Impuestos","Otros"],
+  industriasCli:["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Banca","Energía","Otro"],
+  catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
+};
+
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
   { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
@@ -577,7 +585,96 @@ function SuperAdminPanel({empresas,users,onSave}){
 }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────
-function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,saveUsers,saveEmpresas,onPurge,ntf}){
+
+// ── LISTAS EDITOR — administración de desplegables ───────────
+function ListasEditor({ listas, saveListas }) {
+  const L = listas || DEFAULT_LISTAS;
+  const [active, setActive] = useState("tiposPro");
+  const [newVal, setNewVal] = useState("");
+
+  const GROUPS = [
+    { key:"tiposPro",      label:"Tipos de Producción" },
+    { key:"catMov",        label:"Categorías de Movimientos" },
+    { key:"industriasCli", label:"Industrias de Clientes" },
+    { key:"catActivos",    label:"Categorías de Activos" },
+  ];
+
+  const items = L[active] || [];
+
+  const addItem = () => {
+    if (!newVal.trim() || items.includes(newVal.trim())) return;
+    saveListas({ ...L, [active]: [...items, newVal.trim()] });
+    setNewVal("");
+  };
+
+  const delItem = val => {
+    saveListas({ ...L, [active]: items.filter(x => x !== val) });
+  };
+
+  const moveItem = (val, dir) => {
+    const arr = [...items];
+    const i = arr.indexOf(val);
+    if (dir === -1 && i === 0) return;
+    if (dir === 1 && i === arr.length - 1) return;
+    [arr[i], arr[i + dir]] = [arr[i + dir], arr[i]];
+    saveListas({ ...L, [active]: arr });
+  };
+
+  const resetGroup = () => {
+    if (!confirm("¿Restaurar valores por defecto para esta lista?")) return;
+    saveListas({ ...L, [active]: DEFAULT_LISTAS[active] });
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize:12,color:"var(--gr2)",marginBottom:16 }}>
+        Administra las opciones que aparecen en los formularios. Los cambios se aplican de inmediato.
+      </div>
+      <div style={{ display:"grid",gridTemplateColumns:"200px 1fr",gap:16,alignItems:"start" }}>
+        {/* Selector de lista */}
+        <div style={{ background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden" }}>
+          {GROUPS.map(g => (
+            <div key={g.key} onClick={() => { setActive(g.key); setNewVal(""); }}
+              style={{ padding:"11px 14px",cursor:"pointer",fontSize:12,fontWeight:active===g.key?700:400,color:active===g.key?"var(--cy)":"var(--gr3)",background:active===g.key?"var(--cg)":"transparent",borderLeft:active===g.key?"3px solid var(--cy)":"3px solid transparent",borderBottom:"1px solid var(--bdr)" }}>
+              {g.label}
+              <span style={{ float:"right",background:"var(--bdr2)",borderRadius:20,padding:"1px 7px",fontSize:10,color:"var(--gr2)",fontFamily:"var(--fm)" }}>{(L[g.key]||[]).length}</span>
+            </div>
+          ))}
+        </div>
+        {/* Editor de ítems */}
+        <div>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12 }}>
+            <div style={{ fontFamily:"var(--fh)",fontSize:13,fontWeight:700 }}>{GROUPS.find(g=>g.key===active)?.label}</div>
+            <button onClick={resetGroup} style={{ fontSize:11,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"4px 10px",cursor:"pointer" }}>↺ Restaurar defaults</button>
+          </div>
+          {/* Add new */}
+          <div style={{ display:"flex",gap:8,marginBottom:14 }}>
+            <input value={newVal} onChange={e=>setNewVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addItem()} placeholder="Agregar nueva opción..." style={{...{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontFamily:"var(--fb)",fontSize:13,outline:"none"},flex:1}}/>
+            <button onClick={addItem} style={{ padding:"9px 16px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap" }}>+ Agregar</button>
+          </div>
+          {/* Lista de ítems */}
+          <div style={{ background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden" }}>
+            {items.length > 0 ? items.map((val, i) => (
+              <div key={val} style={{ display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderBottom:i<items.length-1?"1px solid var(--bdr)":"none",background:"transparent" }}>
+                <div style={{ display:"flex",flexDirection:"column",gap:2 }}>
+                  <button onClick={()=>moveItem(val,-1)} disabled={i===0} style={{ background:"none",border:"none",color:i===0?"var(--bdr2)":"var(--gr2)",cursor:i===0?"default":"pointer",fontSize:10,padding:0,lineHeight:1 }}>▲</button>
+                  <button onClick={()=>moveItem(val,1)} disabled={i===items.length-1} style={{ background:"none",border:"none",color:i===items.length-1?"var(--bdr2)":"var(--gr2)",cursor:i===items.length-1?"default":"pointer",fontSize:10,padding:0,lineHeight:1 }}>▼</button>
+                </div>
+                <span style={{ flex:1,fontSize:13,color:"var(--wh)" }}>{val}</span>
+                <button onClick={()=>delItem(val)} style={{ background:"none",border:"1px solid #ff556625",borderRadius:4,color:"var(--red)",cursor:"pointer",fontSize:10,fontWeight:600,padding:"2px 8px" }}>✕</button>
+              </div>
+            )) : (
+              <div style={{ padding:20,textAlign:"center",color:"var(--gr2)",fontSize:12 }}>Sin opciones. Agrega la primera arriba.</div>
+            )}
+          </div>
+          <div style={{ fontSize:11,color:"var(--gr)",marginTop:8 }}>{items.length} opciones · Los cambios se guardan automáticamente</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,saveUsers,saveEmpresas,listas,saveListas,onPurge,ntf}){
   const [tab,setTab]=useState(0);
   const [lt,setLt]=useState(theme||{});
   const [uf,setUf]=useState({});const [uid2,setUid2]=useState(null);
@@ -593,7 +690,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} wide>
-    <Tabs tabs={["Colores","Usuarios","Empresa","Datos"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Cambia los colores del sistema. Se aplican para todos los usuarios.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
@@ -666,7 +763,8 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
         {[["Nombre",empresa.nombre],["RUT",empresa.rut],["Email",empresa.ema||"—"],["Teléfono",empresa.tel||"—"],["Dirección",empresa.dir||"—"],["Plan",empresa.plan],["Addons",empresa.addons?.join(", ")||"ninguno"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </div>}
     </div>}
-    {tab===3&&<div>
+    {tab===3&&<ListasEditor listas={listas} saveListas={saveListas}/>}
+    {tab===4&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Acciones sobre la base de datos de esta empresa.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         <GBtn onClick={()=>{ if(!confirm("¿Restaurar datos demo?")) return; const sd=SEED_DATA(empresa?.id||"emp1"); Object.entries(sd).forEach(([k,v])=>dbSet(`produ:${empresa?.id}:${k}`,v)); ntf("Datos demo restaurados"); onClose(); }}>🔄 Restaurar Demo</GBtn>
@@ -697,6 +795,8 @@ export default function App(){
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
+  const [listas,setListas,savLst]=useDB(`produ:${eId}:listas`);
+  const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
   const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
   const [programas,setProgramas,savPg,ldPg]=useDB(`produ:${eId}:programas`);
@@ -734,8 +834,8 @@ export default function App(){
   useEffect(()=>{
     if(!curEmp) return;
     const id=curEmp.id;
-    const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"];
-    const setters={clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,movimientos:setMovimientos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos};
+    const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas"];
+    const setters={clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,movimientos:setMovimientos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos,listas:setListas};
     keys.forEach(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
@@ -806,7 +906,7 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
   const setters={setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
 
   const renderView=()=>{
@@ -865,7 +965,7 @@ export default function App(){
     </main>
     {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov}/>}
-    {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
+    {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
   </div>;
 }
 
@@ -918,7 +1018,7 @@ function MiniCal({refId,eventos,onAdd,onDel,canEdit,titulo}){
 
 // ── MODALES DE FORMULARIO ─────────────────────────────────────
 
-function MCli({open,data,onClose,onSave}){
+function MCli({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",rut:"",ind:"",dir:"",not:"",contactos:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -927,7 +1027,7 @@ function MCli({open,data,onClose,onSave}){
   const delContact=i=>setF(p=>({...p,contactos:(p.contactos||[]).filter((_,j)=>j!==i)}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Cliente":"Nuevo Cliente"} sub="Empresa o persona" wide>
     <R2><FG label="Nombre / Razón Social *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Empresa ABC S.A."/></FG><FG label="RUT"><FI value={f.rut||""} onChange={e=>u("rut",e.target.value)} placeholder="76.543.210-0"/></FG></R2>
-    <R2><FG label="Industria"><FSl value={f.ind||""} onChange={e=>u("ind",e.target.value)}><option value="">Seleccionar...</option>{["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Dirección"><FI value={f.dir||""} onChange={e=>u("dir",e.target.value)} placeholder="Av. Providencia 123"/></FG></R2>
+    <R2><FG label="Industria"><FSl value={f.ind||""} onChange={e=>u("ind",e.target.value)}><option value="">Seleccionar...</option>{(listas?.industriasCli||DEFAULT_LISTAS.industriasCli).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Dirección"><FI value={f.dir||""} onChange={e=>u("dir",e.target.value)} placeholder="Av. Providencia 123"/></FG></R2>
     <FG label="Notas"><FTA value={f.not||""} onChange={e=>u("not",e.target.value)} placeholder="Observaciones generales..."/></FG>
     <Sep/>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
@@ -945,13 +1045,13 @@ function MCli({open,data,onClose,onSave}){
   </Modal>;
 }
 
-function MPro({open,data,clientes,onClose,onSave}){
+function MPro({open,data,clientes,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:data?.cliId||"",tip:"Podcast",est:"Pre-Producción",ini:"",fin:"",des:"",crewIds:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Producción":"Nueva Producción"} sub="Proyecto audiovisual">
     <FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del proyecto"/></FG>
-    <R2><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Programa de TV","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposPro||DEFAULT_LISTAS.tiposPro).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Descripción del proyecto..."/></FG>
@@ -1020,14 +1120,14 @@ function MCt({open,data,clientes,producciones,programas,onClose,onSave}){
   </Modal>;
 }
 
-function MMov({open,data,onClose,onSave}){
+function MMov({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF({tipo:data?.tipo||"ingreso",mon:"",des:"",cat:"General",fec:today(),not:"",eid:data?.eid||"",et:data?.et||""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title="Registrar Movimiento" sub="Ingreso, gasto o caja">
     <R2><FG label="Tipo *"><FSl value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option><option value="caja">🏦 Caja</option></FSl></FG><FG label="Monto (CLP) *"><FI type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
     <FG label="Descripción *"><FI value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Ej: Pago cuota 1, Arriendo..."/></FG>
-    <R2><FG label="Categoría"><FSl value={f.cat} onChange={e=>u("cat",e.target.value)}>{["General","Honorarios","Equipamiento","Locación","Post-Producción","Transporte","Alimentación","Marketing","Producción","Impuestos","Otros"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
+    <R2><FG label="Categoría"><FSl value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
     <MFoot onClose={onClose} onSave={()=>{if(!f.mon||!f.des?.trim())return;onSave({...f,mon:Number(f.mon)});}} label="Registrar"/>
   </Modal>;
 }
@@ -1076,18 +1176,18 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
   const withEmp=d=>({...d,empId});
 
   return <>
-    <MCli    open={mOpen==="cli"}    data={mData} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
-    <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
+    <MCli    open={mOpen==="cli"}    data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
+    <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
     <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
     <MCt     open={mOpen==="ct"}     data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
-    <MMov    open={mOpen==="mov"}    data={mData} onClose={closeM} onSave={saveMov}/>
+    <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
-    <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
+    <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
   </>;
 }
 
@@ -2346,11 +2446,11 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
 }
 
 // ── ACTIVOS ───────────────────────────────────────────────────
-function MActivo({open,data,producciones,onClose,onSave}){
+function MActivo({open,data,producciones,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",categoria:"",marca:"",modelo:"",serial:"",valorCompra:"",fechaCompra:"",estado:"Disponible",asignadoA:"",obs:""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  const CATS=["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Otro"];
+  const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
   const ESTADOS=["Disponible","En Uso","En Mantención","Dañado","Dado de Baja"];
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Activo":"Nuevo Activo"} sub="Equipamiento o bien de la productora">
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Canon EOS R5"/></FG><FG label="Categoría"><FSl value={f.categoria||""} onChange={e=>u("categoria",e.target.value)}><option value="">Seleccionar...</option>{CATS.map(c=><option key={c}>{c}</option>)}</FSl></FG></R2>
@@ -2362,10 +2462,10 @@ function MActivo({open,data,producciones,onClose,onSave}){
   </Modal>;
 }
 
-function ViewActivos({empresa,activos,producciones,openM,canDo:_cd,cSave,cDel,setActivos}){
+function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,cDel,setActivos}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
-  const CATS=["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Otro"];
+  const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
   const ESTADOS=["Disponible","En Uso","En Mantención","Dañado","Dado de Baja"];
   const fd=(activos||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.marca||"").toLowerCase().includes(q.toLowerCase()))&&(!fc||a.categoria===fc)&&(!fe||a.estado===fe));
   const totalValor=fd.reduce((s,a)=>s+Number(a.valorCompra||0),0);

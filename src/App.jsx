@@ -1849,10 +1849,8 @@ ${pres.metodoPago || pres.notasPago ? `
   <div class="section-content">${[
     pres.metodoPago ? "Método de pago: " + pres.metodoPago : "",
     pres.fechaPago  ? "Fecha de pago: "  + fmtD(pres.fechaPago) : "",
-    pres.notasPago  ? "
-" + pres.notasPago : ""
-  ].filter(Boolean).join("
-")}</div>
+    pres.notasPago  ? "\n" + pres.notasPago : ""
+  ].filter(Boolean).join("\n")}</div>
 </div>` : ""}
 
 <!-- OBSERVACIONES -->

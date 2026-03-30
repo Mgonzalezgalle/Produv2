@@ -315,6 +315,64 @@ function EmpresaSelector({empresas,onSelect}){
   </div>;
 }
 
+
+// ── NAV GROUPS — Menú colapsable por grupo ───────────────────
+function NavGroups({ NAV, base, collapsed, onNav, user }) {
+  // Inicializa todos los grupos abiertos
+  const initOpen = () => {
+    const o = {};
+    NAV.forEach(g => { o[g.group] = true; });
+    return o;
+  };
+  const [open, setOpen] = useState(initOpen);
+  const toggle = g => setOpen(p => ({ ...p, [g]: !p[g] }));
+
+  if (collapsed) {
+    // Modo colapsado — solo iconos centrados
+    return <div style={{ padding:"4px 8px" }}>
+      {NAV.map(grp => {
+        const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
+        if (!items.length) return null;
+        return items.map(n => {
+          const active = base === n.id;
+          return <div key={n.id} onClick={() => onNav(n.id)} title={n.label}
+            style={{ display:"flex",alignItems:"center",justifyContent:"center",width:40,height:40,borderRadius:8,cursor:"pointer",background:active?"var(--cg)":"transparent",border:active?"1px solid var(--cm)":"1px solid transparent",margin:"2px auto",transition:".1s" }}>
+            <span style={{ fontSize:18 }}>{n.icon}</span>
+          </div>;
+        });
+      })}
+    </div>;
+  }
+
+  return <div style={{ padding:"4px 0" }}>
+    {NAV.map(grp => {
+      const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
+      if (!items.length) return null;
+      const isOpen = open[grp.group] !== false;
+      return <div key={grp.group} style={{ marginBottom:2 }}>
+        {/* Group header */}
+        <div onClick={() => toggle(grp.group)}
+          style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px 6px",cursor:"pointer",userSelect:"none" }}>
+          <span style={{ fontSize:10,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,color:"var(--gr2)" }}>{grp.group}</span>
+          <span style={{ fontSize:10,color:"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
+        </div>
+        {/* Items */}
+        {isOpen && <div style={{ paddingBottom:6 }}>
+          {items.map(n => {
+            const active = base === n.id;
+            return <div key={n.id} onClick={() => onNav(n.id)}
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 16px",cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?600:400,background:active?"var(--cg)":"transparent",borderLeft:active?"3px solid var(--cy)":"3px solid transparent",transition:".1s",marginBottom:1 }}>
+              <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>
+              <span style={{ flex:1,whiteSpace:"nowrap" }}>{n.label}</span>
+              {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
+            </div>;
+          })}
+        </div>}
+      </div>;
+    })}
+  </div>;
+}
+
 // ── SIDEBAR ──────────────────────────────────────────────────
 function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse}){
   const base=view.split("-")[0];
@@ -366,20 +424,8 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
       </div>
     </div>}
     {/* Nav */}
-    <nav style={{flex:1,padding:"10px 8px",overflowY:"auto"}}>
-      {NAV.map(grp=>{
-        const items=grp.items.filter(n=>!n.need||canDo(user,n.need)||user?.role==="admin"||user?.role==="superadmin");
-        if(!items.length) return null;
-        return <div key={grp.group} style={{marginBottom:16}}>
-          {!collapsed&&<div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"var(--gr2)",padding:"0 10px",marginBottom:6,marginTop:4,fontWeight:700}}>{grp.group}</div>}
-          {items.map(n=>{const active=base===n.id;return(
-            <div key={n.id} onClick={()=>onNav(n.id)} title={collapsed?n.label:undefined} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 10px",borderRadius:6,cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?600:400,marginBottom:1,background:active?"var(--cg)":"transparent",border:active?"1px solid var(--cm)":"1px solid transparent",justifyContent:collapsed?"center":"flex-start",transition:".1s"}}>
-              <span style={{fontSize:16,flexShrink:0,width:20,textAlign:"center"}}>{n.icon}</span>
-              {!collapsed&&<><span style={{flex:1,whiteSpace:"nowrap",textAlign:"left"}}>{n.label}</span>{n.cnt!==undefined&&<span style={{background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 6px",borderRadius:20,fontFamily:"var(--fm)"}}>{n.cnt}</span>}</>}
-            </div>
-          );})}
-        </div>;
-      })}
+    <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
+      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user}/>
     </nav>
     {/* Footer */}
     {!collapsed&&<div style={{padding:"8px",borderTop:"1px solid var(--bdr)"}}>

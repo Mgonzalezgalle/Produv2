@@ -839,9 +839,9 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
         </div>)}
       </div>
       <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>onSaveTheme(lt)}>✓ Aplicar</Btn>
-        <GBtn onClick={()=>{ const dt={bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a",mode:"dark"}; setLt(dt); onSaveTheme(dt); }}>Oscuro</GBtn>
-        <GBtn onClick={()=>{ const lt2={bg:"#f0f2f5",surface:"#fff",card:"#fff",border:"#e2e4e9",accent:"#0099b8",accent2:"#007a94",white:"#111",gray:"#666",mode:"light"}; setLt(lt2); onSaveTheme(lt2); }}>Claro</GBtn>
+        <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aplicar</button>
+        <button onClick={(e)=>{e.stopPropagation();const dt={bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a",mode:"dark"};setLt(dt);onSaveTheme(dt);ntf("Tema oscuro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>🌙 Oscuro</button>
+        <button onClick={(e)=>{e.stopPropagation();const lt2={bg:"#f0f2f5",surface:"#fff",card:"#fff",border:"#e2e4e9",accent:"#0099b8",accent2:"#007a94",white:"#111",gray:"#666",mode:"light"};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
       </div>
     </div>}
     {tab===1&&<div>

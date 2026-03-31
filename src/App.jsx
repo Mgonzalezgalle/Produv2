@@ -186,10 +186,34 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes spin{to{transform:rotate(360deg)}}
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  body{font-size:15px}
+  .mob-hide{display:none!important}
+  .mob-full{width:100%!important}
+  .mob-stack{flex-direction:column!important}
+  .mob-card-grid{grid-template-columns:1fr!important}
+  .mob-p{padding:14px!important}
+  .mob-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  input,select,textarea{font-size:16px!important} /* prevents iOS zoom */
+  .modal-inner{border-radius:0!important;height:100vh!important;max-height:100vh!important;width:100vw!important;max-width:100vw!important;margin:0!important;padding:20px!important}
+}
 `;
 
 // ── UI PRIMITIVES ────────────────────────────────────────────
-const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>;
+const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>
+
+// ── MOBILE HOOK ───────────────────────────────────────────────
+function useIsMobile() {
+  const [mob, setMob] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const h = () => setMob(window.innerWidth <= 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return mob;
+};
 
 // ── SKELETON LOADER ──────────────────────────────────────────
 function Skeleton({w="100%",h=14,r=6,mb=8}){
@@ -230,12 +254,14 @@ function Paginator({page,total,perPage,onChange}){
 }
 
 function Modal({open,onClose,title,sub,children,wide,extraWide}){
+  const isMob = useIsMobile();
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[onClose]);
+  useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open) return null;
-  return <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:28,animation:"modalIn .2s ease"}}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:22}}>
-        <div><div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
+  return <div onClick={e=>{if(e.target===e.currentTarget&&!isMob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:isMob?"flex-end":"center",justifyContent:"center",padding:isMob?0:20}}>
+    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:isMob?"16px 16px 0 0":14,width:isMob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:isMob?"92vh":"92vh",overflowY:"auto",padding:isMob?"20px 16px":28,animation:isMob?"slideIn .25s ease":"modalIn .2s ease"}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+        <div><div style={{fontFamily:"var(--fh)",fontSize:isMob?18:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:20,lineHeight:1}}>✕</button>
       </div>
       {children}
@@ -594,7 +620,7 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const eps=(episodios||[]).filter(x=>x.empId===empId);
   return <div className="va">
     <div style={{marginBottom:12}}><span style={{fontSize:12,color:"var(--gr2)"}}>Bienvenido, <b style={{color:"var(--wh)"}}>{user?.name}</b> · <span style={{color:"var(--cy)"}}>{empresa?.nombre}</span></span></div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Clientes"     value={clis.length}  sub="registrados"      accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Producciones" value={pros.length}   sub={`${pros.filter(p=>p.est==="En Curso").length} en curso`}/>
       <Stat label="Ingresos"     value={fmtM(ti)}      sub="todos proyectos"  accent="#00e08a"   vc="#00e08a"/>
@@ -1062,16 +1088,25 @@ export default function App(){
   const SW=collapsed?64:240;
   const bc=buildBc();
 
+  const isMob = useIsMobile();
+  const [mobMenuOpen, setMobMenuOpen] = useState(false);
+  const SW2 = isMob ? 0 : SW;
+
   return <div style={{display:"flex",minHeight:"100vh"}}>
     <StyleTag/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);}} onAdmin={()=>setAdminOpen(true)} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
+    {/* Mobile overlay */}
+    {isMob && mobMenuOpen && <div onClick={()=>setMobMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:199,background:"rgba(0,0,0,.6)",backdropFilter:"blur(2px)"}}/>}
+    <div style={{position:"fixed",left:isMob&&!mobMenuOpen?-280:0,top:0,bottom:0,zIndex:200,transition:"left .25s ease",width:isMob?280:SW}}>
+      <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);if(isMob)setMobMenuOpen(false);}} onAdmin={()=>{setAdminOpen(true);if(isMob)setMobMenuOpen(false);}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);if(isMob)setMobMenuOpen(false);}:null} counts={counts} collapsed={isMob?false:collapsed} onToggle={()=>isMob?setMobMenuOpen(false):setCollapsed(!collapsed)} syncPulse={syncPulse}/>
+    </div>
+    <main style={{marginLeft:SW2,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
       {/* Topbar */}
-      <div style={{height:58,background:"var(--sur)",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",padding:"0 24px",gap:14,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+      <div style={{height:58,background:"var(--sur)",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",padding:"0 16px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+        {isMob&&<button onClick={()=>setMobMenuOpen(true)} style={{background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,display:"flex",alignItems:"center"}}>☰</button>}
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}
-            <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap"}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
+            <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?isMob?13:15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:isMob?120:undefined}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
           </span>)}
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
@@ -1083,7 +1118,7 @@ export default function App(){
           </button>}
         </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:24}}>
+      <div style={{flex:1,overflowY:"auto",padding:isMob?14:24}}>
         <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
@@ -1383,7 +1418,7 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
   return <div>
     <DetHeader title={c.nom} tag={c.ind} meta={[c.rut&&`RUT: ${c.rut}`,c.dir].filter(Boolean)}
       actions={_cd&&_cd("clientes")&&<><GBtn onClick={()=>openM("cli",c)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(clientes,setClientes,id,()=>navTo("clientes"),"Cliente eliminado");}}>🗑 Eliminar</DBtn></>}/>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Producciones" value={prs.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Contratos"    value={cts.length}/>
       <Stat label="Ingresos"     value={fmtM(ti)}     accent="#00e08a" vc="#00e08a"/>
@@ -1472,7 +1507,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       <span style={{fontSize:12,color:"var(--gr2)"}}>Contacto: <b style={{color:"var(--wh)"}}>{cContacto.nom}</b> {cContacto.car?`· ${cContacto.car}`:""}</span>
       <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} mensaje={`Hola ${cContacto.nom}, te escribimos sobre el proyecto "${p.nom}".`}/>
     </div>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Gastos"   value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} reg.`}  accent="#ff5566" vc="#ff5566"/>
       <Stat label="Balance"  value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
@@ -1573,7 +1608,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est}/>]} meta={[pg_.can,pg_.fre,pg_.temporada&&`Temp: ${pg_.temporada}`,pg_.conductor&&`🎙 ${pg_.conductor}`,cliAsoc&&`Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
       actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pg",pg_)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar programa y episodios?"))return;cDel(programas,setProgramas,id,()=>navTo("programas"),"Eliminado");}}>🗑</DBtn></>}/>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Episodios"   value={eps.length}    sub={`${epStats.plan} planificados`}/>
       <Stat label="Publicados"  value={epStats.pub}   accent="#00e08a" vc="#00e08a" sub={`${epStats.grab} grabados`}/>
       <Stat label="Balance"     value={fmtM(b.b)}     accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
@@ -1693,7 +1728,7 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
         {_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("ep",ep)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(episodios,setEpisodios,id,()=>navTo("pg-det",ep.pgId),"Episodio eliminado");}}>🗑</DBtn></>}
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Gastos Ep." value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} ítems`} accent="#ff5566" vc="#ff5566"/>
       <Stat label="Grabación"  value={ep.fechaGrab?fmtD(ep.fechaGrab):"—"}   accent="var(--cy)"/>
       <Stat label="Emisión"    value={ep.fechaEmision?fmtD(ep.fechaEmision):"—"} accent="#00e08a"/>
@@ -2369,7 +2404,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,navTo,op
   const total=fd.reduce((s,p)=>s+Number(p.total||0),0);
   const aceptados=fd.filter(p=>p.estado==="Aceptado").reduce((s,p)=>s+Number(p.total||0),0);
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Total"     value={fd.length}                                          accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Aceptados" value={fd.filter(p=>p.estado==="Aceptado").length}          accent="#00e08a"   vc="#00e08a"/>
       <Stat label="Monto Total"   value={fmtM(total)}    sub="todos"     accent="var(--cy)"/>
@@ -2435,7 +2470,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
     {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"producción":"programa TV"}: <b>{p.convertidoNom}</b></div>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Subtotal Neto" value={fmtM(p.subtotal||0)}/>
       <Stat label="IVA 19%"       value={p.iva?fmtM(p.ivaVal||0):"No aplica"}/>
       <Stat label="Total Final"   value={fmtM(p.total||0)} accent="var(--cy)" vc="var(--cy)"/>
@@ -2533,7 +2568,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
   const pendiente=fd.filter(f=>f.estado==="Pendiente").reduce((s,f)=>s+Number(f.total||0),0);
   const pagado=fd.filter(f=>f.estado==="Pagada").reduce((s,f)=>s+Number(f.total||0),0);
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Total Facturas" value={fd.length}            accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Pendiente"      value={fmtM(pendiente)}      accent="#ffcc44"   vc="#ffcc44"/>
       <Stat label="Cobrado"        value={fmtM(pagado)}         accent="#00e08a"   vc="#00e08a"/>
@@ -2610,7 +2645,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
   const enUsoCount=fd.filter(a=>a.estado==="En Uso").length;
   const statColor=s=>({Disponible:"#00e08a","En Uso":"var(--cy)","En Mantención":"#ffcc44",Dañado:"#ff8844","Dado de Baja":"#ff5566"}[s]||"var(--gr2)");
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
       <Stat label="Total Activos"  value={fd.length}          accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Disponibles"    value={dispCount}           accent="#00e08a"   vc="#00e08a"/>
       <Stat label="En Uso"         value={enUsoCount}          accent="var(--cy)" vc="var(--cy)"/>

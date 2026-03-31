@@ -2,7 +2,7 @@
 //  PRODU — Gestión de Productoras
 //  src/App.jsx  |  Parte 1 de 4: Core + Auth + Layout
 // ============================================================
-import { useState, useEffect, useCallback, useRef, createContext, useContext, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -500,24 +500,25 @@ function ContactBtns({ tel, ema, nombre, mensaje }) {
 }
 
 // ── ALERTAS — Fechas de grabación próximas ────────────────────
+function calcAlertas(episodios, programas, empId) {
+  const hoy = new Date();
+  const alerts = [];
+  (episodios||[]).filter(e=>e.empId===empId).forEach(ep => {
+    if (!ep.fechaGrab) return;
+    const d = new Date(ep.fechaGrab + "T12:00:00");
+    const pg = (programas||[]).find(x=>x.id===ep.pgId);
+    const diff = Math.ceil((d - hoy) / (1000*60*60*24));
+    if (diff < 0) return;
+    if (diff <= 2) alerts.push({ id:ep.id, tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+    else if (diff <= 7) alerts.push({ id:ep.id, tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+    else if (diff <= 30) alerts.push({ id:ep.id, tipo:"info", icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+  });
+  return alerts.sort((a,b)=>a.diff-b.diff);
+}
 function useAlertas(episodios, programas, empId) {
-  return useMemo(() => {
-    const hoy   = new Date();
-    const en7   = new Date(hoy); en7.setDate(hoy.getDate() + 7);
-    const en30  = new Date(hoy); en30.setDate(hoy.getDate() + 30);
-    const alerts = [];
-    (episodios||[]).filter(e=>e.empId===empId).forEach(ep => {
-      if (!ep.fechaGrab) return;
-      const d = new Date(ep.fechaGrab + "T12:00:00");
-      const pg = (programas||[]).find(x=>x.id===ep.pgId);
-      const diff = Math.ceil((d - hoy) / (1000*60*60*24));
-      if (diff < 0) return; // ya pasó
-      if (diff <= 2) alerts.push({ id:ep.id, tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
-      else if (diff <= 7) alerts.push({ id:ep.id, tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
-      else if (diff <= 30) alerts.push({ id:ep.id, tipo:"info", icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
-    });
-    return alerts.sort((a,b)=>a.diff-b.diff);
-  }, [episodios, programas, empId]);
+  const [alerts, setAlerts] = useState([]);
+  useEffect(() => { setAlerts(calcAlertas(episodios, programas, empId)); }, [episodios, programas, empId]);
+  return alerts;
 }
 
 function AlertasPanel({ alertas, onClose }) {

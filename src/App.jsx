@@ -186,7 +186,20 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes spin{to{transform:rotate(360deg)}}
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
-
+@media(max-width:768px){
+  aside{transform:translateX(-100%);transition:transform .25s ease!important;width:260px!important;z-index:300!important}
+  aside.mob-open{transform:translateX(0)!important}
+  main{margin-left:0!important;width:100%!important}
+  .mob-overlay{display:block!important}
+  .ham-btn{display:flex!important}
+  .modal-wrap{align-items:flex-end!important;padding:0!important}
+  .modal-box{border-radius:16px 16px 0 0!important;width:100%!important;max-width:100%!important;max-height:92vh!important}
+  input,select,textarea{font-size:16px!important}
+}
+@media(min-width:769px){
+  .mob-overlay{display:none!important}
+  .ham-btn{display:none!important}
+}
 `;
 
 // ── UI PRIMITIVES ────────────────────────────────────────────
@@ -1068,10 +1081,14 @@ export default function App(){
 
   return <div style={{display:"flex",minHeight:"100vh"}}>
     <StyleTag/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);}} onAdmin={()=>setAdminOpen(true)} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
+    {/* Mobile overlay */}
+    <div className="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
+    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
     <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
       {/* Topbar */}
       <div style={{height:58,background:"var(--sur)",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",padding:"0 16px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+        {/* Hamburger - solo visible en móvil via CSS */}
+        <button className="ham-btn" onClick={()=>{const s=document.querySelector("aside");const o=document.querySelector(".mob-overlay");if(s){s.classList.add("mob-open");if(o)o.style.display="block";}}} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}

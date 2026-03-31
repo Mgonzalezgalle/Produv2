@@ -500,24 +500,38 @@ function ContactBtns({ tel, ema, nombre, mensaje }) {
 }
 
 // ── ALERTAS — Fechas de grabación próximas ────────────────────
-function calcAlertas(episodios, programas, empId) {
+function calcAlertas(episodios, programas, eventos, empId) {
   const hoy = new Date();
   const alerts = [];
+
+  // Desde episodios con fechaGrab
   (episodios||[]).filter(e=>e.empId===empId).forEach(ep => {
     if (!ep.fechaGrab) return;
     const d = new Date(ep.fechaGrab + "T12:00:00");
     const pg = (programas||[]).find(x=>x.id===ep.pgId);
     const diff = Math.ceil((d - hoy) / (1000*60*60*24));
     if (diff < 0) return;
-    if (diff <= 2) alerts.push({ id:ep.id, tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
-    else if (diff <= 7) alerts.push({ id:ep.id, tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
-    else if (diff <= 30) alerts.push({ id:ep.id, tipo:"info", icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+    if (diff <= 2)  alerts.push({ id:ep.id+"_ep", tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
+    else if (diff <= 7)  alerts.push({ id:ep.id+"_ep", tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
+    else if (diff <= 30) alerts.push({ id:ep.id+"_ep", tipo:"info",    icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
   });
+
+  // Desde eventos de calendario tipo "grabacion"
+  (eventos||[]).filter(e=>e.empId===empId&&e.tipo==="grabacion"&&e.fecha).forEach(ev => {
+    const d = new Date(ev.fecha + "T12:00:00");
+    const diff = Math.ceil((d - hoy) / (1000*60*60*24));
+    if (diff < 0) return;
+    const sub = ev.hora ? `${ev.hora}${ev.desc?" · "+ev.desc:""}` : (ev.desc||"Calendario");
+    if (diff <= 2)  alerts.push({ id:ev.id+"_ev", tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+    else if (diff <= 7)  alerts.push({ id:ev.id+"_ev", tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+    else if (diff <= 30) alerts.push({ id:ev.id+"_ev", tipo:"info",   icon:"🔵", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+  });
+
   return alerts.sort((a,b)=>a.diff-b.diff);
 }
-function useAlertas(episodios, programas, empId) {
+function useAlertas(episodios, programas, eventos, empId) {
   const [alerts, setAlerts] = useState([]);
-  useEffect(() => { setAlerts(calcAlertas(episodios, programas, empId)); }, [episodios, programas, empId]);
+  useEffect(() => { setAlerts(calcAlertas(episodios, programas, eventos, empId)); }, [episodios, programas, eventos, empId]);
   return alerts;
 }
 
@@ -918,7 +932,7 @@ export default function App(){
   const [activos,setActivos,savAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
   const isLoading = curEmp && (ldCli || ldPro || ldPg);
-  const alertas = useAlertas(episodios, programas, empId);
+  const alertas = useAlertas(episodios, programas, eventos||[], empId);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);

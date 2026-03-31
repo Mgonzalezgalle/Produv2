@@ -206,11 +206,12 @@ const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>
 
 // ── MOBILE HOOK ───────────────────────────────────────────────
 function useIsMobile() {
-  const [mob, setMob] = useState(window.innerWidth <= 768);
+  const [mob, setMob] = useState(false);
   useEffect(() => {
-    const h = () => setMob(window.innerWidth <= 768);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
+    const check = () => setMob(window.innerWidth <= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
   return mob;
 };

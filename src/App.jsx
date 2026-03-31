@@ -521,39 +521,48 @@ function useAlertas(episodios, programas, empId) {
   return alerts;
 }
 
-function AlertasPanel({ alertas, onClose }) {
-  if (!alertas.length) return null;
-  const urgentes = alertas.filter(a=>a.tipo==="urgente");
-  const prontos  = alertas.filter(a=>a.tipo==="pronto");
-  const infos    = alertas.filter(a=>a.tipo==="info");
+function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) {
+  const noLeidas = alertas.filter(a=>!leidas.includes(a.id));
+  const siLeidas = alertas.filter(a=>leidas.includes(a.id));
   return (
-    <div style={{position:"fixed",top:70,right:20,zIndex:888,width:360,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:12,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
+    <div style={{position:"fixed",top:70,right:20,zIndex:888,width:380,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:12,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
       <div style={{padding:"14px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:18}}>🔔</span>
-          <div><div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Alertas de Grabación</div>
-          <div style={{fontSize:10,color:"var(--gr2)"}}>{alertas.length} fecha{alertas.length!==1?"s":""} próxima{alertas.length!==1?"s":""}</div></div>
+          <div>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Alertas de Grabación</div>
+            <div style={{fontSize:10,color:"var(--gr2)"}}>{noLeidas.length} sin leer · {alertas.length} total</div>
+          </div>
         </div>
-        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {noLeidas.length>0&&<button onClick={onMarcarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>✓ Marcar todas</button>}
+          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
+        </div>
       </div>
-      <div style={{maxHeight:400,overflowY:"auto"}}>
-        {[["urgente","#ff556615","#ff5566"],["pronto","#ffcc4415","#ffcc44"],["info","var(--cg)","var(--cy)"]].map(([tipo,bg,color])=>{
-          const items=alertas.filter(a=>a.tipo===tipo);
-          if(!items.length) return null;
-          return items.map(a=>(
-            <div key={a.id} style={{display:"flex",gap:10,padding:"11px 16px",borderBottom:"1px solid var(--bdr)",background:bg,alignItems:"flex-start"}}>
-              <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{a.icon}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:600,color:"var(--wh)",lineHeight:1.3}}>{a.titulo}</div>
-                <div style={{fontSize:11,color:"var(--gr2)",marginTop:3}}>{a.sub} · {fmtD(a.fecha)}</div>
-              </div>
+      <div style={{maxHeight:420,overflowY:"auto"}}>
+        {alertas.length===0&&<div style={{padding:24,textAlign:"center",color:"var(--gr2)",fontSize:13}}>Sin grabaciones próximas</div>}
+        {noLeidas.map(a=>{
+          const colores={urgente:["#ff556615","#ff5566"],pronto:["#ffcc4415","#ffcc44"],info:["var(--cg)","var(--cy)"]};
+          const [bg,color]=colores[a.tipo]||["var(--cg)","var(--cy)"];
+          return <div key={a.id} style={{display:"flex",gap:10,padding:"12px 16px",borderBottom:"1px solid var(--bdr)",background:bg,alignItems:"flex-start"}}>
+            <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{a.icon}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:600,color:"var(--wh)",lineHeight:1.3}}>{a.titulo}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:3}}>{a.sub} · {fmtD(a.fecha)}</div>
             </div>
-          ));
+            <button onClick={()=>onMarcar(a.id)} title="Marcar como leída" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leída</button>
+          </div>;
         })}
+        {siLeidas.length>0&&<><div style={{padding:"8px 16px",fontSize:10,color:"var(--gr)",letterSpacing:1,textTransform:"uppercase",fontWeight:600,borderBottom:"1px solid var(--bdr)"}}>Ya leídas</div>
+        {siLeidas.map(a=><div key={a.id} style={{display:"flex",gap:10,padding:"10px 16px",borderBottom:"1px solid var(--bdr)",opacity:.5,alignItems:"center"}}>
+          <span style={{fontSize:14,flexShrink:0}}>✓</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,color:"var(--gr3)",textDecoration:"line-through"}}>{a.titulo}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{a.sub} · {fmtD(a.fecha)}</div>
+          </div>
+        </div>)}</>}
       </div>
-      <div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)"}}>
-        <button onClick={onClose} style={{width:"100%",padding:"7px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>Entendido</button>
-      </div>
+      {noLeidas.length===0&&alertas.length>0&&<div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)",textAlign:"center",fontSize:12,color:"var(--gr2)"}}>✓ Todas las alertas están leídas</div>}
     </div>
   );
 }
@@ -884,7 +893,7 @@ export default function App(){
   const [syncPulse,setSyncPulse]=useState(false);
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
-  const [alertasVistas,setAlertasVistas]=useState(false);
+  const [alertasLeidas,setAlertasLeidas]=useState([]);
 
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
@@ -910,8 +919,6 @@ export default function App(){
   const empId = curEmp?.id;
   const isLoading = curEmp && (ldCli || ldPro || ldPg);
   const alertas = useAlertas(episodios, programas, empId);
-  // Show alertas popup on first load when data is ready
-  useEffect(()=>{ if(!isLoading && alertas.length > 0 && !alertasVistas && curEmp) { setTimeout(()=>setAlertasOpen(true), 1000); setAlertasVistas(true); } },[isLoading, curEmp?.id]);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
@@ -1056,8 +1063,9 @@ export default function App(){
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
           {(view==="pro-det"||view==="pg-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":"pg"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
-          {alertas.length>0&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:"none",border:"1px solid var(--bdr2)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--wh)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
-            🔔<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.length}</span>
+          {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"none",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
+            🔔
+            {alertas.filter(a=>!alertasLeidas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)).length}</span>}
           </button>}
         </div>
       </div>
@@ -1067,7 +1075,7 @@ export default function App(){
         </div>
       </div>
     </main>
-    {alertasOpen&&<AlertasPanel alertas={alertas} onClose={()=>setAlertasOpen(false)}/> }
+    {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

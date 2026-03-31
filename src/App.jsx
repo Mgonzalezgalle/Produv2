@@ -432,7 +432,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const base=view.split("-")[0];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
-    {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"}]},
+    {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]},
     {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro}]},
     {group:"Comercial",items:[
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
@@ -597,6 +597,192 @@ function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) 
         </div>)}</>}
       </div>
       {noLeidas.length===0&&alertas.length>0&&<div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)",textAlign:"center",fontSize:12,color:"var(--gr2)"}}>✓ Todas las alertas están leídas</div>}
+    </div>
+  );
+}
+
+
+// ── TAREAS — Pipeline Kanban ──────────────────────────────────
+const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
+const PRIO_COLORS = { Alta:"#ff5566", Media:"#fbbf24", Baja:"#60a5fa" };
+const PRIO_BG    = { Alta:"#ff556618", Media:"#fbbf2418", Baja:"#60a5fa18" };
+
+function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) {
+  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"" };
+  const [f, setF] = useState({});
+  useEffect(() => { setF(data?.id ? { ...data } : { ...empty }); }, [data, open]);
+  const u = (k,v) => setF(p => ({ ...p, [k]: v }));
+  return (
+    <Modal open={open} onClose={onClose} title={data?.id ? "Editar Tarea" : "Nueva Tarea"}>
+      <FG label="Título *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Descripción breve de la tarea"/></FG>
+      <FG label="Descripción"><FTA value={f.desc||""} onChange={e=>u("desc",e.target.value)} placeholder="Detalle opcional..."/></FG>
+      <R2>
+        <FG label="Prioridad"><FSl value={f.prioridad||"Media"} onChange={e=>u("prioridad",e.target.value)}>
+          <option>Alta</option><option>Media</option><option>Baja</option>
+        </FSl></FG>
+        <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}>
+          {COLS_TAREAS.map(c=><option key={c}>{c}</option>)}
+        </FSl></FG>
+      </R2>
+      <R2>
+        <FG label="Fecha límite"><FI type="date" value={f.fechaLimite||""} onChange={e=>u("fechaLimite",e.target.value)}/></FG>
+        <FG label="Asignar a"><FSl value={f.asignadoA||""} onChange={e=>u("asignadoA",e.target.value)}>
+          <option value="">— Sin asignar —</option>
+          {(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}
+        </FSl></FG>
+      </R2>
+      <R2>
+        <FG label="Asociar a"><FSl value={f.refTipo||""} onChange={e=>{u("refTipo",e.target.value);u("refId","");}}>
+          <option value="">— Sin asociar —</option>
+          <option value="pro">Producción</option>
+          <option value="pg">Programa TV</option>
+        </FSl></FG>
+        {f.refTipo==="pro"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+          <option value="">— Seleccionar —</option>
+          {(producciones||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
+        </FSl></FG>}
+        {f.refTipo==="pg"&&<FG label="Programa"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+          <option value="">— Seleccionar —</option>
+          {(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
+        </FSl></FG>}
+      </R2>
+      <MFoot onClose={onClose} onSave={()=>{ if(!f.titulo) return; onSave(f); }}/>
+    </Modal>
+  );
+}
+
+function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado }) {
+  const ref = tarea.refTipo==="pro" ? (producciones||[]).find(x=>x.id===tarea.refId) : (programas||[]).find(x=>x.id===tarea.refId);
+  const asig = (crew||[]).find(x=>x.id===tarea.asignadoA);
+  const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
+  const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
+  return (
+    <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:14,marginBottom:10,cursor:"pointer",transition:".15s"}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor="var(--cy)"}
+      onMouseLeave={e=>e.currentTarget.style.borderColor="var(--bdr)"}
+    >
+      {/* Prioridad badge */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:PRIO_BG[tarea.prioridad]||"var(--bdr)",color:PRIO_COLORS[tarea.prioridad]||"var(--gr2)"}}>{tarea.prioridad||"Media"}</span>
+        <div style={{display:"flex",gap:4}}>
+          <GBtn sm onClick={e=>{e.stopPropagation();onEdit(tarea);}}>✏</GBtn>
+          <XBtn onClick={e=>{e.stopPropagation();onDelete(tarea.id);}}/>
+        </div>
+      </div>
+      {/* Título */}
+      <div style={{fontSize:13,fontWeight:600,color:"var(--wh)",marginBottom:6,lineHeight:1.4}}>{tarea.titulo}</div>
+      {tarea.desc&&<div style={{fontSize:11,color:"var(--gr2)",marginBottom:8,lineHeight:1.5}}>{tarea.desc}</div>}
+      {/* Ref */}
+      {ref&&<div style={{fontSize:11,color:"var(--cy)",marginBottom:6}}>
+        {tarea.refTipo==="pro"?"📽":"📺"} {ref.nom}
+      </div>}
+      {/* Footer */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
+        {asig
+          ? <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:22,height:22,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{asig.nom?.charAt(0)}</div>
+              <span style={{fontSize:11,color:"var(--gr2)"}}>{asig.nom}</span>
+            </div>
+          : <span style={{fontSize:11,color:"var(--gr)",fontStyle:"italic"}}>Sin asignar</span>
+        }
+        {venc!==null&&<span style={{fontSize:10,fontWeight:600,color:vencColor}}>
+          {venc<0?`Vencida hace ${Math.abs(venc)}d`:venc===0?"Vence hoy":venc===1?"Vence mañana":`${venc}d`}
+        </span>}
+      </div>
+      {/* Mover columna */}
+      <div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>
+        {COLS_TAREAS.filter(c=>c!==tarea.estado).map(c=>(
+          <button key={c} onClick={e=>{e.stopPropagation();onChangeEstado(tarea.id,c);}}
+            style={{fontSize:10,padding:"2px 8px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr2)",cursor:"pointer",transition:".1s"}}
+            onMouseEnter={e=>{e.target.style.borderColor="var(--cy)";e.target.style.color="var(--cy)";}}
+            onMouseLeave={e=>{e.target.style.borderColor="var(--bdr2)";e.target.style.color="var(--gr2)";}}>
+            → {c}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ViewTareas({ empresa, user, tareas, producciones, programas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
+  const empId = empresa?.id;
+  const [filtro, setFiltro] = useState("mis"); // "mis" | "todas"
+  const [filtroRef, setFiltroRef] = useState("");
+
+  const misTareas = (tareas||[]).filter(t => t.empId===empId);
+  const tareasVis = filtro==="mis"
+    ? misTareas.filter(t => t.asignadoA===user?.id || !t.asignadoA)
+    : misTareas;
+  const tareasFilt = filtroRef
+    ? tareasVis.filter(t => t.refId===filtroRef)
+    : tareasVis;
+
+  const porColumna = col => tareasFilt.filter(t => (t.estado||"Pendiente")===col);
+
+  const changeEstado = async (id, nuevoEstado) => {
+    const next = (tareas||[]).map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
+    await setTareas(next);
+  };
+
+  const deleteTarea = (id) => {
+    if(!confirm("¿Eliminar tarea?")) return;
+    setTareas((tareas||[]).filter(t => t.id!==id));
+  };
+
+  const colColors = { Pendiente:"var(--bdr2)", "En Progreso":"#60a5fa", "En Revisión":"#fbbf24", Completada:"#4ade80" };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div>
+          <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800}}>Pipeline de Tareas</div>
+          <div style={{fontSize:12,color:"var(--gr2)",marginTop:2}}>{tareasFilt.length} tarea{tareasFilt.length!==1?"s":""} · {tareasFilt.filter(t=>t.estado==="Completada").length} completadas</div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"flex",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden"}}>
+            {[["mis","Mis Tareas"],["todas","Todas"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setFiltro(v)} style={{padding:"7px 14px",border:"none",background:filtro===v?"var(--cy)":"transparent",color:filtro===v?"var(--bg)":"var(--gr2)",cursor:"pointer",fontSize:12,fontWeight:600,transition:".15s"}}>{l}</button>
+            ))}
+          </div>
+          <select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} style={{padding:"7px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,color:"var(--gr3)",fontSize:12,cursor:"pointer"}}>
+            <option value="">Todas las producciones</option>
+            <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</optgroup>
+          </select>
+          <Btn onClick={()=>openM("tarea",{})}>+ Nueva Tarea</Btn>
+        </div>
+      </div>
+
+      {/* Kanban Board */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,alignItems:"start"}}>
+        {COLS_TAREAS.map(col => {
+          const items = porColumna(col);
+          return (
+            <div key={col}>
+              {/* Column header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,marginBottom:12,borderTop:`3px solid ${colColors[col]}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{col}</span>
+                  <span style={{fontSize:11,background:"var(--bdr2)",color:"var(--gr2)",padding:"1px 7px",borderRadius:10,fontFamily:"var(--fm)",fontWeight:600}}>{items.length}</span>
+                </div>
+                <GBtn sm onClick={()=>openM("tarea",{estado:col})}>+</GBtn>
+              </div>
+              {/* Cards */}
+              {items.length===0
+                ? <div style={{padding:16,textAlign:"center",color:"var(--gr)",fontSize:12,fontStyle:"italic",border:"1px dashed var(--bdr)",borderRadius:10}}>Sin tareas</div>
+                : items.map(t=>(
+                  <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew}
+                    onEdit={t=>openM("tarea",t)}
+                    onDelete={deleteTarea}
+                    onChangeEstado={changeEstado}
+                  />
+                ))
+              }
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -978,6 +1164,7 @@ export default function App(){
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
   const [listas,setListas,savLst]=useDB(`produ:${eId}:listas`);
+  const [tareas,setTareas,savTar]=useDB(`produ:${eId}:tareas`);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
   const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
@@ -1009,6 +1196,7 @@ export default function App(){
   usePoll(`produ:${eId}:activos`,setActivos,savAct);
   usePoll(`produ:${eId}:crew`,setCrew,savCrew);
   usePoll(`produ:${eId}:listas`,setListas,savLst);
+  usePoll(`produ:${eId}:tareas`,setTareas,savTar);
 
   // Init global data
   useEffect(()=>{
@@ -1022,8 +1210,8 @@ export default function App(){
   useEffect(()=>{
     if(!curEmp) return;
     const id=curEmp.id;
-    const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas"];
-    const setters={clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,movimientos:setMovimientos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos,listas:setListas};
+    const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
+    const setters={tareas:setTareas,clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,movimientos:setMovimientos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos,listas:setListas};
     keys.forEach(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
@@ -1080,7 +1268,7 @@ export default function App(){
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(tareas||[]).filter(t=>t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -1093,13 +1281,14 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
   const setters={setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
+    case"tareas":       return <ViewTareas {...VP} saveTareas={async t=>{await setTareas(t);}} cSave={cSave} cDel={cDel} setTareas={setTareas} openM={openM} canDo={canDo}/>;
       case"clientes":     return <ViewClientes     {...VP} setClientes={setClientes}/>;
       case"cli-det":      return <ViewCliDet        {...VP} id={detId} setClientes={setClientes} setContratos={setContratos}/>;
       case"producciones": return <ViewPros          {...VP} setProducciones={setProducciones}/>;
@@ -1384,6 +1573,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>cSave(VP.tareas,setTareas,withEmp(d))}/>
   </>;
 }
 
@@ -2463,6 +2653,8 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,navTo,op
             <TD mono style={{fontSize:11}}>{p.cr?fmtD(p.cr):"—"}</TD>
             <TD><div style={{display:"flex",gap:4}}>
               <GBtn sm onClick={e=>{e.stopPropagation();navTo("pres-det",p.id);}}>Ver</GBtn>
+              <GBtn sm onClick={e=>{e.stopPropagation();const c=(clientes||[]).find(x=>x.id===p.cliId);generarPDF(p,c,empresa);}} title="Descargar PDF">⬇</GBtn>
+              <GBtn sm onClick={e=>{e.stopPropagation();const c=(clientes||[]).find(x=>x.id===p.cliId);const co=(c?.contactos||[])[0];if(!co?.tel){alert("Sin teléfono de contacto.");return;}generarPDF(p,c,empresa);setTimeout(()=>{const num=((co.tel||"").replace(/[^0-9]/g,""));const waNum=num.startsWith("56")?num:"56"+num;window.open("https://wa.me/"+waNum+"?text="+encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". El PDF se abrió en tu pantalla para que lo descargues y adjuntes aquí."),"_blank");},1200);}} title="PDF + WhatsApp">💬</GBtn>
               {_cd&&_cd("presupuestos")&&<XBtn onClick={e=>{e.stopPropagation();cDel(presupuestos,setPresupuestos,p.id,null,"Presupuesto eliminado");}}/>}
             </div></TD>
           </tr>;})}
@@ -2501,12 +2693,17 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
         <Btn onClick={()=>generarPDF(p,c,empresa)}>⬇ Descargar PDF</Btn>
         <GBtn onClick={()=>{
           const co=(c?.contactos||[])[0];
-          if(!co?.tel){alert("El cliente no tiene teléfono registrado.");return;}
-          const num=((co.tel||"").replace(/[^0-9]/g,""));
-          const waNum=num.startsWith("56")?num:"56"+num;
-          const msg=encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". Para ver el PDF, por favor responde este mensaje y te lo enviamos de inmediato.");
-          window.open("https://wa.me/"+waNum+"?text="+msg,"_blank");
-        }}>💬 WhatsApp</GBtn>
+          if(!co?.tel){alert("El cliente no tiene teléfono de contacto registrado.");return;}
+          // Step 1: Generate and download PDF
+          generarPDF(p,c,empresa);
+          // Step 2: Open WhatsApp after short delay (PDF needs to open first)
+          setTimeout(()=>{
+            const num=((co.tel||"").replace(/[^0-9]/g,""));
+            const waNum=num.startsWith("56")?num:"56"+num;
+            const msg=encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". El PDF se abrió en tu pantalla para que lo descargues y adjuntes aquí.");
+            window.open("https://wa.me/"+waNum+"?text="+msg,"_blank");
+          },1200);
+        }}>💬 PDF + WhatsApp</GBtn>
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en Proyecto</Btn>}
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}

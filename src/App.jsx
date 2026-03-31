@@ -255,14 +255,14 @@ function Paginator({page,total,perPage,onChange}){
 }
 
 function Modal({open,onClose,title,sub,children,wide,extraWide}){
-  const isMob = useIsMobile();
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[onClose]);
   useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open) return null;
-  return <div onClick={e=>{if(e.target===e.currentTarget&&!isMob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:isMob?"flex-end":"center",justifyContent:"center",padding:isMob?0:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:isMob?"16px 16px 0 0":14,width:isMob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:isMob?"92vh":"92vh",overflowY:"auto",padding:isMob?"20px 16px":28,animation:isMob?"slideIn .25s ease":"modalIn .2s ease"}}>
+  const mob = window.innerWidth <= 768;
+  return <div onClick={e=>{if(e.target===e.currentTarget&&!mob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:mob?"flex-end":"center",justifyContent:"center",padding:mob?0:20}}>
+    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:mob?"16px 16px 0 0":14,width:mob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:mob?"20px 16px":28,animation:mob?"slideIn .25s ease":"modalIn .2s ease"}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
-        <div><div style={{fontFamily:"var(--fh)",fontSize:isMob?18:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
+        <div><div style={{fontFamily:"var(--fh)",fontSize:mob?18:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:20,lineHeight:1}}>✕</button>
       </div>
       {children}

@@ -1807,9 +1807,12 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
     // Auto-gasto si crew externo con tarifa
     const cm=(crew||[]).find(x=>x.id===crId);
     if(cm&&cm.tipo==="externo"&&cm.tarifa){
-      const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:`Honorarios ${cm.nom}`,monto:Number(cm.tarifa),fecha:today()};
-      const nextMov=[...(movimientos||[]),gastoAuto];
-      await setMovimientos(nextMov);
+      const tarifaVal=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
+      if(tarifaVal>0){
+        const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal,fecha:today()};
+        const nextMov=[...(movimientos||[]),gastoAuto];
+        await setMovimientos(nextMov);
+      }
     }
   };
   const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
@@ -1924,8 +1927,11 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
     await setProgramas(next);
     const cm=(crew||[]).find(x=>x.id===crId);
     if(cm&&cm.tipo==="externo"&&cm.tarifa){
-      const gastoAuto={id:uid(),empId:empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:`Honorarios ${cm.nom}`,monto:Number(cm.tarifa),fecha:today()};
-      await setMovimientos(prev=>[...(prev||[]),gastoAuto]);
+      const tarifaVal2=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
+      if(tarifaVal2>0){
+        const gastoAuto={id:uid(),empId:empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal2,fecha:today()};
+        await setMovimientos(prev=>[...(prev||[]),gastoAuto]);
+      }
     }
   };
   const remCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};

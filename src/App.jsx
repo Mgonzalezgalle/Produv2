@@ -2,7 +2,7 @@
 //  PRODU — Gestión de Productoras
 //  src/App.jsx  |  Parte 1 de 4: Core + Auth + Layout
 // ============================================================
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -48,6 +48,7 @@ function canDo(user, action) {
 }
 
 const ADDONS = {
+  television:  { label:"Televisión",     icon:"📺" },
   presupuestos:{ label:"Presupuestos",   icon:"📋" },
   facturacion: { label:"Facturación",    icon:"🧾" },
   activos:     { label:"Gestión Activos",icon:"📦" },
@@ -65,7 +66,7 @@ const DEFAULT_LISTAS = {
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
+  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
   { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", cr:today() },
 ];
 const SEED_USERS = [
@@ -412,12 +413,12 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
     {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"}]},
-    {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro},{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg}]},
+    {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro}]},
     {group:"Comercial",items:[
-      {id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus},
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
     ]},
-    ...(empresa?.addons?.some(a=>["facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
+    ...(empresa?.addons?.some(a=>["television","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
+      ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
       ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
@@ -476,8 +477,88 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   </aside>;
 }
 
+
+// ── CONTACT BUTTONS — WhatsApp y Email ───────────────────────
+function ContactBtns({ tel, ema, nombre, mensaje }) {
+  const waMsg = mensaje || `Hola ${nombre||""}, te contactamos desde Produ.`;
+  const waNum = (tel||"").replace(/[^0-9]/g,"");
+  const waUrl = `https://wa.me/${waNum.startsWith("56")?waNum:"56"+waNum}?text=${encodeURIComponent(waMsg)}`;
+  const mailUrl = `mailto:${ema||""}?subject=Contacto desde Produ&body=${encodeURIComponent(waMsg)}`;
+  if (!tel && !ema) return null;
+  return (
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+      {tel&&<a href={waUrl} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:6,background:"#25D36618",border:"1px solid #25D36640",color:"#25D366",fontSize:12,fontWeight:600,textDecoration:"none"}}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+        WhatsApp
+      </a>}
+      {ema&&<a href={mailUrl} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:6,background:"var(--cg)",border:"1px solid var(--cm)",color:"var(--cy)",fontSize:12,fontWeight:600,textDecoration:"none"}}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--cy)" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email
+      </a>}
+    </div>
+  );
+}
+
+// ── ALERTAS — Fechas de grabación próximas ────────────────────
+function useAlertas(episodios, programas, empId) {
+  return useMemo(() => {
+    const hoy   = new Date();
+    const en7   = new Date(hoy); en7.setDate(hoy.getDate() + 7);
+    const en30  = new Date(hoy); en30.setDate(hoy.getDate() + 30);
+    const alerts = [];
+    (episodios||[]).filter(e=>e.empId===empId).forEach(ep => {
+      if (!ep.fechaGrab) return;
+      const d = new Date(ep.fechaGrab + "T12:00:00");
+      const pg = (programas||[]).find(x=>x.id===ep.pgId);
+      const diff = Math.ceil((d - hoy) / (1000*60*60*24));
+      if (diff < 0) return; // ya pasó
+      if (diff <= 2) alerts.push({ id:ep.id, tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+      else if (diff <= 7) alerts.push({ id:ep.id, tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+      else if (diff <= 30) alerts.push({ id:ep.id, tipo:"info", icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"", fecha:ep.fechaGrab, diff });
+    });
+    return alerts.sort((a,b)=>a.diff-b.diff);
+  }, [episodios, programas, empId]);
+}
+
+function AlertasPanel({ alertas, onClose }) {
+  if (!alertas.length) return null;
+  const urgentes = alertas.filter(a=>a.tipo==="urgente");
+  const prontos  = alertas.filter(a=>a.tipo==="pronto");
+  const infos    = alertas.filter(a=>a.tipo==="info");
+  return (
+    <div style={{position:"fixed",top:70,right:20,zIndex:888,width:360,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:12,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
+      <div style={{padding:"14px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:18}}>🔔</span>
+          <div><div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Alertas de Grabación</div>
+          <div style={{fontSize:10,color:"var(--gr2)"}}>{alertas.length} fecha{alertas.length!==1?"s":""} próxima{alertas.length!==1?"s":""}</div></div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
+      </div>
+      <div style={{maxHeight:400,overflowY:"auto"}}>
+        {[["urgente","#ff556615","#ff5566"],["pronto","#ffcc4415","#ffcc44"],["info","var(--cg)","var(--cy)"]].map(([tipo,bg,color])=>{
+          const items=alertas.filter(a=>a.tipo===tipo);
+          if(!items.length) return null;
+          return items.map(a=>(
+            <div key={a.id} style={{display:"flex",gap:10,padding:"11px 16px",borderBottom:"1px solid var(--bdr)",background:bg,alignItems:"flex-start"}}>
+              <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{a.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--wh)",lineHeight:1.3}}>{a.titulo}</div>
+                <div style={{fontSize:11,color:"var(--gr2)",marginTop:3}}>{a.sub} · {fmtD(a.fecha)}</div>
+              </div>
+            </div>
+          ));
+        })}
+      </div>
+      <div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)"}}>
+        <button onClick={onClose} style={{width:"100%",padding:"7px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>Entendido</button>
+      </div>
+    </div>
+  );
+}
+
 // ── DASHBOARD ────────────────────────────────────────────────
-function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,auspiciadores,movimientos,presupuestos,facturas,activos,navTo}){
+function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,auspiciadores,movimientos,presupuestos,facturas,activos,alertas,navTo}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const mvs=(movimientos||[]).filter(m=>m.empId===empId);
@@ -516,6 +597,20 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
         {!(auspiciadores||[]).filter(a=>a.empId===empId&&a.est==="Activo").length&&<Empty text="Sin auspiciadores activos"/>}
       </Card>
     </div>
+    {/* Alertas en dashboard */}
+    {alertas&&alertas.length>0&&<div style={{marginBottom:16}}>
+      <Card title="🔔 Próximas Grabaciones" sub={`${alertas.length} fecha${alertas.length!==1?"s":""} próxima${alertas.length!==1?"s":""}`}>
+        {alertas.slice(0,5).map(a=>{
+          const colores={urgente:"#ff5566",pronto:"#ffcc44",info:"var(--cy)"};
+          return <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:colores[a.tipo],flexShrink:0,boxShadow:`0 0 6px ${colores[a.tipo]}`}}/>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{a.titulo.replace(/^[^:]+:\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{a.sub} · {fmtD(a.fecha)}</div></div>
+            <Badge label={a.diff===0?"Hoy":a.diff===1?"Mañana":`${a.diff} días`} color={a.tipo==="urgente"?"red":a.tipo==="pronto"?"yellow":"cyan"} sm/>
+          </div>;
+        })}
+        {alertas.length>5&&<div style={{fontSize:11,color:"var(--gr2)",paddingTop:8,textAlign:"center"}}>+{alertas.length-5} más</div>}
+      </Card>
+    </div>}
     {/* Addons summary */}
     {empresa?.addons?.length>0&&<div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(empresa.addons.length,3)},1fr)`,gap:16}}>
       {empresa.addons?.includes("presupuestos")&&<Card title="📋 Presupuestos" action={{label:"Ver →",fn:()=>navTo("presupuestos")}}>
@@ -787,6 +882,8 @@ export default function App(){
   const [collapsed,setCollapsed]=useState(false);
   const [syncPulse,setSyncPulse]=useState(false);
   const [superPanel,setSuperPanel]=useState(false);
+  const [alertasOpen,setAlertasOpen]=useState(false);
+  const [alertasVistas,setAlertasVistas]=useState(false);
 
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
@@ -810,6 +907,9 @@ export default function App(){
   const [facturas,setFacturas,savFact]=useDB(`produ:${eId}:facturas`);
   const [activos,setActivos,savAct]=useDB(`produ:${eId}:activos`);
   const isLoading = curEmp && (ldCli || ldPro || ldPg);
+  const alertas = useAlertas(episodios, programas, empId);
+  // Show alertas popup on first load when data is ready
+  useEffect(()=>{ if(!isLoading && alertas.length > 0 && !alertasVistas && curEmp) { setTimeout(()=>setAlertasOpen(true), 1000); setAlertasVistas(true); } },[isLoading, curEmp?.id]);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
@@ -897,7 +997,7 @@ export default function App(){
 
   // Breadcrumb
   const buildBc=()=>{
-    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS"};
+    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN"};
     if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
     if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
     if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
@@ -912,7 +1012,7 @@ export default function App(){
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
     switch(view){
-      case"dashboard":    return <ViewDashboard {...VP}/>;
+      case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
       case"clientes":     return <ViewClientes     {...VP} setClientes={setClientes}/>;
       case"cli-det":      return <ViewCliDet        {...VP} id={detId} setClientes={setClientes} setContratos={setContratos}/>;
       case"producciones": return <ViewPros          {...VP} setProducciones={setProducciones}/>;
@@ -952,9 +1052,12 @@ export default function App(){
             <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap"}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
           </span>)}
         </div>
-        <div style={{display:"flex",gap:8,flexShrink:0}}>
+        <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
           {(view==="pro-det"||view==="pg-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":"pg"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
+          {alertas.length>0&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:"none",border:"1px solid var(--bdr2)",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"var(--wh)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
+            🔔<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.length}</span>
+          </button>}
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:24}}>
@@ -963,7 +1066,8 @@ export default function App(){
         </div>
       </div>
     </main>
-    {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
+    {alertasOpen&&<AlertasPanel alertas={alertas} onClose={()=>setAlertasOpen(false)}/> }
+        {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
   </div>;
@@ -1269,8 +1373,9 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
             <div style={{width:28,height:28,borderRadius:"50%",background:"var(--cg)",border:"1px solid var(--cm)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--cy)",flexShrink:0}}>{ini(co.nom)}</div>
             <div><div style={{fontSize:13,fontWeight:600}}>{co.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{co.car||"—"}</div></div>
           </div>
-          <div style={{fontSize:11,color:"var(--gr3)",paddingLeft:38}}>✉ {co.ema||"—"} &nbsp;·&nbsp; ☎ {co.tel||"—"}</div>
-          {co.not&&<div style={{fontSize:11,color:"var(--gr2)",paddingLeft:38,marginTop:3}}>{co.not}</div>}
+          <div style={{fontSize:11,color:"var(--gr3)",paddingLeft:38,marginBottom:8}}>✉ {co.ema||"—"} &nbsp;·&nbsp; ☎ {co.tel||"—"}</div>
+          {co.not&&<div style={{fontSize:11,color:"var(--gr2)",paddingLeft:38,marginBottom:8}}>{co.not}</div>}
+          <div style={{paddingLeft:38}}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos desde Produ.`}/></div>
         </div>):<Empty text="Sin contactos registrados"/>}
       </Card>
       <Card title="Financiero">
@@ -1333,12 +1438,17 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
   const c=(clientes||[]).find(x=>x.id===p.cliId);
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(p.crewIds||[]).includes(x.id));
+  const cContacto=(c?.contactos||[])[0];
   const [tab,setTab]=useState(0);
   const addCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProducciones(next);};
   const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
   return <div>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est}/>]} meta={[c&&`Cliente: ${c.nom}`,p.ini&&`Inicio: ${fmtD(p.ini)}`,p.fin&&`Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
       actions={_cd&&_cd("producciones")&&<><GBtn onClick={()=>openM("pro",p)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(producciones,setProducciones,id,()=>navTo("producciones"),"Producción eliminada");}}>🗑</DBtn></>}/>
+    {cContacto&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:14,flexWrap:"wrap",gap:8}}>
+      <span style={{fontSize:12,color:"var(--gr2)"}}>Contacto: <b style={{color:"var(--wh)"}}>{cContacto.nom}</b> {cContacto.car?`· ${cContacto.car}`:""}</span>
+      <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} mensaje={`Hola ${cContacto.nom}, te escribimos sobre el proyecto "${p.nom}".`}/>
+    </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Gastos"   value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} reg.`}  accent="#ff5566" vc="#ff5566"/>
@@ -1446,6 +1556,10 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
       <Stat label="Balance"     value={fmtM(b.b)}     accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
       <Stat label="Auspicios"   value={fmtM(tauz)}    accent="#ffcc44" vc="#ffcc44" sub={`${aus.length} auspiciadores`}/>
     </div>
+    {pg_.conductor&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:14,flexWrap:"wrap",gap:8}}>
+      <span style={{fontSize:12,color:"var(--gr2)"}}>Conductor: <b style={{color:"var(--wh)"}}>{pg_.conductor}</b>{pg_.prodEjec?` · Prod: ${pg_.prodEjec}`:""}</span>
+      {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos sobre el programa "${pg_.nom}".`}/>)}
+    </div>}
     <Tabs tabs={["Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info"]} active={tab} onChange={setTab}/>
 
     {tab===0&&<div>

@@ -207,8 +207,8 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
       <a href="#precios">Precios</a>
     </div>
     <div class="nav-cta">
-      <a href="#" class="btn-outline">Iniciar sesión</a>
-      <a href="#contacto" class="btn-primary">Solicitar demo</a>
+      <a href="https://portal.produ.cl" target="_blank" class="btn-outline">Iniciar sesión</a>
+      <a href="javascript:void(0)" onclick="abrirModal()" class="btn-primary">Solicitar demo</a>
     </div>
   </div>
 </nav>
@@ -219,7 +219,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
   <h1>Gestiona tu productora<br><em>desde un solo lugar</em></h1>
   <p>Produ centraliza clientes, producciones, programas de TV, equipo, finanzas y más. Todo sincronizado en tiempo real para tu equipo.</p>
   <div class="hero-btns">
-    <a href="#contacto" class="btn-primary-lg">Empezar ahora →</a>
+    <a href="javascript:void(0)" onclick="abrirModal()" class="btn-primary-lg">Empezar ahora →</a>
     <a href="#funciones" class="btn-ghost-lg">Ver funcionalidades</a>
   </div>
 
@@ -452,7 +452,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
     <div class="stats-grid">
       <div class="stat-item">
         <div class="stat-num">100<span>%</span></div>
-        <div class="stat-label">Datos aislados por empresa. Tu información nunca se mezcla con otra productora.</div>
+        <div class="stat-label">Responsiva. Tu información disponible en cualquier dispositivo.</div>
       </div>
       <div class="stat-item">
         <div class="stat-num">0</div>
@@ -577,7 +577,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
     <h2>¿Listo para ordenar tu productora?</h2>
     <p>Comienza hoy. Sin instalaciones, sin complicaciones. Tu equipo conectado desde el primer día.</p>
     <div class="cta-btns">
-      <a href="#" class="btn-cta-primary">Solicitar demo gratuita</a>
+      <a href="javascript:void(0)" onclick="abrirModal()" class="btn-cta-primary">Solicitar demo gratuita</a>
       <a href="#" class="btn-cta-outline">Ver precios →</a>
     </div>
   </div>
@@ -608,25 +608,123 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
         <h4>Empresa</h4>
         <a href="#">Nosotros</a>
         <a href="#">Precios</a>
-        <a href="#">Blog</a>
         <a href="#">Contacto</a>
       </div>
       <div class="footer-col">
         <h4>Soporte</h4>
         <a href="#">Centro de ayuda</a>
         <a href="#">contacto@produ.cl</a>
-        <a href="#">+56 9 0000 0000</a>
+        <a href="#">+56 229380010</a>
       </div>
     </div>
     <div class="footer-bottom">
       <p>© 2026 Produ — Gestión de Productoras. Todos los derechos reservados.</p>
       <div class="footer-bottom-links">
-        <a href="#">Términos</a>
-        <a href="#">Privacidad</a>
       </div>
     </div>
   </div>
 </footer>
+
+
+<!-- MODAL CONTACTO -->
+<div id="modal-contacto" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:480px;padding:40px;box-shadow:0 24px 80px rgba(0,0,0,.2);animation:fadeUp .25s ease;position:relative">
+    <button onclick="cerrarModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;color:#aaa;cursor:pointer;line-height:1">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+      <div style="width:36px;height:36px;background:#1a1a2e;border-radius:9px;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="#fff" width="14" height="14"><polygon points="5,3 20,12 5,21"/></svg>
+      </div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#1a1a2e">Solicitar demo</div>
+        <div style="font-size:12px;color:#888">Te contactamos en menos de 24 horas</div>
+      </div>
+    </div>
+    <form id="form-contacto" onsubmit="enviarFormulario(event)">
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:6px;letter-spacing:.3px">Nombre completo *</label>
+        <input type="text" id="f-nombre" required placeholder="Juan Pérez" style="width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'Manrope',sans-serif;outline:none;transition:.15s" onfocus="this.style.borderColor='#1a1a2e'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:6px;letter-spacing:.3px">Correo electrónico *</label>
+        <input type="email" id="f-email" required placeholder="juan@productora.cl" style="width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'Manrope',sans-serif;outline:none;transition:.15s" onfocus="this.style.borderColor='#1a1a2e'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:6px;letter-spacing:.3px">Teléfono *</label>
+        <input type="tel" id="f-tel" required placeholder="+56 9 1234 5678" style="width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'Manrope',sans-serif;outline:none;transition:.15s" onfocus="this.style.borderColor='#1a1a2e'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div style="margin-bottom:24px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:6px;letter-spacing:.3px">Nombre de la productora</label>
+        <input type="text" id="f-empresa" placeholder="Mi Productora SpA" style="width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'Manrope',sans-serif;outline:none;transition:.15s" onfocus="this.style.borderColor='#1a1a2e'" onblur="this.style.borderColor='#e0e0e0'">
+      </div>
+      <div id="form-msg" style="display:none;padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px"></div>
+      <button type="submit" id="btn-enviar" style="width:100%;padding:14px;border-radius:10px;border:none;background:#1a1a2e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Manrope',sans-serif;transition:.15s">Enviar solicitud →</button>
+      <p style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">Al enviar aceptas que nos contactemos contigo por email o teléfono.</p>
+    </form>
+  </div>
+</div>
+
+<style>
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+</style>
+
+<script>
+function abrirModal(){
+  const m = document.getElementById('modal-contacto');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function cerrarModal(){
+  const m = document.getElementById('modal-contacto');
+  m.style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('modal-contacto').addEventListener('click', function(e){
+  if(e.target === this) cerrarModal();
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') cerrarModal();
+});
+
+async function enviarFormulario(e){
+  e.preventDefault();
+  const btn = document.getElementById('btn-enviar');
+  const msg = document.getElementById('form-msg');
+  const nombre = document.getElementById('f-nombre').value;
+  const email = document.getElementById('f-email').value;
+  const tel = document.getElementById('f-tel').value;
+  const empresa = document.getElementById('f-empresa').value;
+
+  btn.textContent = 'Enviando...';
+  btn.style.opacity = '.7';
+  btn.disabled = true;
+
+  // Enviar via mailto (fallback confiable sin backend)
+  const asunto = encodeURIComponent('Solicitud de Demo Produ — ' + (empresa || nombre));
+  const cuerpo = encodeURIComponent(
+    'Nueva solicitud de demo desde produ.cl\n\n' +
+    'Nombre: ' + nombre + '\n' +
+    'Email: ' + email + '\n' +
+    'Teléfono: ' + tel + '\n' +
+    'Productora: ' + (empresa || '—') + '\n\n' +
+    'Contactar a la brevedad.'
+  );
+
+  // Abrir cliente de correo
+  window.location.href = 'mailto:playmedia@grupogonzalez.co?subject=' + asunto + '&body=' + cuerpo;
+
+  // Mostrar mensaje de éxito
+  setTimeout(() => {
+    msg.style.display = 'block';
+    msg.style.background = '#f0fdf4';
+    msg.style.border = '1px solid #bbf7d0';
+    msg.style.color = '#15803d';
+    msg.innerHTML = '✓ ¡Listo! Se abrió tu cliente de correo con los datos prellenados. Si no se abrió, escríbenos directo a <strong>playmedia@grupogonzalez.co</strong>';
+    btn.textContent = '✓ Enviado';
+    btn.style.background = '#15803d';
+    btn.style.opacity = '1';
+  }, 800);
+}
+</script>
 
 </body>
 </html>

@@ -370,6 +370,84 @@ function EmpresaSelector({empresas,onSelect}){
 }
 
 
+
+// ── EXPORT FUNCTIONS ─────────────────────────────────────────
+function exportMovCSV(movs, nombre) {
+  const headers = ["Fecha","Tipo","Categoría","Descripción","Monto"];
+  const rows = (movs||[]).map(m => [
+    m.fecha||"",
+    m.tipo==="ingreso"?"Ingreso":"Gasto",
+    m.cat||"—",
+    (m.desc||"").replace(/,/g," "),
+    m.monto||0
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${nombre.replace(/\s+/g,"_")}_movimientos.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportMovPDF(movs, nombre, empresa, tipo) {
+  const ac = empresa?.color || "#00d4e8";
+  const total = (movs||[]).reduce((s,m) => s + Number(m.monto||0), 0);
+  const logoHtml = empresa?.logo
+    ? `<img src="${empresa.logo}" style="max-height:60px;object-fit:contain;display:block;margin-bottom:6px;">`
+    : `<div style="font-size:22px;font-weight:900;color:${ac}">${empresa?.nombre||""}</div>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>${tipo} — ${nombre}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a2e;padding:40px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid ${ac}}
+.title{font-size:22px;font-weight:800;color:#1a1a2e;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+thead tr{background:${ac}}
+thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#fff;letter-spacing:.5px;text-transform:uppercase}
+thead th.r{text-align:right}
+tbody tr:nth-child(even){background:#f8f9fc}
+tbody td{padding:9px 14px;font-size:12px;border-bottom:1px solid #eee}
+tbody td.r{text-align:right;font-family:monospace}
+.total-row{display:flex;justify-content:flex-end;margin-top:4px}
+.total-box{background:${ac};color:#fff;padding:10px 20px;border-radius:8px;font-size:15px;font-weight:700}
+.footer{text-align:center;font-size:10px;color:#aaa;margin-top:32px;padding-top:16px;border-top:1px solid #eee}
+@media print{body{padding:20px}}
+</style></head><body>
+<div class="header">
+  <div>${logoHtml}<div style="font-size:12px;color:#555;margin-top:4px">${empresa?.nombre||""} · ${empresa?.rut||""}</div></div>
+  <div style="text-align:right">
+    <div style="font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">${tipo}</div>
+    <div style="font-size:11px;color:#666">Generado: ${new Date().toLocaleDateString("es-CL")}</div>
+  </div>
+</div>
+<div class="title">${nombre}</div>
+<table>
+  <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="r">Monto</th></tr></thead>
+  <tbody>
+    ${(movs||[]).map(m=>`<tr>
+      <td>${m.fecha?new Date(m.fecha+"T12:00:00").toLocaleDateString("es-CL"):"—"}</td>
+      <td>${m.cat||"—"}</td>
+      <td>${m.desc||"—"}</td>
+      <td class="r">${Number(m.monto||0).toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0})}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+<div class="total-row">
+  <div class="total-box">Total ${tipo}: ${total.toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0})}</div>
+</div>
+<div class="footer">${empresa?.nombre||""} · Generado con Produ</div>
+</body></html>`;
+
+  const w = window.open("","_blank");
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
 // ── NAV GROUPS — Menú colapsable por grupo ───────────────────
 function NavGroups({ NAV, base, collapsed, onNav, user }) {
   // Inicializa todos los grupos abiertos
@@ -1519,11 +1597,12 @@ function MMov({open,data,listas,onClose,onSave}){
 
 function MCrew({open,data,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",rol:"",area:"Producción",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const AREAS=["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"];
   const ROLES_C=["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"];
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Miembro":"Agregar al Equipo"} sub="Crew de producción">
+    <FG label="Tipo de Crew"><FSl value={f.tipo||"externo"} onChange={e=>u("tipo",e.target.value)}><option value="externo">Externo — tarifa aplica a producciones</option><option value="interno">Interno — personal de planta</option></FSl></FG>
     <R2><FG label="Nombre completo *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Juan Pérez"/></FG><FG label="Rol / Cargo"><FSl value={f.rol||""} onChange={e=>u("rol",e.target.value)}><option value="">Seleccionar...</option>{ROLES_C.map(r=><option key={r}>{r}</option>)}</FSl></FG></R2>
     <R2><FG label="Área"><FSl value={f.area||""} onChange={e=>u("area",e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</FSl></FG><FG label="Disponibilidad"><FI value={f.dis||""} onChange={e=>u("dis",e.target.value)} placeholder="Lun-Vie, Fines de semana..."/></FG></R2>
     <R2><FG label="Teléfono"><FI value={f.tel||""} onChange={e=>u("tel",e.target.value)} placeholder="+56 9 1234 5678"/></FG><FG label="Email"><FI type="email" value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="juan@email.cl"/></FG></R2>
@@ -1722,7 +1801,17 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(p.crewIds||[]).includes(x.id));
   const cContacto=(c?.contactos||[])[0];
   const [tab,setTab]=useState(0);
-  const addCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProducciones(next);};
+  const addCrew=async crId=>{
+    const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
+    await setProducciones(next);
+    // Auto-gasto si crew externo con tarifa
+    const cm=(crew||[]).find(x=>x.id===crId);
+    if(cm&&cm.tipo==="externo"&&cm.tarifa){
+      const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:`Honorarios ${cm.nom}`,monto:Number(cm.tarifa),fecha:today()};
+      const nextMov=[...(movimientos||[]),gastoAuto];
+      await setMovimientos(nextMov);
+    }
+  };
   const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
   return <div>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est}/>]} meta={[c&&`Cliente: ${c.nom}`,p.ini&&`Inicio: ${fmtD(p.ini)}`,p.fin&&`Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
@@ -1738,6 +1827,10 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       <Stat label="Crew"     value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)"/>
     </div>
     <Tabs tabs={["Ingresos","Gastos","Caja","Crew","Fechas","Contratos"]} active={tab} onChange={setTab}/>
+    {(tab===0||tab===1)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===0?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===0?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===0?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    </div>}
     {tab===0&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="caja"    eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
@@ -1826,7 +1919,15 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
   const epStats={plan:eps.filter(e=>e.estado==="Planificado").length,grab:eps.filter(e=>e.estado==="Grabado").length,edit:eps.filter(e=>e.estado==="En Edición").length,pub:eps.filter(e=>e.estado==="Publicado").length,can:eps.filter(e=>e.estado==="Cancelado").length};
   const fdEps=eps.filter(e=>(!epF||e.estado===epF)&&(e.titulo.toLowerCase().includes(epQ.toLowerCase())||(e.invitado||"").toLowerCase().includes(epQ.toLowerCase())));
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pg_.crewIds||[]).includes(x.id));
-  const addCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
+  const addCrew=async crId=>{
+    const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
+    await setProgramas(next);
+    const cm=(crew||[]).find(x=>x.id===crId);
+    if(cm&&cm.tipo==="externo"&&cm.tarifa){
+      const gastoAuto={id:uid(),empId:empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:`Honorarios ${cm.nom}`,monto:Number(cm.tarifa),fecha:today()};
+      await setMovimientos(prev=>[...(prev||[]),gastoAuto]);
+    }
+  };
   const remCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};
   const cliAsoc=(clientes||[]).find(x=>x.id===pg_.cliId);
   return <div>
@@ -1843,6 +1944,10 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
       {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos sobre el programa "${pg_.nom}".`}/>)}
     </div>}
     <Tabs tabs={["Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info"]} active={tab} onChange={setTab}/>
+    {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    </div>}
 
     {tab===0&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
@@ -2005,7 +2110,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
             <TD bold><div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(m.nom)}</div>{m.nom}
             </div></TD>
-            <TD>{m.rol||"—"}</TD><TD><Badge label={m.area||"—"} color="gray" sm/></TD>
+            <TD>{m.rol||"—"}</TD><TD><Badge label={m.area||"—"} color="gray" sm/> <Badge label={m.tipo==="interno"?"Planta":"Externo"} color={m.tipo==="interno"?"green":"yellow"} sm/></TD>
             <TD style={{fontSize:11}}>{m.ema||"—"}</TD><TD style={{fontSize:11}}>{m.tel||"—"}</TD>
             <TD style={{fontSize:11,color:"var(--gr2)"}}>{m.dis||"—"}</TD>
             <TD mono style={{fontSize:11}}>{m.tarifa||"—"}</TD>
@@ -2675,12 +2780,18 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
   const [convNom,setConvNom]=useState(p.titulo||"");
   const convertir=async()=>{
     if(!convNom.trim()) return;
+    const newId=uid();
     if(convTipo==="produccion"){
-      const nuevo={id:uid(),empId,nom:convNom,cliId:p.cliId,tip:"Contenido Audiovisual",est:"Pre-Producción",ini:today(),fin:"",des:p.titulo,crewIds:[]};
+      const nuevo={id:newId,empId,nom:convNom,cliId:p.cliId,tip:"Contenido Audiovisual",est:"Pre-Producción",ini:today(),fin:"",des:p.titulo,crewIds:[]};
       await setProducciones([...(producciones||[]),nuevo]);
     } else {
-      const nuevo={id:uid(),empId,nom:convNom,tip:"Programa de TV",can:"",est:"En Desarrollo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:p.titulo,cliId:p.cliId||"",crewIds:[]};
+      const nuevo={id:newId,empId,nom:convNom,tip:"Programa de TV",can:"",est:"En Desarrollo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:p.titulo,cliId:p.cliId||"",crewIds:[]};
       await setProgramas([...(programas||[]),nuevo]);
+    }
+    // Crear ingreso automático con el total del presupuesto
+    if(p.total){
+      const ingresoAuto={id:uid(),empId,eid:newId,et:convTipo==="produccion"?"pro":"pg",tipo:"ingreso",cat:"Producción",desc:"Ingreso desde presupuesto: "+p.titulo,monto:p.total,fecha:today()};
+      await setMovimientos(prev=>[...(prev||[]),ingresoAuto]);
     }
     // Mark presupuesto as converted
     await cSave(presupuestos,setPresupuestos,{...p,convertido:convTipo,convertidoNom:convNom});

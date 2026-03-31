@@ -139,8 +139,12 @@ function useDB(key, initial=null) {
   const [loading,setLoading]=useState(true);
   const saving=useRef(false);
   const loaded=useRef(false);
+  const lastKey=useRef(null);
   useEffect(()=>{
-    if(!key||loaded.current) return;
+    if(!key) return;
+    // Reset if key changed (empresa switch)
+    if(lastKey.current !== key) { loaded.current=false; lastKey.current=key; }
+    if(loaded.current) return;
     loaded.current=true;
     setLoading(true);
     dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
@@ -955,11 +959,15 @@ export default function App(){
   usePoll(`produ:${eId}:producciones`,setProducciones,savPro);
   usePoll(`produ:${eId}:programas`,setProgramas,savPg);
   usePoll(`produ:${eId}:episodios`,setEpisodios,savEp);
+  usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,savAus);
+  usePoll(`produ:${eId}:contratos`,setContratos,savCt);
   usePoll(`produ:${eId}:movimientos`,setMovimientos,savMov);
   usePoll(`produ:${eId}:eventos`,setEventos,savEv);
   usePoll(`produ:${eId}:presupuestos`,setPresupuestos,savPres);
   usePoll(`produ:${eId}:facturas`,setFacturas,savFact);
   usePoll(`produ:${eId}:activos`,setActivos,savAct);
+  usePoll(`produ:${eId}:crew`,setCrew,savCrew);
+  usePoll(`produ:${eId}:listas`,setListas,savLst);
 
   // Init global data
   useEffect(()=>{

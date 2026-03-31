@@ -621,7 +621,7 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const eps=(episodios||[]).filter(x=>x.empId===empId);
   return <div className="va">
     <div style={{marginBottom:12}}><span style={{fontSize:12,color:"var(--gr2)"}}>Bienvenido, <b style={{color:"var(--wh)"}}>{user?.name}</b> · <span style={{color:"var(--cy)"}}>{empresa?.nombre}</span></span></div>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Clientes"     value={clis.length}  sub="registrados"      accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Producciones" value={pros.length}   sub={`${pros.filter(p=>p.est==="En Curso").length} en curso`}/>
       <Stat label="Ingresos"     value={fmtM(ti)}      sub="todos proyectos"  accent="#00e08a"   vc="#00e08a"/>
@@ -1107,7 +1107,7 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}
-            <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?isMob?13:15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:isMob?120:undefined}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
+            <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
           </span>)}
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
@@ -1119,7 +1119,7 @@ export default function App(){
           </button>}
         </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:isMob?14:24}}>
+      <div style={{flex:1,overflowY:"auto",padding:24}}>
         <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
@@ -1419,7 +1419,7 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
   return <div>
     <DetHeader title={c.nom} tag={c.ind} meta={[c.rut&&`RUT: ${c.rut}`,c.dir].filter(Boolean)}
       actions={_cd&&_cd("clientes")&&<><GBtn onClick={()=>openM("cli",c)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(clientes,setClientes,id,()=>navTo("clientes"),"Cliente eliminado");}}>🗑 Eliminar</DBtn></>}/>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Producciones" value={prs.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Contratos"    value={cts.length}/>
       <Stat label="Ingresos"     value={fmtM(ti)}     accent="#00e08a" vc="#00e08a"/>
@@ -1508,7 +1508,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       <span style={{fontSize:12,color:"var(--gr2)"}}>Contacto: <b style={{color:"var(--wh)"}}>{cContacto.nom}</b> {cContacto.car?`· ${cContacto.car}`:""}</span>
       <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} mensaje={`Hola ${cContacto.nom}, te escribimos sobre el proyecto "${p.nom}".`}/>
     </div>}
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Gastos"   value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} reg.`}  accent="#ff5566" vc="#ff5566"/>
       <Stat label="Balance"  value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
@@ -1609,7 +1609,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est}/>]} meta={[pg_.can,pg_.fre,pg_.temporada&&`Temp: ${pg_.temporada}`,pg_.conductor&&`🎙 ${pg_.conductor}`,cliAsoc&&`Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
       actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pg",pg_)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar programa y episodios?"))return;cDel(programas,setProgramas,id,()=>navTo("programas"),"Eliminado");}}>🗑</DBtn></>}/>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Episodios"   value={eps.length}    sub={`${epStats.plan} planificados`}/>
       <Stat label="Publicados"  value={epStats.pub}   accent="#00e08a" vc="#00e08a" sub={`${epStats.grab} grabados`}/>
       <Stat label="Balance"     value={fmtM(b.b)}     accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
@@ -1729,7 +1729,7 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
         {_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("ep",ep)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(episodios,setEpisodios,id,()=>navTo("pg-det",ep.pgId),"Episodio eliminado");}}>🗑</DBtn></>}
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Gastos Ep." value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} ítems`} accent="#ff5566" vc="#ff5566"/>
       <Stat label="Grabación"  value={ep.fechaGrab?fmtD(ep.fechaGrab):"—"}   accent="var(--cy)"/>
       <Stat label="Emisión"    value={ep.fechaEmision?fmtD(ep.fechaEmision):"—"} accent="#00e08a"/>
@@ -2405,7 +2405,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,navTo,op
   const total=fd.reduce((s,p)=>s+Number(p.total||0),0);
   const aceptados=fd.filter(p=>p.estado==="Aceptado").reduce((s,p)=>s+Number(p.total||0),0);
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total"     value={fd.length}                                          accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Aceptados" value={fd.filter(p=>p.estado==="Aceptado").length}          accent="#00e08a"   vc="#00e08a"/>
       <Stat label="Monto Total"   value={fmtM(total)}    sub="todos"     accent="var(--cy)"/>
@@ -2471,7 +2471,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
     {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"producción":"programa TV"}: <b>{p.convertidoNom}</b></div>}
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Subtotal Neto" value={fmtM(p.subtotal||0)}/>
       <Stat label="IVA 19%"       value={p.iva?fmtM(p.ivaVal||0):"No aplica"}/>
       <Stat label="Total Final"   value={fmtM(p.total||0)} accent="var(--cy)" vc="var(--cy)"/>
@@ -2569,7 +2569,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
   const pendiente=fd.filter(f=>f.estado==="Pendiente").reduce((s,f)=>s+Number(f.total||0),0);
   const pagado=fd.filter(f=>f.estado==="Pagada").reduce((s,f)=>s+Number(f.total||0),0);
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Facturas" value={fd.length}            accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Pendiente"      value={fmtM(pendiente)}      accent="#ffcc44"   vc="#ffcc44"/>
       <Stat label="Cobrado"        value={fmtM(pagado)}         accent="#00e08a"   vc="#00e08a"/>
@@ -2646,7 +2646,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
   const enUsoCount=fd.filter(a=>a.estado==="En Uso").length;
   const statColor=s=>({Disponible:"#00e08a","En Uso":"var(--cy)","En Mantención":"#ffcc44",Dañado:"#ff8844","Dado de Baja":"#ff5566"}[s]||"var(--gr2)");
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:isMob?"1fr 1fr":"repeat(4,1fr)",gap:isMob?10:14,marginBottom:isMob?14:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Activos"  value={fd.length}          accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Disponibles"    value={dispCount}           accent="#00e08a"   vc="#00e08a"/>
       <Stat label="En Uso"         value={enUsoCount}          accent="var(--cy)" vc="var(--cy)"/>

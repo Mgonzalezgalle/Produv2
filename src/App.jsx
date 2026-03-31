@@ -813,6 +813,49 @@ function ListasEditor({ listas, saveListas }) {
   );
 }
 
+
+// ── EMPRESA EDIT — editar datos de empresa desde Admin ───────
+function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
+  const [ef, setEf] = useState({});
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"" }); }, [empresa.id]);
+  const save = () => {
+    const updated = { ...empresa, ...ef };
+    saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
+    ntf("Datos guardados ✓");
+    setEditing(false);
+  };
+  if (!editing) return (
+    <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:10, padding:16 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ fontFamily:"var(--fh)", fontSize:13, fontWeight:700 }}>Datos de la Empresa</div>
+        <GBtn sm onClick={() => setEditing(true)}>✏ Editar</GBtn>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Addons", empresa.addons?.join(", ")||"ninguno"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ background:"var(--sur)", border:"1px solid var(--cy)", borderRadius:10, padding:16 }}>
+      <div style={{ fontFamily:"var(--fh)", fontSize:13, fontWeight:700, marginBottom:14 }}>Editar Datos de la Empresa</div>
+      <R2>
+        <FG label="Nombre empresa"><FI value={ef.nombre} onChange={e=>setEf(p=>({...p,nombre:e.target.value}))} placeholder="Mi Productora SpA"/></FG>
+        <FG label="RUT"><FI value={ef.rut} onChange={e=>setEf(p=>({...p,rut:e.target.value}))} placeholder="78.118.348-2"/></FG>
+      </R2>
+      <R2>
+        <FG label="Email"><FI value={ef.ema} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG>
+        <FG label="Teléfono"><FI value={ef.tel} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG>
+      </R2>
+      <FG label="Dirección"><FI value={ef.dir} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG>
+      <div style={{ display:"flex", gap:8, marginTop:8 }}>
+        <Btn onClick={save}>✓ Guardar</Btn>
+        <GBtn onClick={() => setEditing(false)}>Cancelar</GBtn>
+      </div>
+    </div>
+  );
+}
+
 function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,saveUsers,saveEmpresas,listas,saveListas,onPurge,ntf}){
   const [tab,setTab]=useState(0);
   const [lt,setLt]=useState(theme||{});
@@ -897,10 +940,8 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
           </div>
         </div>
       </div>
-      {/* Empresa data */}
-      {empresa&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {[["Nombre",empresa.nombre],["RUT",empresa.rut],["Email",empresa.ema||"—"],["Teléfono",empresa.tel||"—"],["Dirección",empresa.dir||"—"],["Plan",empresa.plan],["Addons",empresa.addons?.join(", ")||"ninguno"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
-      </div>}
+      {/* Empresa data editable */}
+      {empresa&&<EmpresaEdit empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf}/>}
     </div>}
     {tab===3&&<ListasEditor listas={listas} saveListas={saveListas}/>}
     {tab===4&&<div>
@@ -1969,7 +2010,7 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
   const updItem=(i,k,v)=>setF(p=>({...p,items:(p.items||[]).map((it,j)=>j===i?{...it,[k]:v}:it)}));
   const delItem=i=>setF(p=>({...p,items:(p.items||[]).filter((_,j)=>j!==i)}));
   const subtotal=(f.items||[]).reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
-  const ivaVal=f.iva?Math.round(subtotal*0.19):0;
+  const ivaVal=f.iva?Math.round(subtotal*0.19):f.honorarios?Math.round(subtotal*0.1525):0;
   const total=subtotal+ivaVal;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
     <R2>
@@ -1984,7 +2025,7 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
     <R3>
       <FG label="Validez (días)"><FI type="number" value={f.validez||"30"} onChange={e=>u("validez",e.target.value)} placeholder="30"/></FG>
       <FG label="Moneda"><FSl value={f.moneda||"CLP"} onChange={e=>u("moneda",e.target.value)}><option>CLP</option><option>USD</option><option>EUR</option></FSl></FG>
-      <FG label="Incluir IVA 19%"><FSl value={f.iva?"true":"false"} onChange={e=>u("iva",e.target.value==="true")}><option value="true">Sí, incluir IVA</option><option value="false">No incluir IVA</option></FSl></FG>
+      <FG label="Impuesto"><FSl value={f.honorarios?"hon":f.iva?"iva":"none"} onChange={e=>{const v=e.target.value;u("iva",v==="iva");u("honorarios",v==="hon");}}><option value="none">Sin impuesto</option><option value="iva">IVA 19%</option><option value="hon">Boleta Honorarios 15,25%</option></FSl></FG>
     </R3>
     <Sep/>
     {/* Items */}
@@ -2176,7 +2217,7 @@ function generarPDF(pres, cliente, empresa) {
 <div class="totals-wrap">
   <div class="totals">
     <div class="tot-row"><span>Subtotal Neto</span><span style="font-family:monospace">${fmtM(subtotal)}</span></div>
-    <div class="tot-row"><span>IVA 19%</span><span style="font-family:monospace">${pres.iva ? fmtM(ivaVal) : "No aplica"}</span></div>
+    <div class="tot-row"><span>${pres.honorarios?"Boleta Honorarios 15,25%":"IVA 19%"}</span><span style="font-family:monospace">${(pres.iva||pres.honorarios) ? fmtM(ivaVal) : "No aplica"}</span></div>
     <div class="tot-row final"><span>Total Final</span><span>${fmtM(total)}</span></div>
   </div>
 </div>
@@ -2458,6 +2499,14 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
     <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <Btn onClick={()=>generarPDF(p,c,empresa)}>⬇ Descargar PDF</Btn>
+        <GBtn onClick={()=>{
+          const co=(c?.contactos||[])[0];
+          if(!co?.tel){alert("El cliente no tiene teléfono registrado.");return;}
+          const num=((co.tel||"").replace(/[^0-9]/g,""));
+          const waNum=num.startsWith("56")?num:"56"+num;
+          const msg=encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". Para ver el PDF, por favor responde este mensaje y te lo enviamos de inmediato.");
+          window.open("https://wa.me/"+waNum+"?text="+msg,"_blank");
+        }}>💬 WhatsApp</GBtn>
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en Proyecto</Btn>}
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
@@ -2465,7 +2514,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
     {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"producción":"programa TV"}: <b>{p.convertidoNom}</b></div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Subtotal Neto" value={fmtM(p.subtotal||0)}/>
-      <Stat label="IVA 19%"       value={p.iva?fmtM(p.ivaVal||0):"No aplica"}/>
+      <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtM(p.ivaVal||0):"No aplica"}/>
       <Stat label="Total Final"   value={fmtM(p.total||0)} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Ítems"         value={(p.items||[]).length}/>
     </div>
@@ -2486,7 +2535,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
       </table></div>:<Empty text="Sin ítems"/>}
       <div style={{marginTop:16,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtM(p.subtotal||0)}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19%</span><span style={{fontFamily:"var(--fm)"}}>{p.iva?fmtM(p.ivaVal||0):"—"}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19%</span><span style={{fontFamily:"var(--fm)"}}>{p.iva||p.honorarios?fmtM(p.ivaVal||0):"—"}</span></div>
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(p.total||0)}</span></div>
       </div>
     </Card>

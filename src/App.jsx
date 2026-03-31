@@ -1810,8 +1810,11 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       const tarifaVal=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
       if(tarifaVal>0){
         const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal,fecha:today()};
-        const nextMov=[...(movimientos||[]),gastoAuto];
-        await setMovimientos(nextMov);
+        const movKey=`produ:${empId}:movimientos`;
+        const movActual=await dbGet(movKey)||[];
+        const nextMov=[...movActual,gastoAuto];
+        await dbSet(movKey,nextMov);
+        setMovimientos(nextMov);
       }
     }
   };
@@ -1930,7 +1933,11 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
       const tarifaVal2=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
       if(tarifaVal2>0){
         const gastoAuto={id:uid(),empId:empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal2,fecha:today()};
-        await setMovimientos(prev=>[...(prev||[]),gastoAuto]);
+        const movKey2=`produ:${empId}:movimientos`;
+        const movActual2=await dbGet(movKey2)||[];
+        const nextMov2=[...movActual2,gastoAuto];
+        await dbSet(movKey2,nextMov2);
+        setMovimientos(nextMov2);
       }
     }
   };

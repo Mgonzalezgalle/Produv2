@@ -187,34 +187,11 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
 
-/* ── MOBILE ── */
-@media(max-width:768px){
-  body{font-size:15px}
-  .mob-hide{display:none!important}
-  .mob-full{width:100%!important}
-  .mob-stack{flex-direction:column!important}
-  .mob-card-grid{grid-template-columns:1fr!important}
-  .mob-p{padding:14px!important}
-  .mob-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  input,select,textarea{font-size:16px!important} /* prevents iOS zoom */
-  .modal-inner{border-radius:0!important;height:100vh!important;max-height:100vh!important;width:100vw!important;max-width:100vw!important;margin:0!important;padding:20px!important}
-}
 `;
 
 // ── UI PRIMITIVES ────────────────────────────────────────────
 const StyleTag=()=><style dangerouslySetInnerHTML={{__html:CSS}}/>
-
-// ── MOBILE HOOK ───────────────────────────────────────────────
-function useIsMobile() {
-  const [mob, setMob] = useState(false);
-  useEffect(() => {
-    const check = () => setMob(window.innerWidth <= 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mob;
-};
+;
 
 // ── SKELETON LOADER ──────────────────────────────────────────
 function Skeleton({w="100%",h=14,r=6,mb=8}){
@@ -1089,21 +1066,12 @@ export default function App(){
   const SW=collapsed?64:240;
   const bc=buildBc();
 
-  const isMob = useIsMobile();
-  const [mobMenuOpen, setMobMenuOpen] = useState(false);
-  const SW2 = isMob ? 0 : SW;
-
   return <div style={{display:"flex",minHeight:"100vh"}}>
     <StyleTag/>
-    {/* Mobile overlay */}
-    {isMob && mobMenuOpen && <div onClick={()=>setMobMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:199,background:"rgba(0,0,0,.6)",backdropFilter:"blur(2px)"}}/>}
-    <div style={{position:"fixed",left:isMob&&!mobMenuOpen?-280:0,top:0,bottom:0,zIndex:200,transition:"left .25s ease",width:isMob?280:SW}}>
-      <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);if(isMob)setMobMenuOpen(false);}} onAdmin={()=>{setAdminOpen(true);if(isMob)setMobMenuOpen(false);}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);if(isMob)setMobMenuOpen(false);}:null} counts={counts} collapsed={isMob?false:collapsed} onToggle={()=>isMob?setMobMenuOpen(false):setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    </div>
-    <main style={{marginLeft:SW2,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
+    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);}} onAdmin={()=>setAdminOpen(true)} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
+    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
       {/* Topbar */}
       <div style={{height:58,background:"var(--sur)",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",padding:"0 16px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
-        {isMob&&<button onClick={()=>setMobMenuOpen(true)} style={{background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,display:"flex",alignItems:"center"}}>☰</button>}
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}

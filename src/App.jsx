@@ -428,7 +428,7 @@ function Login({users,onLogin}){
   const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
   const login=async()=>{setLoad(true);setErr("");await new Promise(r=>setTimeout(r,400));const u=(users||[]).find(u=>u.email.toLowerCase()===email.toLowerCase()&&u.password===pass&&u.active);if(u)onLogin(u);else setErr("Email o contraseña incorrectos");setLoad(false);};
   const GRID="linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px)";
-  return <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
+  return <><div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
     <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
     <div style={{position:"relative",width:440,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:16,padding:40,boxShadow:"0 24px 80px #0009"}}>

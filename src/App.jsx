@@ -1478,7 +1478,7 @@ export default function App(){
     if(!curEmp) return;
     const id=curEmp.id;
     const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
-    const setters={tareas:setTareas,clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,movimientos:setMovimientos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos,listas:setListas};
+    const setters={setTareas,setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
     keys.forEach(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
@@ -1823,7 +1823,7 @@ function MEvento({open,data,producciones,programas,onClose,onSave}){
 // ── MODAL ROUTER ──────────────────────────────────────────────
 function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov}){
   const {empresa,clientes,producciones,programas,auspiciadores,contratos,crew,eventos}=VP;
-  const {tareas:setTareas,clientes:setClientes,producciones:setProducciones,programas:setProgramas,episodios:setEpisodios,auspiciadores:setAuspiciadores,contratos:setContratos,crew:setCrew,eventos:setEventos,presupuestos:setPresupuestos,facturas:setFacturas,activos:setActivos,movimientos:setMovimientos}=setters;
+  const {setTareas,setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos}=setters;
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});
@@ -1841,7 +1841,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>{const item={...withEmp(d),id:d.id||uid(),cr:today()};const arr=VP.tareas||[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>cSave(VP.tareas,setTareas,withEmp(d))}/>
   </>;
 }
 

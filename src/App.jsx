@@ -1116,7 +1116,7 @@ function SolicitudesPanel({onAceptar, onRechazar, empresas}){
             const empId=document.getElementById("emp-"+sol.id)?.value||"";
             onAceptar(sol,empId);
             setSols(p=>p.filter(s=>s.id!==sol.id));
-          }} style={{padding:"7px 16px",borderRadius:6,border:"none",background:"#4ade80",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aceptar</button>
+          }} style={{padding:"7px 16px",borderRadius:6,border:"none",background:"#4ade80",color:"#ffffff",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aceptar</button>
           <button onClick={()=>{onRechazar(sol);setSols(p=>p.filter(s=>s.id!==sol.id));}} style={{padding:"7px 16px",borderRadius:6,border:"1px solid #ff556640",background:"transparent",color:"var(--red)",cursor:"pointer",fontSize:12,fontWeight:700}}>✕ Rechazar</button>
         </div>
       </div>
@@ -1531,7 +1531,8 @@ export default function App(){
   useEffect(()=>{
     dbGet("produ:empresas").then(v=>{ if(!v){setEmpresasRaw(SEED_EMPRESAS);dbSet("produ:empresas",SEED_EMPRESAS);}else setEmpresasRaw(v); });
     dbGet("produ:users").then(v=>{ if(!v){setUsersRaw(SEED_USERS);dbSet("produ:users",SEED_USERS);}else setUsersRaw(v); });
-    dbGet("produ:theme").then(v=>{ applyTheme(v||DEFAULT_T); });
+    applyTheme(DEFAULT_T); // Apply immediately
+    dbGet("produ:theme").then(v=>{ if(v&&v.mode) applyTheme(v); });
     try{const s=localStorage.getItem("produ_session");if(s){const p=JSON.parse(s);setCurUser(p.user);setCurEmp(p.emp);}}catch{}
   },[]);
 
@@ -1666,7 +1667,7 @@ export default function App(){
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
           {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"none",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
             🔔
-            {alertas.filter(a=>!alertasLeidas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)).length}</span>}
+            {alertas.filter(a=>!alertasLeidas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)).length}</span>}
           </button>}
         </div>
       </div>

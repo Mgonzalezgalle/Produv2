@@ -1841,7 +1841,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>cSave(VP.tareas,setTareas,withEmp(d))}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>cSave(tareas||[],setTareas,withEmp(d))}/>
   </>;
 }
 

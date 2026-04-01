@@ -361,67 +361,6 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
 
 
 // ── SOLICITUD MODAL — formulario de acceso desde login ───────
-function SolicitudModal({ onClose, solF, setSolF, solSent, setSolSent }) {
-  const u = (k,v) => setSolF(p=>({...p,[k]:v}));
-  const [sending, setSending] = useState(false);
-
-  const enviar = async () => {
-    if (!solF.nombre||!solF.email||!solF.productora) return;
-    setSending(true);
-    const sol = {
-      id: "_"+Math.random().toString(36).slice(2,10),
-      nombre: solF.nombre,
-      email: solF.email,
-      productora: solF.productora,
-      mensaje: solF.mensaje||"",
-      fecha: new Date().toISOString().split("T")[0],
-      estado: "pendiente"
-    };
-    // Save to Supabase
-    try {
-      const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
-      const sb2 = createClient("https://zpgxbmlzoxxgymsschrd.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZ3hibWx6b3h4Z3ltc3NjaHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTkxODksImV4cCI6MjA5MDM5NTE4OX0.HWIkm-Vm255FFrj07pf3JIYE5MNuZ8tukiLYUDCuZK8");
-      const {data} = await sb2.from("storage").select("value").eq("key","produ:solicitudes").maybeSingle();
-      const cur = data ? JSON.parse(data.value) : [];
-      await sb2.from("storage").upsert({key:"produ:solicitudes", value: JSON.stringify([...cur, sol])},{onConflict:"key"});
-      setSolSent(true);
-    } catch(e) {
-      console.error(e);
-    }
-    setSending(false);
-  };
-
-  return (
-    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:480,maxWidth:"100%",padding:32,animation:"modalIn .2s ease"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicitar acceso</div>
-          <div style={{fontSize:12,color:"var(--gr2)",marginTop:2}}>El administrador revisará tu solicitud</div></div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
-        </div>
-        {solSent ? (
-          <div style={{textAlign:"center",padding:"24px 0"}}>
-            <div style={{fontSize:40,marginBottom:12}}>✅</div>
-            <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>¡Solicitud enviada!</div>
-            <div style={{fontSize:13,color:"var(--gr2)",marginBottom:20}}>El administrador revisará tu solicitud y te contactará pronto.</div>
-            <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
-          </div>
-        ) : (
-          <>
-            <FG label="Nombre completo *"><FI value={solF.nombre||""} onChange={e=>u("nombre",e.target.value)} placeholder="Juan Pérez"/></FG>
-            <FG label="Email *"><FI type="email" value={solF.email||""} onChange={e=>u("email",e.target.value)} placeholder="juan@productora.cl"/></FG>
-            <FG label="Nombre de la productora *"><FI value={solF.productora||""} onChange={e=>u("productora",e.target.value)} placeholder="Mi Productora SpA"/></FG>
-            <FG label="Mensaje (opcional)"><FTA value={solF.mensaje||""} onChange={e=>u("mensaje",e.target.value)} placeholder="Cuéntanos sobre tu productora..."/></FG>
-            <div style={{display:"flex",gap:8,marginTop:4}}>
-              <button onClick={enviar} disabled={sending||!solF.nombre||!solF.email||!solF.productora} style={{flex:1,padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:sending?.7:1}}>{sending?"Enviando...":"Enviar solicitud →"}</button>
-              <button onClick={onClose} style={{padding:"12px 16px",borderRadius:8,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr2)",cursor:"pointer",fontSize:13}}>Cancelar</button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function Login({users,onLogin}){
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);

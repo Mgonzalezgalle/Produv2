@@ -185,8 +185,27 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* Modern light theme enhancements */
+body.light .sidebar-inner{background:#1a1a2e!important}
+body.light aside{background:#1a1a2e!important;border-right:none!important}
+body.light aside *{border-color:#ffffff12!important}
+body.light aside .nav-label{color:#94a3b8!important}
+body.light .card-wrap,.card{border-radius:12px}
+body.light .card-wrap{box-shadow:0 1px 4px rgba(0,0,0,.07),0 2px 12px rgba(0,0,0,.04)!important;border:none!important}
+body.light main{background:#f0f2f7}
+body.light .stat-card{box-shadow:0 2px 8px rgba(0,0,0,.07);border:none}
+body.light input,body.light select,body.light textarea{background:#f8fafc;border-color:#e4e6ed}
+body.light input:focus,body.light select:focus,body.light textarea:focus{border-color:#4f46e5;box-shadow:0 0 0 3px #4f46e520}
+body.light button[class*="btn"]{transition:all .15s}
 .va{animation:fadeUp .2s ease}
-body.light{--bg:#f0f2f5;--sur:#fff;--card:#fff;--card2:#f8f9fb;--bdr:#e2e4e9;--bdr2:#d0d3da;--wh:#111;--gr:#888;--gr2:#666;--gr3:#444}
+body.light{--bg:#f0f2f7;--sur:#ffffff;--card:#ffffff;--card2:#f8fafc;--bdr:#e4e6ed;--bdr2:#d1d5e0;--wh:#1a1a2e;--gr:#94a3b8;--gr2:#64748b;--gr3:#334155;--sidebar:#1a1a2e;--sidebar-text:#94a3b8;--sidebar-active:#ffffff;--sidebar-active-bg:#4f46e5}
+body.light .sidebar-wrap{background:#1a1a2e!important}
+body.light .sidebar-wrap *{border-color:#ffffff15!important}
+body.light aside{background:#1a1a2e!important;border-right:none!important;box-shadow:2px 0 20px rgba(0,0,0,.15)}
+body.light aside .nav-group-label{color:#64748b!important}
+body.light aside *{color:#cbd5e1}
+body.light aside .active-nav{background:#ffffff15!important;color:#fff!important}
+body.light .topbar{background:#fff;border-bottom:1px solid #eef0f5;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 @media(max-width:768px){
   aside{transform:translateX(-100%);transition:transform .25s ease!important;width:260px!important;z-index:300!important}
   aside.mob-open{transform:translateX(0)!important}
@@ -293,8 +312,120 @@ const DetHeader=({title,tag,badges=[],meta=[],actions,des})=><div style={{displa
 function useBal(movimientos,empId){return useCallback(id=>{const mv=(movimientos||[]).filter(m=>m.eid===id&&m.empId===empId);const i=mv.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+Number(m.mon),0);const g=mv.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+Number(m.mon),0);return{i,g,b:i-g};},[movimientos,empId]);}
 
 // ── LOGIN ────────────────────────────────────────────────────
+
+// ── SOLICITUD MODAL ───────────────────────────────────────────
+function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
+  return <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:480,maxWidth:"100%",padding:28,animation:"modalIn .2s ease"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicitar Acceso a Produ</div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
+      </div>
+      {solSent
+        ?<div style={{textAlign:"center",padding:20}}>
+          <div style={{fontSize:40,marginBottom:12}}>✅</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>Solicitud enviada</div>
+          <div style={{fontSize:13,color:"var(--gr2)",marginBottom:16}}>El administrador revisará tu solicitud y se pondrá en contacto contigo.</div>
+          <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
+        </div>
+        :<div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Nombre completo *</div>
+            <input value={solF.nom||""} onChange={e=>setSolF(p=>({...p,nom:e.target.value}))} placeholder="Juan Pérez" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Email *</div>
+            <input type="email" value={solF.ema||""} onChange={e=>setSolF(p=>({...p,ema:e.target.value}))} placeholder="juan@empresa.cl" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Empresa / Productora *</div>
+            <input value={solF.emp||""} onChange={e=>setSolF(p=>({...p,emp:e.target.value}))} placeholder="Play Media SpA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Rol solicitado</div>
+            <select value={solF.rol||"productor"} onChange={e=>setSolF(p=>({...p,rol:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
+              <option value="productor">Productor</option>
+              <option value="comercial">Comercial</option>
+              <option value="admin">Admin</option>
+            </select></div>
+          </div>
+          <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Mensaje (opcional)</div>
+          <textarea value={solF.msg||""} onChange={e=>setSolF(p=>({...p,msg:e.target.value}))} placeholder="Cuéntanos brevemente para qué necesitas acceso..." rows={3} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>
+          <button onClick={async()=>{
+            if(!solF.nom||!solF.ema||!solF.emp){alert("Completa nombre, email y empresa.");return;}
+            const sol={id:uid(),nom:solF.nom,ema:solF.ema,emp:solF.emp,rol:solF.rol||"productor",msg:solF.msg||"",fecha:today(),estado:"pendiente"};
+            const cur=await dbGet("produ:solicitudes")||[];
+            await dbSet("produ:solicitudes",[...cur,sol]);
+            setSolSent(true);
+          }} style={{width:"100%",padding:"11px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700}}>Enviar solicitud →</button>
+        </div>}
+    </div>
+  </div>;
+}
+
+
+// ── SOLICITUD MODAL — formulario de acceso desde login ───────
+function SolicitudModal({ onClose, solF, setSolF, solSent, setSolSent }) {
+  const u = (k,v) => setSolF(p=>({...p,[k]:v}));
+  const [sending, setSending] = useState(false);
+
+  const enviar = async () => {
+    if (!solF.nombre||!solF.email||!solF.productora) return;
+    setSending(true);
+    const sol = {
+      id: "_"+Math.random().toString(36).slice(2,10),
+      nombre: solF.nombre,
+      email: solF.email,
+      productora: solF.productora,
+      mensaje: solF.mensaje||"",
+      fecha: new Date().toISOString().split("T")[0],
+      estado: "pendiente"
+    };
+    // Save to Supabase
+    try {
+      const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+      const sb2 = createClient("https://zpgxbmlzoxxgymsschrd.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZ3hibWx6b3h4Z3ltc3NjaHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTkxODksImV4cCI6MjA5MDM5NTE4OX0.HWIkm-Vm255FFrj07pf3JIYE5MNuZ8tukiLYUDCuZK8");
+      const {data} = await sb2.from("storage").select("value").eq("key","produ:solicitudes").maybeSingle();
+      const cur = data ? JSON.parse(data.value) : [];
+      await sb2.from("storage").upsert({key:"produ:solicitudes", value: JSON.stringify([...cur, sol])},{onConflict:"key"});
+      setSolSent(true);
+    } catch(e) {
+      console.error(e);
+    }
+    setSending(false);
+  };
+
+  return (
+    <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:480,maxWidth:"100%",padding:32,animation:"modalIn .2s ease"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicitar acceso</div>
+          <div style={{fontSize:12,color:"var(--gr2)",marginTop:2}}>El administrador revisará tu solicitud</div></div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
+        </div>
+        {solSent ? (
+          <div style={{textAlign:"center",padding:"24px 0"}}>
+            <div style={{fontSize:40,marginBottom:12}}>✅</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>¡Solicitud enviada!</div>
+            <div style={{fontSize:13,color:"var(--gr2)",marginBottom:20}}>El administrador revisará tu solicitud y te contactará pronto.</div>
+            <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
+          </div>
+        ) : (
+          <>
+            <FG label="Nombre completo *"><FI value={solF.nombre||""} onChange={e=>u("nombre",e.target.value)} placeholder="Juan Pérez"/></FG>
+            <FG label="Email *"><FI type="email" value={solF.email||""} onChange={e=>u("email",e.target.value)} placeholder="juan@productora.cl"/></FG>
+            <FG label="Nombre de la productora *"><FI value={solF.productora||""} onChange={e=>u("productora",e.target.value)} placeholder="Mi Productora SpA"/></FG>
+            <FG label="Mensaje (opcional)"><FTA value={solF.mensaje||""} onChange={e=>u("mensaje",e.target.value)} placeholder="Cuéntanos sobre tu productora..."/></FG>
+            <div style={{display:"flex",gap:8,marginTop:4}}>
+              <button onClick={enviar} disabled={sending||!solF.nombre||!solF.email||!solF.productora} style={{flex:1,padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:sending?.7:1}}>{sending?"Enviando...":"Enviar solicitud →"}</button>
+              <button onClick={onClose} style={{padding:"12px 16px",borderRadius:8,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr2)",cursor:"pointer",fontSize:13}}>Cancelar</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Login({users,onLogin}){
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
+  const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
   const login=async()=>{setLoad(true);setErr("");await new Promise(r=>setTimeout(r,400));const u=(users||[]).find(u=>u.email.toLowerCase()===email.toLowerCase()&&u.password===pass&&u.active);if(u)onLogin(u);else setErr("Email o contraseña incorrectos");setLoad(false);};
   const GRID="linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px)";
   return <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
@@ -318,9 +449,14 @@ function Login({users,onLogin}){
       <FG label="Contraseña"><FI type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
       {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:6,padding:"8px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
       <button onClick={login} disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:20}}>{load?"Verificando...":"Ingresar →"}</button>
-
+    <div style={{textAlign:"center",marginTop:12}}>
+      <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
+      <button onClick={()=>setSolOpen(true)} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
     </div>
-  </div>;
+    </div>
+  </div>
+  {solOpen&&<SolicitudModal onClose={()=>{setSolOpen(false);setSolF({});setSolSent(false);}} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent}/>}
+  </>;
 }
 
 // ── EMPRESA SELECTOR ─────────────────────────────────────────
@@ -942,6 +1078,52 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
 }
 
 // ── SUPER ADMIN PANEL ─────────────────────────────────────────
+
+// ── SOLICITUDES PANEL ────────────────────────────────────────
+function SolicitudesPanel({onAceptar, onRechazar, empresas}){
+  const [sols, setSols] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(()=>{
+    dbGet("produ:solicitudes").then(v=>{ setSols(v||[]); setLoading(false); });
+  },[]);
+  const pendientes = sols.filter(s=>s.estado==="pendiente");
+  if(loading) return <div style={{padding:20,color:"var(--gr2)"}}>Cargando...</div>;
+  if(!pendientes.length) return <div style={{padding:20,textAlign:"center",color:"var(--gr2)"}}>
+    <div style={{fontSize:32,marginBottom:8}}>✅</div>
+    <div style={{fontSize:14}}>Sin solicitudes pendientes</div>
+  </div>;
+  return <div>
+    <div style={{fontSize:12,color:"var(--gr2)",marginBottom:16}}>{pendientes.length} solicitud{pendientes.length!==1?"es":""} pendiente{pendientes.length!==1?"s":""}</div>
+    {pendientes.map(sol=>(
+      <div key={sol.id} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:16,marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14}}>{sol.nom}</div>
+            <div style={{fontSize:12,color:"var(--gr2)"}}>{sol.ema} · {sol.emp}</div>
+            <div style={{fontSize:11,color:"var(--gr)",marginTop:4}}>Rol: {sol.rol} · {fmtD(sol.fecha)}</div>
+            {sol.msg&&<div style={{fontSize:12,color:"var(--gr3)",marginTop:6,fontStyle:"italic"}}>"{sol.msg}"</div>}
+          </div>
+          <Badge label="Pendiente" color="yellow" sm/>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:120}}>
+            <select defaultValue="" style={{width:"100%",padding:"7px 10px",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:12}} id={"emp-"+sol.id}>
+              <option value="">Asignar a empresa...</option>
+              {(empresas||[]).map(e=><option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </select>
+          </div>
+          <button onClick={()=>{
+            const empId=document.getElementById("emp-"+sol.id)?.value||"";
+            onAceptar(sol,empId);
+            setSols(p=>p.filter(s=>s.id!==sol.id));
+          }} style={{padding:"7px 16px",borderRadius:6,border:"none",background:"#4ade80",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aceptar</button>
+          <button onClick={()=>{onRechazar(sol);setSols(p=>p.filter(s=>s.id!==sol.id));}} style={{padding:"7px 16px",borderRadius:6,border:"1px solid #ff556640",background:"transparent",color:"var(--red)",cursor:"pointer",fontSize:12,fontWeight:700}}>✕ Rechazar</button>
+        </div>
+      </div>
+    ))}
+  </div>;
+}
+
 function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
@@ -953,7 +1135,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     setEf({});setEid(null);
   };
   return <div>
-    <Tabs tabs={["Empresas","Usuarios del sistema"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Empresas","Usuarios del sistema","Solicitudes"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{marginBottom:14}}>
         {(empresas||[]).map(emp=><div key={emp.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:6}}>
@@ -985,6 +1167,74 @@ function SuperAdminPanel({empresas,users,onSave}){
         <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
       </div>)}
     </div>}
+    {tab===2&&<div>
+      <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
+        const newUser={id:uid(),name:sol.nom,email:sol.ema,password:uid().slice(1,9),role:sol.rol||"productor",empId:empId||"",active:true};
+        onSave("users",[...(users||[]),newUser]);
+        const cur=await dbGet("produ:solicitudes")||[];
+        await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
+        alert("✓ Usuario creado
+Email: "+sol.ema+"
+Contraseña temporal: "+newUser.password);
+      }} onRechazar={async(sol)=>{
+        const cur=await dbGet("produ:solicitudes")||[];
+        await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
+      }}/>
+    </div>}
+  </div>;
+}
+
+// ── SOLICITUDES ADMIN ─────────────────────────────────────────
+function SolicitudesAdmin({ users, onSaveUsers }) {
+  const [sols, setSols] = useState([]);
+  useEffect(()=>{ dbGet("produ:solicitudes").then(v=>setSols(v||[])); },[]);
+
+  const aprobar = async (s) => {
+    const pw = prompt("Contraseña temporal para "+s.nombre+":", "produ2024");
+    if(!pw) return;
+    const newUser = {id:uid(),name:s.nombre,email:s.email,password:pw,role:"productor",empId:"",active:true};
+    onSaveUsers([...(users||[]),newUser]);
+    const upd = sols.map(x=>x.id===s.id?{...x,estado:"aprobada"}:x);
+    setSols(upd);
+    await dbSet("produ:solicitudes",upd);
+    alert("✓ Usuario creado. Contraseña: "+pw+". Recuerda asignarle una empresa.");
+  };
+
+  const rechazar = async (s) => {
+    if(!confirm("¿Rechazar solicitud de "+s.nombre+"?")) return;
+    const upd = sols.map(x=>x.id===s.id?{...x,estado:"rechazada"}:x);
+    setSols(upd);
+    await dbSet("produ:solicitudes",upd);
+  };
+
+  const pendientes = sols.filter(s=>s.estado==="pendiente");
+  const procesadas = sols.filter(s=>s.estado!=="pendiente");
+
+  return <div>
+    <div style={{fontSize:12,color:"var(--gr2)",marginBottom:16}}>
+      {pendientes.length>0?<span style={{color:"#fbbf24",fontWeight:600}}>{pendientes.length} solicitud{pendientes.length!==1?"es":""} pendiente{pendientes.length!==1?"s":""}</span>:"Sin solicitudes pendientes"}
+    </div>
+    {sols.length===0&&<Empty text="Aún no hay solicitudes de acceso"/>}
+    {sols.map(s=>(
+      <div key={s.id} style={{background:"var(--sur)",border:`1px solid ${s.estado==="pendiente"?"#fbbf2440":s.estado==="aprobada"?"#4ade8030":"#ff556630"}`,borderRadius:10,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700}}>{s.nombre}</div>
+            <div style={{fontSize:12,color:"var(--gr2)",marginTop:2}}>✉ {s.email}</div>
+            <div style={{fontSize:12,color:"var(--gr2)"}}>🏢 {s.productora}</div>
+            {s.mensaje&&<div style={{fontSize:12,color:"var(--gr3)",marginTop:4,fontStyle:"italic"}}>"{s.mensaje}"</div>}
+            <div style={{fontSize:11,color:"var(--gr)",marginTop:4}}>Enviada: {s.fecha}</div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+            <Badge label={s.estado==="pendiente"?"Pendiente":s.estado==="aprobada"?"Aprobada":"Rechazada"} color={s.estado==="aprobada"?"green":s.estado==="rechazada"?"red":"yellow"} sm/>
+            {s.estado==="pendiente"&&<>
+              <GBtn sm onClick={()=>aprobar(s)}>✓ Aprobar</GBtn>
+              <GBtn sm onClick={()=>rechazar(s)}>✕ Rechazar</GBtn>
+            </>}
+          </div>
+        </div>
+      </div>
+    ))}
   </div>;
 }
 
@@ -1149,7 +1399,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       <div style={{display:"flex",gap:8}}>
         <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aplicar</button>
         <button onClick={(e)=>{e.stopPropagation();const dt={bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a",mode:"dark"};setLt(dt);onSaveTheme(dt);ntf("Tema oscuro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>🌙 Oscuro</button>
-        <button onClick={(e)=>{e.stopPropagation();const lt2={bg:"#f0f2f5",surface:"#fff",card:"#fff",border:"#e2e4e9",accent:"#0099b8",accent2:"#007a94",white:"#111",gray:"#666",mode:"light"};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
+        <button onClick={(e)=>{e.stopPropagation();const lt2={bg:"#f0f2f7",surface:"#ffffff",card:"#ffffff",border:"#e8eaef",accent:"#3b82f6",accent2:"#2563eb",white:"#0f1623",gray:"#6b7280",mode:"light"};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
       </div>
     </div>}
     {tab===1&&<div>
@@ -1297,7 +1547,7 @@ export default function App(){
     });
   },[curEmp?.id]);
 
-  const DEFAULT_T={mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a"};
+  const DEFAULT_T={mode:"light",bg:"#f0f2f7",surface:"#ffffff",card:"#ffffff",border:"#e4e6ed",accent:"#4f46e5",accent2:"#4338ca",white:"#1a1a2e",gray:"#64748b"};
   const [theme,setThemeState]=useState(DEFAULT_T);
   const applyTheme=t=>{
     const merged={...DEFAULT_T,...t};
@@ -1305,7 +1555,7 @@ export default function App(){
     const r=document.documentElement;
     const map={"--bg":merged.bg,"--sur":merged.surface,"--card":merged.card,"--card2":merged.card,"--bdr":merged.border,"--bdr2":merged.border,"--cy":merged.accent,"--cy2":merged.accent2||merged.accent,"--cg":merged.accent+"20","--cm":merged.accent+"40","--wh":merged.white,"--gr":merged.gray,"--gr2":merged.gray,"--gr3":merged.white+"cc"};
     Object.entries(map).forEach(([k,v])=>r.style.setProperty(k,v));
-    document.body.className=merged.mode==="light"?"light":"";
+    document.body.className=merged.mode==="light"?"light":"dark";
   };
   const saveTheme=t=>{applyTheme(t);dbSet("produ:theme",t);};
 

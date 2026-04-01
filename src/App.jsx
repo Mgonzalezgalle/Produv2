@@ -1802,25 +1802,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(p.crewIds||[]).includes(x.id));
   const cContacto=(c?.contactos||[])[0];
   const [tab,setTab]=useState(0);
-  const addCrew=async crId=>{
-    const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
-    await setProducciones(next);
-    const cm=(crew||[]).find(x=>x.id===crId);
-    if(cm&&cm.tipo!=="interno"){
-      const tvRaw=cm.tarifa||cm.tar||0;
-      const tvStr=String(tvRaw).split(".").join("").split(",").join("");
-      const tv=parseFloat(tvStr)||0;
-      if(tv>0){
-        const g={id:uid(),empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv,fecha:today()};
-        const eid2=empresa?.id||empId;
-        const mkey=`produ:${eid2}:movimientos`;
-        const cur=await dbGet(mkey)||[];
-        const nxtMov=[...cur,g];
-        await dbSet(mkey,nxtMov);
-        setMovimientos(nxtMov);
-      }
-    }
-  };
+  const addCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProducciones(next);};
   const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
   return <div>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est}/>]} meta={[c&&`Cliente: ${c.nom}`,p.ini&&`Inicio: ${fmtD(p.ini)}`,p.fin&&`Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
@@ -1843,7 +1825,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
     {tab===0&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="caja"    eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}
     {tab===4&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={_cd&&_cd("calendario")} titulo={p.nom}/>}
     {tab===5&&<Card title="Contratos del cliente" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:p.cliId})}:null}>
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
@@ -1932,24 +1914,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
   const epStats={plan:eps.filter(e=>e.estado==="Planificado").length,grab:eps.filter(e=>e.estado==="Grabado").length,edit:eps.filter(e=>e.estado==="En Edición").length,pub:eps.filter(e=>e.estado==="Publicado").length,can:eps.filter(e=>e.estado==="Cancelado").length};
   const fdEps=eps.filter(e=>(!epF||e.estado===epF)&&(e.titulo.toLowerCase().includes(epQ.toLowerCase())||(e.invitado||"").toLowerCase().includes(epQ.toLowerCase())));
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pg_.crewIds||[]).includes(x.id));
-  const addCrew=async crId=>{
-    const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
-    await setProgramas(next);
-    const cm=(crew||[]).find(x=>x.id===crId);
-    if(cm&&cm.tipo!=="interno"){
-      const tvRaw2=cm.tarifa||cm.tar||0;
-      const tvStr2=String(tvRaw2).split(".").join("").split(",").join("");
-      const tv2=parseFloat(tvStr2)||0;
-      if(tv2>0){
-        const g={id:uid(),empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv2,fecha:today()};
-        const key=`produ:${empId}:movimientos`;
-        const cur=await dbGet(key)||[];
-        const nxt=[...cur,g];
-        await dbSet(key,nxt);
-        setMovimientos(nxt);
-      }
-    }
-  };
+  const addCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
   const remCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};
   const cliAsoc=(clientes||[]).find(x=>x.id===pg_.cliId);
   return <div>

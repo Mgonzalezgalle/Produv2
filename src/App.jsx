@@ -141,9 +141,10 @@ function useDB(key, initial=null) {
   const loaded=useRef(false);
   useEffect(()=>{
     if(!key) return;
-    loaded.current=false;
+    if(loaded.current) return;
+    loaded.current=true;
     setLoading(true);
-    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); loaded.current=true; });
+    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
   },[key]);
   const save=useCallback(async d=>{
     saving.current=true; setData(d);
@@ -625,7 +626,11 @@ function calcAlertas(episodios, programas, eventos, empId) {
 }
 function useAlertas(episodios, programas, eventos, empId) {
   const [alerts, setAlerts] = useState([]);
-  useEffect(() => { setAlerts(calcAlertas(episodios, programas, eventos, empId)); }, [episodios, programas, eventos, empId]);
+  const epLen = (episodios||[]).length;
+  const evLen = (eventos||[]).length;
+  useEffect(() => {
+    setAlerts(calcAlertas(episodios, programas, eventos, empId));
+  }, [epLen, evLen, empId]); // use lengths not arrays to avoid infinite loop
   return alerts;
 }
 

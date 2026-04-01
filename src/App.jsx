@@ -1805,18 +1805,16 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
   const addCrew=async crId=>{
     const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
     await setProducciones(next);
-    // Auto-gasto si crew externo con tarifa
     const cm=(crew||[]).find(x=>x.id===crId);
-    if(cm&&cm.tipo==="externo"&&cm.tarifa){
-      const tarifaVal=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
-      console.log("TARIFA VAL:", tarifaVal);
-      if(tarifaVal>0){
-        const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal,fecha:today()};
-        const movKey=`produ:${empId}:movimientos`;
-        const movActual=await dbGet(movKey)||[];
-        const nextMov=[...movActual,gastoAuto];
-        await dbSet(movKey,nextMov);
-        setMovimientos(nextMov);
+    if(cm&&cm.tipo!=="interno"){
+      const tvRaw=cm.tarifa||cm.tar||0;
+      const tv=parseFloat(String(tvRaw).replace(/[^0-9.]/g,""))||0;
+      if(tv>0){
+        const g={id:uid(),empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv,fecha:today()};
+        const mkey=`produ:${empId}:movimientos`;
+        const cur=await dbGet(mkey)||[];
+        await dbSet(mkey,[...cur,g]);
+        setMovimientos([...cur,g]);
       }
     }
   };
@@ -1931,10 +1929,11 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
     const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
     await setProgramas(next);
     const cm=(crew||[]).find(x=>x.id===crId);
-    if(cm&&cm.tipo==="externo"){
-      const tv=parseFloat(String(cm.tarifa||0).replace(/[^0-9.]/g,""))||0;
-      if(tv>0){
-        const g={id:uid(),empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv,fecha:today()};
+    if(cm&&cm.tipo!=="interno"){
+      const tvRaw2=cm.tarifa||cm.tar||0;
+      const tv2=parseFloat(String(tvRaw2).replace(/[^0-9.]/g,""))||0;
+      if(tv2>0){
+        const g={id:uid(),empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv2,fecha:today()};
         const key=`produ:${empId}:movimientos`;
         const cur=await dbGet(key)||[];
         const nxt=[...cur,g];

@@ -139,15 +139,11 @@ function useDB(key, initial=null) {
   const [loading,setLoading]=useState(true);
   const saving=useRef(false);
   const loaded=useRef(false);
-  const lastKey=useRef(null);
   useEffect(()=>{
     if(!key) return;
-    // Reset if key changed (empresa switch)
-    if(lastKey.current !== key) { loaded.current=false; lastKey.current=key; }
-    if(loaded.current) return;
-    loaded.current=true;
+    loaded.current=false;
     setLoading(true);
-    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
+    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); loaded.current=true; });
   },[key]);
   const save=useCallback(async d=>{
     saving.current=true; setData(d);
@@ -1808,6 +1804,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
     const cm=(crew||[]).find(x=>x.id===crId);
     if(cm&&cm.tipo==="externo"&&cm.tarifa){
       const tarifaVal=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
+      console.log("TARIFA VAL:", tarifaVal);
       if(tarifaVal>0){
         const gastoAuto={id:uid(),empId:empId,eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal,fecha:today()};
         const movKey=`produ:${empId}:movimientos`;
@@ -1929,15 +1926,15 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
     const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);
     await setProgramas(next);
     const cm=(crew||[]).find(x=>x.id===crId);
-    if(cm&&cm.tipo==="externo"&&cm.tarifa){
-      const tarifaVal2=parseFloat((cm.tarifa||"0").toString().replace(/[^0-9.]/g,""))||0;
-      if(tarifaVal2>0){
-        const gastoAuto={id:uid(),empId:empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tarifaVal2,fecha:today()};
-        const movKey2=`produ:${empId}:movimientos`;
-        const movActual2=await dbGet(movKey2)||[];
-        const nextMov2=[...movActual2,gastoAuto];
-        await dbSet(movKey2,nextMov2);
-        setMovimientos(nextMov2);
+    if(cm&&cm.tipo==="externo"){
+      const tv=parseFloat(String(cm.tarifa||0).replace(/[^0-9.]/g,""))||0;
+      if(tv>0){
+        const g={id:uid(),empId,eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+cm.nom,monto:tv,fecha:today()};
+        const key=`produ:${empId}:movimientos`;
+        const cur=await dbGet(key)||[];
+        const nxt=[...cur,g];
+        await dbSet(key,nxt);
+        setMovimientos(nxt);
       }
     }
   };

@@ -1823,7 +1823,7 @@ function MEvento({open,data,producciones,programas,onClose,onSave}){
 // ── MODAL ROUTER ──────────────────────────────────────────────
 function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov}){
   const {empresa,clientes,producciones,programas,auspiciadores,contratos,crew,eventos}=VP;
-  const {setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos}=setters;
+  const {setTareas,setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos}=setters;
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});

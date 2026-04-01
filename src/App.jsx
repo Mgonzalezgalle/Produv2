@@ -448,11 +448,11 @@ function Login({users,onLogin}){
       <FG label="Email"><FI type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.cl" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
       <FG label="Contraseña"><FI type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
       {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:6,padding:"8px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
-      <button onClick={login} disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:20}}>{load?"Verificando...":"Ingresar →"}</button>
-    <div style={{textAlign:"center",marginTop:12}}>
-      <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
-      <button onClick={()=>setSolOpen(true)} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
-    </div>
+      <button onClick={login} disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:16}}>{load?"Verificando...":"Ingresar →"}</button>
+      <div style={{textAlign:"center"}}>
+        <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
+        <button onClick={()=>setSolOpen(true)} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
+      </div>
     </div>
   </div>
   {solOpen&&<SolicitudModal onClose={()=>{setSolOpen(false);setSolF({});setSolSent(false);}} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent}/>}

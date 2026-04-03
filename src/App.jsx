@@ -971,24 +971,30 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios" }
 }
 
 function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, crew, openM, setTareas, canEdit }) {
-  const items=(tareas||[])
-    .filter(t=>t&&typeof t==="object")
-    .filter(t=>t.refTipo===refTipo&&t.refId===refId)
-    .sort((a,b)=>String(b.cr||"").localeCompare(String(a.cr||"")));
-  const changeEstado=async(id,nuevoEstado)=>{
-    const next=(tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t);
-    await setTareas(next);
-  };
-  const deleteTarea=async(id)=>{
-    if(!confirm("¿Eliminar tarea?")) return;
-    const next=(tareas||[]).filter(t=>t.id!==id);
-    await setTareas(next);
-  };
-  return <TaskErrorBoundary title={title}>
-    <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
-      {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
-    </Card>
-  </TaskErrorBoundary>;
+  try{
+    const safeTareas=Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[];
+    const items=safeTareas
+      .filter(t=>t.refTipo===refTipo&&t.refId===refId)
+      .sort((a,b)=>String(b.cr||"").localeCompare(String(a.cr||"")));
+    const changeEstado=async(id,nuevoEstado)=>{
+      const next=safeTareas.map(t=>t.id===id?{...t,estado:nuevoEstado}:t);
+      await setTareas(next);
+    };
+    const deleteTarea=async(id)=>{
+      if(!confirm("¿Eliminar tarea?")) return;
+      const next=safeTareas.filter(t=>t.id!==id);
+      await setTareas(next);
+    };
+    return <TaskErrorBoundary title={title}>
+      <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
+        {items.length?items.map(t=><TareaCard key={t.id||uid()} tarea={t} producciones={producciones||[]} programas={programas||[]} crew={crew||[]} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+      </Card>
+    </TaskErrorBoundary>;
+  }catch{
+    return <Card title={title}>
+      <Empty text="No pudimos cargar este bloque de tareas" sub="Usa el módulo general de Tareas mientras normalizamos estos datos."/>
+    </Card>;
+  }
 }
 
 function ViewTareas({ empresa, user, tareas, producciones, programas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
@@ -1072,20 +1078,28 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
                 <GBtn sm onClick={()=>openM("tarea",{estado:col})}>+</GBtn>
               </div>
               {/* Cards */}
-              {items.length===0
-                ? <div style={{padding:16,textAlign:"center",color:"var(--gr)",fontSize:12,fontStyle:"italic",border:"1px dashed var(--bdr)",borderRadius:10}}>Sin tareas</div>
-                : items.map(t=>(
-                  <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew}
-                    onEdit={t=>openM("tarea",t)}
-                    onDelete={deleteTarea}
-                    onChangeEstado={changeEstado}
-                    onOpen={t=>openM("tarea",t)}
-                    draggable
-                    onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", String(tarea.id||""));setDragId(tarea.id);}}
-                    onDragEnd={()=>{setDragId(null);setDropCol("");}}
-                  />
-                ))
-              }
+              <div
+                onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dropCol!==col) setDropCol(col);}}
+                onDrop={async e=>{e.preventDefault();e.stopPropagation();await handleDrop(e,col);}}
+                style={{minHeight:80,padding:dropCol===col?6:0,borderRadius:10,background:dropCol===col?"var(--cg)":"transparent",transition:".12s"}}
+              >
+                {items.length===0
+                  ? <div style={{padding:16,textAlign:"center",color:"var(--gr)",fontSize:12,fontStyle:"italic",border:"1px dashed var(--bdr)",borderRadius:10}}>Sin tareas</div>
+                  : items.map(t=>(
+                    <div key={t.id} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dropCol!==col) setDropCol(col);}} onDrop={async e=>{e.preventDefault();e.stopPropagation();await handleDrop(e,col);}}>
+                      <TareaCard tarea={t} producciones={producciones} programas={programas} crew={crew}
+                        onEdit={t=>openM("tarea",t)}
+                        onDelete={deleteTarea}
+                        onChangeEstado={changeEstado}
+                        onOpen={t=>openM("tarea",t)}
+                        draggable
+                        onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", String(tarea.id||""));setDragId(tarea.id);}}
+                        onDragEnd={()=>{setDragId(null);setDropCol("");}}
+                      />
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           );
         })}

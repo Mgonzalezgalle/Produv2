@@ -1003,8 +1003,10 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
   const [filtroRef, setFiltroRef] = useState("");
   const [dragId, setDragId] = useState(null);
   const [dropCol, setDropCol] = useState("");
+  const dragIdRef = useRef(null);
+  const safeTareas = Array.isArray(tareas) ? tareas.filter(t => t && typeof t==="object") : [];
 
-  const misTareas = (tareas||[]).filter(t => t && typeof t==="object" && t.empId===empId);
+  const misTareas = safeTareas.filter(t => t.empId===empId);
   const tareasVis = filtro==="mis"
     ? misTareas.filter(t => t.asignadoA===user?.id || !t.asignadoA)
     : misTareas;
@@ -1015,21 +1017,22 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
   const porColumna = col => tareasFilt.filter(t => (t.estado||"Pendiente")===col);
 
   const changeEstado = async (id, nuevoEstado) => {
-    const next = (tareas||[]).map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
+    const next = safeTareas.map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
     await setTareas(next);
   };
 
   const handleDrop = async (event, nuevoEstado) => {
-    const droppedId = event?.dataTransfer?.getData("text/plain") || dragId;
+    const droppedId = event?.dataTransfer?.getData("text/plain") || dragIdRef.current || dragId;
     if(!droppedId) return;
     await changeEstado(droppedId, nuevoEstado);
     setDragId(null);
+    dragIdRef.current = null;
     setDropCol("");
   };
 
   const deleteTarea = (id) => {
     if(!confirm("¿Eliminar tarea?")) return;
-    setTareas((tareas||[]).filter(t => t.id!==id));
+    setTareas(safeTareas.filter(t => t.id!==id));
   };
 
   const colColors = { Pendiente:"var(--bdr2)", "En Progreso":"#60a5fa", "En Revisión":"#fbbf24", Completada:"#4ade80" };
@@ -1093,8 +1096,8 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
                         onChangeEstado={changeEstado}
                         onOpen={t=>openM("tarea",t)}
                         draggable
-                        onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", String(tarea.id||""));setDragId(tarea.id);}}
-                        onDragEnd={()=>{setDragId(null);setDropCol("");}}
+                        onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", String(tarea.id||""));setDragId(tarea.id);dragIdRef.current=tarea.id;}}
+                        onDragEnd={()=>{setDragId(null);dragIdRef.current=null;setDropCol("");}}
                       />
                     </div>
                   ))
@@ -1702,7 +1705,7 @@ export default function App(){
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(tareas||[]).filter(t=>t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -2008,7 +2011,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=VP.tareas||[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
 }
 
@@ -2192,7 +2195,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
     </Card>}
-    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={(tareas||[]).filter(t=>t.empId===empId)} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
+    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
 }
 
@@ -2350,7 +2353,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
         {pg_.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pg_.des}</div></>}
       </Card>
     </div>}
-    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={(tareas||[]).filter(t=>t.empId===empId)} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 

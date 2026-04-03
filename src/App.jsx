@@ -253,10 +253,22 @@ function SkeletonCard(){
     <Skeleton h={12} w="80%"/>
   </div>;
 }
-function LoadingScreen(){
-  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:16}}>
-    <div style={{width:48,height:48,border:"3px solid var(--bdr2)",borderTop:"3px solid var(--cy)",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-    <div style={{fontSize:13,color:"var(--gr2)"}}>Cargando datos...</div>
+function LoadingScreen({ title="Cargando datos...", sub="En los proximos segundos estaremos al aire" }){
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:18,textAlign:"center",padding:"24px 16px"}}>
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
+        <svg viewBox="0 0 24 24" fill="var(--bg)" width="22" height="22"><polygon points="5,3 20,12 5,21"/></svg>
+      </div>
+      <div style={{textAlign:"left"}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:28,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
+        <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestion de Productoras</div>
+      </div>
+    </div>
+    <div style={{width:54,height:54,border:"3px solid var(--bdr2)",borderTop:"3px solid var(--cy)",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+    <div>
+      <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,color:"var(--wh)",marginBottom:6}}>{title}</div>
+      <div style={{fontSize:13,color:"var(--gr2)"}}>{sub}</div>
+    </div>
   </div>;
 }
 
@@ -1618,23 +1630,23 @@ export default function App(){
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
-  const [listas,setListas,savLst]=useDB(`produ:${eId}:listas`);
-  const [tareas,setTareas,savTar]=useDB(`produ:${eId}:tareas`);
+  const [listas,setListas,savLst,ldLst]=useDB(`produ:${eId}:listas`);
+  const [tareas,setTareas,savTar,ldTar]=useDB(`produ:${eId}:tareas`);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
   const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
   const [programas,setProgramas,savPg,ldPg]=useDB(`produ:${eId}:programas`);
-  const [episodios,setEpisodios,savEp]=useDB(`produ:${eId}:episodios`);
-  const [auspiciadores,setAuspiciadores,savAus]=useDB(`produ:${eId}:auspiciadores`);
-  const [contratos,setContratos,savCt]=useDB(`produ:${eId}:contratos`);
-  const [movimientos,setMovimientos,savMov]=useDB(`produ:${eId}:movimientos`);
-  const [crew,setCrew,savCrew]=useDB(`produ:${eId}:crew`);
-  const [eventos,setEventos,savEv]=useDB(`produ:${eId}:eventos`);
-  const [presupuestos,setPresupuestos,savPres]=useDB(`produ:${eId}:presupuestos`);
-  const [facturas,setFacturas,savFact]=useDB(`produ:${eId}:facturas`);
-  const [activos,setActivos,savAct]=useDB(`produ:${eId}:activos`);
+  const [episodios,setEpisodios,savEp,ldEp]=useDB(`produ:${eId}:episodios`);
+  const [auspiciadores,setAuspiciadores,savAus,ldAus]=useDB(`produ:${eId}:auspiciadores`);
+  const [contratos,setContratos,savCt,ldCt]=useDB(`produ:${eId}:contratos`);
+  const [movimientos,setMovimientos,savMov,ldMov]=useDB(`produ:${eId}:movimientos`);
+  const [crew,setCrew,savCrew,ldCrew]=useDB(`produ:${eId}:crew`);
+  const [eventos,setEventos,savEv,ldEv]=useDB(`produ:${eId}:eventos`);
+  const [presupuestos,setPresupuestos,savPres,ldPres]=useDB(`produ:${eId}:presupuestos`);
+  const [facturas,setFacturas,savFact,ldFact]=useDB(`produ:${eId}:facturas`);
+  const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
-  const isLoading = curEmp && (ldCli || ldPro || ldPg);
+  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
   const alertas = useAlertas(episodios, programas, eventos||[], empId);
 
   // Polling

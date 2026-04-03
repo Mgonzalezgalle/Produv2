@@ -921,17 +921,19 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
   );
 }
 
-function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", onCreateTask }) {
+function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", onCreateTask, crewOptions = [] }) {
   const [txt,setTxt]=useState("");
   const [editingId,setEditingId]=useState(null);
   const [pasarATarea,setPasarATarea]=useState(false);
+  const [asignadoA,setAsignadoA]=useState("");
+  const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
     const prevItem=editingId?items.find(it=>it.id===editingId):null;
     const commentItem=editingId
-      ? {...prevItem,text:val,pasarATarea,upd:today()}
-      : {id:uid(),text:val,pasarATarea,cr:today()};
+      ? {...prevItem,text:val,pasarATarea,asignadoA,upd:today()}
+      : {id:uid(),text:val,pasarATarea,asignadoA,cr:today()};
     const next=editingId
       ? items.map(it=>it.id===editingId?commentItem:it)
       : [commentItem,...items];
@@ -940,12 +942,13 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
     setTxt("");
     setEditingId(null);
     setPasarATarea(false);
+    setAsignadoA("");
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAsignadoA(it.asignadoA||"");};
   const delItem=async id=>{
     if(!confirm("¿Eliminar comentario?")) return;
     await onSave(items.filter(it=>it.id!==id));
-    if(editingId===id){setTxt("");setEditingId(null);setPasarATarea(false);}
+    if(editingId===id){setTxt("");setEditingId(null);setPasarATarea(false);setAsignadoA("");}
   };
   return <Card title={title}>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
@@ -953,6 +956,14 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
     </div>
     {canEdit&&<div style={{marginBottom:16}}>
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
+      <div style={{marginTop:10}}>
+        <FG label="Asignar comentario a">
+          <FSl value={asignadoA} onChange={e=>setAsignadoA(e.target.value)}>
+            <option value="">— Sin asignar —</option>
+            {(crewOptions||[]).map(member=><option key={member.id} value={member.id}>{member.nom} · {member.rol||"Crew"}</option>)}
+          </FSl>
+        </FG>
+      </div>
       <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
         <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
         Marcar para pasar a tarea
@@ -967,6 +978,9 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
         <div style={{flex:1}}>
           {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",marginBottom:6,letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
           <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
+          {it.asignadoA&&crewMap[it.asignadoA]&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>
+            Asignado a: {crewMap[it.asignadoA].nom}
+          </div>}
           <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</div>
         </div>
         {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
@@ -2185,7 +2199,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimi
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
@@ -2306,7 +2320,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspici
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>

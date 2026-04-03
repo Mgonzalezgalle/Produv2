@@ -830,6 +830,7 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
   const asig = (crew||[]).find(x=>x.id===tarea.asignadoA);
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
   const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
+  const refLabel = ref?.nom || ref?.name || ref?.titulo || "Referencia";
   return (
     <div
       draggable={draggable}
@@ -855,14 +856,14 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
       {tarea.desc&&<div style={{fontSize:11,color:"var(--gr2)",marginBottom:8,lineHeight:1.5}}>{tarea.desc}</div>}
       {/* Ref */}
       {ref&&<div style={{fontSize:11,color:"var(--cy)",marginBottom:6}}>
-        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":"🎬"} {ref.nom}
+        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":"🎬"} {refLabel}
       </div>}
       {/* Footer */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
         {asig
           ? <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <div style={{width:22,height:22,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{asig.nom?.charAt(0)}</div>
-              <span style={{fontSize:11,color:"var(--gr2)"}}>{asig.nom}</span>
+              <div style={{width:22,height:22,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{asig.nom?.charAt(0)||"?"}</div>
+              <span style={{fontSize:11,color:"var(--gr2)"}}>{asig.nom||"Crew"}</span>
             </div>
           : <span style={{fontSize:11,color:"var(--gr)",fontStyle:"italic"}}>Sin asignar</span>
         }
@@ -925,7 +926,10 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios" }
 }
 
 function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, crew, openM, setTareas, canEdit }) {
-  const items=(tareas||[]).filter(t=>t.refTipo===refTipo&&t.refId===refId).sort((a,b)=>(b.cr||"").localeCompare(a.cr||""));
+  const items=(tareas||[])
+    .filter(t=>t&&typeof t==="object")
+    .filter(t=>t.refTipo===refTipo&&t.refId===refId)
+    .sort((a,b)=>String(b.cr||"").localeCompare(String(a.cr||"")));
   const changeEstado=async(id,nuevoEstado)=>{await setTareas((tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t));};
   const deleteTarea=async(id)=>{if(!confirm("¿Eliminar tarea?")) return;await setTareas((tareas||[]).filter(t=>t.id!==id));};
   return <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
@@ -940,7 +944,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
   const [dragId, setDragId] = useState(null);
   const [dropCol, setDropCol] = useState("");
 
-  const misTareas = (tareas||[]).filter(t => t.empId===empId);
+  const misTareas = (tareas||[]).filter(t => t && typeof t==="object" && t.empId===empId);
   const tareasVis = filtro==="mis"
     ? misTareas.filter(t => t.asignadoA===user?.id || !t.asignadoA)
     : misTareas;
@@ -1022,7 +1026,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
                     onChangeEstado={changeEstado}
                     onOpen={t=>openM("tarea",t)}
                     draggable
-                    onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";setDragId(tarea.id);}}
+                    onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", String(tarea.id||""));setDragId(tarea.id);}}
                     onDragEnd={()=>{setDragId(null);setDropCol("");}}
                   />
                 ))

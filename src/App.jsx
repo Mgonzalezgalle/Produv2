@@ -1558,7 +1558,7 @@ export default function App(){
   };
 
   const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
-  const setters={setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
+  const setters={setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
@@ -1653,7 +1653,7 @@ function MovBlock({movimientos,tipo,eid,etype,onAdd,onDel,canEdit}){
   </Card>;
 }
 
-function MiniCal({refId,eventos,onAdd,onDel,canEdit,titulo}){
+function MiniCal({refId,eventos,onAdd,onDel,onEdit,canEdit,titulo}){
   const propios=(eventos||[]).filter(e=>e.ref===refId);
   const [pg,setPg]=useState(1);const PP=8;
   const sorted=[...propios].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
@@ -1670,7 +1670,7 @@ function MiniCal({refId,eventos,onAdd,onDel,canEdit,titulo}){
         <TD mono style={{fontSize:11}}>{ev.fecha?fmtD(ev.fecha):"—"}</TD>
         <TD style={{fontSize:12,color:"var(--gr2)"}}>{ev.hora||"—"}</TD>
         <TD style={{fontSize:12,color:"var(--gr3)",maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.desc||"—"}</TD>
-        {canEdit&&<TD><XBtn onClick={()=>onDel(ev.id)}/></TD>}
+        {canEdit&&<TD><div style={{display:"flex",gap:4}}>{onEdit&&<GBtn sm onClick={()=>onEdit(ev)}>✏</GBtn>}<XBtn onClick={()=>onDel(ev.id)}/></div></TD>}
       </tr>)}</tbody>
     </table></div><Paginator page={pg} total={sorted.length} perPage={PP} onChange={setPg}/></>
     :<Empty text="Sin fechas registradas" sub={canEdit?"Agrega el primer evento con el botón arriba":""}/>}
@@ -1832,7 +1832,7 @@ function MEvento({open,data,producciones,programas,onClose,onSave}){
 // ── MODAL ROUTER ──────────────────────────────────────────────
 function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov}){
   const {empresa,clientes,producciones,programas,auspiciadores,contratos,crew,eventos}=VP;
-  const {setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos}=setters;
+  const {setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});
@@ -1850,7 +1850,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={d=>{const item={...withEmp(d),id:d.id||uid(),cr:today()};const arr=VP.tareas||[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=VP.tareas||[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
 }
 
@@ -2023,7 +2023,13 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
     {tab===1&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="caja"    eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
-    {tab===4&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={_cd&&_cd("calendario")} titulo={p.nom}/>}
+    {tab===4&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
+      <Card title="Fechas Base de la Producción" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
+        <KV label="Inicio" value={p.ini?fmtD(p.ini):"Por definir"}/>
+        <KV label="Entrega" value={p.fin?fmtD(p.fin):"Por definir"}/>
+      </Card>
+      <MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={_cd&&_cd("calendario")} titulo={p.nom}/>
+    </div>}
     {tab===5&&<Card title="Contratos del cliente" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:p.cliId})}:null}>
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
@@ -2174,7 +2180,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
       {aus.length?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{aus.map(a=><AusCard key={a.id} a={a} pgs={[pg_]} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null}/>)}</div>:<Empty text="Sin auspiciadores"/>}
     </div>}
     {tab===4&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
-    {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
+    {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
     {tab===6&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Programa">
         {[["Tipo",pg_.tip],["Canal",pg_.can||"—"],["Frecuencia",pg_.fre||"—"],["Temporada",pg_.temporada||"—"],["Total Ep.",pg_.totalEp||"—"],["Estado",<Badge key={0} label={pg_.est}/>],["Cliente",cliAsoc?.nom||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -2377,6 +2383,23 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
   const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"estreno",ico:"🌟",lbl:"Estreno",c:"#ff5566"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
   const tc=v=>TIPOS.find(t=>t.v===v)?.c||"#7c7c8a";
   const ti=v=>TIPOS.find(t=>t.v===v)?.ico||"📌";
+  const editCalItem=ev=>{
+    if(!ev||!(_cd&&_cd("calendario"))) return;
+    if(ev.custom){
+      const original=(eventos||[]).find(x=>x.id===ev.id);
+      if(original) openM("evento",original);
+      return;
+    }
+    if(ev.editModal==="pro"){
+      const pro=(producciones||[]).find(x=>x.id===ev.sourceId);
+      if(pro) openM("pro",pro);
+      return;
+    }
+    if(ev.editModal==="ep"){
+      const ep=(episodios||[]).find(x=>x.id===ev.sourceId);
+      if(ep) openM("ep",ep);
+    }
+  };
   // Build events
   const todosEvs=[];
   (eventos||[]).filter(e=>e.empId===empId).forEach(ev=>{
@@ -2389,12 +2412,12 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
   });
   (episodios||[]).filter(e=>e.empId===empId).forEach(ep=>{
     const pg=(programas||[]).find(x=>x.id===ep.pgId);
-    if(ep.fechaGrab){const d=new Date(ep.fechaGrab+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_g",dia:d.getDate(),tipo:"grabacion",label:`🎬 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"var(--cy)",hora:"",auto:true});}
-    if(ep.fechaEmision){const d=new Date(ep.fechaEmision+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_e",dia:d.getDate(),tipo:"emision",label:`📡 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"#00e08a",hora:"",auto:true});}
+    if(ep.fechaGrab){const d=new Date(ep.fechaGrab+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_g",dia:d.getDate(),tipo:"grabacion",label:`🎬 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"var(--cy)",hora:"",auto:true,editModal:"ep",sourceId:ep.id});}
+    if(ep.fechaEmision){const d=new Date(ep.fechaEmision+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_e",dia:d.getDate(),tipo:"emision",label:`📡 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"#00e08a",hora:"",auto:true,editModal:"ep",sourceId:ep.id});}
   });
   (producciones||[]).filter(p=>p.empId===empId).forEach(p=>{
-    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Producción",color:"#a855f7",hora:"",auto:true});}
-    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Producción",color:"#ff8844",hora:"",auto:true});}
+    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Producción",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
+    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Producción",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
   });
   const evFiltrados=filtro==="todos"?todosEvs:todosEvs.filter(e=>e.tipo===filtro);
   const primerDia=new Date(mes.y,mes.m,1).getDay();
@@ -2433,7 +2456,7 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
                 <span style={{fontSize:12,fontWeight:isTod||isSel?700:400,color:isTod||isSel?"var(--cy)":"var(--gr3)"}}>{d}</span>
                 {_cd&&_cd("calendario")&&<span onClick={e=>{e.stopPropagation();openM("evento",{fecha:`${mes.y}-${String(mes.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`});}} style={{fontSize:10,color:"var(--gr)",cursor:"pointer",opacity:.6}}>+</span>}
               </div>
-              {evs.slice(0,3).map(ev=><div key={ev.id} style={{fontSize:9,padding:"2px 4px",borderRadius:3,marginBottom:2,background:ev.color+"25",color:ev.color,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={ev.label+" · "+ev.sub+(ev.hora?" · "+ev.hora:"")}>{ev.hora?<span style={{opacity:.7}}>{ev.hora} </span>:""}{ev.label}</div>)}
+              {evs.slice(0,3).map(ev=><div key={ev.id} onClick={e=>{e.stopPropagation();if(_cd&&_cd("calendario")) editCalItem(ev);}} style={{fontSize:9,padding:"2px 4px",borderRadius:3,marginBottom:2,background:ev.color+"25",color:ev.color,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:_cd&&_cd("calendario")?"pointer":"default"}} title={(_cd&&_cd("calendario")?"Clic para editar · ":"")+ev.label+" · "+ev.sub+(ev.hora?" · "+ev.hora:"")}>{ev.hora?<span style={{opacity:.7}}>{ev.hora} </span>:""}{ev.label}</div>)}
               {evs.length>3&&<div style={{fontSize:9,color:"var(--gr2)",padding:"0 2px"}}>+{evs.length-3} más</div>}</>}
             </div>
           );})}
@@ -2446,8 +2469,8 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
             <span style={{fontSize:14}}>{ti(ev.tipo)}</span>
             <span style={{fontSize:9,fontFamily:"var(--fm)",fontWeight:700,color:ev.color}}>{String(ev.dia).padStart(2,"0")}</span>
           </div>
-          <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600}}>{ev.label}</div><div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:3}}>{ev.desc}</div>}</div>
-          {ev.custom&&_cd&&_cd("calendario")&&<XBtn onClick={()=>delEvento(ev.id)}/>}
+          <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:13,fontWeight:600}}>{ev.label}</div><div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:3}}>{ev.desc}</div>}</div>
+          {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
         </div>):<Empty text="Sin eventos este mes"/>}
       </div>}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -2458,8 +2481,8 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
           </div>
           {evsDiaSel.length>0?evsDiaSel.map(ev=><div key={ev.id} style={{display:"flex",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
             <span style={{fontSize:16,flexShrink:0}}>{ti(ev.tipo)}</span>
-            <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:ev.color}}>{ev.label.replace(/^[^\s]+\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:2}}>{ev.desc}</div>}</div>
-            {ev.custom&&_cd&&_cd("calendario")&&<XBtn onClick={()=>delEvento(ev.id)}/>}
+            <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:12,fontWeight:600,color:ev.color}}>{ev.label.replace(/^[^\s]+\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:2}}>{ev.desc}</div>}</div>
+            {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
           </div>):<Empty text="Sin eventos este día" sub="Clic en '+' para agregar"/>}
         </div>}
         <Card title="Próximos" sub={`${MESES[mes.m]} ${mes.y}`}>

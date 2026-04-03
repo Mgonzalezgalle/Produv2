@@ -444,14 +444,18 @@ function EmpresaSelector({empresas,onSelect}){
 
 
 // ── EXPORT FUNCTIONS ─────────────────────────────────────────
+const movFecha = m => m?.fec ?? m?.fecha ?? "";
+const movDesc = m => m?.des ?? m?.desc ?? "";
+const movMonto = m => Number(m?.mon ?? m?.monto ?? 0);
+
 function exportMovCSV(movs, nombre) {
   const headers = ["Fecha","Tipo","Categoría","Descripción","Monto"];
   const rows = (movs||[]).map(m => [
-    m.fecha||"",
+    movFecha(m),
     m.tipo==="ingreso"?"Ingreso":"Gasto",
     m.cat||"—",
-    (m.desc||"").replace(/,/g," "),
-    m.monto||0
+    movDesc(m).replace(/,/g," "),
+    movMonto(m)
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
   const blob = new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8;" });
@@ -465,7 +469,7 @@ function exportMovCSV(movs, nombre) {
 
 function exportMovPDF(movs, nombre, empresa, tipo) {
   const ac = empresa?.color || "#00d4e8";
-  const total = (movs||[]).reduce((s,m) => s + Number(m.monto||0), 0);
+  const total = (movs||[]).reduce((s,m) => s + movMonto(m), 0);
   const logoHtml = empresa?.logo
     ? `<img src="${empresa.logo}" style="max-height:60px;object-fit:contain;display:block;margin-bottom:6px;">`
     : `<div style="font-size:22px;font-weight:900;color:${ac}">${empresa?.nombre||""}</div>`;
@@ -500,12 +504,17 @@ tbody td.r{text-align:right;font-family:monospace}
 <table>
   <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="r">Monto</th></tr></thead>
   <tbody>
-    ${(movs||[]).map(m=>`<tr>
-      <td>${m.fecha?new Date(m.fecha+"T12:00:00").toLocaleDateString("es-CL"):"—"}</td>
+    ${(movs||[]).map(m=>{
+      const fecha = movFecha(m);
+      const desc = movDesc(m) || "—";
+      const monto = movMonto(m);
+      return `<tr>
+      <td>${fecha ? new Date(fecha+"T12:00:00").toLocaleDateString("es-CL") : "—"}</td>
       <td>${m.cat||"—"}</td>
-      <td>${m.desc||"—"}</td>
-      <td class="r">${Number(m.monto||0).toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0})}</td>
-    </tr>`).join("")}
+      <td>${desc}</td>
+      <td class="r">${monto.toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0})}</td>
+    </tr>`;
+    }).join("")}
   </tbody>
 </table>
 <div class="total-row">

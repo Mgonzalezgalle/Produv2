@@ -251,7 +251,7 @@ function Toast({msg,type,onDone}){
 }
 
 const BP={cyan:["var(--cg)","var(--cy)","var(--cm)"],green:["#00e08a18","#00e08a","#00e08a35"],red:["#ff556618","#ff5566","#ff556635"],yellow:["#ffcc4418","#ffcc44","#ffcc4435"],orange:["#ff884418","#ff8844","#ff884435"],purple:["#a855f718","#a855f7","#a855f735"],gray:["var(--bdr)","var(--gr2)","var(--bdr2)"]};
-const SM={"En Curso":"cyan","Pre-Producción":"yellow","Post-Producción":"orange","Finalizado":"green","Pausado":"gray","Activo":"green","En Desarrollo":"yellow","Vigente":"green","Borrador":"gray","En Revisión":"yellow","Firmado":"cyan","Vencido":"red","Planificado":"yellow","Grabado":"cyan","En Edición":"cyan","Publicado":"green","Cancelado":"red","Negociación":"yellow","Aceptado":"green","Rechazado":"red","Pagado":"green","Pendiente":"yellow","Vencida":"red","Auspiciador Principal":"cyan","Auspiciador Secundario":"yellow","Colaborador":"green","Canje":"orange","Media Partner":"gray"};
+const SM={"En Curso":"cyan","Pre-Producción":"yellow","Post-Producción":"orange","Finalizado":"green","Pausado":"gray","Activo":"green","En Desarrollo":"yellow","Vigente":"green","Borrador":"gray","En Revisión":"yellow","Firmado":"cyan","Vencido":"red","Planificado":"yellow","Grabado":"cyan","En Edición":"cyan","Programado":"purple","Publicado":"green","Cancelado":"red","Negociación":"yellow","Aceptado":"green","Rechazado":"red","Pagado":"green","Pendiente":"yellow","Vencida":"red","Auspiciador Principal":"cyan","Auspiciador Secundario":"yellow","Colaborador":"green","Canje":"orange","Media Partner":"gray"};
 function Badge({label,color,sm}){const P=BP[color||SM[label]||"gray"];return <span style={{display:"inline-flex",alignItems:"center",padding:sm?"2px 7px":"3px 10px",borderRadius:20,fontSize:sm?9:10,fontWeight:700,letterSpacing:.5,textTransform:"uppercase",whiteSpace:"nowrap",background:P[0],color:P[1],border:`1px solid ${P[2]}`}}>{label}</span>;}
 
 function Paginator({page,total,perPage,onChange}){
@@ -799,6 +799,7 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
           <option value="">— Sin asociar —</option>
           <option value="pro">Producción</option>
           <option value="pg">Programa TV</option>
+          <option value="crew">Crew</option>
         </FSl></FG>
         {f.refTipo==="pro"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
@@ -808,14 +809,24 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
           <option value="">— Seleccionar —</option>
           {(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
+        {f.refTipo==="crew"&&<FG label="Miembro Crew"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+          <option value="">— Seleccionar —</option>
+          {(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}
+        </FSl></FG>}
       </R2>
       <MFoot onClose={onClose} onSave={()=>{ if(!f.titulo) return; onSave(f); }}/>
     </Modal>
   );
 }
 
-function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado }) {
-  const ref = tarea.refTipo==="pro" ? (producciones||[]).find(x=>x.id===tarea.refId) : (programas||[]).find(x=>x.id===tarea.refId);
+function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado, canEdit=true }) {
+  const ref = tarea.refTipo==="pro"
+    ? (producciones||[]).find(x=>x.id===tarea.refId)
+    : tarea.refTipo==="pg"
+      ? (programas||[]).find(x=>x.id===tarea.refId)
+      : tarea.refTipo==="crew"
+        ? (crew||[]).find(x=>x.id===tarea.refId)
+        : null;
   const asig = (crew||[]).find(x=>x.id===tarea.asignadoA);
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
   const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
@@ -828,8 +839,10 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:PRIO_BG[tarea.prioridad]||"var(--bdr)",color:PRIO_COLORS[tarea.prioridad]||"var(--gr2)"}}>{tarea.prioridad||"Media"}</span>
         <div style={{display:"flex",gap:4}}>
+          {canEdit&&<>
           <GBtn sm onClick={e=>{e.stopPropagation();onEdit(tarea);}}>✏</GBtn>
           <XBtn onClick={e=>{e.stopPropagation();onDelete(tarea.id);}}/>
+          </>}
         </div>
       </div>
       {/* Título */}
@@ -837,7 +850,7 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
       {tarea.desc&&<div style={{fontSize:11,color:"var(--gr2)",marginBottom:8,lineHeight:1.5}}>{tarea.desc}</div>}
       {/* Ref */}
       {ref&&<div style={{fontSize:11,color:"var(--cy)",marginBottom:6}}>
-        {tarea.refTipo==="pro"?"📽":"📺"} {ref.nom}
+        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":"🎬"} {ref.nom}
       </div>}
       {/* Footer */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
@@ -853,7 +866,7 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
         </span>}
       </div>
       {/* Mover columna */}
-      <div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>
+      {canEdit&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>
         {COLS_TAREAS.filter(c=>c!==tarea.estado).map(c=>(
           <button key={c} onClick={e=>{e.stopPropagation();onChangeEstado(tarea.id,c);}}
             style={{fontSize:10,padding:"2px 8px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr2)",cursor:"pointer",transition:".1s"}}
@@ -862,9 +875,57 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
             → {c}
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
+}
+
+function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios" }) {
+  const [txt,setTxt]=useState("");
+  const [editingId,setEditingId]=useState(null);
+  const submit=async()=>{
+    const val=txt.trim();
+    if(!val) return;
+    const next=editingId
+      ? items.map(it=>it.id===editingId?{...it,text:val,upd:today()}:it)
+      : [{id:uid(),text:val,cr:today()},...items];
+    await onSave(next);
+    setTxt("");
+    setEditingId(null);
+  };
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);};
+  const delItem=async id=>{
+    if(!confirm("¿Eliminar comentario?")) return;
+    await onSave(items.filter(it=>it.id!==id));
+    if(editingId===id){setTxt("");setEditingId(null);}
+  };
+  return <Card title={title} action={canEdit?{label:editingId?"Actualizar":"Agregar",fn:submit}:null}>
+    {canEdit&&<div style={{marginBottom:16}}>
+      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
+        {editingId&&<GBtn sm onClick={()=>{setTxt("");setEditingId(null);}}>Cancelar</GBtn>}
+        <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
+      </div>
+    </div>}
+    {items.length?items.map(it=><div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start"}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
+          <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</div>
+        </div>
+        {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
+      </div>
+    </div>):<Empty text="Sin comentarios" sub={canEdit?"Agrega la primera nota para este registro":""}/>}
+  </Card>;
+}
+
+function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, crew, openM, setTareas, canEdit }) {
+  const items=(tareas||[]).filter(t=>t.refTipo===refTipo&&t.refId===refId).sort((a,b)=>(b.cr||"").localeCompare(a.cr||""));
+  const changeEstado=async(id,nuevoEstado)=>{await setTareas((tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t));};
+  const deleteTarea=async(id)=>{if(!confirm("¿Eliminar tarea?")) return;await setTareas((tareas||[]).filter(t=>t.id!==id));};
+  return <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
+    {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+  </Card>;
 }
 
 function ViewTareas({ empresa, user, tareas, producciones, programas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
@@ -877,7 +938,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
     ? misTareas.filter(t => t.asignadoA===user?.id || !t.asignadoA)
     : misTareas;
   const tareasFilt = filtroRef
-    ? tareasVis.filter(t => t.refId===filtroRef)
+    ? tareasVis.filter(t => `${t.refTipo||""}:${t.refId||""}`===filtroRef)
     : tareasVis;
 
   const porColumna = col => tareasFilt.filter(t => (t.estado||"Pendiente")===col);
@@ -909,9 +970,10 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
             ))}
           </div>
           <select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} style={{padding:"7px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,color:"var(--gr3)",fontSize:12,cursor:"pointer"}}>
-            <option value="">Todas las producciones</option>
-            <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</optgroup>
-            <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</optgroup>
+            <option value="">Todos los vínculos</option>
+            <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Crew">{(crew||[]).filter(c=>c.empId===empId).map(c=><option key={c.id} value={`crew:${c.id}`}>{c.nom}</option>)}</optgroup>
           </select>
           <Btn onClick={()=>openM("tarea",{})}>+ Nueva Tarea</Btn>
         </div>
@@ -976,8 +1038,8 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
         </tbody></table>:<Empty text="Sin producciones"/>}
       </Card>
       <Card title="Episodios Pendientes" action={{label:"Ver programas →",fn:()=>navTo("programas")}}>
-        {eps.filter(e=>["Planificado","En Edición"].includes(e.estado)).slice(0,5).map(ep=>{const pg=pgs.find(x=>x.id===ep.pgId);return<div key={ep.id} onClick={()=>navTo("ep-det",ep.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>Ep.{ep.num}: {ep.titulo}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg?.nom}{ep.fechaGrab?` · ${fmtD(ep.fechaGrab)}`:""}</div></div><Badge label={ep.estado}/></div>;})}
-        {!eps.filter(e=>["Planificado","En Edición"].includes(e.estado)).length&&<Empty text="Sin episodios pendientes"/>}
+        {eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).slice(0,5).map(ep=>{const pg=pgs.find(x=>x.id===ep.pgId);return<div key={ep.id} onClick={()=>navTo("ep-det",ep.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>Ep.{ep.num}: {ep.titulo}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg?.nom}{ep.fechaGrab?` · ${fmtD(ep.fechaGrab)}`:""}</div></div><Badge label={ep.estado}/></div>;})}
+        {!eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).length&&<Empty text="Sin episodios pendientes"/>}
       </Card>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
@@ -1568,9 +1630,9 @@ export default function App(){
       case"clientes":     return <ViewClientes     {...VP} setClientes={setClientes}/>;
       case"cli-det":      return <ViewCliDet        {...VP} id={detId} setClientes={setClientes} setContratos={setContratos}/>;
       case"producciones": return <ViewPros          {...VP} setProducciones={setProducciones}/>;
-      case"pro-det":      return <ViewProDet        {...VP} id={detId} setProducciones={setProducciones} setMovimientos={setMovimientos}/>;
+      case"pro-det":      return <ViewProDet        {...VP} id={detId} setProducciones={setProducciones} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"programas":    return <ViewPgs           {...VP} setProgramas={setProgramas}/>;
-      case"pg-det":       return <ViewPgDet         {...VP} id={detId} setProgramas={setProgramas} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
+      case"pg-det":       return <ViewPgDet         {...VP} id={detId} setProgramas={setProgramas} setEpisodios={setEpisodios} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
@@ -1708,7 +1770,7 @@ function MCli({open,data,listas,onClose,onSave}){
 
 function MPro({open,data,clientes,listas,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:data?.cliId||"",tip:"Podcast",est:"Pre-Producción",ini:"",fin:"",des:"",crewIds:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:data?.cliId||"",tip:"Podcast",est:"Pre-Producción",ini:"",fin:"",des:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Producción":"Nueva Producción"} sub="Proyecto audiovisual">
     <FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del proyecto"/></FG>
@@ -1722,7 +1784,7 @@ function MPro({open,data,clientes,listas,onClose,onSave}){
 
 function MPg({open,data,clientes,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Programa de TV",can:"",est:"Activo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:"",cliId:"",crewIds:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Programa de TV",can:"",est:"Activo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:"",cliId:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Programa":"Nuevo Programa"} sub="TV, Podcast, Web Series…" wide>
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del programa"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Programa de TV","Podcast","Web Series","Talk Show","Documental","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
@@ -1740,7 +1802,7 @@ function MEp({open,data,programas,onClose,onSave}){
   useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Episodio":"Nuevo Episodio"} sub="Planificación de episodio" wide>
-    <R3><FG label="Programa"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
+    <R3><FG label="Programa"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
     <FG label="Título del Episodio *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Título descriptivo del episodio"/></FG>
     <R2><FG label="Invitado / Tema"><FI value={f.invitado||""} onChange={e=>u("invitado",e.target.value)} placeholder="Nombre o tema principal"/></FG><FG label="Locación"><FI value={f.locacion||""} onChange={e=>u("locacion",e.target.value)} placeholder="Estudio A, Exteriores..."/></FG></R2>
     <R3><FG label="Fecha Grabación"><FI type="date" value={f.fechaGrab||""} onChange={e=>u("fechaGrab",e.target.value)}/></FG><FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG><FG label="Duración (min)"><FI type="number" value={f.duracion||""} onChange={e=>u("duracion",e.target.value)} placeholder="45"/></FG></R3>
@@ -1785,8 +1847,8 @@ function MMov({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF({tipo:data?.tipo||"ingreso",mon:"",des:"",cat:"General",fec:today(),not:"",eid:data?.eid||"",et:data?.et||""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  return <Modal open={open} onClose={onClose} title="Registrar Movimiento" sub="Ingreso, gasto o caja">
-    <R2><FG label="Tipo *"><FSl value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option><option value="caja">🏦 Caja</option></FSl></FG><FG label="Monto (CLP) *"><FI type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
+  return <Modal open={open} onClose={onClose} title="Registrar Movimiento" sub="Ingreso o gasto">
+    <R2><FG label="Tipo *"><FSl value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option></FSl></FG><FG label="Monto (CLP) *"><FI type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
     <FG label="Descripción *"><FI value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Ej: Pago cuota 1, Arriendo..."/></FG>
     <R2><FG label="Categoría"><FSl value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
     <MFoot onClose={onClose} onSave={()=>{if(!f.mon||!f.des?.trim())return;onSave({...f,mon:Number(f.mon)});}} label="Registrar"/>
@@ -1990,7 +2052,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
   </div>;
 }
 
-function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew,eventos,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos}){
+function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
@@ -2014,14 +2076,14 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       <Stat label="Balance"  value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
       <Stat label="Crew"     value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)"/>
     </div>
-    <Tabs tabs={["Ingresos","Gastos","Caja","Crew","Fechas","Contratos"]} active={tab} onChange={setTab}/>
-    {(tab===0||tab===1)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
-      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===0?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
-      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===0?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===0?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    <Tabs tabs={["Comentarios","Ingresos","Gastos","Crew","Fechas","Contratos","Tareas"]} active={tab} onChange={setTab}/>
+    {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===1&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===2&&<MovBlock movimientos={mv} tipo="caja"    eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
+    {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
     {tab===4&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
       <Card title="Fechas Base de la Producción" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
@@ -2034,6 +2096,7 @@ function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
     </Card>}
+    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={(tareas||[]).filter(t=>t.empId===empId)} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
 }
 
@@ -2104,7 +2167,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   </div>;
 }
 
-function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimientos,crew,eventos,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos}){
+function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;
@@ -2114,7 +2177,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
   const tauz=aus.reduce((s,a)=>s+Number(a.mon||0),0);
   const [tab,setTab]=useState(0);
   const [epQ,setEpQ]=useState("");const [epF,setEpF]=useState("");const [epPg,setEpPg]=useState(1);const EPP=8;
-  const epStats={plan:eps.filter(e=>e.estado==="Planificado").length,grab:eps.filter(e=>e.estado==="Grabado").length,edit:eps.filter(e=>e.estado==="En Edición").length,pub:eps.filter(e=>e.estado==="Publicado").length,can:eps.filter(e=>e.estado==="Cancelado").length};
+  const epStats={plan:eps.filter(e=>e.estado==="Planificado").length,grab:eps.filter(e=>e.estado==="Grabado").length,edit:eps.filter(e=>e.estado==="En Edición").length,prog:eps.filter(e=>e.estado==="Programado").length,pub:eps.filter(e=>e.estado==="Publicado").length,can:eps.filter(e=>e.estado==="Cancelado").length};
   const fdEps=eps.filter(e=>(!epF||e.estado===epF)&&(e.titulo.toLowerCase().includes(epQ.toLowerCase())||(e.invitado||"").toLowerCase().includes(epQ.toLowerCase())));
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pg_.crewIds||[]).includes(x.id));
   const addCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
@@ -2133,20 +2196,21 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
       <span style={{fontSize:12,color:"var(--gr2)"}}>Conductor: <b style={{color:"var(--wh)"}}>{pg_.conductor}</b>{pg_.prodEjec?` · Prod: ${pg_.prodEjec}`:""}</span>
       {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos sobre el programa "${pg_.nom}".`}/>)}
     </div>}
-    <Tabs tabs={["Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info"]} active={tab} onChange={setTab}/>
-    {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
-      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom)}>⬇ CSV</GBtn>
-      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    <Tabs tabs={["Comentarios","Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
+    {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<div>
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
+    {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
-        <FilterSel value={epF} onChange={v=>{setEpF(v);setEpPg(1);}} options={["Planificado","Grabado","En Edición","Publicado","Cancelado"]} placeholder="Todo estados"/>
+        <FilterSel value={epF} onChange={v=>{setEpF(v);setEpPg(1);}} options={["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"]} placeholder="Todo estados"/>
         {_cd&&_cd("programas")&&<Btn onClick={()=>openM("ep",{pgId:id,num:eps.length?Math.max(...eps.map(e=>e.num))+1:1})}>+ Nuevo Episodio</Btn>}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
-        {[["Planificado",epStats.plan,"#ffcc44"],["Grabado",epStats.grab,"var(--cy)"],["En Edición",epStats.edit,"var(--cy)"],["Publicado",epStats.pub,"#00e08a"],["Cancelado",epStats.can,"#ff5566"]].map(([s,cnt,c])=>(
+      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:16}}>
+        {[["Planificado",epStats.plan,"#ffcc44"],["Grabado",epStats.grab,"var(--cy)"],["En Edición",epStats.edit,"var(--cy)"],["Programado",epStats.prog,"#a855f7"],["Publicado",epStats.pub,"#00e08a"],["Cancelado",epStats.can,"#ff5566"]].map(([s,cnt,c])=>(
           <div key={s} onClick={()=>setEpF(epF===s?"":s)} style={{background:"var(--card)",border:`1px solid ${epF===s?c:"var(--bdr)"}`,borderRadius:8,padding:"10px 14px",cursor:"pointer"}}>
             <div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color:c}}>{cnt}</div>
             <div style={{fontSize:10,color:"var(--gr2)"}}>{s}</div>
@@ -2173,15 +2237,15 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
         <Paginator page={epPg} total={fdEps.length} perPage={EPP} onChange={setEpPg}/>
       </Card>
     </div>}
-    {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pg" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pg" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<div>
+    {tab===2&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pg" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===3&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pg" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===4&&<div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>{_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{pids:[id]})}>+ Auspiciador</Btn>}</div>
       {aus.length?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{aus.map(a=><AusCard key={a.id} a={a} pgs={[pg_]} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null}/>)}</div>:<Empty text="Sin auspiciadores"/>}
     </div>}
-    {tab===4&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
-    {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
-    {tab===6&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
+    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
+    {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Programa">
         {[["Tipo",pg_.tip],["Canal",pg_.can||"—"],["Frecuencia",pg_.fre||"—"],["Temporada",pg_.temporada||"—"],["Total Ep.",pg_.totalEp||"—"],["Estado",<Badge key={0} label={pg_.est}/>],["Cliente",cliAsoc?.nom||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
@@ -2190,6 +2254,7 @@ function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimi
         {pg_.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pg_.des}</div></>}
       </Card>
     </div>}
+    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={(tareas||[]).filter(t=>t.empId===empId)} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 
@@ -2221,8 +2286,8 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
   const pg_=(programas||[]).find(x=>x.id===ep.pgId);
   const mv=(movimientos||[]).filter(m=>m.eid===id);const b=bal(id);
   const [tab,setTab]=useState(0);
-  const NEXT={Planificado:"Grabado",Grabado:"En Edición","En Edición":"Publicado"};
-  const STATUS=["Planificado","Grabado","En Edición","Publicado","Cancelado"];
+  const NEXT={Planificado:"Grabado",Grabado:"En Edición","En Edición":"Programado",Programado:"Publicado"};
+  const STATUS=["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"];
   const changeStatus=async s=>{const next=(episodios||[]).map(x=>x.id===id?{...x,estado:s}:x);await setEpisodios(next);};
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(ep.crewIds||[]).includes(x.id));
   const addCrew=async crId=>{const next=(episodios||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setEpisodios(next);};

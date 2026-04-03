@@ -819,7 +819,7 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
   );
 }
 
-function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado, canEdit=true }) {
+function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
   const ref = tarea.refTipo==="pro"
     ? (producciones||[]).find(x=>x.id===tarea.refId)
     : tarea.refTipo==="pg"
@@ -831,7 +831,12 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
   const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
   return (
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:14,marginBottom:10,cursor:"pointer",transition:".15s"}}
+    <div
+      draggable={draggable}
+      onDragStart={e=>onDragStart&&onDragStart(e,tarea)}
+      onDragEnd={e=>onDragEnd&&onDragEnd(e,tarea)}
+      onClick={()=>onOpen&&onOpen(tarea)}
+      style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:14,marginBottom:10,cursor:onOpen?"pointer":"default",transition:".15s"}}
       onMouseEnter={e=>e.currentTarget.style.borderColor="var(--cy)"}
       onMouseLeave={e=>e.currentTarget.style.borderColor="var(--bdr)"}
     >
@@ -924,7 +929,7 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
   const changeEstado=async(id,nuevoEstado)=>{await setTareas((tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t));};
   const deleteTarea=async(id)=>{if(!confirm("¿Eliminar tarea?")) return;await setTareas((tareas||[]).filter(t=>t.id!==id));};
   return <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
-    {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+    {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
   </Card>;
 }
 
@@ -932,6 +937,8 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
   const empId = empresa?.id;
   const [filtro, setFiltro] = useState("mis"); // "mis" | "todas"
   const [filtroRef, setFiltroRef] = useState("");
+  const [dragId, setDragId] = useState(null);
+  const [dropCol, setDropCol] = useState("");
 
   const misTareas = (tareas||[]).filter(t => t.empId===empId);
   const tareasVis = filtro==="mis"
@@ -946,6 +953,13 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
   const changeEstado = async (id, nuevoEstado) => {
     const next = (tareas||[]).map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
     await setTareas(next);
+  };
+
+  const handleDrop = async nuevoEstado => {
+    if(!dragId) return;
+    await changeEstado(dragId, nuevoEstado);
+    setDragId(null);
+    setDropCol("");
   };
 
   const deleteTarea = (id) => {
@@ -984,9 +998,14 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
         {COLS_TAREAS.map(col => {
           const items = porColumna(col);
           return (
-            <div key={col}>
+            <div
+              key={col}
+              onDragOver={e=>{e.preventDefault();if(dropCol!==col) setDropCol(col);}}
+              onDragLeave={()=>setDropCol(prev=>prev===col?"":prev)}
+              onDrop={async e=>{e.preventDefault();await handleDrop(col);}}
+            >
               {/* Column header */}
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,marginBottom:12,borderTop:`3px solid ${colColors[col]}`}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:dropCol===col?"var(--cg)":"var(--sur)",border:`1px solid ${dropCol===col?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,marginBottom:12,borderTop:`3px solid ${colColors[col]}`,transition:".12s"}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{col}</span>
                   <span style={{fontSize:11,background:"var(--bdr2)",color:"var(--gr2)",padding:"1px 7px",borderRadius:10,fontFamily:"var(--fm)",fontWeight:600}}>{items.length}</span>
@@ -1001,6 +1020,10 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
                     onEdit={t=>openM("tarea",t)}
                     onDelete={deleteTarea}
                     onChangeEstado={changeEstado}
+                    onOpen={t=>openM("tarea",t)}
+                    draggable
+                    onDragStart={(e,tarea)=>{e.dataTransfer.effectAllowed="move";setDragId(tarea.id);}}
+                    onDragEnd={()=>{setDragId(null);setDropCol("");}}
                   />
                 ))
               }

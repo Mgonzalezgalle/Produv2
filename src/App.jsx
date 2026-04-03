@@ -921,17 +921,22 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
   );
 }
 
-function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios" }) {
+function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", onCreateTask }) {
   const [txt,setTxt]=useState("");
   const [editingId,setEditingId]=useState(null);
   const [pasarATarea,setPasarATarea]=useState(false);
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
+    const prevItem=editingId?items.find(it=>it.id===editingId):null;
+    const commentItem=editingId
+      ? {...prevItem,text:val,pasarATarea,upd:today()}
+      : {id:uid(),text:val,pasarATarea,cr:today()};
     const next=editingId
-      ? items.map(it=>it.id===editingId?{...it,text:val,pasarATarea,upd:today()}:it)
-      : [{id:uid(),text:val,pasarATarea,cr:today()},...items];
+      ? items.map(it=>it.id===editingId?commentItem:it)
+      : [commentItem,...items];
     await onSave(next);
+    if(pasarATarea && onCreateTask && !prevItem?.pasarATarea) onCreateTask(commentItem);
     setTxt("");
     setEditingId(null);
     setPasarATarea(false);
@@ -2180,7 +2185,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimi
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={comment=>openM("tarea",{titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",refTipo:"pro",refId:id})} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
@@ -2301,7 +2306,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspici
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={comment=>openM("tarea",{titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",refTipo:"pg",refId:id})} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>

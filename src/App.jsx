@@ -2151,7 +2151,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
   </div>;
 }
 
-function ViewProDet({id,empresa,clientes,producciones,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas}){
+function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
@@ -2266,7 +2266,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   </div>;
 }
 
-function ViewPgDet({id,empresa,clientes,programas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas}){
+function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;

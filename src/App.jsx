@@ -2,7 +2,7 @@
 //  PRODU — Gestión de Productoras
 //  src/App.jsx  |  Parte 1 de 4: Core + Auth + Layout
 // ============================================================
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { Component, useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ── SUPABASE ─────────────────────────────────────────────────
@@ -27,6 +27,22 @@ const today = () => new Date().toISOString().split("T")[0];
 const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
+
+function exportComentariosCSV(items, nombre="comentarios") {
+  const headers = ["Fecha","Comentario"];
+  const rows = (items||[]).map(it => [
+    it?.upd || it?.cr || "",
+    String(it?.text || "").replace(/\n/g, " ").replace(/,/g, " "),
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${nombre.replace(/\s+/g,"_").toLowerCase()}_comentarios.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ── ROLES ────────────────────────────────────────────────────
 const ROLES = {
@@ -310,6 +326,25 @@ function MultiSelect({options,value=[],onChange,placeholder="Seleccionar..."}){
 }
 const DetHeader=({title,tag,badges=[],meta=[],actions,des})=><div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24,flexWrap:"wrap",gap:12}}><div>{tag&&<div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--cy)",fontWeight:700,marginBottom:6}}>{tag}</div>}<div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800}}>{title}</div><div style={{fontSize:12,color:"var(--gr2)",marginTop:6,display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>{badges.map((b,i)=><span key={i}>{b}</span>)}{meta.filter(Boolean).map((m,i)=><span key={i}>{m}</span>)}</div>{des&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:8,maxWidth:580}}>{des}</div>}</div>{actions&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{actions}</div>}</div>;
 function useBal(movimientos,empId){return useCallback(id=>{const mv=(movimientos||[]).filter(m=>m.eid===id&&m.empId===empId);const i=mv.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+Number(m.mon),0);const g=mv.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+Number(m.mon),0);return{i,g,b:i-g};},[movimientos,empId]);}
+
+class TaskErrorBoundary extends Component {
+  constructor(props){
+    super(props);
+    this.state={hasError:false};
+  }
+  static getDerivedStateFromError(){
+    return {hasError:true};
+  }
+  componentDidCatch(){}
+  render(){
+    if(this.state.hasError){
+      return <Card title={this.props.title||"Tareas"}>
+        <Empty text="No pudimos cargar este bloque de tareas" sub="Recarga la vista o edita la tarea desde el módulo principal de Tareas."/>
+      </Card>;
+    }
+    return this.props.children;
+  }
+}
 
 // ── LOGIN ────────────────────────────────────────────────────
 
@@ -889,33 +924,43 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
 function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios" }) {
   const [txt,setTxt]=useState("");
   const [editingId,setEditingId]=useState(null);
+  const [pasarATarea,setPasarATarea]=useState(false);
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
     const next=editingId
-      ? items.map(it=>it.id===editingId?{...it,text:val,upd:today()}:it)
-      : [{id:uid(),text:val,cr:today()},...items];
+      ? items.map(it=>it.id===editingId?{...it,text:val,pasarATarea,upd:today()}:it)
+      : [{id:uid(),text:val,pasarATarea,cr:today()},...items];
     await onSave(next);
     setTxt("");
     setEditingId(null);
+    setPasarATarea(false);
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);};
   const delItem=async id=>{
     if(!confirm("¿Eliminar comentario?")) return;
     await onSave(items.filter(it=>it.id!==id));
-    if(editingId===id){setTxt("");setEditingId(null);}
+    if(editingId===id){setTxt("");setEditingId(null);setPasarATarea(false);}
   };
-  return <Card title={title} action={canEdit?{label:editingId?"Actualizar":"Agregar",fn:submit}:null}>
+  return <Card title={title}>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+      {!!items.length&&<GBtn sm onClick={()=>exportComentariosCSV(items,title)}>⬇ Exportar CSV</GBtn>}
+    </div>
     {canEdit&&<div style={{marginBottom:16}}>
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
+      <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
+        <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
+        Marcar para pasar a tarea
+      </label>
       <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
-        {editingId&&<GBtn sm onClick={()=>{setTxt("");setEditingId(null);}}>Cancelar</GBtn>}
+        {editingId&&<GBtn sm onClick={()=>{setTxt("");setEditingId(null);setPasarATarea(false);}}>Cancelar</GBtn>}
         <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
       </div>
     </div>}
     {items.length?items.map(it=><div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start"}}>
         <div style={{flex:1}}>
+          {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",marginBottom:6,letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
           <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
           <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</div>
         </div>
@@ -930,11 +975,20 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
     .filter(t=>t&&typeof t==="object")
     .filter(t=>t.refTipo===refTipo&&t.refId===refId)
     .sort((a,b)=>String(b.cr||"").localeCompare(String(a.cr||"")));
-  const changeEstado=async(id,nuevoEstado)=>{await setTareas((tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t));};
-  const deleteTarea=async(id)=>{if(!confirm("¿Eliminar tarea?")) return;await setTareas((tareas||[]).filter(t=>t.id!==id));};
-  return <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
-    {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
-  </Card>;
+  const changeEstado=async(id,nuevoEstado)=>{
+    const next=(tareas||[]).map(t=>t.id===id?{...t,estado:nuevoEstado}:t);
+    await setTareas(next);
+  };
+  const deleteTarea=async(id)=>{
+    if(!confirm("¿Eliminar tarea?")) return;
+    const next=(tareas||[]).filter(t=>t.id!==id);
+    await setTareas(next);
+  };
+  return <TaskErrorBoundary title={title}>
+    <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
+      {items.length?items.map(t=><TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} crew={crew} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+    </Card>
+  </TaskErrorBoundary>;
 }
 
 function ViewTareas({ empresa, user, tareas, producciones, programas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
@@ -959,9 +1013,10 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
     await setTareas(next);
   };
 
-  const handleDrop = async nuevoEstado => {
-    if(!dragId) return;
-    await changeEstado(dragId, nuevoEstado);
+  const handleDrop = async (event, nuevoEstado) => {
+    const droppedId = event?.dataTransfer?.getData("text/plain") || dragId;
+    if(!droppedId) return;
+    await changeEstado(droppedId, nuevoEstado);
     setDragId(null);
     setDropCol("");
   };
@@ -1004,9 +1059,9 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
           return (
             <div
               key={col}
-              onDragOver={e=>{e.preventDefault();if(dropCol!==col) setDropCol(col);}}
+              onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dropCol!==col) setDropCol(col);}}
               onDragLeave={()=>setDropCol(prev=>prev===col?"":prev)}
-              onDrop={async e=>{e.preventDefault();await handleDrop(col);}}
+              onDrop={async e=>{e.preventDefault();await handleDrop(e,col);}}
             >
               {/* Column header */}
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:dropCol===col?"var(--cg)":"var(--sur)",border:`1px solid ${dropCol===col?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,marginBottom:12,borderTop:`3px solid ${colColors[col]}`,transition:".12s"}}>

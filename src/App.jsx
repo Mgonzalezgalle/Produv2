@@ -1716,7 +1716,18 @@ export default function App(){
     ntf(msg,"warn");if(goFn)goFn();
     await setArr((arr||[]).filter(x=>x.id!==id));
   };
-  const saveMov=async d=>{const next=[...(movimientos||[]),{...d,id:uid(),empId:curEmp?.id}];closeM();ntf("Registrado ✓");await setMovimientos(next);};
+  const saveMov=async d=>{
+    const item={
+      ...d,
+      id:uid(),
+      empId:curEmp?.id,
+      mon:Number(d?.mon ?? d?.monto ?? 0),
+      des:d?.des ?? d?.desc ?? "",
+      fec:d?.fec ?? d?.fecha ?? today(),
+    };
+    const next=[...(movimientos||[]),item];
+    closeM();ntf("Registrado ✓");await setMovimientos(next);
+  };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
 
   const saveUsers=u=>{setUsersRaw(u);dbSet("produ:users",u);};
@@ -2202,7 +2213,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimi
     {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
     {tab===4&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
       <Card title="Fechas Base de la Producción" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
         <KV label="Inicio" value={p.ini?fmtD(p.ini):"Por definir"}/>
@@ -2361,7 +2372,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspici
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>{_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{pids:[id]})}>+ Auspiciador</Btn>}</div>
       {aus.length?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{aus.map(a=><AusCard key={a.id} a={a} pgs={[pg_]} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null}/>)}</div>:<Empty text="Sin auspiciadores"/>}
     </div>}
-    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",desc:"Honorarios "+m.nom,monto:parseTarifa(m.tarifa),fecha:today()});}}/>}
+    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
     {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
     {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Programa">

@@ -2377,7 +2377,7 @@ export default function App(){
       case"contratos":    return <ViewCts           {...VP} setContratos={setContratos}/>;
       case"presupuestos": return <ViewPres          {...VP} setPresupuestos={setPresupuestos}/>;
       case"pres-det":     return <ViewPresDet       {...VP} id={detId} setPresupuestos={setPresupuestos} setProducciones={setProducciones} setProgramas={setProgramas} setMovimientos={setMovimientos}/>;
-      case"facturacion":  return <ViewFact          {...VP} setFacturas={setFacturas}/>;
+      case"facturacion":  return <ViewFact          {...VP} setFacturas={setFacturas} setMovimientos={setMovimientos}/>;
       case"activos":      return <ViewActivos       {...VP} setActivos={setActivos}/>;
       default: return <Empty text="Módulo no disponible"/>;
     }
@@ -4425,11 +4425,12 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   </Modal>;
 }
 
-function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,saveFacturaDoc}){
+function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,setMovimientos,saveFacturaDoc,ntf}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
+  const allDocs = (facturas||[]).filter(x=>x.empId===empId);
   const fd=(facturas||[]).filter(x=>x.empId===empId).filter(f=>{
     const ent=invoiceEntityName(f,clientes,auspiciadores);
     return(ent.toLowerCase().includes(q.toLowerCase())||(f.correlativo||"").toLowerCase().includes(q.toLowerCase()))&&(!fe||f.estado===fe);
@@ -4439,6 +4440,82 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
   const vencidas=fd.filter(f=>f.estado==="Vencida").length;
   const emitidas=fd.filter(f=>f.estado==="Emitida").length;
   const recurrentes=fd.filter(f=>f.recurring).length;
+  const seriesList = Object.values(allDocs.filter(f=>f.seriesId).reduce((acc,f)=>{
+    const key=f.seriesId;
+    const bucket=acc[key] || { id:key, docs:[] };
+    bucket.docs.push(f);
+    acc[key]=bucket;
+    return acc;
+  },{})).map(bucket=>{
+    const docs=[...bucket.docs].sort((a,b)=>Number(a.seriesIndex||0)-Number(b.seriesIndex||0) || String(a.fechaEmision||"").localeCompare(String(b.fechaEmision||"")));
+    const first=docs[0]||{};
+    const entityName=invoiceEntityName(first,clientes,auspiciadores);
+    const activeDocs=docs.filter(d=>d.recurringStatus!=="Pausada");
+    const status=docs.some(d=>d.recurringStatus==="Pausada") ? "Pausada" : docs.some(d=>d.recurringStatus==="Finalizada") ? "Finalizada" : "Activa";
+    return {
+      ...bucket,
+      docs,
+      first,
+      status,
+      entityName,
+      totalMonths:Math.max(...docs.map(d=>Number(d.seriesTotal || d.recMonths || docs.length)), docs.length),
+      projected:docs.reduce((s,d)=>s+Number(d.total||0),0),
+      nextDate:activeDocs.find(d=>!d.fechaPago && (d.estado==="Pendiente" || d.estado==="Emitida"))?.fechaEmision || docs.find(d=>d.fechaEmision)?.fechaEmision || "",
+    };
+  }).sort((a,b)=>String(a.nextDate||"9999-12-31").localeCompare(String(b.nextDate||"9999-12-31")));
+  const persistSeries = async (nextFacts, removedIds=[])=>{
+    await setFacturas(nextFacts);
+    if(removedIds.length){
+      await setMovimientos((Array.isArray(movimientos)?movimientos:[]).filter(m=>!removedIds.includes(m.facturaId)));
+    }
+  };
+  const pauseSeries = async series => {
+    const nextFacts = allDocs.map(doc=>doc.seriesId===series.id ? {...doc, recurringStatus: doc.recurringStatus==="Pausada" ? "Activa" : "Pausada"} : doc);
+    await persistSeries(nextFacts);
+    ntf?.(series.status==="Pausada" ? "Serie reactivada ✓" : "Serie pausada ✓");
+  };
+  const cutSeries = async series => {
+    const cutoff = today();
+    const keepDocs = allDocs.filter(doc=>doc.seriesId!==series.id || String(doc.fechaEmision||"")<=cutoff);
+    const removed = allDocs.filter(doc=>doc.seriesId===series.id && String(doc.fechaEmision||"")>cutoff);
+    const keptCount = keepDocs.filter(doc=>doc.seriesId===series.id).length;
+    const normalized = keepDocs.map(doc=>doc.seriesId===series.id ? {...doc, recurringStatus:"Finalizada", recMonths:keptCount, seriesTotal:keptCount} : doc);
+    await persistSeries(normalized, removed.map(doc=>doc.id));
+    ntf?.(`Serie recortada ✓ (${removed.length} documento${removed.length===1?"":"s"} futuro${removed.length===1?"":"s"} eliminado${removed.length===1?"":"s"})`);
+  };
+  const regenerateSeries = async series => {
+    const base = series.docs[0];
+    if(!base) return;
+    const targetTotal = Math.max(Number(base.seriesTotal || base.recMonths || series.totalMonths || series.docs.length), series.docs.length);
+    const existingByIndex = new Map(series.docs.map(doc=>[Number(doc.seriesIndex||1),doc]));
+    const newDocs = [];
+    for(let idx=1; idx<=targetTotal; idx+=1){
+      if(existingByIndex.has(idx)) continue;
+      const fechaEmision = addMonths(base.recStart || base.fechaEmision || today(), idx-1);
+      const fechaVencimiento = base.fechaVencimiento ? addMonths(base.fechaVencimiento, idx-1) : "";
+      newDocs.push({
+        ...base,
+        id:uid(),
+        cr:today(),
+        estado:base.estado==="Pagada" ? "Pendiente" : (base.estado || "Pendiente"),
+        fechaPago:"",
+        fechaEmision,
+        fechaVencimiento,
+        recurring:true,
+        recurringStatus:"Activa",
+        recStart:base.recStart || base.fechaEmision || today(),
+        recMonths:targetTotal,
+        seriesTotal:targetTotal,
+        seriesIndex:idx,
+        correlativo:base.correlativo
+          ? `${base.correlativo.replace(/-\d{2}$/,"")}-${String(idx).padStart(2,"0")}`
+          : "",
+      });
+    }
+    const nextFacts = [...allDocs.map(doc=>doc.seriesId===series.id ? {...doc, recurringStatus:"Activa", recMonths:targetTotal, seriesTotal:targetTotal} : doc), ...newDocs];
+    await persistSeries(nextFacts);
+    ntf?.(newDocs.length ? `Serie regenerada ✓ (${newDocs.length} mes${newDocs.length===1?"":"es"} nuevo${newDocs.length===1?"":"s"})` : "La serie ya estaba completa ✓");
+  };
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Facturas" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
@@ -4455,6 +4532,28 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
     <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
       ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
     </div>
+    {!!seriesList.length && <Card title="Series Recurrentes" sub="Administra mensualidades sin editar documento por documento" style={{marginBottom:16}}>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Serie</TH><TH>Entidad</TH><TH>Estado</TH><TH>Meses</TH><TH>Próximo</TH><TH>Proyección</TH><TH></TH></tr></thead>
+          <tbody>
+            {seriesList.map(series=><tr key={series.id}>
+              <TD><div style={{fontWeight:700}}>{series.first.correlativo?.replace(/-\d{2}$/,"") || series.first.tipoDoc || "Serie"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{series.first.tipoDoc || "Documento"} · {series.first.tipoRef==="produccion"?"Proyecto":series.first.tipoRef==="contenido"?"Campaña":"Producción"}</div></TD>
+              <TD>{series.entityName || "—"}</TD>
+              <TD><Badge label={series.status}/></TD>
+              <TD mono>{series.docs.length}/{series.totalMonths}</TD>
+              <TD style={{fontSize:11}}>{series.nextDate ? fmtMonthPeriod(series.nextDate) : "Sin próximos"}</TD>
+              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(series.projected)}</TD>
+              <TD><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>pauseSeries(series)}>{series.status==="Pausada"?"▶ Reactivar":"⏸ Pausar"}</GBtn>}
+                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>regenerateSeries(series)}>↻ Regenerar</GBtn>}
+                {_cd&&_cd("facturacion")&&<XBtn onClick={()=>{if(!confirm("¿Cortar los meses futuros de esta serie?")) return; cutSeries(series);}} title="Cortar meses futuros"/>}
+              </div></TD>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </Card>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>

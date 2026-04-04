@@ -123,7 +123,7 @@ const ADDONS = {
 
 // ── LISTAS ADMINISTRABLES — valores por defecto ─────────────
 const DEFAULT_LISTAS = {
-  tiposPro:    ["Programa de TV","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Videoclip","Evento","Otro"],
+  tiposPro:    ["Producción","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Videoclip","Evento","Otro"],
   catMov:      ["General","Honorarios","Equipamiento","Locación","Post-Producción","Transporte","Alimentación","Marketing","Producción","Impuestos","Otros"],
   industriasCli:["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Banca","Energía","Otro"],
   catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
@@ -155,7 +155,7 @@ const SEED_DATA = (empId) => ({
     { id:"p3",empId,nom:"Pack EduFutura",      cliId:"c3",tip:"Contenido Audiovisual",est:"En Curso",    ini:"2025-01-01",fin:"2025-12-31",des:"4 videos + reels/mes.",crewIds:[]},
   ]:[],
   programas: empId==="emp1"?[
-    { id:"pg1",empId,nom:"Chile Emprende",tip:"Programa de TV",can:"Canal 24H", est:"Activo",totalEp:24,fre:"Semanal",temporada:"T1 2025",conductor:"Roberto Gómez",prodEjec:"María González",des:"Emprendimiento e innovación.",cliId:"",crewIds:[]},
+    { id:"pg1",empId,nom:"Chile Emprende",tip:"Producción",can:"Canal 24H", est:"Activo",totalEp:24,fre:"Semanal",temporada:"T1 2025",conductor:"Roberto Gómez",prodEjec:"María González",des:"Emprendimiento e innovación.",cliId:"",crewIds:[]},
     { id:"pg2",empId,nom:"El Ágora",      tip:"Podcast",       can:"Spotify",   est:"Activo",totalEp:52,fre:"Semanal",temporada:"T1 2025",conductor:"Ana Ruiz",       prodEjec:"Carlos Pérez",   des:"Cultura y sociedad.",        cliId:"",crewIds:[]},
   ]:[],
   piezas: empId==="emp1"?[
@@ -701,12 +701,12 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
     {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]},
-    {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Producciones",need:"producciones",cnt:counts.pro}]},
+    {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Proyectos",need:"producciones",cnt:counts.pro}]},
     {group:"Comercial",items:[
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
     ]},
     ...(empresa?.addons?.some(a=>["television","social","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
-      ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
+      ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Producciones",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
       ...(empresa?.addons?.includes("social")?[{id:"contenidos",icon:"📱",label:"Contenidos",need:"contenidos",cnt:counts.pz}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
@@ -907,16 +907,16 @@ function MTarea({ open, data, producciones, programas, piezas, crew, onClose, on
       <R2>
         <FG label="Asociar a"><FSl value={f.refTipo||""} onChange={e=>{u("refTipo",e.target.value);u("refId","");}}>
           <option value="">— Sin asociar —</option>
-          <option value="pro">Producción</option>
-          <option value="pg">Programa TV</option>
+          <option value="pro">Proyecto</option>
+          <option value="pg">Producción</option>
           <option value="pz">Campaña de Contenidos</option>
           <option value="crew">Crew</option>
         </FSl></FG>
-        {f.refTipo==="pro"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+        {f.refTipo==="pro"&&<FG label="Proyecto"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(producciones||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
-        {f.refTipo==="pg"&&<FG label="Programa"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+        {f.refTipo==="pg"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
@@ -1154,8 +1154,8 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
           </div>
           <select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} style={{padding:"7px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,color:"var(--gr3)",fontSize:12,cursor:"pointer"}}>
             <option value="">Todos los vínculos</option>
-            <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
-            <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Proyectos">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Producciones">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Contenidos">{(piezas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pz:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Crew">{(crew||[]).filter(c=>c.empId===empId).map(c=><option key={c.id} value={`crew:${c.id}`}>{c.nom}</option>)}</optgroup>
           </select>
@@ -1228,25 +1228,25 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
     <div style={{marginBottom:12}}><span style={{fontSize:12,color:"var(--gr2)"}}>Bienvenido, <b style={{color:"var(--wh)"}}>{user?.name}</b> · <span style={{color:"var(--cy)"}}>{empresa?.nombre}</span></span></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Clientes"     value={clis.length}  sub="registrados"      accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Producciones" value={pros.length}   sub={`${pros.filter(p=>p.est==="En Curso").length} en curso`}/>
+      <Stat label="Proyectos" value={pros.length}   sub={`${pros.filter(p=>p.est==="En Curso").length} en curso`}/>
       <Stat label="Ingresos"     value={fmtM(ti)}      sub="todos proyectos"  accent="#00e08a"   vc="#00e08a"/>
       <Stat label="Balance"      value={fmtM(ti-tg)}   sub={`gastos: ${fmtM(tg)}`} accent={ti-tg>=0?"#00e08a":"#ff5566"} vc={ti-tg>=0?"#00e08a":"#ff5566"}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      <Card title="Producciones Recientes" action={{label:"Ver todas →",fn:()=>navTo("producciones")}}>
+      <Card title="Proyectos Recientes" action={{label:"Ver todos →",fn:()=>navTo("producciones")}}>
         {pros.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Estado</TH><TH>Balance</TH></tr></thead><tbody>
           {[...pros].reverse().slice(0,5).map(p=>{const b=bal(p.id);return<tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.est}/></TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD></tr>;})}
-        </tbody></table>:<Empty text="Sin producciones"/>}
+        </tbody></table>:<Empty text="Sin proyectos"/>}
       </Card>
-      <Card title="Episodios Pendientes" action={{label:"Ver programas →",fn:()=>navTo("programas")}}>
+      <Card title="Episodios Pendientes" action={{label:"Ver producciones →",fn:()=>navTo("programas")}}>
         {eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).slice(0,5).map(ep=>{const pg=pgs.find(x=>x.id===ep.pgId);return<div key={ep.id} onClick={()=>navTo("ep-det",ep.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>Ep.{ep.num}: {ep.titulo}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg?.nom}{ep.fechaGrab?` · ${fmtD(ep.fechaGrab)}`:""}</div></div><Badge label={ep.estado}/></div>;})}
         {!eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).length&&<Empty text="Sin episodios pendientes"/>}
       </Card>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      <Card title="Programas Activos" action={{label:"Ver todos →",fn:()=>navTo("programas")}}>
+      <Card title="Producciones Activas" action={{label:"Ver todas →",fn:()=>navTo("programas")}}>
         {pgs.filter(p=>p.est==="Activo").map(pg=>{const pe=eps.filter(e=>e.pgId===pg.id);const pub=pe.filter(e=>e.estado==="Publicado").length;return<div key={pg.id} onClick={()=>navTo("pg-det",pg.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>{pg.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg.tip} · {pub}/{pe.length} ep.</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:"var(--gr2)"}}>Balance</div><div style={{color:bal(pg.id).b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(bal(pg.id).b)}</div></div></div>;})}
-        {!pgs.filter(p=>p.est==="Activo").length&&<Empty text="Sin programas activos"/>}
+        {!pgs.filter(p=>p.est==="Activo").length&&<Empty text="Sin producciones activas"/>}
       </Card>
       <Card title="Auspiciadores Activos">
         {(auspiciadores||[]).filter(a=>a.empId===empId&&a.est==="Activo").slice(0,4).map(a=>{const progs=(a.pids||[]).map(pid=>pgs.find(x=>x.id===pid)).filter(Boolean);return<div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}><div><div style={{fontSize:13,fontWeight:600}}>{a.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{progs.map(p=>p.nom).join(", ")||"Sin programa"}</div></div><div style={{textAlign:"right"}}><Badge label={a.tip} sm/>{a.mon&&<div style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:11,marginTop:3}}>{fmtM(a.mon)}</div>}</div></div>;})}
@@ -1456,7 +1456,7 @@ function ListasEditor({ listas, saveListas }) {
   const [newVal, setNewVal] = useState("");
 
   const GROUPS = [
-    { key:"tiposPro",      label:"Tipos de Producción" },
+    { key:"tiposPro",      label:"Tipos de Proyecto" },
     { key:"catMov",        label:"Categorías de Movimientos" },
     { key:"industriasCli", label:"Industrias de Clientes" },
     { key:"catActivos",    label:"Categorías de Activos" },
@@ -1832,12 +1832,12 @@ export default function App(){
 
   // Breadcrumb
   const buildBc=()=>{
-    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",contenidos:"CONTENIDOS",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN",social:"CONTENIDOS RRSS"};
+    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PROYECTOS",programas:"PRODUCCIONES",contenidos:"CONTENIDOS",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN",social:"CONTENIDOS RRSS"};
     if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
-    if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
-    if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
+    if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PROYECTOS",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
+    if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
     if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
-    if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
+    if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
     return [{l:L[view]||view.toUpperCase()}];
   };
@@ -1997,7 +1997,7 @@ function MPro({open,data,clientes,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:data?.cliId||"",tip:"Podcast",est:"Pre-Producción",ini:"",fin:"",des:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Producción":"Nueva Producción"} sub="Proyecto audiovisual">
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Proyecto":"Nuevo Proyecto"} sub="Proyecto audiovisual">
     <FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del proyecto"/></FG>
     <R2><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposPro||DEFAULT_LISTAS.tiposPro).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
@@ -2009,10 +2009,10 @@ function MPro({open,data,clientes,listas,onClose,onSave}){
 
 function MPg({open,data,clientes,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Programa de TV",can:"",est:"Activo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:"",cliId:"",crewIds:[],comentarios:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Producción",can:"",est:"Activo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:"",cliId:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Programa":"Nuevo Programa"} sub="TV, Podcast, Web Series…" wide>
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del programa"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Programa de TV","Podcast","Web Series","Talk Show","Documental","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Producción":"Nueva Producción"} sub="TV, Podcast, Web Series…" wide>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la producción"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Producción","Podcast","Web Series","Talk Show","Documental","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Canal / Plataforma"><FI value={f.can||""} onChange={e=>u("can",e.target.value)} placeholder="Canal 13, Spotify..."/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Activo","En Desarrollo","Pausado","Finalizado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R3><FG label="Total Episodios"><FI type="number" value={f.totalEp||""} onChange={e=>u("totalEp",Number(e.target.value))} placeholder="24"/></FG><FG label="Frecuencia"><FSl value={f.fre||""} onChange={e=>u("fre",e.target.value)}>{["Diario","Semanal","Quincenal","Mensual","Irregular"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Temporada"><FI value={f.temporada||""} onChange={e=>u("temporada",e.target.value)} placeholder="T1 2025"/></FG></R3>
     <R2><FG label="Conductor / Host"><FI value={f.conductor||""} onChange={e=>u("conductor",e.target.value)} placeholder="Nombre del conductor"/></FG><FG label="Productor Ejecutivo"><FI value={f.prodEjec||""} onChange={e=>u("prodEjec",e.target.value)} placeholder="Nombre del productor"/></FG></R2>
@@ -2054,7 +2054,7 @@ function MEp({open,data,programas,onClose,onSave}){
   useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Episodio":"Nuevo Episodio"} sub="Planificación de episodio" wide>
-    <R3><FG label="Programa"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
+    <R3><FG label="Producción"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
     <FG label="Título del Episodio *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Título descriptivo del episodio"/></FG>
     <R2><FG label="Invitado / Tema"><FI value={f.invitado||""} onChange={e=>u("invitado",e.target.value)} placeholder="Nombre o tema principal"/></FG><FG label="Locación"><FI value={f.locacion||""} onChange={e=>u("locacion",e.target.value)} placeholder="Estudio A, Exteriores..."/></FG></R2>
     <R3><FG label="Fecha Grabación"><FI type="date" value={f.fechaGrab||""} onChange={e=>u("fechaGrab",e.target.value)}/></FG><FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG><FG label="Duración (min)"><FI type="number" value={f.duracion||""} onChange={e=>u("duracion",e.target.value)} placeholder="45"/></FG></R3>
@@ -2072,7 +2072,7 @@ function MAus({open,data,programas,onClose,onSave}){
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Banco Estado"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Auspiciador Principal","Auspiciador Secundario","Colaborador","Canje","Media Partner"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Contacto"><FI value={f.con||""} onChange={e=>u("con",e.target.value)} placeholder="María González"/></FG><FG label="Email"><FI value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="mg@empresa.cl"/></FG></R2>
     <R2><FG label="Monto (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG><FG label="Frecuencia de Pago"><FSl value={f.frecPago||"Mensual"} onChange={e=>u("frecPago",e.target.value)}><option>Mensual</option><option>Semestral</option><option>Anual</option><option>Único</option></FSl></FG></R2>
-    <FG label="Programas Asociados"><MultiSelect options={(programas||[]).map(p=>({value:p.id,label:p.nom}))} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Seleccionar programas..."/></FG>
+    <FG label="Producciones Asociadas"><MultiSelect options={(programas||[]).map(p=>({value:p.id,label:p.nom}))} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Seleccionar producciones..."/></FG>
     <R2><FG label="Vigencia"><FI type="date" value={f.vig||""} onChange={e=>u("vig",e.target.value)}/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Activo","Negociación","Vencido","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <FG label="Notas"><FTA value={f.not||""} onChange={e=>u("not",e.target.value)} placeholder="Menciones, logo en créditos..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
@@ -2085,8 +2085,8 @@ function MCt({open,data,clientes,producciones,programas,onClose,onSave}){
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const opts=[...(producciones||[]).map(p=>({value:"p:"+p.id,label:"📽 "+p.nom})),...(programas||[]).map(p=>({value:"pg:"+p.id,label:"📺 "+p.nom}))];
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Contrato":"Nuevo Contrato"} sub="Documento legal">
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de Producción Q2"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
-    <FG label="Proyectos Asociados"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Producciones y programas..."/></FG>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de Proyecto Q2"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
+    <FG label="Asociaciones"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Proyectos y producciones..."/></FG>
     <R2><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Producción","Auspicio","Servicio","Licencia","Confidencialidad","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Borrador","En Revisión","Firmado","Vigente","Vencido"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Monto Total (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG><FG label="Vigencia"><FI type="date" value={f.vig||""} onChange={e=>u("vig",e.target.value)}/></FG></R2>
     <FG label="Archivo / URL"><FI value={f.arc||""} onChange={e=>u("arc",e.target.value)} placeholder="URL del documento"/></FG>
@@ -2134,8 +2134,8 @@ function MEvento({open,data,producciones,programas,piezas,onClose,onSave}){
     <R2><FG label="Tipo"><FSl value={f.tipo||"grabacion"} onChange={e=>u("tipo",e.target.value)}>{TIPOS.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}</FSl></FG>
     <FG label="Vinculado a"><FSl value={f.ref||""} onChange={e=>{const opt=[...(producciones||[]).map(p=>({v:p.id,t:"produccion"})),...(programas||[]).map(p=>({v:p.id,t:"programa"})),...(piezas||[]).map(p=>({v:p.id,t:"contenido"}))].find(o=>o.v===e.target.value);u("ref",e.target.value);u("refTipo",opt?.t||"");}}>
       <option value="">Sin vinculación</option>
-      <optgroup label="Producciones">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
-      <optgroup label="Programas">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
+      <optgroup label="Proyectos">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
+      <optgroup label="Producciones">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
       <optgroup label="Campañas">{(piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>
     </FSl></FG></R2>
     <R2><FG label="Fecha *"><FI type="date" value={f.fecha||""} onChange={e=>u("fecha",e.target.value)}/></FG><FG label="Hora"><FI type="time" value={f.hora||""} onChange={e=>u("hora",e.target.value)}/></FG></R2>
@@ -2237,7 +2237,7 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
     <DetHeader title={c.nom} tag={c.ind} meta={[c.rut&&`RUT: ${c.rut}`,c.dir].filter(Boolean)}
       actions={_cd&&_cd("clientes")&&<><GBtn onClick={()=>openM("cli",c)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(clientes,setClientes,id,()=>navTo("clientes"),"Cliente eliminado");}}>🗑 Eliminar</DBtn></>}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <Stat label="Producciones" value={prs.length} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label="Proyectos" value={prs.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Contratos"    value={cts.length}/>
       <Stat label="Ingresos"     value={fmtM(ti)}     accent="#00e08a" vc="#00e08a"/>
       <Stat label="Balance"      value={fmtM(ti-tg)}  accent={ti-tg>=0?"#00e08a":"#ff5566"} vc={ti-tg>=0?"#00e08a":"#ff5566"}/>
@@ -2262,10 +2262,10 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
         {c.not&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{c.not}</div></>}
       </Card>
     </div>
-    <Card title={`Producciones (${prs.length})`} action={_cd&&_cd("producciones")?{label:"+ Nueva",fn:()=>openM("pro",{cliId:id})}:null} style={{marginBottom:16}}>
+    <Card title={`Proyectos (${prs.length})`} action={_cd&&_cd("producciones")?{label:"+ Nuevo",fn:()=>openM("pro",{cliId:id})}:null} style={{marginBottom:16}}>
       {prs.length?<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
         {prs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD><TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
-      </tbody></table>:<Empty text="Sin producciones"/>}
+      </tbody></table>:<Empty text="Sin proyectos"/>}
     </Card>
     <Card title={`Contratos (${cts.length})`} action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:id})}:null}>
       {cts.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18,flexShrink:0}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
@@ -2274,7 +2274,7 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
   </div>;
 }
 
-// ── PRODUCCIONES ──────────────────────────────────────────────
+// ── PROYECTOS ──────────────────────────────────────────────
 function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
@@ -2284,12 +2284,12 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"]} placeholder="Todo estados"/>
-      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={["Programa de TV","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Otro"]} placeholder="Todo tipos"/>
-      {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nueva Producción</Btn>}
+      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={["Producción","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Otro"]} placeholder="Todo tipos"/>
+      {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nuevo Proyecto</Btn>}
     </div>
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Producción</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);const b=bal(p.id);return<tr key={p.id} onClick={()=>navTo("pro-det",p.id)}>
             <TD bold>{p.nom}</TD><TD>{c?c.nom:"—"}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD>
@@ -2299,7 +2299,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
             <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin producciones" sub="Crea la primera con el botón superior"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin proyectos" sub="Crea el primero con el botón superior"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -2320,7 +2320,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
   const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
   return <div>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est}/>]} meta={[c&&`Cliente: ${c.nom}`,p.ini&&`Inicio: ${fmtD(p.ini)}`,p.fin&&`Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
-      actions={_cd&&_cd("producciones")&&<><GBtn onClick={()=>openM("pro",p)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(producciones,setProducciones,id,()=>navTo("producciones"),"Producción eliminada");}}>🗑</DBtn></>}/>
+      actions={_cd&&_cd("producciones")&&<><GBtn onClick={()=>openM("pro",p)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(producciones,setProducciones,id,()=>navTo("producciones"),"Proyecto eliminado");}}>🗑</DBtn></>}/>
     {cContacto&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:14,flexWrap:"wrap",gap:8}}>
       <span style={{fontSize:12,color:"var(--gr2)"}}>Contacto: <b style={{color:"var(--wh)"}}>{cContacto.nom}</b> {cContacto.car?`· ${cContacto.car}`:""}</span>
       <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} mensaje={`Hola ${cContacto.nom}, te escribimos sobre el proyecto "${p.nom}".`}/>
@@ -2336,12 +2336,12 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios de Producción"/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto"/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
     {tab===4&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
-      <Card title="Fechas Base de la Producción" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
+      <Card title="Fechas Base del Proyecto" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
         <KV label="Inicio" value={p.ini?fmtD(p.ini):"Por definir"}/>
         <KV label="Entrega" value={p.fin?fmtD(p.fin):"Por definir"}/>
       </Card>
@@ -2351,7 +2351,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
     </Card>}
-    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
+    {tab===6&&<TareasContexto title="Tareas del Proyecto" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
 }
 
@@ -2383,7 +2383,7 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
   </div>;
 }
 
-// ── PROGRAMAS TV ──────────────────────────────────────────────
+// ── PRODUCCIONES ──────────────────────────────────────────────
 function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
@@ -2391,9 +2391,9 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe));
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar programa..."/>
+      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Activo","En Desarrollo","Pausado","Finalizado"]} placeholder="Todo estados"/>
-      {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nuevo Programa</Btn>}
+      {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nueva Producción</Btn>}
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
       {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{
@@ -2417,7 +2417,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
         </div>;
       })}
     </div>
-    {!fd.length&&<Empty text="Sin programas" sub="Crea el primero con el botón superior"/>}
+    {!fd.length&&<Empty text="Sin producciones" sub="Crea la primera con el botón superior"/>}
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
   </div>;
 }
@@ -2474,7 +2474,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
   const cliAsoc=(clientes||[]).find(x=>x.id===pg_.cliId);
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est}/>]} meta={[pg_.can,pg_.fre,pg_.temporada&&`Temp: ${pg_.temporada}`,pg_.conductor&&`🎙 ${pg_.conductor}`,cliAsoc&&`Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
-      actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pg",pg_)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar programa y episodios?"))return;cDel(programas,setProgramas,id,()=>navTo("programas"),"Eliminado");}}>🗑</DBtn></>}/>
+      actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pg",pg_)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar producción y episodios?"))return;cDel(programas,setProgramas,id,()=>navTo("programas"),"Eliminado");}}>🗑</DBtn></>}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Episodios"   value={eps.length}    sub={`${epStats.plan} planificados`}/>
       <Stat label="Publicados"  value={epStats.pub}   accent="#00e08a" vc="#00e08a" sub={`${epStats.grab} grabados`}/>
@@ -2491,7 +2491,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Programa"/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción"/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
@@ -2535,7 +2535,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
     {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
     {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
     {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      <Card title="Datos del Programa">
+      <Card title="Datos de la Producción">
         {[["Tipo",pg_.tip],["Canal",pg_.can||"—"],["Frecuencia",pg_.fre||"—"],["Temporada",pg_.temporada||"—"],["Total Ep.",pg_.totalEp||"—"],["Estado",<Badge key={0} label={pg_.est}/>],["Cliente",cliAsoc?.nom||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Equipo">
@@ -2543,7 +2543,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
         {pg_.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pg_.des}</div></>}
       </Card>
     </div>}
-    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+    {tab===8&&<TareasContexto title="Tareas de la Producción" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 
@@ -2763,7 +2763,7 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar auspiciador..."/>
       <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={["Auspiciador Principal","Auspiciador Secundario","Colaborador","Canje","Media Partner"]} placeholder="Todo tipos"/>
-      <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={pgOpts} placeholder="Todos programas"/>
+      <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={pgOpts} placeholder="Todas producciones"/>
       {_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{})}>+ Nuevo Auspiciador</Btn>}
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
@@ -2860,8 +2860,8 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
     if(ep.fechaEmision){const d=new Date(ep.fechaEmision+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_e",dia:d.getDate(),tipo:"emision",label:`📡 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"#00e08a",hora:"",auto:true,editModal:"ep",sourceId:ep.id});}
   });
   (producciones||[]).filter(p=>p.empId===empId).forEach(p=>{
-    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Producción",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
-    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Producción",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
+    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Proyecto",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
+    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Proyecto",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
   });
   (piezas||[]).filter(p=>p.empId===empId).forEach(c=>{
     if(c.ini){const d=new Date(c.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_ini",dia:d.getDate(),tipo:"otro",label:`📱 Inicio campaña: ${c.nom}`,sub:"Contenidos",color:"#a855f7",hora:"",auto:true,editModal:"contenido",sourceId:c.id});}
@@ -2970,12 +2970,12 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
   const total=subtotal+ivaVal;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
     <R2>
-      <FG label="Título / Descripción *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Producción Programa Q2 2025"/></FG>
+      <FG label="Título / Descripción *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Proyecto / Producción Q2 2025"/></FG>
       <FG label="N° Correlativo"><FI value={f.correlativo||""} onChange={e=>u("correlativo",e.target.value)} placeholder="PRES-2025-001"/></FG>
     </R2>
     <FG label="Cliente *"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Seleccionar cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
     <R2>
-      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}><option value="produccion">Producción</option><option value="programa">Programa TV</option><option value="servicio">Servicio</option></FSl></FG>
+      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}><option value="produccion">Proyecto</option><option value="programa">Producción</option><option value="servicio">Servicio</option></FSl></FG>
       <FG label="Estado"><FSl value={f.estado||"Borrador"} onChange={e=>u("estado",e.target.value)}><option>Borrador</option><option>Enviado</option><option>En Revisión</option><option>Aceptado</option><option>Rechazado</option></FSl></FG>
     </R2>
     <R3>
@@ -3332,7 +3332,7 @@ function generarPDFFactura(fact, entidad, ref, empresa) {
 ${ref ? `<div class="ref-box">
   <div class="ref-icon">${fact.tipoRef === "produccion" ? "📽" : "📺"}</div>
   <div>
-    <div class="ref-label">${fact.tipoRef === "produccion" ? "Producción" : "Programa TV"} asociado</div>
+    <div class="ref-label">${fact.tipoRef === "produccion" ? "Proyecto" : "Producción"} asociada</div>
     <div class="ref-name">${ref.nom||""}</div>
     ${ref.est ? `<div class="ref-type">Estado: ${ref.est}</div>` : ""}
   </div>
@@ -3446,7 +3446,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
       const nuevo={id:newId,empId,nom:convNom,cliId:p.cliId,tip:"Contenido Audiovisual",est:"Pre-Producción",ini:today(),fin:"",des:p.titulo,crewIds:[]};
       await setProducciones([...(producciones||[]),nuevo]);
     } else {
-      const nuevo={id:newId,empId,nom:convNom,tip:"Programa de TV",can:"",est:"En Desarrollo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:p.titulo,cliId:p.cliId||"",crewIds:[]};
+      const nuevo={id:newId,empId,nom:convNom,tip:"Producción",can:"",est:"En Desarrollo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:p.titulo,cliId:p.cliId||"",crewIds:[]};
       await setProgramas([...(programas||[]),nuevo]);
     }
     // Crear ingreso automático con el total del presupuesto
@@ -3511,7 +3511,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
     {p.obs&&<Card title="Observaciones"><p style={{fontSize:12,color:"var(--gr3)"}}>{p.obs}</p></Card>}
     {/* Modal convertir */}
     <Modal open={convOpen} onClose={()=>setConvOpen(false)} title="Convertir en Proyecto" sub="El presupuesto fue aceptado. Crea el proyecto correspondiente.">
-      <FG label="Tipo de proyecto"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nueva Producción</option><option value="programa">📺 Nuevo Programa TV</option></FSl></FG>
+      <FG label="Tipo de registro"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nuevo Proyecto</option><option value="programa">📺 Nueva Producción</option></FSl></FG>
       <FG label="Nombre del proyecto"><FI value={convNom} onChange={e=>setConvNom(e.target.value)} placeholder="Nombre del proyecto"/></FG>
       <div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#00e08a",marginBottom:16}}>Se creará {convTipo==="produccion"?"una producción":"un programa TV"} con los datos del cliente. Podrás editarlo desde el módulo correspondiente.</div>
       <MFoot onClose={()=>setConvOpen(false)} onSave={convertir} label="Crear Proyecto"/>
@@ -3542,12 +3542,12 @@ function MFact({open,data,clientes,auspiciadores,producciones,programas,onClose,
       </FSl>
     </FG>
     <R2>
-      <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Producción</option><option value="programa">Programa TV</option></FSl></FG>
-      <FG label="Producción / Programa">
+    <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option><option value="programa">Producción</option></FSl></FG>
+      <FG label="Proyecto / Producción">
         <FSl value={f.proId||""} onChange={e=>u("proId",e.target.value)}>
           <option value="">— Seleccionar —</option>
-          <optgroup label="Producciones">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
-          <optgroup label="Programas">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
+          <optgroup label="Proyectos">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
+          <optgroup label="Producciones">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
         </FSl>
       </FG>
     </R2>
@@ -3592,7 +3592,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
     </div>
     {/* Nota importante */}
     <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
-      ℹ En Programas TV, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
+      ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
     </div>
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -3639,7 +3639,7 @@ function MActivo({open,data,producciones,listas,onClose,onSave}){
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Canon EOS R5"/></FG><FG label="Categoría"><FSl value={f.categoria||""} onChange={e=>u("categoria",e.target.value)}><option value="">Seleccionar...</option>{CATS.map(c=><option key={c}>{c}</option>)}</FSl></FG></R2>
     <R3><FG label="Marca"><FI value={f.marca||""} onChange={e=>u("marca",e.target.value)} placeholder="Canon, Sony..."/></FG><FG label="Modelo"><FI value={f.modelo||""} onChange={e=>u("modelo",e.target.value)} placeholder="EOS R5"/></FG><FG label="N° Serie"><FI value={f.serial||""} onChange={e=>u("serial",e.target.value)} placeholder="SN-00001"/></FG></R3>
     <R3><FG label="Valor Compra"><FI type="number" value={f.valorCompra||""} onChange={e=>u("valorCompra",e.target.value)} placeholder="0"/></FG><FG label="Fecha Compra"><FI type="date" value={f.fechaCompra||""} onChange={e=>u("fechaCompra",e.target.value)}/></FG><FG label="Estado"><FSl value={f.estado||"Disponible"} onChange={e=>u("estado",e.target.value)}>{ESTADOS.map(s=><option key={s}>{s}</option>)}</FSl></FG></R3>
-    <FG label="Asignado a Producción"><FSl value={f.asignadoA||""} onChange={e=>u("asignadoA",e.target.value)}><option value="">— Sin asignar —</option>{(producciones||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
+    <FG label="Asignado a Proyecto"><FSl value={f.asignadoA||""} onChange={e=>u("asignadoA",e.target.value)}><option value="">— Sin asignar —</option>{(producciones||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
     <FG label="Observaciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Condición, accesorios incluidos..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;

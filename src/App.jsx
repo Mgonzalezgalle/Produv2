@@ -130,6 +130,40 @@ function companyPrintColorLabel(empresa = {}) {
   return PRINT_COLORS.find(opt => opt.value === companyPrintColor(empresa))?.label || "Azul institucional";
 }
 
+function companyBillingDiscountPct(empresa = {}) {
+  const pct = Number(empresa?.billingDiscountPct || 0);
+  if (!Number.isFinite(pct)) return 0;
+  return Math.max(0, Math.min(100, pct));
+}
+
+function companyBillingNet(empresa = {}) {
+  const gross = Number(empresa?.billingMonthly || 0);
+  return Math.max(0, Math.round(gross * (1 - companyBillingDiscountPct(empresa) / 100)));
+}
+
+function companyBillingStatus(empresa = {}) {
+  return empresa?.billingStatus || "Pendiente";
+}
+
+function companyPaymentDayLabel(empresa = {}) {
+  const day = Number(empresa?.billingDueDay || 0);
+  return day > 0 ? `Cada día ${day}` : "Sin definir";
+}
+
+function companyIsUpToDate(empresa = {}) {
+  return ["Al día","Pagado"].includes(companyBillingStatus(empresa));
+}
+
+function tenantOrdinal(tenantCode = "") {
+  const match = String(tenantCode || "").match(/(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function nextTenantCode(empresas = []) {
+  const max = (Array.isArray(empresas) ? empresas : []).reduce((acc, emp) => Math.max(acc, tenantOrdinal(emp?.tenantCode)), 0);
+  return `T-${String(max + 1).padStart(4, "0")}`;
+}
+
 function recurringSummary(item = {}, fallbackDate = today()) {
   if (!item?.recurring) return "Único";
   const count = Math.max(1, Number(item.recMonths || 1));
@@ -391,8 +425,8 @@ const DEFAULT_LISTAS = {
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     googleCalendarEnabled:false, cr:today() },
-  { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", googleCalendarEnabled:false, cr:today() },
+  { id:"emp1", tenantCode:"T-0001", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     googleCalendarEnabled:false, billingMonthly:449000, billingDiscountPct:10, billingDiscountNote:"Partner estratégico", billingStatus:"Al día", billingDueDay:5, billingLastPaidAt:"2026-04-01", contractOwner:"Matías González", clientPortalUrl:"https://portal.produ.cl/playmedia", cr:today() },
+  { id:"emp2", tenantCode:"T-0002", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", googleCalendarEnabled:false, billingMonthly:119000, billingDiscountPct:0, billingDiscountNote:"", billingStatus:"Pendiente", billingDueDay:10, billingLastPaidAt:"2026-03-10", contractOwner:"Carla González", clientPortalUrl:"https://portal.produ.cl/gonzalez", cr:today() },
 ];
 const SEED_USERS = [
   { id:"u0", name:"Super Admin Produ", email:"super@produ.cl",      passwordHash:"4e4c56e4a15f89f05c2f4c72613da2a18c9665d4f0d6acce16415eb06f9be776", role:"superadmin", empId:null,   active:true },
@@ -1833,6 +1867,9 @@ function SuperAdminPanel({empresas,users,onSave}){
   const [q,setQ]=useState("");
   const [planF,setPlanF]=useState("");
   const [stateF,setStateF]=useState("");
+  const [portfolioQ,setPortfolioQ]=useState("");
+  const [portfolioPlan,setPortfolioPlan]=useState("");
+  const [portfolioStatus,setPortfolioStatus]=useState("");
   const [uq,setUQ]=useState("");
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
@@ -1841,7 +1878,24 @@ function SuperAdminPanel({empresas,users,onSave}){
   const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
   const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
   const totalUsers=(users||[]).filter(u=>u.role!=="superadmin").length;
+  const carteraEmp=(empresas||[]).map(emp=>({
+    ...emp,
+    userCount:(users||[]).filter(u=>u.role!=="superadmin"&&u.empId===emp.id).length,
+    grossMonthly:Number(emp.billingMonthly||0),
+    discountPct:companyBillingDiscountPct(emp),
+    netMonthly:companyBillingNet(emp),
+    payStatus:companyBillingStatus(emp),
+  }));
+  const grossMRR=carteraEmp.reduce((s,emp)=>s+emp.grossMonthly,0);
+  const netMRR=carteraEmp.reduce((s,emp)=>s+emp.netMonthly,0);
+  const totalDiscountMRR=Math.max(0,grossMRR-netMRR);
+  const overdueEmp=carteraEmp.filter(emp=>["Vencido","Mora","Suspendido"].includes(emp.payStatus)).length;
   const filteredEmp=(empresas||[]).filter(emp=>(!q||emp.nombre?.toLowerCase().includes(q.toLowerCase())||emp.rut?.toLowerCase().includes(q.toLowerCase()))&&(!planF||emp.plan===planF)&&(!stateF||(stateF==="Activa"?emp.active!==false:emp.active===false)));
+  const filteredPortfolio=carteraEmp.filter(emp=>
+    (!portfolioQ || emp.nombre?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.contractOwner?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.rut?.toLowerCase().includes(portfolioQ.toLowerCase())) &&
+    (!portfolioPlan || emp.plan===portfolioPlan) &&
+    (!portfolioStatus || emp.payStatus===portfolioStatus)
+  );
   const sysUsers=(users||[]).filter(u=>u.role!=="superadmin");
   const filteredUsers=sysUsers.filter(u=>
     (!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase())) &&
@@ -1856,9 +1910,18 @@ function SuperAdminPanel({empresas,users,onSave}){
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
+  };
+  const savePortfolio=(empId, patch={})=>{
+    onSave("empresas",(empresas||[]).map(e=>e.id===empId?{
+      ...e,
+      ...patch,
+      billingMonthly:Number(patch.billingMonthly ?? e.billingMonthly ?? 0),
+      billingDiscountPct:companyBillingDiscountPct({billingDiscountPct:patch.billingDiscountPct ?? e.billingDiscountPct ?? 0}),
+      billingDueDay:Number(patch.billingDueDay ?? e.billingDueDay ?? 0),
+    }:e));
   };
   const publishSystemMessage=()=>{
     if(!selectedCommEmp || !sysMsg.title?.trim() || !sysMsg.body?.trim()) return;
@@ -1878,7 +1941,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     onSave("empresas",next);
   };
   return <div>
-    <Tabs tabs={["Empresas","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Empresas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
@@ -1898,7 +1961,7 @@ function SuperAdminPanel({empresas,users,onSave}){
           </div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:13,fontWeight:700}}>{emp.nombre}</div>
-            <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut||"Sin RUT"} · {emp.ema||"Sin email"} · ID: {emp.id}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut||"Sin RUT"} · {emp.ema||"Sin email"} · Tenant ID: {emp.tenantCode||"—"} · ID técnico: {emp.id}</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
               {(emp.addons||[]).length?(emp.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:10,color:"var(--gr2)"}}>Sin addons</span>}
             </div>
@@ -1913,7 +1976,7 @@ function SuperAdminPanel({empresas,users,onSave}){
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>{eid?"Editar Empresa":"Nueva Empresa"}</div>
-          {eid&&<span style={{fontSize:11,color:"var(--gr2)"}}>ID instancia: {eid}</span>}
+          {eid&&<span style={{fontSize:11,color:"var(--gr2)"}}>Tenant ID: {(empresas.find(e=>e.id===eid)?.tenantCode)||"—"} · ID instancia: {eid}</span>}
         </div>
         <R2><FG label="Nombre *"><FI value={ef.nombre||""} onChange={e=>setEf(p=>({...p,nombre:e.target.value}))} placeholder="Play Media SpA"/></FG><FG label="RUT"><FI value={ef.rut||""} onChange={e=>setEf(p=>({...p,rut:e.target.value}))} placeholder="78.118.348-2"/></FG></R2>
         <R2><FG label="Email"><FI value={ef.ema||""} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG><FG label="Plan"><FSl value={ef.plan||"starter"} onChange={e=>setEf(p=>({...p,plan:e.target.value}))}><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></FSl></FG></R2>
@@ -1925,6 +1988,87 @@ function SuperAdminPanel({empresas,users,onSave}){
       </div>
     </div>}
     {tab===1&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:10,marginBottom:16}}>
+        <Stat label="Empresas activas" value={activeEmp} sub="Tenants operativos" accent="var(--cy)"/>
+        <Stat label="MRR bruto" value={fmtM(grossMRR)} sub="Suma mensual pactada" accent="#00e08a"/>
+        <Stat label="Descuentos" value={fmtM(totalDiscountMRR)} sub="Rebajas activas" accent="#ffcc44" vc="#ffcc44"/>
+        <Stat label="MRR neto" value={fmtM(netMRR)} sub="Valor mensual Produ" accent="#a855f7" vc="#a855f7"/>
+        <Stat label="Con mora" value={overdueEmp} sub="Vencidas o suspendidas" accent="#ff5566" vc="#ff5566"/>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={portfolioQ} onChange={setPortfolioQ} placeholder="Buscar por empresa, RUT o contratado por..."/>
+        <FilterSel value={portfolioPlan} onChange={setPortfolioPlan} options={["starter","pro","enterprise"]} placeholder="Todos los planes"/>
+        <FilterSel value={portfolioStatus} onChange={setPortfolioStatus} options={["Al día","Pendiente","Vencido","Mora","Suspendido"]} placeholder="Todos los pagos"/>
+      </div>
+      <div style={{display:"grid",gap:16}}>
+        {filteredPortfolio.map(emp=>{
+          const net=companyBillingNet(emp);
+          const status=companyBillingStatus(emp);
+          const payColor=status==="Al día"?"green":status==="Pendiente"?"yellow":status==="Suspendido"?"red":"orange";
+          return <Card key={emp.id} title={emp.nombre} sub={`${emp.tenantCode||"Sin Tenant ID"} · Plan ${emp.plan} · ${emp.userCount} usuario${emp.userCount===1?"":"s"} · ${emp.active!==false?"Tenant activo":"Tenant inactivo"}`} style={{padding:18}}>
+            <div style={{display:"grid",gridTemplateColumns:"1.2fr .9fr",gap:16}}>
+              <div style={{display:"grid",gap:14}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
+                  <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{String(emp.plan||"starter").toUpperCase()}</div></div>
+                  <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Usuarios</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{emp.userCount}</div></div>
+                  <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Valor Produ</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--cy)"}}>{fmtM(net)}</div></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
+                  <FG label="Valor mensual pactado"><FI type="number" min="0" value={emp.billingMonthly||0} onChange={e=>savePortfolio(emp.id,{billingMonthly:e.target.value})} placeholder="0"/></FG>
+                  <FG label="Descuento (%)"><FI type="number" min="0" max="100" value={emp.billingDiscountPct||0} onChange={e=>savePortfolio(emp.id,{billingDiscountPct:e.target.value})} placeholder="0"/></FG>
+                </div>
+                <R2>
+                  <FG label="Contratado por"><FI value={emp.contractOwner||""} onChange={e=>savePortfolio(emp.id,{contractOwner:e.target.value})} placeholder="Nombre del responsable comercial"/></FG>
+                  <FG label="Portal cliente"><FI value={emp.clientPortalUrl||""} onChange={e=>savePortfolio(emp.id,{clientPortalUrl:e.target.value})} placeholder="https://cliente.produ.cl/empresa"/></FG>
+                </R2>
+                <FG label="Descuento / nota comercial"><FI value={emp.billingDiscountNote||""} onChange={e=>savePortfolio(emp.id,{billingDiscountNote:e.target.value})} placeholder="Motivo del descuento, upgrade o acuerdo especial"/></FG>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {(emp.addons||[]).length?(emp.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin módulos adicionales</span>}
+                </div>
+              </div>
+              <div style={{display:"grid",gap:14}}>
+                <div style={{padding:14,border:"1px solid var(--bdr2)",borderRadius:16,background:"var(--sur)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Estado de pagos</div>
+                    <Badge label={status} color={payColor} sm/>
+                  </div>
+                  <KV label="Tenant ID" value={emp.tenantCode||"—"}/>
+                  <KV label="RUT" value={emp.rut||"—"}/>
+                  <KV label="Contacto" value={emp.ema||"—"}/>
+                  <KV label="Último pago" value={emp.billingLastPaidAt?fmtD(emp.billingLastPaidAt):"Sin registro"}/>
+                  <KV label="Frecuencia" value={companyPaymentDayLabel(emp)}/>
+                  <KV label="Descuento activo" value={`${companyBillingDiscountPct(emp)}%`}/>
+                  <KV label="Valor mensual Produ" value={fmtM(net)}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
+                  <FG label="Estado de pago">
+                    <FSl value={status} onChange={e=>savePortfolio(emp.id,{billingStatus:e.target.value})}>
+                      <option value="Al día">Al día</option>
+                      <option value="Pendiente">Pendiente</option>
+                      <option value="Vencido">Vencido</option>
+                      <option value="Mora">Mora</option>
+                      <option value="Suspendido">Suspendido</option>
+                    </FSl>
+                  </FG>
+                  <FG label="Día de cobro">
+                    <FI type="number" min="1" max="31" value={emp.billingDueDay||""} onChange={e=>savePortfolio(emp.id,{billingDueDay:e.target.value})} placeholder="5"/>
+                  </FG>
+                </div>
+                <R2>
+                  <FG label="Último pago"><FI type="date" value={emp.billingLastPaidAt||""} onChange={e=>savePortfolio(emp.id,{billingLastPaidAt:e.target.value})}/></FG>
+                  <FG label="Estado tenant"><FSl value={emp.active===false?"false":"true"} onChange={e=>savePortfolio(emp.id,{active:e.target.value==="true"})}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG>
+                </R2>
+                <div style={{padding:12,borderRadius:14,border:"1px solid var(--bdr2)",background:companyIsUpToDate(emp)?"#00e08a14":"#ffcc4412",color:companyIsUpToDate(emp)?"#00e08a":"#ffcc44",fontSize:12,fontWeight:700}}>
+                  {companyIsUpToDate(emp) ? "Tenant al día con Produ." : "Este tenant requiere seguimiento comercial o cobranza."}
+                </div>
+              </div>
+            </div>
+          </Card>;
+        })}
+        {!filteredPortfolio.length&&<Empty text="Sin empresas en cartera para este filtro" sub="Ajusta plan, estado de pago o búsqueda."/>}
+      </div>
+    </div>}
+    {tab===2&&<div>
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:12}}>Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde el Panel Admin.</div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={uq} onChange={setUQ} placeholder="Buscar usuario por nombre o email..."/>
@@ -1948,7 +2092,7 @@ function SuperAdminPanel({empresas,users,onSave}){
       })}
       {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
     </div>}
-    {tab===2&&<div>
+    {tab===3&&<div>
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:14}}>Aquí quedan las bases de integraciones por empresa. Se habilitan o deshabilitan a nivel de instancia, y luego cada integración futura podrá conectarse por usuario cuando exista backend real.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
         <FilterSel value={integrationEmpId} onChange={setIntegrationEmpId} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Selecciona una empresa"/>
@@ -1976,7 +2120,7 @@ function SuperAdminPanel({empresas,users,onSave}){
         </Card>
       </div> : <Empty text="Selecciona una empresa para administrar integraciones"/>}
     </div>}
-    {tab===3&&<div>
+    {tab===4&&<div>
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:14}}>Mensajes visibles para todos los usuarios del tenant y banner global de avisos importantes.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
         <FilterSel value={commEmpId} onChange={v=>{setCommEmpId(v);const emp=(empresas||[]).find(e=>e.id===v)||(empresas||[])[0]||null;setBannerForm(emp?.systemBanner||{active:false,tone:"info",text:""});}} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Selecciona una empresa"/>
@@ -2025,7 +2169,7 @@ function SuperAdminPanel({empresas,users,onSave}){
         </Card>
       </div> : <Empty text="Selecciona una empresa para comunicarte con ese tenant"/>}
     </div>}
-    {tab===4&&<div>
+    {tab===5&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
         const tempPassword=uid().slice(1,9);
         const newUser={id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"productor",empId:empId||"",active:true};

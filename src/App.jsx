@@ -87,6 +87,90 @@ async function normalizeUsersAuth(users=[]) {
   return Promise.all((Array.isArray(users)?users:[]).filter(Boolean).map(normalizeUserAuth));
 }
 
+function crewUserId(userId="") {
+  return userId || uid();
+}
+
+function buildInternalCrewFromUser(user = {}, existing = {}) {
+  return {
+    id: existing.id || crewUserId(user.id),
+    sourceUserId: user.id,
+    managedByUser: true,
+    empId: user.empId || existing.empId || "",
+    nom: user.name || existing.nom || "",
+    rol: user.crewRole || existing.rol || "Crew interno",
+    area: existing.area || "Producción",
+    tipo: "interno",
+    tel: existing.tel || "",
+    ema: user.email || existing.ema || "",
+    dis: existing.dis || "",
+    tarifa: "",
+    not: existing.not || "",
+    active: user.active !== false,
+  };
+}
+
+function syncCrewWithUsers(allUsers = [], existingCrew = []) {
+  const users = Array.isArray(allUsers) ? allUsers : [];
+  const crew = Array.isArray(existingCrew) ? existingCrew : [];
+  const userMap = Object.fromEntries(users.filter(Boolean).map(u => [u.id, u]));
+  const next = [];
+  const seen = new Set();
+
+  crew.forEach(item => {
+    if (!item?.managedByUser || !item?.sourceUserId) {
+      next.push(item);
+      return;
+    }
+    const user = userMap[item.sourceUserId];
+    if (!user || !user.empId || user.isCrew !== true) return;
+    next.push(buildInternalCrewFromUser(user, item));
+    seen.add(user.id);
+  });
+
+  users.forEach(user => {
+    if (!user?.id || !user?.empId || user.isCrew !== true || seen.has(user.id)) return;
+    next.push(buildInternalCrewFromUser(user));
+  });
+
+  return next;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function commentPhotoFromFile(file) {
+  if (!file || !String(file.type || "").startsWith("image/")) return null;
+  const dataUrl = await fileToDataUrl(file);
+  const img = await new Promise((resolve, reject) => {
+    const node = new Image();
+    node.onload = () => resolve(node);
+    node.onerror = reject;
+    node.src = dataUrl;
+  });
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide / Math.max(img.width || maxSide, img.height || maxSide));
+  if (scale === 1 && file.size <= 900000) {
+    return { id: uid(), src: dataUrl, name: file.name || "imagen" };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round((img.width || maxSide) * scale));
+  canvas.height = Math.max(1, Math.round((img.height || maxSide) * scale));
+  const ctx = canvas.getContext("2d");
+  ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return {
+    id: uid(),
+    src: canvas.toDataURL("image/jpeg", 0.84),
+    name: file.name || "imagen",
+  };
+}
+
 function sessionPayload(user, emp) {
   return JSON.stringify({ userId:user?.id||"", empId:emp?.id||null });
 }
@@ -305,10 +389,12 @@ const normalizeSocialCampaigns = items => (Array.isArray(items) ? items.filter(B
 const countCampaignPieces = campaign => (Array.isArray(campaign?.piezas) ? campaign.piezas.length : 0);
 
 function exportComentariosCSV(items, nombre="comentarios") {
-  const headers = ["Fecha","Comentario"];
+  const headers = ["Fecha","Autor","Comentario","Fotos"];
   const rows = (items||[]).map(it => [
     it?.upd || it?.cr || "",
+    String(it?.authorName || "—").replace(/,/g, " "),
     String(it?.text || "").replace(/\n/g, " ").replace(/,/g, " "),
+    String((it?.photos||[]).length || 0),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
   const blob = new Blob(["﻿"+csv], { type:"text/csv;charset=utf-8;" });
@@ -326,6 +412,7 @@ function exportComentariosPDF(items, nombre="comentarios", empresa=null) {
   const htmlRows = safeItems.map(it => `
     <tr>
       <td>${it?.upd || it?.cr || "—"}</td>
+      <td>${String(it?.authorName || "—").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</td>
       <td>${String(it?.text || "—").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")}</td>
     </tr>
   `).join("");
@@ -353,7 +440,7 @@ function exportComentariosPDF(items, nombre="comentarios", empresa=null) {
       </div>
       <div class="meta">Generado: ${new Date().toLocaleDateString("es-CL")}</div>
     </div>
-    ${safeItems.length ? `<table><thead><tr><th style="width:140px">Fecha</th><th>Comentario</th></tr></thead><tbody>${htmlRows}</tbody></table>` : `<div class="empty">No hay comentarios para exportar.</div>`}
+    ${safeItems.length ? `<table><thead><tr><th style="width:140px">Fecha</th><th style="width:180px">Autor</th><th>Comentario</th></tr></thead><tbody>${htmlRows}</tbody></table>` : `<div class="empty">No hay comentarios para exportar.</div>`}
     <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
   </body></html>`;
   const w = window.open("", "_blank", "width=980,height=720");
@@ -1467,34 +1554,37 @@ function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDel
   );
 }
 
-function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", onCreateTask, crewOptions = [], empresa }) {
+function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", onCreateTask, crewOptions = [], empresa, currentUser }) {
   const [txt,setTxt]=useState("");
   const [editingId,setEditingId]=useState(null);
   const [pasarATarea,setPasarATarea]=useState(false);
   const [asignadoA,setAsignadoA]=useState("");
+  const [photos,setPhotos]=useState([]);
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
+  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAsignadoA("");setPhotos([]);};
+  const loadPhotos=async files=>{
+    const nextPhotos = await Promise.all(Array.from(files||[]).slice(0,4).map(commentPhotoFromFile));
+    setPhotos(prev=>[...prev,...nextPhotos.filter(Boolean)].slice(0,4));
+  };
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
     const prevItem=editingId?items.find(it=>it.id===editingId):null;
     const commentItem=editingId
-      ? {...prevItem,text:val,pasarATarea,asignadoA,upd:today()}
-      : {id:uid(),text:val,pasarATarea,asignadoA,cr:today()};
+      ? {...prevItem,text:val,pasarATarea,asignadoA,photos:[...photos],upd:today()}
+      : {id:uid(),text:val,pasarATarea,asignadoA,photos:[...photos],cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
     const next=editingId
       ? items.map(it=>it.id===editingId?commentItem:it)
       : [commentItem,...items];
     await onSave(next);
     if(pasarATarea && onCreateTask && !prevItem?.pasarATarea) await onCreateTask(commentItem);
-    setTxt("");
-    setEditingId(null);
-    setPasarATarea(false);
-    setAsignadoA("");
+    resetForm();
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAsignadoA(it.asignadoA||"");};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAsignadoA(it.asignadoA||"");setPhotos(Array.isArray(it.photos)?it.photos:[]);};
   const delItem=async id=>{
     if(!confirm("¿Eliminar comentario?")) return;
     await onSave(items.filter(it=>it.id!==id));
-    if(editingId===id){setTxt("");setEditingId(null);setPasarATarea(false);setAsignadoA("");}
+    if(editingId===id) resetForm();
   };
   return <Card title={title}>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
@@ -1511,12 +1601,24 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
           </FSl>
         </FG>
       </div>
+      <div style={{marginTop:10}}>
+        <FG label="Fotos del comentario">
+          <input type="file" accept="image/*" multiple onChange={async e=>{await loadPhotos(e.target.files);e.target.value="";}}/>
+        </FG>
+        {!!photos.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:8,marginTop:10}}>
+          {photos.map(photo=><div key={photo.id} style={{position:"relative",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)"}}>
+            <img src={photo.src} alt={photo.name||"Foto comentario"} style={{display:"block",width:"100%",height:100,objectFit:"cover"}}/>
+            <button onClick={()=>setPhotos(prev=>prev.filter(p=>p.id!==photo.id))} style={{position:"absolute",top:6,right:6,width:24,height:24,borderRadius:"50%",border:"none",background:"rgba(15,23,42,.84)",color:"#fff",cursor:"pointer"}}>×</button>
+          </div>)}
+        </div>}
+        <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>Puedes adjuntar hasta 4 imágenes como respaldo visual del comentario.</div>
+      </div>
       <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
         <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
         Marcar para pasar a tarea
       </label>
       <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
-        {editingId&&<GBtn sm onClick={()=>{setTxt("");setEditingId(null);setPasarATarea(false);}}>Cancelar</GBtn>}
+        {editingId&&<GBtn sm onClick={resetForm}>Cancelar</GBtn>}
         <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
       </div>
     </div>}
@@ -1524,11 +1626,19 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start"}}>
         <div style={{flex:1}}>
           {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",marginBottom:6,letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+            <span style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{it.authorName||"Usuario"}</span>
+            <span style={{fontSize:10,color:"var(--gr2)"}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</span>
+          </div>
           <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
+          {!!it.photos?.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginTop:10}}>
+            {it.photos.map(photo=><a key={photo.id||photo.src} href={photo.src} target="_blank" rel="noreferrer" style={{display:"block",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)"}}>
+              <img src={photo.src} alt={photo.name||"Foto comentario"} style={{display:"block",width:"100%",height:110,objectFit:"cover"}}/>
+            </a>)}
+          </div>}
           {it.asignadoA&&crewMap[it.asignadoA]&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>
             Asignado a: {crewMap[it.asignadoA].nom}
           </div>}
-          <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</div>
         </div>
         {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
       </div>
@@ -2590,7 +2700,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     const passwordHash = uf.password
       ? await sha256Hex(uf.password)
       : prev?.passwordHash || (prev?.password ? await sha256Hex(prev.password) : "");
-    const obj={id,name:uf.name,email:uf.email,passwordHash,role:uf.role||"viewer",empId:empresa?.id||null,active:uf.active!==false};
+    const obj={id,name:uf.name,email:uf.email,passwordHash,role:uf.role||"viewer",empId:empresa?.id||null,active:uf.active!==false,isCrew:uf.isCrew===true,crewRole:uf.isCrew===true?(uf.crewRole||"Crew interno"):""};
     saveUsers(uid2?(users||[]).map(u=>u.id===uid2?obj:u):[...(users||[]),obj]);
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
@@ -2648,6 +2758,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
           <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
           <Badge label={getRoleConfig(u.role, empresa).label} color={getRoleConfig(u.role, empresa).badge} sm/>
+          {u.isCrew&&<Badge label={u.crewRole||"Crew"} color="cyan" sm/>}
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
           <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
           <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
@@ -2657,10 +2768,17 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
         </div>)}
         {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
       </div>
-      <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
+        <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
         <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{uid2?"Editar":"Agregar"} Usuario</div>
         <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
         <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{roleOptions(empresa).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:10}}>
+            <input type="checkbox" checked={uf.isCrew===true} onChange={e=>setUf(p=>({...p,isCrew:e.target.checked,crewRole:e.target.checked?(p.crewRole||"Crew interno"):""}))}/>
+            Este usuario pertenece al crew interno
+          </label>
+          {uf.isCrew===true&&<FG label="Cargo en crew"><FI value={uf.crewRole||""} onChange={e=>setUf(p=>({...p,crewRole:e.target.value}))} placeholder="Ej: Productor Ejecutivo, Editor, Community Manager"/></FG>}
+        </div>
         <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveUser}>Guardar Usuario</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar</GBtn>}</div>
       </div>
@@ -2852,6 +2970,14 @@ export default function App(){
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
 
   useEffect(()=>{
+    if(!curEmp?.id || ldCrew) return;
+    const scopedUsers=(users||[]).filter(u=>u?.empId===curEmp.id);
+    const currentCrew=(crew||[]).filter(c=>c?.empId===curEmp.id);
+    const synced=syncCrewWithUsers(scopedUsers,currentCrew);
+    if(JSON.stringify(synced)!==JSON.stringify(currentCrew)) setCrew(synced);
+  },[curEmp?.id,users,crew,ldCrew,setCrew]);
+
+  useEffect(()=>{
     const onResize=()=>{
       const mobile=window.innerWidth<=768;
       setIsMobile(mobile);
@@ -3021,6 +3147,12 @@ export default function App(){
     const normalized = await normalizeUsersAuth(u);
     setUsersRaw(normalized);
     dbSet("produ:users",normalized);
+    if(curEmp?.id){
+      const scopedUsers=normalized.filter(x=>x?.empId===curEmp.id);
+      const currentCrew=(crew||[]).filter(c=>c?.empId===curEmp.id);
+      const syncedCrew=syncCrewWithUsers(scopedUsers,currentCrew);
+      await setCrew(syncedCrew);
+    }
   };
   const saveEmpresas=e=>{const normalized=normalizeEmpresasTenantCodes(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
@@ -3383,12 +3515,13 @@ function MMov({open,data,listas,onClose,onSave}){
 
 function MCrew({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data,tipo:"externo"}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const ROLES_C=listas?.rolesCrew||DEFAULT_LISTAS.rolesCrew;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Miembro":"Agregar al Equipo"} sub="Crew de producción">
-    <FG label="Tipo de Crew"><FSl value={f.tipo||"externo"} onChange={e=>u("tipo",e.target.value)}><option value="externo">Externo — tarifa aplica a producciones</option><option value="interno">Interno — personal de planta</option></FSl></FG>
+    <FG label="Tipo de Crew"><FSl value="externo" disabled><option value="externo">Externo — tarifa aplica a producciones</option></FSl></FG>
+    <div style={{fontSize:11,color:"var(--gr2)",marginTop:-6,marginBottom:12}}>El crew interno ahora se administra desde Panel Administrador / Usuarios marcando si el usuario pertenece al crew.</div>
     <R2><FG label="Nombre completo *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Juan Pérez"/></FG><FG label="Rol / Cargo"><FSl value={f.rol||""} onChange={e=>u("rol",e.target.value)}><option value="">Seleccionar...</option>{ROLES_C.map(r=><option key={r}>{r}</option>)}</FSl></FG></R2>
     <R2><FG label="Área"><FSl value={f.area||""} onChange={e=>u("area",e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</FSl></FG><FG label="Disponibilidad"><FI value={f.dis||""} onChange={e=>u("dis",e.target.value)} placeholder="Lun-Vie, Fines de semana..."/></FG></R2>
     <R2><FG label="Teléfono"><FI value={f.tel||""} onChange={e=>u("tel",e.target.value)} placeholder="+56 9 1234 5678"/></FG><FG label="Email"><FI type="email" value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="juan@email.cl"/></FG></R2>
@@ -3613,7 +3746,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
   </div>;
 }
 
-function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
+function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
@@ -3643,7 +3776,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa}/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
@@ -3805,7 +3938,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
   </div>;
 }
 
-function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
+function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;
@@ -3840,7 +3973,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa}/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
@@ -3896,7 +4029,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
   </div>;
 }
 
-function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,presupuestos,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
+function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,eventos,tareas,presupuestos,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
@@ -3934,7 +4067,7 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa}/>}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={piezaQ} onChange={v=>setPiezaQ(v)} placeholder="Buscar pieza..."/>
@@ -4004,7 +4137,7 @@ function AusCard({a,pgs,onEdit,onDel}){
 }
 
 // ── EPISODIO DETALLE ──────────────────────────────────────────
-function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setEpisodios,setMovimientos}){
+function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setEpisodios,setMovimientos}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const ep=(episodios||[]).find(x=>x.id===id);if(!ep) return <Empty text="No encontrado"/>;
@@ -4044,7 +4177,7 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
       <Stat label="Duración"   value={ep.duracion?ep.duracion+" min":"—"}/>
     </div>
     <Tabs tabs={["Comentarios","Información","Gastos","Crew"]} active={tab} onChange={setTab}/>
-    {tab===0&&<ComentariosBlock items={ep.comentarios||[]} onSave={async comentarios=>{const next=(episodios||[]).map(x=>x.id===id?{...x,comentarios}:x);await setEpisodios(next);}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Episodio" empresa={empresa}/>}
+    {tab===0&&<ComentariosBlock items={ep.comentarios||[]} onSave={async comentarios=>{const next=(episodios||[]).map(x=>x.id===id?{...x,comentarios}:x);await setEpisodios(next);}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Episodio" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Episodio">
         {[["Número","#"+String(ep.num).padStart(2,"0")],["Invitado / Tema",ep.invitado||"—"],["Locación",ep.locacion||"—"],["Descripción",ep.descripcion||"—"],["Notas",ep.notas||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -4067,6 +4200,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
   const [q,setQ]=useState("");const [fa,setFa]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa));
+  const canManageMember=m=>_cd&&_cd("crew")&&!m?.managedByUser;
   const exportCSV=()=>{
     const header="Nombre,Rol,Área,Email,Teléfono,Disponibilidad,Tarifa,Estado";
     const rows=fd.map(m=>[m.nom,m.rol,m.area,m.ema,m.tel,m.dis,m.tarifa,m.active!==false?"Activo":"Inactivo"].map(v=>`"${v||""}"`).join(","));
@@ -4081,6 +4215,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
       {_cd&&_cd("crew")&&<Btn onClick={()=>openM("crew",{})}>+ Agregar Miembro</Btn>}
       <GBtn onClick={exportCSV}>⬇ Exportar CSV</GBtn>
     </div>
+    <div style={{fontSize:11,color:"var(--gr2)",marginBottom:16}}>El crew interno proviene de `Usuarios`. Para agregarlo o cambiar su cargo, usa `Panel Administrador &gt; Usuarios` y marca si pertenece al crew.</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:20}}>
       {AREAS.slice(0,6).map(a=>{const cnt=(crew||[]).filter(x=>x.empId===empId&&x.area===a).length;return<div key={a} onClick={()=>setFa(fa===a?"":a)} style={{background:"var(--card)",border:`1px solid ${fa===a?"var(--cy)":"var(--bdr)"}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",textAlign:"center"}}><div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color:fa===a?"var(--cy)":"var(--wh)"}}>{cnt}</div><div style={{fontSize:9,color:"var(--gr2)",marginTop:2}}>{a}</div></div>;})}
     </div>
@@ -4098,6 +4233,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             <Badge label={m.area||"Sin área"} color="gray" sm/>
             <Badge label={m.tipo==="interno"?"Planta":"Externo"} color={m.tipo==="interno"?"green":"yellow"} sm/>
+            {m.managedByUser&&<Badge label="Usuario" color="cyan" sm/>}
           </div>
           <div style={{fontSize:11,color:"var(--gr2)",display:"grid",gap:5}}>
             <span>✉ {m.ema||"—"}</span>
@@ -4107,7 +4243,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
             <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{m.tarifa||"—"}</span>
             <div style={{display:"flex",gap:4}}>
-              {_cd&&_cd("crew")&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
+              {canManageMember(m)&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
             </div>
           </div>
         </div>)}
@@ -4123,13 +4259,13 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
             <TD bold><div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(m.nom)}</div>{m.nom}
             </div></TD>
-            <TD>{m.rol||"—"}</TD><TD><Badge label={m.area||"—"} color="gray" sm/> <Badge label={m.tipo==="interno"?"Planta":"Externo"} color={m.tipo==="interno"?"green":"yellow"} sm/></TD>
+            <TD>{m.rol||"—"}</TD><TD><Badge label={m.area||"—"} color="gray" sm/> <Badge label={m.tipo==="interno"?"Planta":"Externo"} color={m.tipo==="interno"?"green":"yellow"} sm/> {m.managedByUser&&<Badge label="Usuario" color="cyan" sm/>}</TD>
             <TD style={{fontSize:11}}>{m.ema||"—"}</TD><TD style={{fontSize:11}}>{m.tel||"—"}</TD>
             <TD style={{fontSize:11,color:"var(--gr2)"}}>{m.dis||"—"}</TD>
             <TD mono style={{fontSize:11}}>{m.tarifa||"—"}</TD>
             <TD><Badge label={m.active!==false?"Activo":"Inactivo"} color={m.active!==false?"green":"red"} sm/></TD>
             <TD><div style={{display:"flex",gap:4}}>
-              {_cd&&_cd("crew")&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
+              {canManageMember(m)&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
             </div></TD>
           </tr>)}
           {!fd.length&&<tr><td colSpan={9}><Empty text="Sin miembros" sub={_cd&&_cd("crew")?"Agrega el primero arriba":""}/></td></tr>}

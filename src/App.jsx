@@ -28,7 +28,48 @@ const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const CAMPANA_ESTADOS = ["Planificada","Activa","Pausada","Cerrada"];
 const PIEZA_ESTADOS = ["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"];
+const PIEZA_FORMATOS = ["Reel","Carrusel","Historia","TikTok","Post","Video","Story","Otro"];
+const PIEZA_PLATAFORMAS = ["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"];
+
+const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
+  id: piece.id || uid(),
+  nom: piece.nom || piece.titulo || "Nueva pieza",
+  formato: piece.formato || "Reel",
+  plataforma: piece.plataforma || campaign.plataforma || "Instagram",
+  est: piece.est || "Planificado",
+  ini: piece.ini || campaign.ini || "",
+  fin: piece.fin || "",
+  des: piece.des || piece.descripcion || "",
+  comentarios: Array.isArray(piece.comentarios) ? piece.comentarios : [],
+});
+
+const normalizeSocialCampaign = (item = {}) => {
+  const looksLikeLegacyPiece = !Array.isArray(item.piezas) && (item.formato || item.plataforma || PIEZA_ESTADOS.includes(item.est));
+  const piezas = looksLikeLegacyPiece
+    ? [normalizeSocialPiece(item, item)]
+    : (Array.isArray(item.piezas) ? item.piezas : []).map(p => normalizeSocialPiece(p, item));
+  return {
+    ...item,
+    id: item.id || uid(),
+    nom: item.nom || item.titulo || "Nueva campaña",
+    cliId: item.cliId || "",
+    mes: item.mes || MESES[new Date().getMonth()],
+    ano: Number(item.ano || new Date().getFullYear()),
+    est: CAMPANA_ESTADOS.includes(item.est) ? item.est : "Planificada",
+    plataforma: item.plataforma || (piezas[0]?.plataforma || "Instagram"),
+    ini: item.ini || "",
+    fin: item.fin || "",
+    des: item.des || item.descripcion || "",
+    crewIds: Array.isArray(item.crewIds) ? item.crewIds : [],
+    comentarios: Array.isArray(item.comentarios) ? item.comentarios : [],
+    piezas,
+  };
+};
+
+const normalizeSocialCampaigns = items => (Array.isArray(items) ? items.filter(Boolean).map(normalizeSocialCampaign) : []);
+const countCampaignPieces = campaign => (Array.isArray(campaign?.piezas) ? campaign.piezas.length : 0);
 
 function exportComentariosCSV(items, nombre="comentarios") {
   const headers = ["Fecha","Comentario"];
@@ -55,7 +96,7 @@ const ROLES = {
   viewer:    { label:"Visualizador",  color:"#7c7c8a" },
 };
 const PERMS = {
-  productor:["clientes","producciones","programas","piezas","crew","calendario","movimientos","eventos"],
+  productor:["clientes","producciones","programas","piezas","contenidos","crew","calendario","movimientos","eventos"],
   comercial:["clientes","auspiciadores","contratos","presupuestos","facturacion"],
 };
 function canDo(user, action) {
@@ -67,7 +108,7 @@ function canDo(user, action) {
 
 const ADDONS = {
   television:  { label:"Televisión",     icon:"📺" },
-  social:      { label:"Piezas RRSS",    icon:"📱" },
+  social:      { label:"Contenidos RRSS",icon:"📱" },
   presupuestos:{ label:"Presupuestos",   icon:"📋" },
   facturacion: { label:"Facturación",    icon:"🧾" },
   activos:     { label:"Gestión Activos",icon:"📦" },
@@ -113,9 +154,17 @@ const SEED_DATA = (empId) => ({
     { id:"pg2",empId,nom:"El Ágora",      tip:"Podcast",       can:"Spotify",   est:"Activo",totalEp:52,fre:"Semanal",temporada:"T1 2025",conductor:"Ana Ruiz",       prodEjec:"Carlos Pérez",   des:"Cultura y sociedad.",        cliId:"",crewIds:[]},
   ]:[],
   piezas: empId==="emp1"?[
-    {id:"pz1",empId,nom:"Reel Lanzamiento BancoSeguro",cliId:"c1",formato:"Reel",plataforma:"Instagram",mes:"Abril",ano:2026,est:"Planificado",ini:"2026-04-03",fin:"2026-04-08",des:"Pieza de awareness para el lanzamiento de campana.",crewIds:[],comentarios:[]},
-    {id:"pz2",empId,nom:"Carrusel Tips FoodTech",cliId:"c2",formato:"Carrusel",plataforma:"Instagram",mes:"Abril",ano:2026,est:"En Edición",ini:"2026-04-01",fin:"2026-04-05",des:"Serie mensual de tips de cocina y tecnologia.",crewIds:[],comentarios:[]},
-    {id:"pz3",empId,nom:"TikTok EduFutura Abril",cliId:"c3",formato:"TikTok",plataforma:"TikTok",mes:"Abril",ano:2026,est:"Correcciones",ini:"2026-04-02",fin:"2026-04-06",des:"Contenido para admision y engagement de estudiantes.",crewIds:[],comentarios:[]},
+    {id:"pz1",empId,nom:"Campaña BancoSeguro Abril",cliId:"c1",plataforma:"Instagram",mes:"Abril",ano:2026,est:"Activa",ini:"2026-04-01",fin:"2026-04-30",des:"Campaña mensual para awareness y educación financiera.",crewIds:[],comentarios:[],piezas:[
+      {id:"pc1",nom:"Reel Lanzamiento BancoSeguro",formato:"Reel",plataforma:"Instagram",est:"Planificado",ini:"2026-04-03",fin:"2026-04-08",des:"Pieza de awareness para el lanzamiento de campaña."},
+      {id:"pc2",nom:"Carrusel Beneficios Cuenta",formato:"Carrusel",plataforma:"Instagram",est:"Creado",ini:"2026-04-05",fin:"2026-04-10",des:"Resumen visual de beneficios y CTA."},
+    ]},
+    {id:"pz2",empId,nom:"Campaña FoodTech Abril",cliId:"c2",plataforma:"Instagram",mes:"Abril",ano:2026,est:"Activa",ini:"2026-04-01",fin:"2026-04-30",des:"Parrilla de contenidos de producto y recetas para redes.",crewIds:[],comentarios:[],piezas:[
+      {id:"pc3",nom:"Carrusel Tips FoodTech",formato:"Carrusel",plataforma:"Instagram",est:"En Edición",ini:"2026-04-01",fin:"2026-04-05",des:"Serie mensual de tips de cocina y tecnologia."},
+      {id:"pc4",nom:"Historia Promo Semanal",formato:"Historia",plataforma:"Instagram",est:"Programado",ini:"2026-04-07",fin:"2026-04-07",des:"Recordatorio de promo para historias."},
+    ]},
+    {id:"pz3",empId,nom:"Campaña EduFutura Abril",cliId:"c3",plataforma:"TikTok",mes:"Abril",ano:2026,est:"Planificada",ini:"2026-04-01",fin:"2026-04-30",des:"Contenidos mensuales para admisión y engagement.",crewIds:[],comentarios:[],piezas:[
+      {id:"pc5",nom:"TikTok EduFutura Abril",formato:"TikTok",plataforma:"TikTok",est:"Correcciones",ini:"2026-04-02",fin:"2026-04-06",des:"Contenido para admision y engagement de estudiantes."},
+    ]},
   ]:[],
   episodios: empId==="emp1"?[
     {id:"ep1",empId,pgId:"pg1",num:1,titulo:"Los nuevos emprendedores",  estado:"Publicado",  fechaGrab:"2025-01-10",fechaEmision:"2025-01-15",invitado:"Pedro Vargas",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[]},
@@ -643,7 +692,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
 
 // ── SIDEBAR ──────────────────────────────────────────────────
 function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse}){
-  const base=view.split("-")[0];
+  const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
     {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]},
@@ -653,7 +702,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
     ...(empresa?.addons?.some(a=>["television","social","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
       ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
-      ...(empresa?.addons?.includes("social")?[{id:"piezas",icon:"📱",label:"Piezas",need:"piezas",cnt:counts.pz}]:[]),
+      ...(empresa?.addons?.includes("social")?[{id:"contenidos",icon:"📱",label:"Contenidos",need:"contenidos",cnt:counts.pz}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
       ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
@@ -855,7 +904,7 @@ function MTarea({ open, data, producciones, programas, piezas, crew, onClose, on
           <option value="">— Sin asociar —</option>
           <option value="pro">Producción</option>
           <option value="pg">Programa TV</option>
-          <option value="pz">Pieza</option>
+          <option value="pz">Campaña de Contenidos</option>
           <option value="crew">Crew</option>
         </FSl></FG>
         {f.refTipo==="pro"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
@@ -866,7 +915,7 @@ function MTarea({ open, data, producciones, programas, piezas, crew, onClose, on
           <option value="">— Seleccionar —</option>
           {(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
-        {f.refTipo==="pz"&&<FG label="Pieza"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+        {f.refTipo==="pz"&&<FG label="Campaña"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(piezas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
@@ -1102,7 +1151,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
             <option value="">Todos los vínculos</option>
             <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
-            <optgroup label="Piezas">{(piezas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pz:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Contenidos">{(piezas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pz:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Crew">{(crew||[]).filter(c=>c.empId===empId).map(c=><option key={c.id} value={`crew:${c.id}`}>{c.nom}</option>)}</optgroup>
           </select>
           <Btn onClick={()=>openM("tarea",{})}>+ Nueva Tarea</Btn>
@@ -1705,6 +1754,13 @@ export default function App(){
     });
   },[curEmp?.id]);
 
+  useEffect(()=>{
+    if(!curEmp || ldPiezas || !Array.isArray(piezas)) return;
+    const normalized = normalizeSocialCampaigns(piezas);
+    const changed = JSON.stringify(normalized) !== JSON.stringify(piezas);
+    if(changed) setPiezas(normalized);
+  },[curEmp?.id,ldPiezas,piezas,setPiezas]);
+
   const DEFAULT_T={mode:"light",bg:"#f0f2f7",surface:"#ffffff",card:"#ffffff",border:"#e4e6ed",accent:"#4f46e5",accent2:"#4338ca",white:"#1a1a2e",gray:"#64748b"};
   const [theme,setThemeState]=useState(DEFAULT_T);
   const applyTheme=t=>{
@@ -1766,21 +1822,22 @@ export default function App(){
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(piezas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
+  const socialCampaigns = normalizeSocialCampaigns(piezas);
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
 
   // Breadcrumb
   const buildBc=()=>{
-    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",piezas:"PIEZAS",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN",social:"PIEZAS RRSS"};
+    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",contenidos:"CONTENIDOS",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN",social:"CONTENIDOS RRSS"};
     if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
     if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
     if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
-    if(view==="pieza-det"){const pz=(piezas||[]).find(x=>x.id===detId);return [{l:"PIEZAS",fn:()=>navTo("piezas")},{l:pz?.nom||"—"}];}
+    if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
     if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:piezas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
@@ -1794,8 +1851,8 @@ export default function App(){
       case"pro-det":      return <ViewProDet        {...VP} id={detId} setProducciones={setProducciones} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"programas":    return <ViewPgs           {...VP} setProgramas={setProgramas}/>;
       case"pg-det":       return <ViewPgDet         {...VP} id={detId} setProgramas={setProgramas} setEpisodios={setEpisodios} setMovimientos={setMovimientos} setTareas={setTareas}/>;
-      case"piezas":       return <ViewPiezas        {...VP} setPiezas={setPiezas}/>;
-      case"pieza-det":    return <ViewPiezaDet      {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
+      case"contenidos":   return <ViewContenidos    {...VP} setPiezas={setPiezas}/>;
+      case"contenido-det":return <ViewContenidoDet  {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
@@ -1834,7 +1891,7 @@ export default function App(){
           </span>)}
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
-    {(view==="pro-det"||view==="pg-det"||view==="pieza-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
+    {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
           {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"none",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
             🔔
@@ -1960,16 +2017,29 @@ function MPg({open,data,clientes,onClose,onSave}){
   </Modal>;
 }
 
-function MPieza({open,data,clientes,onClose,onSave}){
+function MCampanaContenido({open,data,clientes,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:"",formato:"Reel",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificado",ini:today(),fin:"",des:"",crewIds:[],comentarios:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?normalizeSocialCampaign(data):{nom:"",cliId:"",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificada",ini:today(),fin:"",des:"",crewIds:[],comentarios:[],piezas:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Contenido para redes sociales" wide>
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
-    <R3><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{["Reel","Carrusel","Historia","TikTok","Post","Video","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{PIEZA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Campaña":"Nueva Campaña"} sub="Contenidos para redes sociales" wide>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la campaña"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
+    <R3><FG label="Plataforma principal"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificada"} onChange={e=>u("est",e.target.value)}>{CAMPANA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Piezas planificadas"><FI type="number" value={countCampaignPieces(f)} readOnly/></FG></R3>
     <R2><FG label="Mes"><FSl value={f.mes||MESES[new Date().getMonth()]} onChange={e=>u("mes",e.target.value)}>{MESES.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Año"><FI type="number" value={f.ano||new Date().getFullYear()} onChange={e=>u("ano",Number(e.target.value))} min="2024"/></FG></R2>
+    <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Cierre"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
+    <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, tono, entregables, alcance mensual..."/></FG>
+    <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(normalizeSocialCampaign(f));}}/>
+  </Modal>;
+}
+
+function MPiezaContenido({open,data,onClose,onSave}){
+  const [f,setF]=useState({});
+  useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):{id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",comentarios:[]});},[data,open]);
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{PIEZA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{PIEZA_FORMATOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega / Publicación"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
-    <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, entregables..."/></FG>
+    <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, CTA, notas..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
 }
@@ -2057,11 +2127,11 @@ function MEvento({open,data,producciones,programas,piezas,onClose,onSave}){
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Evento":"Nuevo Evento de Calendario"} sub="Fecha de grabación, emisión, reunión u otro">
     <FG label="Título del evento *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Grabación Episodio 5, Reunión..."/></FG>
     <R2><FG label="Tipo"><FSl value={f.tipo||"grabacion"} onChange={e=>u("tipo",e.target.value)}>{TIPOS.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}</FSl></FG>
-    <FG label="Vinculado a"><FSl value={f.ref||""} onChange={e=>{const opt=[...(producciones||[]).map(p=>({v:p.id,t:"produccion"})),...(programas||[]).map(p=>({v:p.id,t:"programa"})),...(piezas||[]).map(p=>({v:p.id,t:"pieza"}))].find(o=>o.v===e.target.value);u("ref",e.target.value);u("refTipo",opt?.t||"");}}>
+    <FG label="Vinculado a"><FSl value={f.ref||""} onChange={e=>{const opt=[...(producciones||[]).map(p=>({v:p.id,t:"produccion"})),...(programas||[]).map(p=>({v:p.id,t:"programa"})),...(piezas||[]).map(p=>({v:p.id,t:"contenido"}))].find(o=>o.v===e.target.value);u("ref",e.target.value);u("refTipo",opt?.t||"");}}>
       <option value="">Sin vinculación</option>
       <optgroup label="Producciones">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
       <optgroup label="Programas">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
-      <optgroup label="Piezas">{(piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>
+      <optgroup label="Campañas">{(piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>
     </FSl></FG></R2>
     <R2><FG label="Fecha *"><FI type="date" value={f.fecha||""} onChange={e=>u("fecha",e.target.value)}/></FG><FG label="Hora"><FI type="time" value={f.hora||""} onChange={e=>u("hora",e.target.value)}/></FG></R2>
     <FG label="Descripción / Notas"><FTA value={f.desc||""} onChange={e=>u("desc",e.target.value)} placeholder="Detalles, ubicación, participantes..."/></FG>
@@ -2081,7 +2151,8 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MCli    open={mOpen==="cli"}    data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
     <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
     <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
-    <MPieza  open={mOpen==="pieza"}  data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
+    <MCampanaContenido open={mOpen==="contenido"} data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
+    <MPiezaContenido open={mOpen==="pieza"} data={mData} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
     <MCt     open={mOpen==="ct"}     data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
@@ -2346,33 +2417,33 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   </div>;
 }
 
-function ViewPiezas({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
+function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm));
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar pieza o cliente..."/>
-      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={PIEZA_ESTADOS} placeholder="Todo estados"/>
+      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar campaña o cliente..."/>
+      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={CAMPANA_ESTADOS} placeholder="Todo estados"/>
       <FilterSel value={fm} onChange={v=>{setFm(v);setPg(1);}} options={MESES} placeholder="Todos los meses"/>
-      {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pieza",{})}>+ Nueva Pieza</Btn>}
+      {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("contenido",{})}>+ Nueva Campaña</Btn>}
     </div>
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Pieza</TH><TH>Cliente</TH><TH>Formato</TH><TH>Mes</TH><TH>Estado</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
-          {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return<tr key={pz.id} onClick={()=>navTo("pieza-det",pz.id)}>
+          {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return<tr key={pz.id} onClick={()=>navTo("contenido-det",pz.id)}>
             <TD bold>{pz.nom}</TD>
             <TD>{c?.nom||"—"}</TD>
-            <TD><Badge label={pz.formato||"Pieza"} color="gray" sm/></TD>
             <TD>{[pz.mes,pz.ano].filter(Boolean).join(" ")||"—"}</TD>
-            <TD><Badge label={pz.est||"Planificado"}/></TD>
-            <TD mono style={{fontSize:11}}>{pz.fin?fmtD(pz.fin):"—"}</TD>
+            <TD><Badge label={`${countCampaignPieces(pz)} piezas`} color="gray" sm/></TD>
+            <TD><Badge label={pz.plataforma||"Multi-plataforma"} color="gray" sm/></TD>
+            <TD><Badge label={pz.est||"Planificada"}/></TD>
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
-            <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pieza-det",pz.id);}}>Ver →</GBtn></TD>
+            <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("contenido-det",pz.id);}}>Ver →</GBtn></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera con el botón superior"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin campañas" sub="Crea la primera con el botón superior"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -2471,7 +2542,7 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
   </div>;
 }
 
-function ViewPiezaDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
+function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
@@ -2479,37 +2550,77 @@ function ViewPiezaDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tarea
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pz.crewIds||[]).includes(x.id));
   const [tab,setTab]=useState(0);
+  const [piezaQ,setPiezaQ]=useState("");
+  const [piezaEstado,setPiezaEstado]=useState("");
+  const piezasCamp=(pz.piezas||[]).filter(pc=>(pc.nom||"").toLowerCase().includes(piezaQ.toLowerCase())&&(!piezaEstado||pc.est===piezaEstado));
+  const piezasPub=(pz.piezas||[]).filter(pc=>pc.est==="Publicado").length;
   const addCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
   const remCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
+  const savePiece=async piece=>{
+    const next=(piezas||[]).map(x=>x.id!==id?x:{...x,piezas:(x.piezas||[]).some(p=>p.id===piece.id)?(x.piezas||[]).map(p=>p.id===piece.id?normalizeSocialPiece(piece,x):p):[...(x.piezas||[]),normalizeSocialPiece(piece,x)]});
+    await setPiezas(next);
+  };
+  const deletePiece=async pieceId=>{
+    if(!confirm("¿Eliminar pieza?")) return;
+    const next=(piezas||[]).map(x=>x.id!==id?x:{...x,piezas:(x.piezas||[]).filter(p=>p.id!==pieceId)});
+    await setPiezas(next);
+    ntf&&ntf("Pieza eliminada","warn");
+  };
   return <div>
-    <DetHeader title={pz.nom} tag={pz.formato||"Pieza"} badges={[<Badge key={0} label={pz.est||"Planificado"}/>]} meta={[cli&&`Cliente: ${cli.nom}`,pz.plataforma&&`Plataforma: ${pz.plataforma}`,[pz.mes,pz.ano].filter(Boolean).join(" "),pz.fin&&`Entrega: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
-      actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pieza",pz)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar pieza?"))return;cDel(piezas,setPiezas,id,()=>navTo("piezas"),"Pieza eliminada");}}>🗑</DBtn></>}/>
+    <DetHeader title={pz.nom} tag="Campaña" badges={[<Badge key={0} label={pz.est||"Planificada"}/>]} meta={[cli&&`Cliente: ${cli.nom}`,pz.plataforma&&`Plataforma: ${pz.plataforma}`,[pz.mes,pz.ano].filter(Boolean).join(" "),pz.fin&&`Cierre: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
+      actions={_cd&&_cd("contenidos")&&<><GBtn onClick={()=>openM("contenido",pz)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar campaña?"))return;cDel(piezas,setPiezas,id,()=>navTo("contenidos"),"Campaña eliminada");}}>🗑</DBtn></>}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} reg.`} accent="#ff5566" vc="#ff5566"/>
+      <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
-      <Stat label="Crew" value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)"/>
     </div>
-    <Tabs tabs={["Comentarios","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
-    {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
-      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
-      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
+    {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Pieza"/>}
-    {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===2&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
-    {tab===4&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"pieza"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
-    {tab===5&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      <Card title="Datos de la Pieza">
-        {[["Cliente",cli?.nom||"—"],["Formato",pz.formato||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificado"}/>]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña"/>}
+    {tab===1&&<div>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={piezaQ} onChange={v=>setPiezaQ(v)} placeholder="Buscar pieza..."/>
+        <FilterSel value={piezaEstado} onChange={setPiezaEstado} options={PIEZA_ESTADOS} placeholder="Todo estados"/>
+        {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("pieza",{campId:id,plataforma:pz.plataforma,ini:pz.ini,fin:pz.fin})}>+ Nueva Pieza</Btn>}
+      </div>
+      <Card>
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH></TH></tr></thead>
+          <tbody>
+            {piezasCamp.map(pc=><tr key={pc.id}>
+              <TD bold>{pc.nom}</TD>
+              <TD><Badge label={pc.formato||"Pieza"} color="gray" sm/></TD>
+              <TD>{pc.plataforma||"—"}</TD>
+              <TD><Badge label={pc.est||"Planificado"}/></TD>
+              <TD mono style={{fontSize:11}}>{pc.ini?fmtD(pc.ini):"—"}</TD>
+              <TD mono style={{fontSize:11}}>{pc.fin?fmtD(pc.fin):"—"}</TD>
+              <TD><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
+                {_cd&&_cd("contenidos")&&<><GBtn sm onClick={()=>openM("pieza",{...pc,campId:id})}>✏</GBtn><XBtn onClick={()=>deletePiece(pc.id)}/></>}
+              </div></TD>
+            </tr>)}
+            {!piezasCamp.length&&<tr><td colSpan={7}><Empty text="Sin piezas" sub="Crea la primera para esta campaña"/></td></tr>}
+          </tbody>
+        </table></div>
+      </Card>
+    </div>}
+    {tab===2&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===3&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===4&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("contenidos")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
+    {tab===6&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <Card title="Datos de la Campaña">
+        {[["Cliente",cli?.nom||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificada"}/>],["Total piezas",countCampaignPieces(pz)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Timeline">
-        {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Entrega / Publicación",pz.fin?fmtD(pz.fin):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Cierre",pz.fin?fmtD(pz.fin):"—"],["Crew",pCrew.length]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
     </div>}
-    {tab===6&&<TareasContexto title="Tareas de la Pieza" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+    {tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
   </div>;
 }
 
@@ -2717,6 +2828,11 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
     if(ev.editModal==="ep"){
       const ep=(episodios||[]).find(x=>x.id===ev.sourceId);
       if(ep) openM("ep",ep);
+      return;
+    }
+    if(ev.editModal==="contenido"){
+      const contenido=(piezas||[]).find(x=>x.id===ev.sourceId);
+      if(contenido) openM("contenido",contenido);
     }
   };
   // Build events
@@ -2725,7 +2841,11 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
     if(!ev.fecha) return;
     const d=new Date(ev.fecha+"T12:00:00");
     if(d.getFullYear()===mes.y&&d.getMonth()===mes.m){
-      const ref=ev.refTipo==="produccion"?(producciones||[]).find(x=>x.id===ev.ref):ev.refTipo==="pieza"?(piezas||[]).find(x=>x.id===ev.ref):(programas||[]).find(x=>x.id===ev.ref);
+      const ref=ev.refTipo==="produccion"
+        ? (producciones||[]).find(x=>x.id===ev.ref)
+        : (ev.refTipo==="pieza"||ev.refTipo==="contenido")
+          ? (piezas||[]).find(x=>x.id===ev.ref)
+          : (programas||[]).find(x=>x.id===ev.ref);
       todosEvs.push({id:ev.id,dia:d.getDate(),tipo:ev.tipo,label:`${ti(ev.tipo)} ${ev.titulo}`,sub:ref?ref.nom:"Sin vinculación",color:tc(ev.tipo),hora:ev.hora||"",custom:true,desc:ev.desc||""});
     }
   });
@@ -2737,6 +2857,16 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
   (producciones||[]).filter(p=>p.empId===empId).forEach(p=>{
     if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Producción",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
     if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Producción",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
+  });
+  (piezas||[]).filter(p=>p.empId===empId).forEach(c=>{
+    if(c.ini){const d=new Date(c.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_ini",dia:d.getDate(),tipo:"otro",label:`📱 Inicio campaña: ${c.nom}`,sub:"Contenidos",color:"#a855f7",hora:"",auto:true,editModal:"contenido",sourceId:c.id});}
+    if(c.fin){const d=new Date(c.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Cierre campaña: ${c.nom}`,sub:"Contenidos",color:"#ff8844",hora:"",auto:true,editModal:"contenido",sourceId:c.id});}
+    (c.piezas||[]).forEach(pc=>{
+      if(pc.fin){
+        const d=new Date(pc.fin+"T12:00:00");
+        if(d.getFullYear()===mes.y&&d.getMonth()===mes.m) todosEvs.push({id:pc.id+"_fin",dia:d.getDate(),tipo:pc.est==="Publicado"?"estreno":"entrega",label:`📌 ${pc.nom}`,sub:c.nom,color:pc.est==="Publicado"?"#00e08a":"#ff8844",hora:"",auto:true});
+      }
+    });
   });
   const evFiltrados=filtro==="todos"?todosEvs:todosEvs.filter(e=>e.tipo===filtro);
   const primerDia=new Date(mes.y,mes.m,1).getDay();

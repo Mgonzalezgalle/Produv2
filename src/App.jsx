@@ -27,6 +27,8 @@ const today = () => new Date().toISOString().split("T")[0];
 const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const PIEZA_ESTADOS = ["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"];
 
 function exportComentariosCSV(items, nombre="comentarios") {
   const headers = ["Fecha","Comentario"];
@@ -53,7 +55,7 @@ const ROLES = {
   viewer:    { label:"Visualizador",  color:"#7c7c8a" },
 };
 const PERMS = {
-  productor:["clientes","producciones","programas","crew","calendario","movimientos","eventos"],
+  productor:["clientes","producciones","programas","piezas","crew","calendario","movimientos","eventos"],
   comercial:["clientes","auspiciadores","contratos","presupuestos","facturacion"],
 };
 function canDo(user, action) {
@@ -65,6 +67,7 @@ function canDo(user, action) {
 
 const ADDONS = {
   television:  { label:"Televisión",     icon:"📺" },
+  social:      { label:"Piezas RRSS",    icon:"📱" },
   presupuestos:{ label:"Presupuestos",   icon:"📋" },
   facturacion: { label:"Facturación",    icon:"🧾" },
   activos:     { label:"Gestión Activos",icon:"📦" },
@@ -82,7 +85,7 @@ const DEFAULT_LISTAS = {
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
+  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
   { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", cr:today() },
 ];
 const SEED_USERS = [
@@ -108,6 +111,11 @@ const SEED_DATA = (empId) => ({
   programas: empId==="emp1"?[
     { id:"pg1",empId,nom:"Chile Emprende",tip:"Programa de TV",can:"Canal 24H", est:"Activo",totalEp:24,fre:"Semanal",temporada:"T1 2025",conductor:"Roberto Gómez",prodEjec:"María González",des:"Emprendimiento e innovación.",cliId:"",crewIds:[]},
     { id:"pg2",empId,nom:"El Ágora",      tip:"Podcast",       can:"Spotify",   est:"Activo",totalEp:52,fre:"Semanal",temporada:"T1 2025",conductor:"Ana Ruiz",       prodEjec:"Carlos Pérez",   des:"Cultura y sociedad.",        cliId:"",crewIds:[]},
+  ]:[],
+  piezas: empId==="emp1"?[
+    {id:"pz1",empId,nom:"Reel Lanzamiento BancoSeguro",cliId:"c1",formato:"Reel",plataforma:"Instagram",mes:"Abril",ano:2026,est:"Planificado",ini:"2026-04-03",fin:"2026-04-08",des:"Pieza de awareness para el lanzamiento de campana.",crewIds:[],comentarios:[]},
+    {id:"pz2",empId,nom:"Carrusel Tips FoodTech",cliId:"c2",formato:"Carrusel",plataforma:"Instagram",mes:"Abril",ano:2026,est:"En Edición",ini:"2026-04-01",fin:"2026-04-05",des:"Serie mensual de tips de cocina y tecnologia.",crewIds:[],comentarios:[]},
+    {id:"pz3",empId,nom:"TikTok EduFutura Abril",cliId:"c3",formato:"TikTok",plataforma:"TikTok",mes:"Abril",ano:2026,est:"Correcciones",ini:"2026-04-02",fin:"2026-04-06",des:"Contenido para admision y engagement de estudiantes.",crewIds:[],comentarios:[]},
   ]:[],
   episodios: empId==="emp1"?[
     {id:"ep1",empId,pgId:"pg1",num:1,titulo:"Los nuevos emprendedores",  estado:"Publicado",  fechaGrab:"2025-01-10",fechaEmision:"2025-01-15",invitado:"Pedro Vargas",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[]},
@@ -643,8 +651,9 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     {group:"Comercial",items:[
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
     ]},
-    ...(empresa?.addons?.some(a=>["television","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
+    ...(empresa?.addons?.some(a=>["television","social","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
       ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Programas TV",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
+      ...(empresa?.addons?.includes("social")?[{id:"piezas",icon:"📱",label:"Piezas",need:"piezas",cnt:counts.pz}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
       ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
       ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
@@ -817,7 +826,7 @@ const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
 const PRIO_COLORS = { Alta:"#ff5566", Media:"#fbbf24", Baja:"#60a5fa" };
 const PRIO_BG    = { Alta:"#ff556618", Media:"#fbbf2418", Baja:"#60a5fa18" };
 
-function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) {
+function MTarea({ open, data, producciones, programas, piezas, crew, onClose, onSave }) {
   const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"" };
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? { ...data } : { ...empty }); }, [data, open]);
@@ -846,6 +855,7 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
           <option value="">— Sin asociar —</option>
           <option value="pro">Producción</option>
           <option value="pg">Programa TV</option>
+          <option value="pz">Pieza</option>
           <option value="crew">Crew</option>
         </FSl></FG>
         {f.refTipo==="pro"&&<FG label="Producción"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
@@ -855,6 +865,10 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
         {f.refTipo==="pg"&&<FG label="Programa"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
+        </FSl></FG>}
+        {f.refTipo==="pz"&&<FG label="Pieza"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+          <option value="">— Seleccionar —</option>
+          {(piezas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
         {f.refTipo==="crew"&&<FG label="Miembro Crew"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
@@ -866,14 +880,16 @@ function MTarea({ open, data, producciones, programas, crew, onClose, onSave }) 
   );
 }
 
-function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
+function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
   const ref = tarea.refTipo==="pro"
     ? (producciones||[]).find(x=>x.id===tarea.refId)
     : tarea.refTipo==="pg"
       ? (programas||[]).find(x=>x.id===tarea.refId)
-      : tarea.refTipo==="crew"
-        ? (crew||[]).find(x=>x.id===tarea.refId)
-        : null;
+      : tarea.refTipo==="pz"
+        ? (piezas||[]).find(x=>x.id===tarea.refId)
+        : tarea.refTipo==="crew"
+          ? (crew||[]).find(x=>x.id===tarea.refId)
+          : null;
   const asig = (crew||[]).find(x=>x.id===tarea.asignadoA);
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
   const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
@@ -903,7 +919,7 @@ function TareaCard({ tarea, producciones, programas, crew, onEdit, onDelete, onC
       {tarea.desc&&<div style={{fontSize:11,color:"var(--gr2)",marginBottom:8,lineHeight:1.5}}>{tarea.desc}</div>}
       {/* Ref */}
       {ref&&<div style={{fontSize:11,color:"var(--cy)",marginBottom:6}}>
-        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":"🎬"} {refLabel}
+        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":tarea.refTipo==="pz"?"📱":"🎬"} {refLabel}
       </div>}
       {/* Footer */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
@@ -1001,7 +1017,7 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
   </Card>;
 }
 
-function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, crew, openM, setTareas, canEdit }) {
+function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, piezas, crew, openM, setTareas, canEdit }) {
   try{
     const safeTareas=Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[];
     const items=safeTareas
@@ -1018,7 +1034,7 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
     };
     return <TaskErrorBoundary title={title}>
       <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
-        {items.length?items.map(t=><TareaCard key={t.id||uid()} tarea={t} producciones={producciones||[]} programas={programas||[]} crew={crew||[]} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+        {items.length?items.map(t=><TareaCard key={t.id||uid()} tarea={t} producciones={producciones||[]} programas={programas||[]} piezas={piezas||[]} crew={crew||[]} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
       </Card>
     </TaskErrorBoundary>;
   }catch{
@@ -1028,7 +1044,7 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
   }
 }
 
-function ViewTareas({ empresa, user, tareas, producciones, programas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
+function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
   const empId = empresa?.id;
   const [filtro, setFiltro] = useState("mis"); // "mis" | "todas"
   const [filtroRef, setFiltroRef] = useState("");
@@ -1086,6 +1102,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
             <option value="">Todos los vínculos</option>
             <optgroup label="Producciones">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Programas TV">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
+            <optgroup label="Piezas">{(piezas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pz:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Crew">{(crew||[]).filter(c=>c.empId===empId).map(c=><option key={c.id} value={`crew:${c.id}`}>{c.nom}</option>)}</optgroup>
           </select>
           <Btn onClick={()=>openM("tarea",{})}>+ Nueva Tarea</Btn>
@@ -1121,7 +1138,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, crew, open
                   ? <div style={{padding:16,textAlign:"center",color:"var(--gr)",fontSize:12,fontStyle:"italic",border:"1px dashed var(--bdr)",borderRadius:10}}>Sin tareas</div>
                   : items.map(t=>(
                     <div key={t.id} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dropCol!==col) setDropCol(col);}} onDrop={async e=>{e.preventDefault();e.stopPropagation();await handleDrop(e,col);}}>
-                      <TareaCard tarea={t} producciones={producciones} programas={programas} crew={crew}
+                      <TareaCard tarea={t} producciones={producciones} programas={programas} piezas={piezas} crew={crew}
                         onEdit={t=>openM("tarea",t)}
                         onDelete={deleteTarea}
                         onChangeEstado={changeEstado}
@@ -1636,6 +1653,7 @@ export default function App(){
   const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
   const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
   const [programas,setProgramas,savPg,ldPg]=useDB(`produ:${eId}:programas`);
+  const [piezas,setPiezas,savPiezas,ldPiezas]=useDB(`produ:${eId}:piezas`);
   const [episodios,setEpisodios,savEp,ldEp]=useDB(`produ:${eId}:episodios`);
   const [auspiciadores,setAuspiciadores,savAus,ldAus]=useDB(`produ:${eId}:auspiciadores`);
   const [contratos,setContratos,savCt,ldCt]=useDB(`produ:${eId}:contratos`);
@@ -1646,13 +1664,14 @@ export default function App(){
   const [facturas,setFacturas,savFact,ldFact]=useDB(`produ:${eId}:facturas`);
   const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
-  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
+  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
   const alertas = useAlertas(episodios, programas, eventos||[], empId);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
   usePoll(`produ:${eId}:producciones`,setProducciones,savPro);
   usePoll(`produ:${eId}:programas`,setProgramas,savPg);
+  usePoll(`produ:${eId}:piezas`,setPiezas,savPiezas);
   usePoll(`produ:${eId}:episodios`,setEpisodios,savEp);
   usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,savAus);
   usePoll(`produ:${eId}:contratos`,setContratos,savCt);
@@ -1678,8 +1697,8 @@ export default function App(){
   useEffect(()=>{
     if(!curEmp) return;
     const id=curEmp.id;
-    const keys=["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
-    const setters={setTareas,setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
+    const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
+    const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
     keys.forEach(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
@@ -1747,21 +1766,22 @@ export default function App(){
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(piezas).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
 
   // Breadcrumb
   const buildBc=()=>{
-    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN"};
+    const L={dashboard:"DASHBOARD",calendario:"CALENDARIO",clientes:"CLIENTES",producciones:"PRODUCCIONES",programas:"PROGRAMAS TV",piezas:"PIEZAS",crew:"EQUIPO / CREW",auspiciadores:"AUSPICIADORES",contratos:"CONTRATOS",presupuestos:"PRESUPUESTOS",facturacion:"FACTURACIÓN",activos:"ACTIVOS",television:"TELEVISIÓN",social:"PIEZAS RRSS"};
     if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
     if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
     if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
+    if(view==="pieza-det"){const pz=(piezas||[]).find(x=>x.id===detId);return [{l:"PIEZAS",fn:()=>navTo("piezas")},{l:pz?.nom||"—"}];}
     if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PROGRAMAS TV",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
-  const setters={setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:piezas||[],episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
@@ -1774,6 +1794,8 @@ export default function App(){
       case"pro-det":      return <ViewProDet        {...VP} id={detId} setProducciones={setProducciones} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"programas":    return <ViewPgs           {...VP} setProgramas={setProgramas}/>;
       case"pg-det":       return <ViewPgDet         {...VP} id={detId} setProgramas={setProgramas} setEpisodios={setEpisodios} setMovimientos={setMovimientos} setTareas={setTareas}/>;
+      case"piezas":       return <ViewPiezas        {...VP} setPiezas={setPiezas}/>;
+      case"pieza-det":    return <ViewPiezaDet      {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
@@ -1812,7 +1834,7 @@ export default function App(){
           </span>)}
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
-          {(view==="pro-det"||view==="pg-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":"pg"})} sm>+ Movimiento</Btn>}
+    {(view==="pro-det"||view==="pg-det"||view==="pieza-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
           {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"none",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
             🔔
@@ -1829,7 +1851,7 @@ export default function App(){
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov}/>}
-    {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
+    {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
   </div>;
 }
 
@@ -1938,6 +1960,20 @@ function MPg({open,data,clientes,onClose,onSave}){
   </Modal>;
 }
 
+function MPieza({open,data,clientes,onClose,onSave}){
+  const [f,setF]=useState({});
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:"",formato:"Reel",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificado",ini:today(),fin:"",des:"",crewIds:[],comentarios:[]});},[data,open]);
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Contenido para redes sociales" wide>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
+    <R3><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{["Reel","Carrusel","Historia","TikTok","Post","Video","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{PIEZA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
+    <R2><FG label="Mes"><FSl value={f.mes||MESES[new Date().getMonth()]} onChange={e=>u("mes",e.target.value)}>{MESES.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Año"><FI type="number" value={f.ano||new Date().getFullYear()} onChange={e=>u("ano",Number(e.target.value))} min="2024"/></FG></R2>
+    <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega / Publicación"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
+    <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, entregables..."/></FG>
+    <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
+  </Modal>;
+}
+
 function MEp({open,data,programas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[]});},[data,open]);
@@ -2013,7 +2049,7 @@ function MCrew({open,data,onClose,onSave}){
   </Modal>;
 }
 
-function MEvento({open,data,producciones,programas,onClose,onSave}){
+function MEvento({open,data,producciones,programas,piezas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{titulo:"",tipo:"grabacion",fecha:data?.fecha||"",hora:"",desc:"",ref:data?.ref||"",refTipo:data?.refTipo||""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -2021,10 +2057,11 @@ function MEvento({open,data,producciones,programas,onClose,onSave}){
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Evento":"Nuevo Evento de Calendario"} sub="Fecha de grabación, emisión, reunión u otro">
     <FG label="Título del evento *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Grabación Episodio 5, Reunión..."/></FG>
     <R2><FG label="Tipo"><FSl value={f.tipo||"grabacion"} onChange={e=>u("tipo",e.target.value)}>{TIPOS.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}</FSl></FG>
-    <FG label="Vinculado a"><FSl value={f.ref||""} onChange={e=>{const opt=[...(producciones||[]).map(p=>({v:p.id,t:"produccion"})),...(programas||[]).map(p=>({v:p.id,t:"programa"}))].find(o=>o.v===e.target.value);u("ref",e.target.value);u("refTipo",opt?.t||"");}}>
+    <FG label="Vinculado a"><FSl value={f.ref||""} onChange={e=>{const opt=[...(producciones||[]).map(p=>({v:p.id,t:"produccion"})),...(programas||[]).map(p=>({v:p.id,t:"programa"})),...(piezas||[]).map(p=>({v:p.id,t:"pieza"}))].find(o=>o.v===e.target.value);u("ref",e.target.value);u("refTipo",opt?.t||"");}}>
       <option value="">Sin vinculación</option>
       <optgroup label="Producciones">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
       <optgroup label="Programas">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>
+      <optgroup label="Piezas">{(piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>
     </FSl></FG></R2>
     <R2><FG label="Fecha *"><FI type="date" value={f.fecha||""} onChange={e=>u("fecha",e.target.value)}/></FG><FG label="Hora"><FI type="time" value={f.hora||""} onChange={e=>u("hora",e.target.value)}/></FG></R2>
     <FG label="Descripción / Notas"><FTA value={f.desc||""} onChange={e=>u("desc",e.target.value)} placeholder="Detalles, ubicación, participantes..."/></FG>
@@ -2034,8 +2071,8 @@ function MEvento({open,data,producciones,programas,onClose,onSave}){
 
 // ── MODAL ROUTER ──────────────────────────────────────────────
 function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov}){
-  const {empresa,clientes,producciones,programas,auspiciadores,contratos,crew,eventos}=VP;
-  const {setClientes,setProducciones,setProgramas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
+  const {empresa,clientes,producciones,programas,piezas,auspiciadores,contratos,crew,eventos}=VP;
+  const {setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});
@@ -2044,16 +2081,17 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MCli    open={mOpen==="cli"}    data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
     <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
     <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
+    <MPieza  open={mOpen==="pieza"}  data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
     <MCt     open={mOpen==="ct"}     data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
-    <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
+    <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
     <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
 }
 
@@ -2193,7 +2231,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
   </div>;
 }
 
-function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
+function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
@@ -2237,7 +2275,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,contratos,movimi
       {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
     </Card>}
-    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
+    {tab===6&&<TareasContexto title="Tareas de la Producción" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
 }
 
@@ -2308,7 +2346,41 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   </div>;
 }
 
-function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
+function ViewPiezas({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
+  const empId=empresa?.id;
+  const bal=useBal(movimientos,empId);
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm));
+  return <div>
+    <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar pieza o cliente..."/>
+      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={PIEZA_ESTADOS} placeholder="Todo estados"/>
+      <FilterSel value={fm} onChange={v=>{setFm(v);setPg(1);}} options={MESES} placeholder="Todos los meses"/>
+      {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pieza",{})}>+ Nueva Pieza</Btn>}
+    </div>
+    <Card>
+      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Pieza</TH><TH>Cliente</TH><TH>Formato</TH><TH>Mes</TH><TH>Estado</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <tbody>
+          {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return<tr key={pz.id} onClick={()=>navTo("pieza-det",pz.id)}>
+            <TD bold>{pz.nom}</TD>
+            <TD>{c?.nom||"—"}</TD>
+            <TD><Badge label={pz.formato||"Pieza"} color="gray" sm/></TD>
+            <TD>{[pz.mes,pz.ano].filter(Boolean).join(" ")||"—"}</TD>
+            <TD><Badge label={pz.est||"Planificado"}/></TD>
+            <TD mono style={{fontSize:11}}>{pz.fin?fmtD(pz.fin):"—"}</TD>
+            <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
+            <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pieza-det",pz.id);}}>Ver →</GBtn></TD>
+          </tr>;})}
+          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera con el botón superior"/></td></tr>}
+        </tbody>
+      </table></div>
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </Card>
+  </div>;
+}
+
+function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;
@@ -2395,7 +2467,49 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,episodios,auspici
         {pg_.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pg_.des}</div></>}
       </Card>
     </div>}
-    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+    {tab===8&&<TareasContexto title="Tareas del Programa" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+  </div>;
+}
+
+function ViewPiezaDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
+  const empId=empresa?.id;
+  const bal=useBal(movimientos,empId);
+  const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
+  const cli=(clientes||[]).find(x=>x.id===pz.cliId);
+  const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
+  const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pz.crewIds||[]).includes(x.id));
+  const [tab,setTab]=useState(0);
+  const addCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
+  const remCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
+  return <div>
+    <DetHeader title={pz.nom} tag={pz.formato||"Pieza"} badges={[<Badge key={0} label={pz.est||"Planificado"}/>]} meta={[cli&&`Cliente: ${cli.nom}`,pz.plataforma&&`Plataforma: ${pz.plataforma}`,[pz.mes,pz.ano].filter(Boolean).join(" "),pz.fin&&`Entrega: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
+      actions={_cd&&_cd("programas")&&<><GBtn onClick={()=>openM("pieza",pz)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar pieza?"))return;cDel(piezas,setPiezas,id,()=>navTo("piezas"),"Pieza eliminada");}}>🗑</DBtn></>}/>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+      <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
+      <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m=>m.tipo==="gasto").length} reg.`} accent="#ff5566" vc="#ff5566"/>
+      <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
+      <Stat label="Crew" value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)"/>
+    </div>
+    <Tabs tabs={["Comentarios","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
+    {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    </div>}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Pieza"/>}
+    {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===2&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===4&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"pieza"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
+    {tab===5&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <Card title="Datos de la Pieza">
+        {[["Cliente",cli?.nom||"—"],["Formato",pz.formato||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificado"}/>]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+      </Card>
+      <Card title="Timeline">
+        {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Entrega / Publicación",pz.fin?fmtD(pz.fin):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
+      </Card>
+    </div>}
+    {tab===6&&<TareasContexto title="Tareas de la Pieza" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 
@@ -2577,13 +2691,12 @@ function ViewCts({empresa,contratos,clientes,openM,canDo:_cd,cSave,cDel,setContr
 }
 
 // ── CALENDARIO ────────────────────────────────────────────────
-function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,canDo:_cd,cSave,cDel,setEventos}){
+function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos,openM,canDo:_cd,cSave,cDel,setEventos}){
   const empId=empresa?.id;
   const [mes,setMes]=useState(()=>{const h=new Date();return{y:h.getFullYear(),m:h.getMonth()};});
   const [filtro,setFiltro]=useState("todos");
   const [diaSelec,setDiaSelec]=useState(null);
   const [vistaLista,setVistaLista]=useState(false);
-  const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const addMes=delta=>setMes(prev=>{let m=prev.m+delta,y=prev.y;if(m>11){m=0;y++;}if(m<0){m=11;y--;}return{y,m};});
   const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"estreno",ico:"🌟",lbl:"Estreno",c:"#ff5566"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
@@ -2612,7 +2725,7 @@ function ViewCalendario({empresa,episodios,programas,producciones,eventos,openM,
     if(!ev.fecha) return;
     const d=new Date(ev.fecha+"T12:00:00");
     if(d.getFullYear()===mes.y&&d.getMonth()===mes.m){
-      const ref=ev.refTipo==="produccion"?(producciones||[]).find(x=>x.id===ev.ref):(programas||[]).find(x=>x.id===ev.ref);
+      const ref=ev.refTipo==="produccion"?(producciones||[]).find(x=>x.id===ev.ref):ev.refTipo==="pieza"?(piezas||[]).find(x=>x.id===ev.ref):(programas||[]).find(x=>x.id===ev.ref);
       todosEvs.push({id:ev.id,dia:d.getDate(),tipo:ev.tipo,label:`${ti(ev.tipo)} ${ev.titulo}`,sub:ref?ref.nom:"Sin vinculación",color:tc(ev.tipo),hora:ev.hora||"",custom:true,desc:ev.desc||""});
     }
   });

@@ -370,6 +370,7 @@ const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   fin: piece.fin || "",
   des: piece.des || piece.descripcion || "",
   objetivo: piece.objetivo || "",
+  brief: piece.brief || "",
   cta: piece.cta || "",
   copy: piece.copy || "",
   hashtags: piece.hashtags || "",
@@ -378,6 +379,7 @@ const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   publishDate: piece.publishDate || piece.fin || campaign.fin || "",
   publishedAt: piece.publishedAt || "",
   link: piece.link || piece.url || "",
+  finalLink: piece.finalLink || "",
   comentarios: Array.isArray(piece.comentarios) ? piece.comentarios : [],
 });
 
@@ -562,7 +564,7 @@ const DEFAULT_LISTAS = {
   estadosCamp: ["Planificada","Activa","Pausada","Cerrada"],
   plataformasContenido:["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"],
   formatosPieza:["Reel","Carrusel","Historia","TikTok","Post","Video","Story","Otro"],
-  estadosPieza:["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"],
+  estadosPieza:["Planificado","Guion / Idea","Producción","Edición","En revisión cliente","Correcciones","Aprobado","Programado","Publicado","Cancelado"],
   areasCrew:   ["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"],
   rolesCrew:   ["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"],
   estadosPres: ["Pendiente","Borrador","Enviado","En Revisión","Aceptado","Rechazado"],
@@ -3466,7 +3468,8 @@ function MPiezaContenido({open,data,listas,crewOptions,onClose,onSave}){
     <R3><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{(listas?.formatosPieza||DEFAULT_LISTAS.formatosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Responsable"><FSl value={f.responsableId||""} onChange={e=>u("responsableId",e.target.value)}><option value="">— Sin responsable —</option>{(crewOptions||[]).map(member=><option key={member.id} value={member.id}>{member.nom} · {member.rol||"Crew"}</option>)}</FSl></FG></R3>
     <R3><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG><FG label="Fecha de Publicación"><FI type="date" value={f.publishDate||""} onChange={e=>u("publishDate",e.target.value)}/></FG></R3>
     <R2><FG label="Estado de aprobación"><FSl value={f.approval||"Pendiente"} onChange={e=>u("approval",e.target.value)}><option>Pendiente</option><option>En revisión</option><option>Aprobada</option><option>Observada</option></FSl></FG><FG label="Fecha de publicación real"><FI type="date" value={f.publishedAt||""} onChange={e=>u("publishedAt",e.target.value)}/></FG></R2>
-    <FG label="Enlace de la pieza"><FI value={f.link||""} onChange={e=>u("link",e.target.value)} placeholder="https://drive.google.com/..."/></FG>
+    <R2><FG label="Enlace de trabajo"><FI value={f.link||""} onChange={e=>u("link",e.target.value)} placeholder="https://drive.google.com/..."/></FG><FG label="Versión final / Link final"><FI value={f.finalLink||""} onChange={e=>u("finalLink",e.target.value)} placeholder="https://instagram.com/... o drive final"/></FG></R2>
+    <FG label="Brief de la pieza"><FTA value={f.brief||""} onChange={e=>u("brief",e.target.value)} placeholder="Qué se necesita, foco, tono, referencias y criterios del cliente."/></FG>
     <R2><FG label="Objetivo de la pieza"><FI value={f.objetivo||""} onChange={e=>u("objetivo",e.target.value)} placeholder="Awareness, conversión, engagement..."/></FG><FG label="CTA"><FI value={f.cta||""} onChange={e=>u("cta",e.target.value)} placeholder="Desliza, compra, comenta, guarda..."/></FG></R2>
     <FG label="Copy principal"><FTA value={f.copy||""} onChange={e=>u("copy",e.target.value)} placeholder="Texto o bajada principal que acompañará la publicación."/></FG>
     <FG label="Hashtags"><FI value={f.hashtags||""} onChange={e=>u("hashtags",e.target.value)} placeholder="#marca #campaña #contenido"/></FG>
@@ -3937,15 +3940,26 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
 function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
-  const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm));
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [fp,setFp]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm)&&(!fp||p.plataforma===fp));
+  const totalPlanned=fd.reduce((s,p)=>s+Number(p.plannedPieces||0),0);
+  const totalCreated=fd.reduce((s,p)=>s+countCampaignPieces(p),0);
+  const totalPublished=fd.reduce((s,p)=>s+(p.piezas||[]).filter(pc=>pc.est==="Publicado").length,0);
+  const totalScheduled=fd.reduce((s,p)=>s+(p.piezas||[]).filter(pc=>pc.est==="Programado").length,0);
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar campaña o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={CAMPANA_ESTADOS} placeholder="Todo estados"/>
       <FilterSel value={fm} onChange={v=>{setFm(v);setPg(1);}} options={MESES} placeholder="Todos los meses"/>
+      <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={PIEZA_PLATAFORMAS} placeholder="Todas las plataformas"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("contenido",{})}>+ Nueva Campaña</Btn>}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
+      <Stat label="Planificadas" value={totalPlanned} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label="Creadas" value={totalCreated} accent="#7c5cff" vc="#7c5cff"/>
+      <Stat label="Programadas" value={totalScheduled} accent="#38bdf8" vc="#38bdf8"/>
+      <Stat label="Publicadas" value={totalPublished} accent="#00e08a" vc="#00e08a"/>
     </div>
     {vista==="cards"?<>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
@@ -4103,6 +4117,9 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
   const piezasRevision=(pz.piezas||[]).filter(pc=>(pc.approval||"Pendiente")==="En revisión" || pc.est==="Correcciones").length;
   const piezasAprobadas=(pz.piezas||[]).filter(pc=>(pc.approval||"Pendiente")==="Aprobada").length;
   const crewMap=Object.fromEntries((crew||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
+  const editorialPendientes=(pz.piezas||[]).filter(pc=>pc.publishDate && pc.publishDate>=today() && pc.est!=="Publicado").sort((a,b)=>(a.publishDate||"").localeCompare(b.publishDate||""));
+  const editorialAtrasadas=(pz.piezas||[]).filter(pc=>pc.publishDate && pc.publishDate<today() && pc.est!=="Publicado").sort((a,b)=>(a.publishDate||"").localeCompare(b.publishDate||""));
+  const editorialPublicadas=(pz.piezas||[]).filter(pc=>pc.publishedAt || pc.est==="Publicado").sort((a,b)=>(b.publishedAt||b.publishDate||"").localeCompare(a.publishedAt||a.publishDate||""));
   const addCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
   const remCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
   const savePiece=async piece=>{
@@ -4124,10 +4141,10 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
     </div>
-    <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
-    {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
-      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
-      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
+    <Tabs tabs={["Comentarios","Piezas","Editorial","Ingresos","Gastos","Crew","Fechas","Info",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
+    {(tab===3||tab===4)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
+      <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
+      <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===3?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
     {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
@@ -4185,11 +4202,52 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
         </div>)}
       </div>}
     </div>}
-    {tab===2&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===4&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("contenidos")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
-    {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
-    {tab===6&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    {tab===2&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <Card title="Calendario editorial" sub="Qué se viene, qué está atrasado y qué ya salió.">
+        <div style={{display:"grid",gap:12}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:800,color:"#ff5566",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Atrasadas</div>
+            {editorialAtrasadas.length?editorialAtrasadas.map(pc=><div key={pc.id} style={{padding:"10px 0",borderTop:"1px solid var(--bdr)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700}}>{pc.nom}</div>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{pc.publishDate?fmtD(pc.publishDate):"—"} · {crewMap[pc.responsableId]?.nom||"Sin responsable"}</div>
+                </div>
+                <Badge label={pc.est||"Pendiente"} color="red" sm/>
+              </div>
+            </div>):<div style={{fontSize:12,color:"var(--gr2)"}}>No hay piezas atrasadas.</div>}
+          </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:800,color:"var(--cy)",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Próximas publicaciones</div>
+            {editorialPendientes.length?editorialPendientes.slice(0,8).map(pc=><div key={pc.id} style={{padding:"10px 0",borderTop:"1px solid var(--bdr)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700}}>{pc.nom}</div>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{pc.publishDate?fmtD(pc.publishDate):"—"} · {pc.plataforma||"—"}</div>
+                </div>
+                <Badge label={pc.approval||"Pendiente"} sm color={(pc.approval||"Pendiente")==="Aprobada"?"green":"gray"}/>
+              </div>
+            </div>):<div style={{fontSize:12,color:"var(--gr2)"}}>No hay publicaciones próximas.</div>}
+          </div>
+        </div>
+      </Card>
+      <Card title="Publicado recientemente" sub="Seguimiento del cierre editorial de la campaña.">
+        {editorialPublicadas.length?editorialPublicadas.slice(0,8).map(pc=><div key={pc.id} style={{padding:"10px 0",borderTop:"1px solid var(--bdr)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700}}>{pc.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{pc.publishedAt?fmtD(pc.publishedAt):pc.publishDate?fmtD(pc.publishDate):"—"} · {pc.finalLink?"Con link final":"Sin link final"}</div>
+            </div>
+            {pc.finalLink?<a href={pc.finalLink} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--cy)",fontWeight:700,textDecoration:"none"}}>Final ↗</a>:<Badge label="Pendiente link" color="yellow" sm/>}
+          </div>
+        </div>):<Empty text="Aún no hay piezas publicadas" sub="Cuando publiques contenido, lo verás aquí."/>}
+      </Card>
+    </div>}
+    {tab===3&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===4&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("contenidos")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
+    {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos de la Campaña">
         {[["Cliente",cli?.nom||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificada"}/>],["Piezas creadas",countCampaignPieces(pz)],["Piezas mensuales",pz.plannedPieces||countCampaignPieces(pz)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
@@ -4198,7 +4256,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
     </div>}
-    {tasksEnabled&&tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
+    {tasksEnabled&&tab===8&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
   </div>;
 }
 

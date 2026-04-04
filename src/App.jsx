@@ -301,13 +301,23 @@ const ROLES = {
 };
 const PERMS = {
   productor:["clientes","producciones","programas","piezas","contenidos","crew","calendario","movimientos","eventos"],
-  comercial:["clientes","auspiciadores","contratos","presupuestos","facturacion"],
+  comercial:["clientes","auspiciadores","contratos"],
 };
 function canDo(user, action) {
   if (!user) return false;
   if (user.role==="superadmin"||user.role==="admin") return true;
   if (user.role==="viewer") return false;
   return PERMS[user.role]?.includes(action)??false;
+}
+
+function canAccessModule(user, view) {
+  const gated = {
+    presupuestos: "presupuestos",
+    "pres-det": "presupuestos",
+    facturacion: "facturacion",
+  };
+  const action = gated[view];
+  return action ? canDo(user, action) : true;
 }
 
 const ADDONS = {
@@ -1587,8 +1597,8 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const pres=(presupuestos||[]).filter(x=>x.empId===empId);
   const facts=(facturas||[]).filter(x=>x.empId===empId);
   const canContracts = hasAddon(empresa, "contratos");
-  const canBudgets = hasAddon(empresa, "presupuestos");
-  const canInvoices = hasAddon(empresa, "facturacion");
+  const canBudgets = hasAddon(empresa, "presupuestos") && canDo(user, "presupuestos");
+  const canInvoices = hasAddon(empresa, "facturacion") && canDo(user, "facturacion");
   const canSocial = hasAddon(empresa, "social");
   const projectedRecurring = facts.filter(f=>f.recurring).reduce((s,f)=>s+Number(f.total||0),0);
   const overdueFacts = facts.filter(f=>f.estado!=="Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
@@ -1695,12 +1705,12 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
     </div>}
     {/* Addons summary */}
     {empresa?.addons?.length>0&&<div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(empresa.addons.length,3)},1fr)`,gap:16}}>
-      {empresa.addons?.includes("presupuestos")&&<Card title="📋 Presupuestos" action={{label:"Ver →",fn:()=>navTo("presupuestos")}}>
+      {canBudgets&&<Card title="📋 Presupuestos" action={{label:"Ver →",fn:()=>navTo("presupuestos")}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
           {[["Borrador",(presupuestos||[]).filter(p=>p.empId===empId&&p.estado==="Borrador").length,"gray"],["Aceptado",(presupuestos||[]).filter(p=>p.empId===empId&&p.estado==="Aceptado").length,"green"],["Total",(presupuestos||[]).filter(p=>p.empId===empId).length,"cyan"]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:10,background:"var(--card2)",borderRadius:8}}><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:c==="green"?"#00e08a":c==="cyan"?"var(--cy)":"var(--gr2)"}}>{v}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{l}</div></div>)}
         </div>
       </Card>}
-      {empresa.addons?.includes("facturacion")&&<Card title="🧾 Facturación" action={{label:"Ver →",fn:()=>navTo("facturacion")}}>
+      {canInvoices&&<Card title="🧾 Facturación" action={{label:"Ver →",fn:()=>navTo("facturacion")}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[["Pendiente",(facturas||[]).filter(p=>p.empId===empId&&p.estado==="Pendiente").length,"yellow"],["Pagada",(facturas||[]).filter(p=>p.empId===empId&&p.estado==="Pagada").length,"green"]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:10,background:"var(--card2)",borderRadius:8}}><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:c==="green"?"#00e08a":"#ffcc44"}}>{v}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{l}</div></div>)}
         </div>
@@ -2705,6 +2715,7 @@ export default function App(){
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
+    if(!canAccessModule(curUser, view)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para administradores" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
     case"tareas":       return <ViewTareas {...VP} saveTareas={async t=>{await setTareas(t);}} cSave={cSave} cDel={cDel} setTareas={setTareas} openM={openM} canDo={canDo}/>;
@@ -3545,9 +3556,9 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
   const cli=(clientes||[]).find(x=>x.id===pz.cliId);
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
-  const canPres = hasAddon(empresa,"presupuestos");
+  const canPres = hasAddon(empresa,"presupuestos") && !!(_cd&&_cd("presupuestos"));
   const canContracts = hasAddon(empresa,"contratos");
-  const canInvoices = hasAddon(empresa,"facturacion");
+  const canInvoices = hasAddon(empresa,"facturacion") && !!(_cd&&_cd("facturacion"));
   const presupuestosCamp = (presupuestos||[]).filter(pr=>pr.tipo==="contenido" && pr.refId===id);
   const contratosCamp = (contratos||[]).filter(ct=>(ct.pids||[]).includes(`pz:${id}`) || ct.cliId===pz.cliId);
   const facturasCamp = (facturas||[]).filter(fc=>fc.tipoRef==="contenido" && fc.proId===id);

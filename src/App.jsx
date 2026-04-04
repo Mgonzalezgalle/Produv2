@@ -3730,6 +3730,15 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
       todosEvs.push({id:`task_${t.id}`,fecha:t.fechaLimite,dia:d.getDate(),tipo:"tarea",label:`✅ ${t.titulo}`,sub:refLabel||"Sin vínculo",color:"#7c5cff",hora:"",task:true,sourceId:t.id,modulo:"task",estado:t.estado||"Pendiente",responsableId:t.asignadoA||"",responsable:assigned,desc:t.desc||""});
     }
   });
+  const facturasEmp=(facturas||[]).filter(f=>f.empId===empId);
+  const contratosEmp=(contratos||[]).filter(c=>c.empId===empId);
+  const cobranzaItems=facturasEmp.filter(f=>f.fechaVencimiento).map(f=>{
+    const estado=cobranzaState(f);
+    const entidad = f.tipo==="auspiciador"
+      ? (auspiciadores||[]).find(a=>a.id===f.entidadId)?.nom
+      : (clientes||[]).find(c=>c.id===f.entidadId)?.nom;
+    return {...f,estadoCobranza:estado,entidad:entidad||"Sin entidad"};
+  }).sort((a,b)=>(a.fechaVencimiento||"").localeCompare(b.fechaVencimiento||""));
   const dueInvoices = cobranzaItems.filter(f=>f.fechaVencimiento).map(f=>{
     const d=new Date(f.fechaVencimiento+"T12:00:00");
     if(d.getFullYear()!==mes.y||d.getMonth()!==mes.m) return null;
@@ -3763,15 +3772,6 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
   const programacion=proximos.filter(ev=>["grabacion","emision","entrega","estreno"].includes(ev.tipo));
   const agendaEquipo=proximos.filter(ev=>ev.tipo==="tarea");
   const hitosCriticos=proximos.filter(ev=>ev.tipo==="cobranza" || ev.estado==="En Revisión" || ev.estado==="Retrasado de pago").slice(0,8);
-  const facturasEmp=(facturas||[]).filter(f=>f.empId===empId);
-  const contratosEmp=(contratos||[]).filter(c=>c.empId===empId);
-  const cobranzaItems=facturasEmp.filter(f=>f.fechaVencimiento).map(f=>{
-    const estado=cobranzaState(f);
-    const entidad = f.tipo==="auspiciador"
-      ? (auspiciadores||[]).find(a=>a.id===f.entidadId)?.nom
-      : (clientes||[]).find(c=>c.id===f.entidadId)?.nom;
-    return {...f,estadoCobranza:estado,entidad:entidad||"Sin entidad"};
-  }).sort((a,b)=>(a.fechaVencimiento||"").localeCompare(b.fechaVencimiento||""));
   const contratosPorVencer=contratosEmp.filter(ct=>ct.vig && ct.vig>=hoyStr).sort((a,b)=>(a.vig||"").localeCompare(b.vig||"")).slice(0,6);
   const estadoOptions = Array.from(new Set(todosEvs.map(ev=>ev.estado).filter(Boolean)));
   const delEvento=async evId=>{ await cDel(eventos,setEventos,evId,null,"Evento eliminado"); };

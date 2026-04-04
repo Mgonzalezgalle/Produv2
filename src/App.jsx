@@ -1196,6 +1196,41 @@ function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) 
   );
 }
 
+function SystemMessagesPanel({ empresa, mensajes=[], leidas=[], onMarcar, onMarcarTodas, onClose }){
+  const noLeidas=(mensajes||[]).filter(m=>!leidas.includes(m.id));
+  const leidasMsgs=(mensajes||[]).filter(m=>leidas.includes(m.id));
+  const sorted=[...noLeidas,...leidasMsgs].sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
+  return <div style={{position:"fixed",top:70,right:20,zIndex:887,width:410,maxWidth:"calc(100vw - 24px)",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
+    <div style={{padding:"14px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:18}}>💬</span>
+        <div>
+          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Mensajes del Sistema</div>
+          <div style={{fontSize:10,color:"var(--gr2)"}}>{empresa?.nombre||"Empresa"} · {noLeidas.length} sin leer</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        {noLeidas.length>0&&<button onClick={onMarcarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>✓ Marcar todas</button>}
+        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
+      </div>
+    </div>
+    <div style={{maxHeight:420,overflowY:"auto"}}>
+      {!sorted.length&&<div style={{padding:24,textAlign:"center",color:"var(--gr2)",fontSize:13}}>Sin mensajes de sistema</div>}
+      {sorted.map(m=><div key={m.id} style={{display:"flex",gap:10,padding:"12px 16px",borderBottom:"1px solid var(--bdr)",background:leidas.includes(m.id)?"transparent":"var(--cg)",opacity:leidas.includes(m.id)?.62:1}}>
+        <div style={{width:10,height:10,borderRadius:"50%",background:leidas.includes(m.id)?"var(--bdr2)":"var(--cy)",marginTop:5,flexShrink:0}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{m.title||"Mensaje del sistema"}</div>
+            <div style={{fontSize:10,color:"var(--gr2)",whiteSpace:"nowrap"}}>{m.createdAt?fmtD(m.createdAt):"—"}</div>
+          </div>
+          <div style={{fontSize:11,color:"var(--gr3)",marginTop:6,whiteSpace:"pre-line",lineHeight:1.5}}>{m.body||""}</div>
+        </div>
+        {!leidas.includes(m.id)&&<button onClick={()=>onMarcar(m.id)} style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leído</button>}
+      </div>)}
+    </div>
+  </div>;
+}
+
 
 // ── TAREAS — Pipeline Kanban ──────────────────────────────────
 const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
@@ -1757,6 +1792,9 @@ function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
   const [integrationEmpId,setIntegrationEmpId]=useState("");
+  const [commEmpId,setCommEmpId]=useState("");
+  const [sysMsg,setSysMsg]=useState({title:"",body:""});
+  const [bannerForm,setBannerForm]=useState({active:false,tone:"info",text:""});
   const [q,setQ]=useState("");
   const [planF,setPlanF]=useState("");
   const [stateF,setStateF]=useState("");
@@ -1777,17 +1815,35 @@ function SuperAdminPanel({empresas,users,onSave}){
     (!uEmp||u.empId===uEmp)
   );
   const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
+  const selectedCommEmp = (empresas||[]).find(e=>e.id===commEmpId) || (empresas||[])[0] || null;
   const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
+  const publishSystemMessage=()=>{
+    if(!selectedCommEmp || !sysMsg.title?.trim() || !sysMsg.body?.trim()) return;
+    const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemMessages:[{id:uid(),title:sysMsg.title.trim(),body:sysMsg.body.trim(),createdAt:today()},...(e.systemMessages||[])]}:e);
+    onSave("empresas",next);
+    setSysMsg({title:"",body:""});
+  };
+  const saveBanner=()=>{
+    if(!selectedCommEmp) return;
+    const payload={active:!!bannerForm.active,tone:bannerForm.tone||"info",text:bannerForm.text||"",updatedAt:today()};
+    const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemBanner:payload}:e);
+    onSave("empresas",next);
+  };
+  const removeSystemMessage=(msgId)=>{
+    if(!selectedCommEmp) return;
+    const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemMessages:(e.systemMessages||[]).filter(m=>m.id!==msgId)}:e);
+    onSave("empresas",next);
+  };
   return <div>
-    <Tabs tabs={["Empresas","Usuarios del sistema","Integraciones","Solicitudes"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Empresas","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Empresas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
@@ -1886,6 +1942,55 @@ function SuperAdminPanel({empresas,users,onSave}){
       </div> : <Empty text="Selecciona una empresa para administrar integraciones"/>}
     </div>}
     {tab===3&&<div>
+      <div style={{fontSize:12,color:"var(--gr3)",marginBottom:14}}>Mensajes visibles para todos los usuarios del tenant y banner global de avisos importantes.</div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
+        <FilterSel value={commEmpId} onChange={v=>{setCommEmpId(v);const emp=(empresas||[]).find(e=>e.id===v)||(empresas||[])[0]||null;setBannerForm(emp?.systemBanner||{active:false,tone:"info",text:""});}} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Selecciona una empresa"/>
+      </div>
+      {selectedCommEmp ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <Card title="Mensajes del sistema" sub={selectedCommEmp.nombre}>
+          <FG label="Título"><FI value={sysMsg.title||""} onChange={e=>setSysMsg(p=>({...p,title:e.target.value}))} placeholder="Mantenimiento programado"/></FG>
+          <FG label="Mensaje"><FTA value={sysMsg.body||""} onChange={e=>setSysMsg(p=>({...p,body:e.target.value}))} placeholder="Este es un mensaje visible para todos los usuarios de la empresa."/></FG>
+          <div style={{display:"flex",gap:8,marginBottom:16}}>
+            <Btn onClick={publishSystemMessage}>Enviar mensaje</Btn>
+          </div>
+          <div style={{display:"grid",gap:8}}>
+            {(selectedCommEmp.systemMessages||[]).map(msg=><div key={msg.id} style={{padding:12,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700}}>{msg.title}</div>
+                  <div style={{fontSize:11,color:"var(--gr3)",marginTop:4,whiteSpace:"pre-line"}}>{msg.body}</div>
+                  <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{msg.createdAt?fmtD(msg.createdAt):"—"}</div>
+                </div>
+                <XBtn onClick={()=>removeSystemMessage(msg.id)}/>
+              </div>
+            </div>)}
+            {!(selectedCommEmp.systemMessages||[]).length&&<Empty text="Sin mensajes del sistema"/>}
+          </div>
+        </Card>
+        <Card title="Banner global" sub="Visible en el portal del tenant">
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",marginBottom:14}}>
+            <input type="checkbox" checked={!!bannerForm.active} onChange={e=>setBannerForm(p=>({...p,active:e.target.checked}))}/>
+            Banner activo
+          </label>
+          <FG label="Tono">
+            <FSl value={bannerForm.tone||"info"} onChange={e=>setBannerForm(p=>({...p,tone:e.target.value}))}>
+              <option value="info">Info</option>
+              <option value="warn">Advertencia</option>
+              <option value="critical">Crítico</option>
+            </FSl>
+          </FG>
+          <FG label="Texto del banner"><FTA value={bannerForm.text||""} onChange={e=>setBannerForm(p=>({...p,text:e.target.value}))} placeholder="Información importante para todos los usuarios de esta empresa."/></FG>
+          <div style={{display:"flex",gap:8,marginBottom:16}}>
+            <Btn onClick={saveBanner}>Guardar banner</Btn>
+            <GBtn onClick={()=>{setBannerForm({active:false,tone:"info",text:""});const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemBanner:{active:false,tone:"info",text:""}}:e);onSave("empresas",next);}}>Desactivar</GBtn>
+          </div>
+          <div style={{padding:12,borderRadius:12,border:"1px solid var(--bdr2)",background:bannerForm.tone==="critical"?"#ff556615":bannerForm.tone==="warn"?"#ffcc4415":"var(--cg)",color:bannerForm.tone==="critical"?"#ff5566":bannerForm.tone==="warn"?"#ffcc44":"var(--cy)",fontSize:12,fontWeight:700}}>
+            {bannerForm.text||"Vista previa del banner"}
+          </div>
+        </Card>
+      </div> : <Empty text="Selecciona una empresa para comunicarte con ese tenant"/>}
+    </div>}
+    {tab===4&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
         const tempPassword=uid().slice(1,9);
         const newUser={id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"productor",empId:empId||"",active:true};
@@ -2306,6 +2411,8 @@ export default function App(){
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
   const [alertasLeidas,setAlertasLeidas]=useState([]);
+  const [systemOpen,setSystemOpen]=useState(false);
+  const [systemLeidas,setSystemLeidas]=useState([]);
 
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
@@ -2384,6 +2491,16 @@ export default function App(){
     setCurUser(freshUser);
     setCurEmp(freshEmp||null);
   },[storedSession,users,empresas]);
+
+  useEffect(()=>{
+    if(!curEmp?.id || !curUser?.id){ setSystemLeidas([]); return; }
+    try{
+      const raw=localStorage.getItem(`produ:sysread:${curEmp.id}:${curUser.id}`);
+      setSystemLeidas(raw?JSON.parse(raw):[]);
+    }catch{
+      setSystemLeidas([]);
+    }
+  },[curEmp?.id,curUser?.id]);
 
   // Seed per-empresa data
   useEffect(()=>{
@@ -2619,6 +2736,20 @@ export default function App(){
 
   const SW=collapsed?64:240;
   const bc=buildBc();
+  const currentEmpresa=(empresas||[]).find(e=>e.id===curEmp?.id)||curEmp||null;
+  const systemMessages=(currentEmpresa?.systemMessages||[]);
+  const activeBanner=currentEmpresa?.systemBanner?.active && currentEmpresa?.systemBanner?.text ? currentEmpresa.systemBanner : null;
+  const unreadSystemCount=systemMessages.filter(m=>!systemLeidas.includes(m.id)).length;
+  const markSystemRead=id=>setSystemLeidas(prev=>{
+    const next=prev.includes(id)?prev:[...prev,id];
+    try{localStorage.setItem(`produ:sysread:${curEmp?.id}:${curUser?.id}`,JSON.stringify(next));}catch{}
+    return next;
+  });
+  const markAllSystemRead=()=>{
+    const next=systemMessages.map(m=>m.id);
+    setSystemLeidas(next);
+    try{localStorage.setItem(`produ:sysread:${curEmp?.id}:${curUser?.id}`,JSON.stringify(next));}catch{}
+  };
 
   return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
     <StyleTag/>
@@ -2639,6 +2770,11 @@ export default function App(){
         <div className="app-actions" style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
     {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
+          {curEmp&&<button onClick={()=>{setSystemOpen(!systemOpen);setAlertasOpen(false);}} style={{position:"relative",background:systemOpen?"var(--cg)":"var(--sur)",border:`1px solid ${systemOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:systemOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
+            <span style={{fontSize:16}}>💬</span>
+            <span>Mensajes</span>
+            {unreadSystemCount>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"var(--cy)",fontSize:9,fontWeight:700,color:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadSystemCount}</span>}
+          </button>}
           {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"var(--sur)",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
             <span style={{fontSize:16}}>🔔</span>
             <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
@@ -2650,12 +2786,17 @@ export default function App(){
         </div>
       </div>
       <div className="app-page" style={{flex:1,padding:"18px 26px 28px"}}>
+        {activeBanner&&<div style={{marginBottom:14,padding:"12px 16px",borderRadius:14,border:`1px solid ${activeBanner.tone==="critical"?"#ff556640":activeBanner.tone==="warn"?"#ffcc4440":"var(--cm)"}`,background:activeBanner.tone==="critical"?"#ff556615":activeBanner.tone==="warn"?"#ffcc4415":"var(--cg)",color:activeBanner.tone==="critical"?"#ff5566":activeBanner.tone==="warn"?"#ffcc44":"var(--cy)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:16}}>{activeBanner.tone==="critical"?"⛔":activeBanner.tone==="warn"?"⚠️":"ℹ️"}</span>
+          <span style={{whiteSpace:"pre-line"}}>{activeBanner.text}</span>
+        </div>}
         <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
       </div>
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
+    {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

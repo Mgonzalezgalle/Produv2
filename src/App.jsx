@@ -1453,11 +1453,23 @@ function SuperAdminPanel({empresas,users,onSave}){
   const [q,setQ]=useState("");
   const [planF,setPlanF]=useState("");
   const [stateF,setStateF]=useState("");
+  const [uq,setUQ]=useState("");
+  const [uRole,setURole]=useState("");
+  const [uState,setUState]=useState("");
+  const [uEmp,setUEmp]=useState("");
   const totalEmp=(empresas||[]).length;
   const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
   const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
   const totalUsers=(users||[]).filter(u=>u.role!=="superadmin").length;
   const filteredEmp=(empresas||[]).filter(emp=>(!q||emp.nombre?.toLowerCase().includes(q.toLowerCase())||emp.rut?.toLowerCase().includes(q.toLowerCase()))&&(!planF||emp.plan===planF)&&(!stateF||(stateF==="Activa"?emp.active!==false:emp.active===false)));
+  const sysUsers=(users||[]).filter(u=>u.role!=="superadmin");
+  const filteredUsers=sysUsers.filter(u=>
+    (!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase())) &&
+    (!uRole||u.role===uRole) &&
+    (!uState||(uState==="active"?u.active:u.active===false)) &&
+    (!uEmp||u.empId===uEmp)
+  );
+  const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
@@ -1512,12 +1524,26 @@ function SuperAdminPanel({empresas,users,onSave}){
     </div>}
     {tab===1&&<div>
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:12}}>Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde el Panel Admin.</div>
-      {(users||[]).map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={uq} onChange={setUQ} placeholder="Buscar usuario por nombre o email..."/>
+        <FilterSel value={uRole} onChange={setURole} options={Object.keys(ROLES).filter(r=>r!=="superadmin")} placeholder="Todos los roles"/>
+        <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}]} placeholder="Todos los estados"/>
+        <FilterSel value={uEmp} onChange={setUEmp} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Todas las empresas"/>
+      </div>
+      {filteredUsers.map(u=>{
+        const empresa=(empresas||[]).find(e=>e.id===u.empId);
+        return <div key={u.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
         <div style={{width:30,height:30,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
-        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:600}}>{u.name}</div>
+          <div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div>
+          <div style={{fontSize:11,color:"var(--gr3)"}}>Empresa: {empresa?.nombre||"Sin empresa"}</div>
+        </div>
         <Badge label={ROLES[u.role]?.label||u.role} color={{superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"}[u.role]||"gray"} sm/>
         <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
-      </div>)}
+      </div>;
+      })}
+      {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
     </div>}
     {tab===2&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{

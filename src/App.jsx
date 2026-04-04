@@ -838,7 +838,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
   ];
   const SW=collapsed?64:240;
-  return <aside style={{width:SW,minHeight:"100vh",background:flatSidebar?"#0f172a":"linear-gradient(180deg,var(--sur),var(--card))",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside style={{width:SW,minHeight:"100vh",background:flatSidebar?"#0f172a":"linear-gradient(180deg,var(--sur),var(--card))",boxShadow:collapsed?"0 0 0 rgba(0,0,0,0)":"10px 0 30px rgba(0,0,0,.10)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
     <div style={{padding:"14px 14px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
@@ -2242,14 +2242,14 @@ export default function App(){
   const SW=collapsed?64:240;
   const bc=buildBc();
 
-  return <div style={{display:"flex",minHeight:"100vh"}}>
+  return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
     <StyleTag/>
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");document.getElementById("mob-overlay").style.display="none";}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
     <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");const o=document.getElementById("mob-overlay");if(o)o.style.display="none";}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s"}}>
+    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 88%, var(--card) 12%))"}}>
       {/* Topbar */}
-      <div style={{height:58,background:"var(--sur)",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",padding:"0 16px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+      <div style={{height:64,background:"color-mix(in srgb, var(--sur) 84%, transparent)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",padding:"0 22px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
         {/* Hamburger - solo visible en móvil via CSS */}
         <button className="ham-btn" onClick={()=>{const s=document.querySelector("aside");const o=document.getElementById("mob-overlay");if(s){s.classList.add("mob-open");}if(o){o.style.display="block";}}} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
@@ -2267,8 +2267,8 @@ export default function App(){
           </button>}
         </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:24}}>
-        <div className="va" key={view+detId+superPanel}>
+      <div style={{flex:1,overflowY:"auto",padding:"18px 20px 28px"}}>
+        <div className="va" key={view+detId+superPanel} style={{maxWidth:1400,margin:"0 auto"}}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
       </div>

@@ -4,6 +4,7 @@
 // ============================================================
 import { Component, useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 // ── SUPABASE ─────────────────────────────────────────────────
 const SB_URL = "https://zpgxbmlzoxxgymsschrd.supabase.co";
@@ -261,6 +262,7 @@ const DEFAULT_LISTAS = {
   tiposPres:   ["Proyecto","Producción","Contenidos","Servicio"],
   estadosFact: ["Pendiente","Emitida","Pagada","Vencida","Anulada"],
   tiposEntidadFact:["Cliente","Auspiciador"],
+  tiposDocFact:["Orden de Factura","Invoice"],
   catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
   estadosActivos:["Disponible","Asignado","En Mantención","Baja"],
   prioridadesTarea:["Alta","Media","Baja"],
@@ -2222,6 +2224,35 @@ export default function App(){
     closeM();ntf("Registrado ✓");await setMovimientos(next);
   };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
+  const saveFacturaDoc=async fact=>{
+    const item={...fact, empId:fact.empId || curEmp?.id, id:fact.id || uid(), cr:fact.cr || today()};
+    const currentFacts=Array.isArray(facturas)?facturas:[];
+    const nextFacts=currentFacts.some(x=>x.id===item.id)?currentFacts.map(x=>x.id===item.id?item:x):[...currentFacts,item];
+    await setFacturas(nextFacts);
+    const targetEt=item.tipoRef==="produccion"?"pro":item.tipoRef==="programa"?"pg":item.tipoRef==="contenido"?"pz":"";
+    const movement={
+      empId:curEmp?.id,
+      eid:item.proId||"",
+      et:targetEt,
+      tipo:"ingreso",
+      cat:"Facturación",
+      des:`${item.tipoDoc||"Orden de Factura"}${item.correlativo?` ${item.correlativo}`:""}`,
+      mon:Number(item.total||0),
+      fec:item.fechaPago||item.fechaEmision||today(),
+      facturaId:item.id,
+    };
+    const existing=(movimientos||[]).find(m=>m.facturaId===item.id);
+    if(item.estado==="Pagada"){
+      const nextMovs=existing
+        ? (movimientos||[]).map(m=>m.facturaId===item.id?{...m,...movement,id:m.id}:m)
+        : [...(movimientos||[]),{id:uid(),...movement}];
+      await setMovimientos(nextMovs);
+    } else if(existing){
+      await setMovimientos((movimientos||[]).filter(m=>m.facturaId!==item.id));
+    }
+    closeM();
+    ntf("Documento guardado ✓");
+  };
 
   const saveUsers=async u=>{
     const normalized = await normalizeUsersAuth(u);
@@ -2247,7 +2278,7 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a)};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
@@ -2317,7 +2348,7 @@ export default function App(){
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
-    {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov}/>}
+    {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}
   </div>;
 }
@@ -2582,7 +2613,7 @@ function MEvento({open,data,producciones,programas,piezas,onClose,onSave}){
 }
 
 // ── MODAL ROUTER ──────────────────────────────────────────────
-function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov}){
+function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov,saveFacturaDoc}){
   const {empresa,clientes,producciones,programas,piezas,auspiciadores,contratos,crew,eventos}=VP;
   const {setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
 
@@ -2602,7 +2633,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
-    <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
+    <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>saveFacturaDoc(withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
     <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
@@ -3622,6 +3653,132 @@ function pdfHexColor(hex="#000000") {
   return parts.map(p=>(parseInt(p,16)/255).toFixed(3)).join(" ");
 }
 
+function hexToRgb(hex="#000000") {
+  const raw = String(hex||"#000000").replace("#","");
+  const normalized = raw.length===3 ? raw.split("").map(ch=>ch+ch).join("") : raw.padEnd(6,"0").slice(0,6);
+  const parts = normalized.match(/.{2}/g) || ["00","00","00"];
+  const [r,g,b] = parts.map(p=>parseInt(p,16)/255);
+  return rgb(r,g,b);
+}
+
+async function loadPdfImage(doc, logoUrl="") {
+  if (!logoUrl) return null;
+  try {
+    const bytes = logoUrl.startsWith("data:")
+      ? Uint8Array.from(atob(logoUrl.split(",")[1] || ""), c => c.charCodeAt(0))
+      : new Uint8Array(await (await fetch(logoUrl)).arrayBuffer());
+    if (logoUrl.includes("image/png") || logoUrl.toLowerCase().endsWith(".png")) return await doc.embedPng(bytes);
+    return await doc.embedJpg(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function drawWrappedText(page, text, x, y, maxWidth, font, size, color, lineGap=4) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  if (!words.length) return y;
+  let line = "";
+  let cursorY = y;
+  words.forEach(word => {
+    const next = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(next, size) > maxWidth && line) {
+      page.drawText(line, { x, y: cursorY, size, font, color });
+      cursorY -= size + lineGap;
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) page.drawText(line, { x, y: cursorY, size, font, color });
+  return cursorY - size - lineGap;
+}
+
+async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[] }) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([842, 595]);
+  const { width, height } = page.getSize();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const accentColor = hexToRgb(accent);
+  const textColor = hexToRgb("#0f172a");
+  const muted = hexToRgb("#64748b");
+  const light = hexToRgb("#e2e8f0");
+  const panel = hexToRgb("#f8fafc");
+  const success = hexToRgb("#16a34a");
+  page.drawRectangle({ x:0, y:0, width, height, color:hexToRgb("#ffffff") });
+  page.drawRectangle({ x:0, y:height-86, width, height:86, color:accentColor });
+
+  const logo = await loadPdfImage(pdf, empresa?.logo || "");
+  if (logo) {
+    const dims = logo.scale(0.22);
+    page.drawImage(logo, { x:40, y:height-66, width:dims.width, height:dims.height });
+  } else {
+    page.drawText(empresa?.nombre || "produ", { x:40, y:height-50, size:24, font:bold, color:rgb(1,1,1) });
+  }
+  page.drawText(title, { x:width-300, y:height-44, size:24, font:bold, color:rgb(1,1,1) });
+  if (badge) {
+    const badgeWidth = Math.max(92, bold.widthOfTextAtSize(badge, 10) + 22);
+    page.drawRoundedRectangle({ x:width-40-badgeWidth, y:height-74, width:badgeWidth, height:24, radius:12, color:rgb(1,1,1), opacity:0.18 });
+    page.drawText(badge, { x:width-40-badgeWidth+11, y:height-66, size:10, font:bold, color:rgb(1,1,1) });
+  }
+
+  page.drawText(empresa?.nombre || "", { x:40, y:height-116, size:18, font:bold, color:textColor });
+  const emisorLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
+  let emisorY = height-136;
+  emisorLines.forEach(line => {
+    page.drawText(line, { x:40, y:emisorY, size:10, font, color:muted });
+    emisorY -= 14;
+  });
+
+  page.drawRectangle({ x:40, y:height-250, width:360, height:86, color:panel, borderColor:light, borderWidth:1 });
+  page.drawText(counterpartTitle, { x:56, y:height-186, size:10, font:bold, color:muted });
+  page.drawText(counterpartName || "—", { x:56, y:height-208, size:16, font:bold, color:textColor });
+  let cpY = height-226;
+  counterpartLines.filter(Boolean).forEach(line => {
+    page.drawText(line, { x:56, y:cpY, size:10, font, color:muted });
+    cpY -= 13;
+  });
+
+  page.drawRectangle({ x:425, y:height-250, width:377, height:86, color:panel, borderColor:light, borderWidth:1 });
+  page.drawText("Resumen", { x:441, y:height-186, size:10, font:bold, color:muted });
+  let metaY = height-208;
+  metaLines.filter(Boolean).forEach(line => {
+    page.drawText(line, { x:441, y:metaY, size:10, font, color:textColor });
+    metaY -= 14;
+  });
+
+  let sectionY = height-286;
+  bodySections.forEach(section => {
+    page.drawText(section.title, { x:40, y:sectionY, size:12, font:bold, color:accentColor });
+    sectionY -= 18;
+    if (section.rows) {
+      section.rows.forEach(row => {
+        page.drawRectangle({ x:40, y:sectionY-10, width:762, height:24, color:rgb(0.98,0.99,1), borderColor:light, borderWidth:0.6 });
+        page.drawText(row.label, { x:52, y:sectionY-2, size:10, font:row.bold?bold:font, color:textColor });
+        page.drawText(row.value, { x:560, y:sectionY-2, size:10, font:row.valueBold?bold:font, color:row.valueColor || textColor });
+        sectionY -= 28;
+      });
+    }
+    if (section.text) {
+      sectionY = drawWrappedText(page, section.text, 40, sectionY, 760, font, 10, muted, 5);
+      sectionY -= 8;
+    }
+    sectionY -= 10;
+  });
+
+  page.drawRectangle({ x:425, y:40, width:377, height:110, color:panel, borderColor:light, borderWidth:1 });
+  page.drawText("Totales", { x:441, y:126, size:11, font:bold, color:textColor });
+  let totalY = 104;
+  summaryRows.forEach(row => {
+    page.drawText(row.label, { x:441, y:totalY, size:10, font:row.highlight?bold:font, color:row.highlight?textColor:muted });
+    page.drawText(row.value, { x:690, y:totalY, size:11, font:row.highlight?bold:font, color:row.color || textColor });
+    totalY -= 18;
+  });
+  page.drawText("Generado con Produ", { x:40, y:28, size:9, font, color:muted });
+  const bytes = await pdf.save();
+  return new File([bytes], fileName, { type:"application/pdf" });
+}
+
 function buildSimplePdfBlob(lines, accent="#00d4e8") {
   const pageWidth = 595;
   const pageHeight = 842;
@@ -3722,41 +3879,59 @@ function presupuestoPdfFileName(pres = {}) {
   return `${(pres.correlativo || pres.titulo || "presupuesto").replace(/[^a-z0-9]+/gi,"_").replace(/^_+|_+$/g,"").toLowerCase() || "presupuesto"}.pdf`;
 }
 
-function buildBudgetPdfFile(pres, cliente, empresa) {
+function facturaPdfFileName(fact = {}) {
+  const prefix = fact.tipoDoc === "Invoice" ? "invoice" : "orden_factura";
+  return `${prefix}_${String(fact.correlativo || "documento").replace(/[^a-z0-9]+/gi,"_").replace(/^_+|_+$/g,"").toLowerCase()}.pdf`;
+}
+
+async function buildBudgetPdfFile(pres, cliente, empresa) {
   const contacto = (cliente?.contactos||[])[0];
   const subtotal = Number(pres.subtotal||0);
   const ivaVal = Number(pres.ivaVal||0);
   const total = Number(pres.total||0);
   const accent = empresa?.color || "#00d4e8";
-  const lines = [
-    { text: empresa?.nombre || "Produ", size: 22, bold:true, color:accent, gap:18 },
-    { text: `Presupuesto ${pres.correlativo || ""}`.trim(), size: 18, bold:true, gap:20 },
-    { text: `Estado: ${pres.estado || "Pendiente"}`, size: 11, color:"#4b5563" },
-    { text: `Fecha de emision: ${fmtD(today())}`, size: 11, color:"#4b5563" },
-    { text: `Cliente: ${cliente?.nom || "—"}`, size: 12, bold:true, gap:18 },
-    { text: contacto ? `Contacto: ${contacto.nom}${contacto.tel ? ` · ${contacto.tel}` : ""}` : "Sin contacto principal registrado", size: 11, color:"#4b5563" },
-    { text: `Validez: ${pres.validez || 30} dias`, size: 11, color:"#4b5563", gap:18 },
-    { text: "Detalle", size: 14, bold:true, color:accent, gap:16 },
-    ...((pres.items||[]).length ? (pres.items||[]).flatMap((it, idx) => ([
-      { text: `${idx+1}. ${it.desc || "Item sin descripcion"}`, size: 11, bold:true, gap:14 },
-      { text: `Cantidad: ${it.qty || 0}   Unitario: ${fmtM(it.precio || 0)}   Total: ${fmtM(Number(it.qty||0)*Number(it.precio||0))}`, size: 10, color:"#4b5563", gap:14 },
-    ])) : [{ text:"Sin items cargados", size:11, color:"#6b7280", gap:16 }]),
-    { text:"Resumen", size:14, bold:true, color:accent, gap:16 },
-    { text:`Subtotal: ${fmtM(subtotal)}`, size:11 },
-    { text:`${pres.honorarios?"Boleta Honorarios 15,25%":"IVA 19%"}: ${(pres.iva||pres.honorarios)?fmtM(ivaVal):"No aplica"}`, size:11 },
-    { text:`Total final: ${fmtM(total)}`, size:13, bold:true, gap:18 },
-    ...(pres.metodoPago || pres.notasPago ? [
-      { text:"Informacion de pago", size:14, bold:true, color:accent, gap:16 },
-      { text:[pres.metodoPago ? `Metodo: ${pres.metodoPago}` : "", pres.fechaPago ? `Fecha de pago: ${fmtD(pres.fechaPago)}` : "", pres.notasPago || ""].filter(Boolean).join(" · "), size:11, color:"#4b5563", gap:18 },
-    ] : []),
-    ...(pres.obs ? [
-      { text:"Observaciones", size:14, bold:true, color:accent, gap:16 },
-      { text:pres.obs, size:11, color:"#4b5563", gap:18 },
-    ] : []),
-    { text:`Generado con Produ · ${empresa?.ema || ""}`, size:10, color:"#9ca3af", gap:14 },
-  ];
-  const blob = buildSimplePdfBlob(lines, accent);
-  return new File([blob], presupuestoPdfFileName(pres), { type:"application/pdf" });
+  return buildModernPdf({
+    fileName: presupuestoPdfFileName(pres),
+    title: pres.correlativo ? `Presupuesto ${pres.correlativo}` : "Presupuesto",
+    badge: pres.estado || "Pendiente",
+    accent,
+    empresa,
+    counterpartTitle: "Cliente",
+    counterpartName: cliente?.nom || "—",
+    counterpartLines: [
+      cliente?.rut ? `RUT: ${cliente.rut}` : "",
+      cliente?.dir || "",
+      contacto ? `Contacto: ${contacto.nom}${contacto.car ? ` · ${contacto.car}` : ""}` : "",
+      contacto ? [contacto.ema, contacto.tel].filter(Boolean).join(" · ") : "",
+    ],
+    metaLines: [
+      `Fecha de emisión: ${fmtD(today())}`,
+      `Validez: ${pres.validez || 30} días`,
+      `Moneda: ${pres.moneda || "CLP"}`,
+      pres.metodoPago ? `Método de pago: ${pres.metodoPago}` : "",
+    ],
+    summaryRows: [
+      { label:"Subtotal neto", value:fmtM(subtotal) },
+      { label:pres.honorarios ? "Boleta honorarios 15,25%" : "IVA 19%", value:(pres.iva||pres.honorarios) ? fmtM(ivaVal) : "No aplica" },
+      { label:"Total final", value:fmtM(total), highlight:true, color:hexToRgb(accent) },
+    ],
+    bodySections: [
+      {
+        title:"Detalle comercial",
+        rows:(pres.items||[]).length
+          ? (pres.items||[]).map((it, idx)=>({
+              label:`${idx+1}. ${it.desc || "Ítem sin descripción"}`,
+              value:`${it.qty || 0} × ${fmtM(it.precio || 0)} = ${fmtM(Number(it.qty||0)*Number(it.precio||0))}`,
+            }))
+          : [{ label:"Sin ítems", value:"—" }],
+      },
+      ...(pres.notasPago || pres.fechaPago ? [{
+        title:"Datos de pago",
+        text:[pres.notasPago || "", pres.fechaPago ? `Fecha de pago esperada: ${fmtD(pres.fechaPago)}` : ""].filter(Boolean).join("\n"),
+      }] : []),
+      ...(pres.obs ? [{ title:"Observaciones", text:pres.obs }] : []),
+    ],
+  });
 }
 
 function downloadFile(file) {
@@ -3768,8 +3943,8 @@ function downloadFile(file) {
   setTimeout(()=>URL.revokeObjectURL(url), 1200);
 }
 
-function generarPDF(pres, cliente, empresa) {
-  const file = buildBudgetPdfFile(pres, cliente, empresa);
+async function generarPDF(pres, cliente, empresa) {
+  const file = await buildBudgetPdfFile(pres, cliente, empresa);
   downloadFile(file);
   return file;
 }
@@ -3780,7 +3955,7 @@ async function enviarPresupuestoWhatsApp(pres, cliente, empresa) {
     alert("El cliente no tiene teléfono de contacto registrado.");
     return;
   }
-  const file = buildBudgetPdfFile(pres, cliente, empresa);
+  const file = await buildBudgetPdfFile(pres, cliente, empresa);
   const msg = `Hola ${contacto.nom || ""}, te compartimos el presupuesto ${pres.correlativo || pres.titulo || ""}.`;
   const canShareFile = typeof navigator !== "undefined" && navigator.share && navigator.canShare && navigator.canShare({ files:[file] });
   if (canShareFile) {
@@ -3794,173 +3969,57 @@ async function enviarPresupuestoWhatsApp(pres, cliente, empresa) {
 }
 
 // ── PDF GENERATOR — FACTURA ───────────────────────────────────
-function generarPDFFactura(fact, entidad, ref, empresa) {
-  const ac       = empresa?.color || "#00d4e8";
-  const acLight  = ac + "18";
-  const correlativo = fact.correlativo || ("OC-" + String(Date.now()).slice(-6));
-  const estadoBadgeColor = {Pendiente:"#fff3cd,#856404",Borrador:"#f3f4f6,#4b5563",Enviado:"#e0f0ff,#0066cc","En Revisión":"#fff3cd,#856404",Aceptado:"#d4edda,#155724",Rechazado:"#f8d7da,#721c24",Emitida:"#cce5ff,#004085",Pagada:"#d4edda,#155724",Vencida:"#f8d7da,#721c24",Anulada:"#e2e3e5,#383d41"}[fact.estado||"Pendiente"]||"#fff3cd,#856404";
-  const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
-  const mn    = Number(fact.montoNeto||0);
-  const ivaV  = fact.iva ? Math.round(mn*0.19) : 0;
-  const total = mn + ivaV;
+async function buildFactPdfFile(fact, entidad, ref, empresa) {
+  const mn = Number(fact.montoNeto||0);
+  const ivaV = fact.iva ? Math.round(mn*0.19) : 0;
+  const total = Number(fact.total || (mn + ivaV));
+  const accent = empresa?.color || "#00d4e8";
+  const docType = fact.tipoDoc || "Orden de Factura";
+  return buildModernPdf({
+    fileName: facturaPdfFileName(fact),
+    title: fact.correlativo ? `${docType} ${fact.correlativo}` : docType,
+    badge: fact.estado || "Pendiente",
+    accent,
+    empresa,
+    counterpartTitle: fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente",
+    counterpartName: entidad?.nom || "—",
+    counterpartLines: [
+      entidad?.rut ? `RUT: ${entidad.rut}` : "",
+      entidad?.dir || "",
+      entidad?.con ? `Contacto: ${entidad.con}` : "",
+      [entidad?.ema, entidad?.tel].filter(Boolean).join(" · "),
+    ],
+    metaLines: [
+      `Fecha de emisión: ${fact.fechaEmision ? fmtD(fact.fechaEmision) : fmtD(today())}`,
+      fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento",
+      fact.fechaPago ? `Pagada: ${fmtD(fact.fechaPago)}` : "",
+      ref ? `Referencia: ${(fact.tipoRef === "produccion" ? "Proyecto" : fact.tipoRef === "contenido" ? "Campaña" : "Producción")} · ${ref.nom || ""}` : "Sin referencia directa",
+    ],
+    summaryRows: [
+      { label:"Monto neto", value:fmtM(mn) },
+      { label:docType === "Invoice" ? "Impuesto" : "IVA 19%", value:docType === "Invoice" ? "No tributario" : (fact.iva ? fmtM(ivaV) : "No aplica") },
+      { label:"Total", value:fmtM(total), highlight:true, color:hexToRgb(accent) },
+    ],
+    bodySections: [
+      {
+        title:"Detalle del documento",
+        rows:[
+          { label:"Tipo de documento", value:docType, bold:true },
+          { label:"Entidad", value:entidad?.nom || "—" },
+          { label:"Referencia", value:ref ? ref.nom || "—" : "Sin referencia" },
+        ],
+      },
+      ...(fact.obs ? [{ title:"Datos de pago / información bancaria", text:fact.obs }] : []),
+      ...(fact.obs2 ? [{ title:"Observaciones", text:fact.obs2 }] : []),
+      ...(docType === "Invoice" ? [{ title:"Nota", text:"Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." }] : []),
+    ],
+  });
+}
 
-  const logoHtml = empresa?.logo
-    ? `<img src="${empresa.logo}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" alt="${empresa?.nombre||""}">`
-    : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
-
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Orden de Factura ${correlativo}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter',Arial,sans-serif;font-size:13px;color:#1e1e2e;background:#fff;padding:48px;line-height:1.5}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
-  .doc-type{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:6px}
-  .doc-num{font-size:22px;font-weight:800;color:#1e1e2e;margin-bottom:12px}
-  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:${badgeBg};color:${badgeFg};margin-bottom:12px}
-  .meta{font-size:11px;color:#666;line-height:1.8}
-  .meta strong{color:#1e1e2e;font-weight:600}
-  .empresa-sub{font-size:11px;color:#888;margin-top:2px}
-  .divider{height:3px;background:linear-gradient(90deg,${ac},${ac}44);border-radius:2px;margin-bottom:32px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
-  .box{background:#f8f9fc;border-radius:10px;padding:18px;border-left:3px solid ${ac}}
-  .box-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:12px}
-  .box-name{font-size:15px;font-weight:700;color:#1e1e2e;margin-bottom:8px}
-  .box-line{font-size:12px;color:#555;margin-bottom:3px}
-  /* TABLA MONTO */
-  .amount-section{background:#f8f9fc;border-radius:10px;padding:24px;margin-bottom:28px}
-  .amount-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:16px}
-  .amount-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:13px;color:#555}
-  .amount-row.total-row{background:${ac};border-radius:8px;padding:12px 16px;margin-top:12px;color:#fff;font-weight:700;font-size:16px;border:none}
-  .amount-row.total-row span:last-child{font-family:'Courier New',monospace}
-  /* REF */
-  .ref-box{background:${acLight};border:1px solid ${ac}44;border-radius:10px;padding:16px;margin-bottom:28px;display:flex;align-items:center;gap:16px}
-  .ref-icon{font-size:28px;flex-shrink:0}
-  .ref-label{font-size:10px;color:${ac};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
-  .ref-name{font-size:14px;font-weight:700;color:#1e1e2e}
-  .ref-type{font-size:11px;color:#666;margin-top:2px}
-  /* PAGO */
-  .pago-box{background:#f8f9fc;border-radius:10px;padding:20px;margin-bottom:28px}
-  .pago-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:14px}
-  .pago-content{font-size:12px;color:#444;line-height:1.9;white-space:pre-line}
-  /* FIRMA */
-  .firma-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;margin-bottom:28px}
-  .firma-box{border-top:2px solid #ddd;padding-top:10px;text-align:center}
-  .firma-label{font-size:11px;color:#888;margin-top:4px}
-  .firma-name{font-size:12px;font-weight:600;color:#1e1e2e;margin-top:2px}
-  /* OBS */
-  .obs-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:24px}
-  .obs-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#92400e;margin-bottom:8px}
-  .obs-text{font-size:12px;color:#78350f}
-  /* FOOTER */
-  .footer{text-align:center;font-size:10px;color:#bbb;padding-top:20px;border-top:1px solid #eee;margin-top:16px}
-  @media print{body{padding:24px}@page{margin:0}}
-</style>
-</head>
-<body>
-
-<!-- HEADER -->
-<div class="header">
-  <div>
-    ${logoHtml}
-    ${empresa?.logo ? `<div style="font-size:13px;color:#555;margin-top:6px">${empresa?.nombre||""}</div>` : ""}
-    <div class="empresa-sub">${empresa?.rut||""}</div>
-    <div class="empresa-sub">${empresa?.dir||""}</div>
-    <div class="empresa-sub">${empresa?.ema||""} ${empresa?.tel ? "· " + empresa.tel : ""}</div>
-  </div>
-  <div style="text-align:right">
-    <div class="doc-type">Orden de Factura</div>
-    <div class="doc-num">${correlativo}</div>
-    <div class="badge">${fact.estado||"Pendiente"}</div>
-    <div class="meta">
-      <strong>Fecha emisión</strong><br>${fact.fechaEmision ? fmtD(fact.fechaEmision) : fmtD(today())}<br>
-      ${fact.fechaVencimiento ? `<strong>Fecha vencimiento</strong><br>${fmtD(fact.fechaVencimiento)}<br>` : ""}
-      <strong>Tipo</strong><br>${fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente"}
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- DATOS -->
-<div class="grid2">
-  <div class="box">
-    <div class="box-title">Datos del Emisor</div>
-    <div class="box-name">${empresa?.nombre||""}</div>
-    ${empresa?.rut ? `<div class="box-line">RUT: ${empresa.rut}</div>` : ""}
-    ${empresa?.dir ? `<div class="box-line">${empresa.dir}</div>` : ""}
-    ${empresa?.ema ? `<div class="box-line">${empresa.ema}</div>` : ""}
-    ${empresa?.tel ? `<div class="box-line">${empresa.tel}</div>` : ""}
-  </div>
-  <div class="box">
-    <div class="box-title">${fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente"}</div>
-    <div class="box-name">${entidad?.nom||"—"}</div>
-    ${entidad?.rut ? `<div class="box-line">RUT: ${entidad.rut}</div>` : ""}
-    ${entidad?.con ? `<div class="box-line">Contacto: ${entidad.con}</div>` : ""}
-    ${entidad?.ema ? `<div class="box-line">${entidad.ema}</div>` : ""}
-    ${entidad?.tel ? `<div class="box-line">${entidad.tel}</div>` : ""}
-  </div>
-</div>
-
-<!-- REFERENCIA -->
-${ref ? `<div class="ref-box">
-  <div class="ref-icon">${fact.tipoRef === "produccion" ? "📽" : fact.tipoRef === "contenido" ? "📱" : "📺"}</div>
-  <div>
-    <div class="ref-label">${fact.tipoRef === "produccion" ? "Proyecto" : fact.tipoRef === "contenido" ? "Campaña" : "Producción"} asociada</div>
-    <div class="ref-name">${ref.nom||""}</div>
-    ${ref.est ? `<div class="ref-type">Estado: ${ref.est}</div>` : ""}
-  </div>
-</div>` : ""}
-
-<!-- MONTO -->
-<div class="amount-section">
-  <div class="amount-title">Detalle del Cobro</div>
-  <div class="amount-row"><span>Monto Neto</span><span style="font-family:monospace">${fmtM(mn)}</span></div>
-  <div class="amount-row"><span>IVA 19%</span><span style="font-family:monospace">${fact.iva ? fmtM(ivaV) : "No aplica"}</span></div>
-  <div class="amount-row total-row"><span>Total a Pagar</span><span>${fmtM(total)}</span></div>
-</div>
-
-<!-- DATOS DE PAGO -->
-${fact.obs ? `<div class="pago-box">
-  <div class="pago-title">Datos de Pago / Instrucciones</div>
-  <div class="pago-content">${fact.obs}</div>
-</div>` : ""}
-
-<!-- OBSERVACIONES -->
-${fact.obs2 ? `<div class="obs-box">
-  <div class="obs-title">Observaciones</div>
-  <div class="obs-text">${fact.obs2}</div>
-</div>` : ""}
-
-<!-- FIRMA -->
-<div class="firma-grid">
-  <div class="firma-box">
-    <div style="height:50px"></div>
-    <div class="firma-label">Emitido por</div>
-    <div class="firma-name">${empresa?.nombre||""}</div>
-  </div>
-  <div class="firma-box">
-    <div style="height:50px"></div>
-    <div class="firma-label">Recibido / Conforme</div>
-    <div class="firma-name">${entidad?.nom||""}</div>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<div class="footer">
-  ${empresa?.nombre||""} · ${empresa?.rut||""} · ${empresa?.ema||""} &nbsp;|&nbsp; Generado con Produ
-</div>
-
-</body>
-</html>`;
-
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => w.print(), 800);
+async function generarPDFFactura(fact, entidad, ref, empresa) {
+  const file = await buildFactPdfFile(fact, entidad, ref, empresa);
+  downloadFile(file);
+  return file;
 }
 
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────
@@ -4128,7 +4187,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
   useEffect(()=>{
-    const base={correlativo:"",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:true,estado:"Pendiente",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:""};
+    const base={correlativo:"",tipoDoc:"Orden de Factura",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:true,estado:"Pendiente",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:""};
     setF(data?.id?{...base,...data}:{...base,...(data||{})});
   },[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -4143,7 +4202,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       tipoRef:pres.tipo||prev.tipoRef,
       proId:pres.refId||prev.proId,
       montoNeto:Number(pres.subtotal||pres.total||0),
-      iva:!!pres.iva,
+      iva:prev.tipoDoc==="Invoice" ? false : !!pres.iva,
       contratoId:pres.contratoId||prev.contratoId,
       obs:prev.obs||pres.notasPago||"",
       obs2:prev.obs2||pres.obs||"",
@@ -4153,7 +4212,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   // Solo auspiciadores principales y secundarios para programas
   const ausValidos=(auspiciadores||[]).filter(a=>["Auspiciador Principal","Auspiciador Secundario"].includes(a.tip));
   const contratosEntidad=(contratos||[]).filter(ct=>!f.entidadId || ct.cliId===f.entidadId);
-  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Orden de Factura":"Nueva Orden de Factura"} sub="Registro de cobro">
+  return <Modal open={open} onClose={onClose} title={data?.id?`Editar ${f.tipoDoc||"Documento"}`:`Nuevo ${f.tipoDoc||"Documento"}`} sub="Registro de cobro y documento comercial">
     {canPres && <FG label="Presupuesto origen">
       <FSl value={f.presupuestoId||""} onChange={e=>applyPresupuesto(e.target.value)}>
         <option value="">— Sin presupuesto asociado —</option>
@@ -4161,10 +4220,18 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       </FSl>
     </FG>}
     <R3>
+      <FG label="Tipo de documento">
+        <FSl value={f.tipoDoc||"Orden de Factura"} onChange={e=>setF(prev=>({...prev,tipoDoc:e.target.value,iva:e.target.value==="Invoice"?false:prev.iva}))}>
+          {(listas?.tiposDocFact||DEFAULT_LISTAS.tiposDocFact).map(o=><option key={o}>{o}</option>)}
+        </FSl>
+      </FG>
       <FG label="Correlativo Interno"><FI value={f.correlativo||""} onChange={e=>u("correlativo",e.target.value)} placeholder="OC-2025-001"/></FG>
       <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosFact||DEFAULT_LISTAS.estadosFact).map(o=><option key={o}>{o}</option>)}</FSl></FG>
-      <FG label="Tipo Entidad"><FSl value={f.tipo||"cliente"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposEntidadFact||DEFAULT_LISTAS.tiposEntidadFact).map(o=><option key={o} value={o==="Auspiciador"?"auspiciador":"cliente"}>{o}</option>)}</FSl></FG>
     </R3>
+    <R2>
+      <FG label="Tipo Entidad"><FSl value={f.tipo||"cliente"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposEntidadFact||DEFAULT_LISTAS.tiposEntidadFact).map(o=><option key={o} value={o==="Auspiciador"?"auspiciador":"cliente"}>{o}</option>)}</FSl></FG>
+      <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
+    </R2>
     <FG label={f.tipo==="auspiciador"?"Auspiciador (Principal o Secundario) *":"Cliente *"}>
       <FSl value={f.entidadId||""} onChange={e=>u("entidadId",e.target.value)}>
         <option value="">— Seleccionar —</option>
@@ -4174,7 +4241,6 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       </FSl>
     </FG>
     <R2>
-    <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
       <FG label="Proyecto / Producción / Campaña">
         <FSl value={f.proId||""} onChange={e=>u("proId",e.target.value)}>
           <option value="">— Seleccionar —</option>
@@ -4192,7 +4258,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     </FG>}
     <R3>
       <FG label="Monto Neto *"><FI type="number" value={f.montoNeto||""} onChange={e=>u("montoNeto",e.target.value)} placeholder="0" min="0"/></FG>
-      <FG label="IVA 19%"><FSl value={f.iva?"true":"false"} onChange={e=>u("iva",e.target.value==="true")}><option value="true">Incluir IVA</option><option value="false">Sin IVA</option></FSl></FG>
+      <FG label={f.tipoDoc==="Invoice"?"Impuesto":"IVA 19%"}><FSl value={f.iva?"true":"false"} onChange={e=>u("iva",e.target.value==="true")} disabled={f.tipoDoc==="Invoice"}><option value="true">Incluir IVA</option><option value="false">{f.tipoDoc==="Invoice"?"No tributario":"Sin IVA"}</option></FSl></FG>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"9px 12px"}}>
         <div style={{fontSize:10,color:"var(--gr2)",marginBottom:4,fontWeight:600}}>TOTAL</div>
         <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</div>
@@ -4203,13 +4269,13 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={e=>u("fechaVencimiento",e.target.value)}/></FG>
     </R2>
     {f.estado==="Pagada" && <FG label="Fecha de Pago"><FI type="date" value={f.fechaPago||""} onChange={e=>u("fechaPago",e.target.value)} /></FG>}
-    <FG label="Datos de Pago / Instrucciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Banco: BancoEstado&#10;Cuenta Corriente: 123456789&#10;RUT: 78.118.348-2&#10;Email: pagos@empresa.cl"/></FG>
+    <FG label="Datos de Pago / Información Bancaria"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Banco: BancoEstado&#10;Cuenta Corriente: 123456789&#10;RUT: 78.118.348-2&#10;Email: pagos@empresa.cl"/></FG>
     <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,fechaPago:f.estado==="Pagada"?(f.fechaPago||today()):"",ivaVal:ivaV,total});}}/>
   </Modal>;
 }
 
-function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas}){
+function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,saveFacturaDoc}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
@@ -4232,7 +4298,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar factura o entidad..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Pendiente","Emitida","Pagada","Vencida","Anulada"]} placeholder="Todo estados"/>
-      {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{})}>+ Nueva Orden</Btn>}
+      {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{})}>+ Nuevo Documento</Btn>}
     </div>
     {/* Nota importante */}
     <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
@@ -4240,7 +4306,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
     </div>
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Correlativo</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
+        <thead><tr><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
             const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
@@ -4250,7 +4316,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
             const pres=(presupuestos||[]).find(x=>x.id===f.presupuestoId);
             const ct=(contratos||[]).find(x=>x.id===f.contratoId);
             return<tr key={f.id}>
-              <TD bold>{f.correlativo||"—"}</TD>
+              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipoDoc||"Orden de Factura"}</div></TD>
               <TD><div>{ent?.nom||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div></TD>
               <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
               <TD><Badge label={f.estado||"Pendiente"}/></TD>
@@ -4264,13 +4330,13 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
               </TD>
               <TD><div style={{display:"flex",gap:4}}>
                 {_cd&&_cd("facturacion")&&<><GBtn sm onClick={()=>openM("fact",f)}>✏</GBtn><XBtn onClick={()=>cDel(facturas,setFacturas,f.id,null,"Eliminada")}/></>}
-                {_cd&&_cd("facturacion")&&f.estado!=="Pagada"&&<GBtn sm onClick={()=>cSave(facturas,setFacturas,{...f,estado:"Pagada",fechaPago:today()})}>✓</GBtn>}
-                <GBtn sm onClick={()=>{
+                {_cd&&_cd("facturacion")&&f.estado!=="Pagada"&&<GBtn sm onClick={()=>saveFacturaDoc({...f,estado:"Pagada",fechaPago:today()})}>✓</GBtn>}
+                <GBtn sm onClick={async()=>{
                   const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
                   const ref=f.tipoRef==="produccion"
                     ? (producciones||[]).find(x=>x.id===f.proId)
                     : (f.tipoRef==="contenido" ? (piezas||[]).find(x=>x.id===f.proId) : (programas||[]).find(x=>x.id===f.proId));
-                  generarPDFFactura(f,ent,ref,empresa);
+                  await generarPDFFactura(f,ent,ref,empresa);
                 }}>⬇ PDF</GBtn>
               </div></TD>
             </tr>;

@@ -1459,8 +1459,30 @@ function SolicitudesPanel({onAceptar, onRechazar, empresas}){
 }
 
 const THEME_PRESETS={
-  dark:{mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a"},
-  light:{mode:"light",bg:"#eef2f7",surface:"#ffffff",card:"#ffffff",border:"#d7dee8",accent:"#00b4cc",accent2:"#0097ad",white:"#0f172a",gray:"#475569"},
+  clasico:{
+    label:"Produ Clásico",
+    description:"La identidad original de Produ, limpia y reconocible.",
+    dark:{mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a"},
+    light:{mode:"light",bg:"#eef2f7",surface:"#ffffff",card:"#ffffff",border:"#d7dee8",accent:"#00b4cc",accent2:"#0097ad",white:"#0f172a",gray:"#475569"},
+  },
+  editorial:{
+    label:"Editorial",
+    description:"Más contraste y tono de sala de edición.",
+    dark:{mode:"dark",bg:"#0a0a0e",surface:"#101119",card:"#171924",border:"#252838",accent:"#4ade80",accent2:"#16a34a",white:"#f5f7fb",gray:"#94a3b8"},
+    light:{mode:"light",bg:"#f4f6f8",surface:"#ffffff",card:"#ffffff",border:"#d8dee8",accent:"#15803d",accent2:"#166534",white:"#111827",gray:"#526072"},
+  },
+  corporativo:{
+    label:"Corporativo",
+    description:"Más sobrio y ejecutivo para clientes e instancias formales.",
+    dark:{mode:"dark",bg:"#081018",surface:"#0d1722",card:"#13202f",border:"#213348",accent:"#38bdf8",accent2:"#0284c7",white:"#f3f7fb",gray:"#8ca0b7"},
+    light:{mode:"light",bg:"#eef4f8",surface:"#ffffff",card:"#ffffff",border:"#d3dfe8",accent:"#0369a1",accent2:"#075985",white:"#0f172a",gray:"#4b5563"},
+  },
+  minimal:{
+    label:"Minimal",
+    description:"Más neutral, ordenado y con menor ruido visual.",
+    dark:{mode:"dark",bg:"#0b0b0c",surface:"#121214",card:"#19191c",border:"#2a2a2f",accent:"#e5e7eb",accent2:"#9ca3af",white:"#fafafa",gray:"#9ca3af"},
+    light:{mode:"light",bg:"#f7f7f8",surface:"#ffffff",card:"#ffffff",border:"#dddddf",accent:"#374151",accent2:"#111827",white:"#111111",gray:"#5b6472"},
+  },
 };
 
 function SuperAdminPanel({empresas,users,onSave}){
@@ -1816,7 +1838,6 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
   useEffect(()=>setLt(theme||{}),[theme]);
-  const FIELDS=[["bg","Fondo principal"],["surface","Superficies"],["card","Tarjetas"],["border","Bordes"],["accent","Acento"],["accent2","Acento secundario"],["white","Texto"],["gray","Texto secundario"]];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
   const filteredUsers=empUsers.filter(u=>(!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase()))&&(!uRole||u.role===uRole)&&(!uState||(uState==="active"?u.active:u.active===false)));
@@ -1848,35 +1869,38 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     </div>
     <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
-      <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Define el tono visual de tu instancia. Se aplica para todos los usuarios de esta empresa manteniendo la identidad de Produ.</div>
+      <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Selecciona un preset visual curado para tu instancia. Conserva la identidad de Produ y evita combinaciones de color poco legibles.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         {Object.entries(THEME_PRESETS).map(([key,preset])=>{
-          const active=(lt.mode||"dark")===preset.mode;
-          return <button key={key} onClick={(e)=>{e.stopPropagation();setLt({...preset,accent:lt.accent||empresa?.color||preset.accent,accent2:lt.accent2||preset.accent2});}} style={{textAlign:"left",padding:"14px 16px",borderRadius:10,border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,background:"var(--sur)",cursor:"pointer"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,color:"var(--wh)"}}>{preset.mode==="dark"?"Produ Dark":"Produ Light"}</div>
+          const swatch=preset[lt.mode||"dark"]||preset.dark;
+          const active=(lt.preset||"clasico")===key;
+          return <button key={key} onClick={(e)=>{e.stopPropagation();setLt({...swatch,preset:key,mode:lt.mode||"dark"});}} style={{textAlign:"left",padding:"14px 16px",borderRadius:12,border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,background:active?"linear-gradient(180deg,var(--cg),transparent)":"var(--sur)",cursor:"pointer"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,color:"var(--wh)"}}>{preset.label}</div>
               {active&&<Badge label="Activo" color="cyan" sm/>}
             </div>
+            <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10,lineHeight:1.4}}>{preset.description}</div>
             <div style={{display:"flex",gap:8}}>
-              {[preset.bg,preset.surface,preset.card,preset.accent].map(c=><span key={c} style={{width:24,height:24,borderRadius:8,background:c,border:"1px solid var(--bdr2)"}}/>)}
+              {[swatch.bg,swatch.surface,swatch.card,swatch.accent].map(c=><span key={c} style={{width:24,height:24,borderRadius:8,background:c,border:"1px solid var(--bdr2)"}}/>)}
             </div>
           </button>;
         })}
       </div>
-      <R2>
-        <FG label="Modo"><FSl value={lt.mode||"dark"} onChange={e=>setLt(p=>({...THEME_PRESETS[e.target.value],accent:p.accent||empresa?.color||THEME_PRESETS[e.target.value].accent,accent2:p.accent2||THEME_PRESETS[e.target.value].accent2}))}><option value="dark">Dark</option><option value="light">Light</option></FSl></FG>
-        <FG label="Color de marca"><FI type="color" value={lt.accent||empresa?.color||THEME_PRESETS[lt.mode||"dark"].accent} onChange={e=>setLt(p=>({...p,accent:e.target.value}))}/></FG>
-      </R2>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-        {FIELDS.map(([k,lbl])=><div key={k} style={{display:"flex",alignItems:"center",gap:10,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"8px 12px"}}>
-          <input type="color" value={lt[k]||"#000"} onChange={e=>setLt(p=>({...p,[k]:e.target.value}))} style={{width:36,height:36,borderRadius:6,border:"none",background:"none",cursor:"pointer",flexShrink:0}}/>
-          <div><div style={{fontSize:11,fontWeight:600}}>{lbl}</div><div style={{fontSize:10,color:"var(--gr2)",fontFamily:"var(--fm)"}}>{lt[k]}</div></div>
-        </div>)}
-      </div>
+      <FG label="Modo visual">
+        <FSl value={lt.mode||"dark"} onChange={e=>{
+          const mode=e.target.value;
+          const presetKey=lt.preset||"clasico";
+          const preset=THEME_PRESETS[presetKey]||THEME_PRESETS.clasico;
+          setLt({...preset[mode],preset:presetKey,mode});
+        }}>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </FSl>
+      </FG>
+      <div style={{fontSize:11,color:"var(--gr2)",marginBottom:14}}>Los presets son fijos para mantener consistencia visual. Si más adelante quieres, podemos sumar nuevos estilos sin reabrir el selector libre de colores.</div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aplicar</button>
-        <button onClick={(e)=>{e.stopPropagation();const dt={...THEME_PRESETS.dark,accent:empresa?.color||THEME_PRESETS.dark.accent};setLt(dt);onSaveTheme(dt);ntf("Tema oscuro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>🌙 Oscuro</button>
-        <button onClick={(e)=>{e.stopPropagation();const lt2={...THEME_PRESETS.light,accent:empresa?.color||THEME_PRESETS.light.accent};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
+        <button onClick={(e)=>{e.stopPropagation();const dt={...THEME_PRESETS.clasico.dark,preset:"clasico",mode:"dark"};setLt(dt);onSaveTheme(dt);ntf("Produ Clásico Dark");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>Reset clásico</button>
       </div>
     </div>}
     {tab===1&&<div>
@@ -2068,12 +2092,14 @@ export default function App(){
     if(changed) setPiezas(normalized);
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
 
-  const DEFAULT_T=THEME_PRESETS.dark;
+  const DEFAULT_T={...THEME_PRESETS.clasico.dark,preset:"clasico"};
   const [theme,setThemeState]=useState(DEFAULT_T);
   const resolveTheme=(rawTheme,emp)=>{
-    const base=THEME_PRESETS[rawTheme?.mode||"dark"]||DEFAULT_T;
-    const accent=rawTheme?.accent||emp?.color||base.accent;
-    return {...base,...rawTheme,accent,accent2:rawTheme?.accent2||base.accent2};
+    const presetKey=rawTheme?.preset||"clasico";
+    const mode=rawTheme?.mode||"dark";
+    const preset=THEME_PRESETS[presetKey]||THEME_PRESETS.clasico;
+    const base=preset[mode]||preset.dark;
+    return {...base,...rawTheme,preset:presetKey,mode};
   };
   const applyTheme=t=>{
     const merged=resolveTheme(t,curEmp);
@@ -2099,7 +2125,7 @@ export default function App(){
   useEffect(()=>{
     if(curEmp?.id){
       const freshEmp=(empresas||[]).find(e=>e.id===curEmp.id)||curEmp;
-      applyTheme(freshEmp?.theme||{accent:freshEmp?.color||DEFAULT_T.accent,mode:"dark"});
+      applyTheme(freshEmp?.theme||DEFAULT_T);
       if(freshEmp!==curEmp) setCurEmp(freshEmp);
       return;
     }

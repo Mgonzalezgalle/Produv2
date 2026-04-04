@@ -172,13 +172,13 @@ const SEED_DATA = (empId) => ({
     ]},
   ]:[],
   episodios: empId==="emp1"?[
-    {id:"ep1",empId,pgId:"pg1",num:1,titulo:"Los nuevos emprendedores",  estado:"Publicado",  fechaGrab:"2025-01-10",fechaEmision:"2025-01-15",invitado:"Pedro Vargas",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[]},
-    {id:"ep2",empId,pgId:"pg1",num:2,titulo:"Financiamiento pymes",       estado:"Publicado",  fechaGrab:"2025-01-17",fechaEmision:"2025-01-22",invitado:"Laura Méndez",  locacion:"Estudio A",duracion:"42",notas:"",crewIds:[]},
-    {id:"ep3",empId,pgId:"pg1",num:3,titulo:"Marketing digital",          estado:"Grabado",    fechaGrab:"2025-01-24",fechaEmision:"2025-01-29",invitado:"Andrés Solís",   locacion:"Estudio B",duracion:"38",notas:"Pendiente color.",crewIds:[]},
-    {id:"ep4",empId,pgId:"pg1",num:4,titulo:"E-commerce LATAM",           estado:"En Edición", fechaGrab:"2025-01-31",fechaEmision:"2025-02-05",invitado:"Carmen Torres",  locacion:"Estudio A",duracion:"50",notas:"",crewIds:[]},
-    {id:"ep5",empId,pgId:"pg1",num:5,titulo:"Startups sociales",          estado:"Planificado", fechaGrab:"2025-02-07",fechaEmision:"2025-02-12",invitado:"Por confirmar",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[]},
-    {id:"ep6",empId,pgId:"pg2",num:1,titulo:"¿Qué es ciudadanía?",        estado:"Publicado",  fechaGrab:"2025-02-03",fechaEmision:"2025-02-07",invitado:"Prof. I. Matta", locacion:"Estudio P",duracion:"62",notas:"",crewIds:[]},
-    {id:"ep7",empId,pgId:"pg2",num:2,titulo:"Humanidades s.XXI",          estado:"Planificado", fechaGrab:"2025-02-17",fechaEmision:"2025-02-21",invitado:"Por confirmar",  locacion:"Estudio P",duracion:"60",notas:"",crewIds:[]},
+    {id:"ep1",empId,pgId:"pg1",num:1,titulo:"Los nuevos emprendedores",  estado:"Publicado",  fechaGrab:"2025-01-10",fechaEmision:"2025-01-15",invitado:"Pedro Vargas",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[],comentarios:[]},
+    {id:"ep2",empId,pgId:"pg1",num:2,titulo:"Financiamiento pymes",       estado:"Publicado",  fechaGrab:"2025-01-17",fechaEmision:"2025-01-22",invitado:"Laura Méndez",  locacion:"Estudio A",duracion:"42",notas:"",crewIds:[],comentarios:[]},
+    {id:"ep3",empId,pgId:"pg1",num:3,titulo:"Marketing digital",          estado:"Grabado",    fechaGrab:"2025-01-24",fechaEmision:"2025-01-29",invitado:"Andrés Solís",   locacion:"Estudio B",duracion:"38",notas:"Pendiente color.",crewIds:[],comentarios:[]},
+    {id:"ep4",empId,pgId:"pg1",num:4,titulo:"E-commerce LATAM",           estado:"En Edición", fechaGrab:"2025-01-31",fechaEmision:"2025-02-05",invitado:"Carmen Torres",  locacion:"Estudio A",duracion:"50",notas:"",crewIds:[],comentarios:[]},
+    {id:"ep5",empId,pgId:"pg1",num:5,titulo:"Startups sociales",          estado:"Planificado", fechaGrab:"2025-02-07",fechaEmision:"2025-02-12",invitado:"Por confirmar",  locacion:"Estudio A",duracion:"45",notas:"",crewIds:[],comentarios:[]},
+    {id:"ep6",empId,pgId:"pg2",num:1,titulo:"¿Qué es ciudadanía?",        estado:"Publicado",  fechaGrab:"2025-02-03",fechaEmision:"2025-02-07",invitado:"Prof. I. Matta", locacion:"Estudio P",duracion:"62",notas:"",crewIds:[],comentarios:[]},
+    {id:"ep7",empId,pgId:"pg2",num:2,titulo:"Humanidades s.XXI",          estado:"Planificado", fechaGrab:"2025-02-17",fechaEmision:"2025-02-21",invitado:"Por confirmar",  locacion:"Estudio P",duracion:"60",notas:"",crewIds:[],comentarios:[]},
   ]:[],
   auspiciadores: empId==="emp1"?[
     {id:"a1",empId,nom:"Banco Estado",tip:"Auspiciador Principal",  con:"Pablo Muñoz",  ema:"pmunoz@bce.cl",   tel:"",pids:["pg1"],       mon:"2500000",vig:"2025-12-31",est:"Activo",frecPago:"Mensual",   not:"Logo + menciones"},
@@ -2051,7 +2051,7 @@ function MPiezaContenido({open,data,onClose,onSave}){
 
 function MEp({open,data,programas,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Episodio":"Nuevo Episodio"} sub="Planificación de episodio" wide>
     <R3><FG label="Producción"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
@@ -2689,8 +2689,9 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
       <Stat label="Emisión"    value={ep.fechaEmision?fmtD(ep.fechaEmision):"—"} accent="#00e08a"/>
       <Stat label="Duración"   value={ep.duracion?ep.duracion+" min":"—"}/>
     </div>
-    <Tabs tabs={["Información","Gastos","Crew"]} active={tab} onChange={setTab}/>
-    {tab===0&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    <Tabs tabs={["Comentarios","Información","Gastos","Crew"]} active={tab} onChange={setTab}/>
+    {tab===0&&<ComentariosBlock items={ep.comentarios||[]} onSave={async comentarios=>{const next=(episodios||[]).map(x=>x.id===id?{...x,comentarios}:x);await setEpisodios(next);}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Episodio"/>}
+    {tab===1&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Episodio">
         {[["Número","#"+String(ep.num).padStart(2,"0")],["Invitado / Tema",ep.invitado||"—"],["Locación",ep.locacion||"—"],["Descripción",ep.descripcion||"—"],["Notas",ep.notas||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
@@ -2701,8 +2702,8 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
         </>}
       </Card>
     </div>}
-    {tab===1&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="ep" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===2&&<CrewTab crew={crew||[]} empId={empId} asignados={ep.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")}/>}
+    {tab===2&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="ep" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={ep.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 

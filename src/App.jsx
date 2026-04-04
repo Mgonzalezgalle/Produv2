@@ -1470,12 +1470,37 @@ function SystemMessagesPanel({ empresa, mensajes=[], leidas=[], onMarcar, onMarc
 const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
 const PRIO_COLORS = { Alta:"#ff5566", Media:"#fbbf24", Baja:"#60a5fa" };
 const PRIO_BG    = { Alta:"#ff556618", Media:"#fbbf2418", Baja:"#60a5fa18" };
+const getAssignedIds = item => {
+  const ids = Array.isArray(item?.assignedIds)
+    ? item.assignedIds.filter(Boolean)
+    : item?.asignadoA
+      ? [item.asignadoA]
+      : [];
+  return [...new Set(ids)];
+};
+const normalizeTaskAssignees = task => {
+  const assignedIds = getAssignedIds(task);
+  return { ...task, assignedIds, asignadoA: task?.asignadoA || assignedIds[0] || "" };
+};
+const assignedNameList = (item, crew = [], user = null) => {
+  const crewMap = Object.fromEntries((crew||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
+  return getAssignedIds(item).map(id => {
+    if (crewMap[id]?.nom) return crewMap[id].nom;
+    if (user?.id===id) return user?.name || "Usuario";
+    return "";
+  }).filter(Boolean);
+};
 
 function MTarea({ open, data, producciones, programas, piezas, crew, listas, onClose, onSave }) {
-  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"" };
+  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[] };
   const [f, setF] = useState({});
-  useEffect(() => { setF(data?.id ? { ...data } : { ...empty }); }, [data, open]);
+  useEffect(() => { setF(data?.id ? normalizeTaskAssignees({ ...data }) : { ...empty }); }, [data, open]);
   const u = (k,v) => setF(p => ({ ...p, [k]: v }));
+  const toggleAssigned = id => setF(prev => {
+    const current = getAssignedIds(prev);
+    const nextIds = current.includes(id) ? current.filter(x => x!==id) : [...current, id];
+    return { ...prev, assignedIds: nextIds, asignadoA: nextIds[0] || "" };
+  });
   return (
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar Tarea" : "Nueva Tarea"}>
       <FG label="Título *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Descripción breve de la tarea"/></FG>
@@ -1490,11 +1515,27 @@ function MTarea({ open, data, producciones, programas, piezas, crew, listas, onC
       </R2>
       <R2>
         <FG label="Fecha límite"><FI type="date" value={f.fechaLimite||""} onChange={e=>u("fechaLimite",e.target.value)}/></FG>
-        <FG label="Asignar a"><FSl value={f.asignadoA||""} onChange={e=>u("asignadoA",e.target.value)}>
+        <FG label="Responsable principal"><FSl value={f.asignadoA||""} onChange={e=>{
+          const value = e.target.value;
+          const rest = getAssignedIds(f).filter(id=>id!==value);
+          u("asignadoA", value);
+          u("assignedIds", value ? [value, ...rest] : rest);
+        }}>
           <option value="">— Sin asignar —</option>
           {(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}
         </FSl></FG>
       </R2>
+      {!!crew?.length&&<FG label="Asignar a más usuarios">
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {(crew||[]).map(member=>{
+            const active = getAssignedIds(f).includes(member.id);
+            return <button key={member.id} type="button" onClick={()=>toggleAssigned(member.id)} style={{padding:"8px 10px",borderRadius:999,border:`1px solid ${active?"var(--cy)":"var(--bdr)"}`,background:active?"color-mix(in srgb, var(--cy) 14%, transparent)":"var(--sur)",color:active?"var(--cy)":"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              {active?"✓ ":""}{member.nom}
+            </button>;
+          })}
+        </div>
+        <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>Puedes asignar la tarea a varios usuarios. El responsable principal será el primero de la lista.</div>
+      </FG>}
       <R2>
         <FG label="Asociar a"><FSl value={f.refTipo||""} onChange={e=>{u("refTipo",e.target.value);u("refId","");}}>
           <option value="">— Sin asociar —</option>
@@ -1520,7 +1561,7 @@ function MTarea({ open, data, producciones, programas, piezas, crew, listas, onC
           {(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}
         </FSl></FG>}
       </R2>
-      <MFoot onClose={onClose} onSave={()=>{ if(!f.titulo) return; onSave(f); }}/>
+      <MFoot onClose={onClose} onSave={()=>{ if(!f.titulo) return; onSave(normalizeTaskAssignees(f)); }}/>
     </Modal>
   );
 }
@@ -1535,7 +1576,7 @@ function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDel
         : tarea.refTipo==="crew"
           ? (crew||[]).find(x=>x.id===tarea.refId)
           : null;
-  const asig = (crew||[]).find(x=>x.id===tarea.asignadoA);
+  const asigs = getAssignedIds(tarea).map(id => (crew||[]).find(x=>x.id===id)).filter(Boolean);
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
   const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
   const refLabel = ref?.nom || ref?.name || ref?.titulo || "Referencia";
@@ -1568,10 +1609,12 @@ function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDel
       </div>}
       {/* Footer */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
-        {asig
+        {asigs.length
           ? <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <div style={{width:22,height:22,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{asig.nom?.charAt(0)||"?"}</div>
-              <span style={{fontSize:11,color:"var(--gr2)"}}>{asig.nom||"Crew"}</span>
+              <div style={{display:"flex",alignItems:"center"}}>
+                {asigs.slice(0,3).map((asig,idx)=><div key={asig.id} style={{width:22,height:22,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--bg)",flexShrink:0,marginLeft:idx? -6:0,border:"2px solid var(--card)"}}>{asig.nom?.charAt(0)||"?"}</div>)}
+              </div>
+              <span style={{fontSize:11,color:"var(--gr2)"}}>{asigs.map(x=>x.nom).join(", ")}</span>
             </div>
           : <span style={{fontSize:11,color:"var(--gr)",fontStyle:"italic"}}>Sin asignar</span>
         }
@@ -1598,21 +1641,23 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
   const [txt,setTxt]=useState("");
   const [editingId,setEditingId]=useState(null);
   const [pasarATarea,setPasarATarea]=useState(false);
-  const [asignadoA,setAsignadoA]=useState("");
+  const [assignedIds,setAssignedIds]=useState([]);
   const [photos,setPhotos]=useState([]);
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
-  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAsignadoA("");setPhotos([]);};
+  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAssignedIds([]);setPhotos([]);};
   const loadPhotos=async files=>{
     const nextPhotos = await Promise.all(Array.from(files||[]).slice(0,4).map(commentPhotoFromFile));
     setPhotos(prev=>[...prev,...nextPhotos.filter(Boolean)].slice(0,4));
   };
+  const toggleAssigned = id => setAssignedIds(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
     const prevItem=editingId?items.find(it=>it.id===editingId):null;
+    const normalizedAssigned = [...new Set(assignedIds.filter(Boolean))];
     const commentItem=editingId
-      ? {...prevItem,text:val,pasarATarea,asignadoA,photos:[...photos],upd:today()}
-      : {id:uid(),text:val,pasarATarea,asignadoA,photos:[...photos],cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
+      ? {...prevItem,text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",photos:[...photos],upd:today()}
+      : {id:uid(),text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",photos:[...photos],cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
     const next=editingId
       ? items.map(it=>it.id===editingId?commentItem:it)
       : [commentItem,...items];
@@ -1620,7 +1665,7 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
     if(pasarATarea && onCreateTask && !prevItem?.pasarATarea) await onCreateTask(commentItem);
     resetForm();
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAsignadoA(it.asignadoA||"");setPhotos(Array.isArray(it.photos)?it.photos:[]);};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setPhotos(Array.isArray(it.photos)?it.photos:[]);};
   const delItem=async id=>{
     if(!confirm("¿Eliminar comentario?")) return;
     await onSave(items.filter(it=>it.id!==id));
@@ -1635,10 +1680,14 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
       <div style={{marginTop:10}}>
         <FG label="Asignar comentario a">
-          <FSl value={asignadoA} onChange={e=>setAsignadoA(e.target.value)}>
-            <option value="">— Sin asignar —</option>
-            {(crewOptions||[]).map(member=><option key={member.id} value={member.id}>{member.nom} · {member.rol||"Crew"}</option>)}
-          </FSl>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {(crewOptions||[]).map(member=>{
+              const active = assignedIds.includes(member.id);
+              return <button key={member.id} type="button" onClick={()=>toggleAssigned(member.id)} style={{padding:"8px 10px",borderRadius:999,border:`1px solid ${active?"var(--cy)":"var(--bdr)"}`,background:active?"color-mix(in srgb, var(--cy) 14%, transparent)":"var(--sur)",color:active?"var(--cy)":"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                {active?"✓ ":""}{member.nom}
+              </button>;
+            })}
+          </div>
         </FG>
       </div>
       <div style={{marginTop:10}}>
@@ -1676,8 +1725,8 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
               <img src={photo.src} alt={photo.name||"Foto comentario"} style={{display:"block",width:"100%",height:110,objectFit:"cover"}}/>
             </a>)}
           </div>}
-          {it.asignadoA&&crewMap[it.asignadoA]&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>
-            Asignado a: {crewMap[it.asignadoA].nom}
+          {!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>
+            Asignado a: {getAssignedIds(it).map(id=>crewMap[id]?.nom).filter(Boolean).join(", ")}
           </div>}
         </div>
         {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
@@ -1721,10 +1770,11 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
   const [dropCol, setDropCol] = useState("");
   const dragIdRef = useRef(null);
   const safeTareas = Array.isArray(tareas) ? tareas.filter(t => t && typeof t==="object") : [];
+  const normalizedTareas = safeTareas.map(normalizeTaskAssignees);
 
-  const misTareas = safeTareas.filter(t => t.empId===empId);
+  const misTareas = normalizedTareas.filter(t => t.empId===empId);
   const tareasVis = filtro==="mis"
-    ? misTareas.filter(t => t.asignadoA===user?.id || !t.asignadoA)
+    ? misTareas.filter(t => getAssignedIds(t).includes(user?.id) || !getAssignedIds(t).length)
     : misTareas;
   const tareasFilt = filtroRef
     ? tareasVis.filter(t => `${t.refTipo||""}:${t.refId||""}`===filtroRef)
@@ -1733,7 +1783,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
   const porColumna = col => tareasFilt.filter(t => (t.estado||"Pendiente")===col);
 
   const changeEstado = async (id, nuevoEstado) => {
-    const next = safeTareas.map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
+    const next = normalizedTareas.map(t => t.id===id ? {...t, estado:nuevoEstado} : t);
     await setTareas(next);
   };
 
@@ -1748,7 +1798,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
 
   const deleteTarea = (id) => {
     if(!confirm("¿Eliminar tarea?")) return;
-    setTareas(safeTareas.filter(t => t.id!==id));
+    setTareas(normalizedTareas.filter(t => t.id!==id));
   };
 
   const colColors = { Pendiente:"var(--bdr2)", "En Progreso":"#60a5fa", "En Revisión":"#fbbf24", Completada:"#4ade80" };
@@ -3209,7 +3259,7 @@ export default function App(){
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length:0};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&t.estado!=="Completada").length:0};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -3833,7 +3883,7 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
@@ -4042,7 +4092,7 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
@@ -4146,7 +4196,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===3?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
         <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Publicadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#00e08a"}}>{piezasPub}</div></div>
@@ -4626,8 +4676,9 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
             : t.refTipo==="crew"
               ? (crew||[]).find(x=>x.id===t.refId)?.nom
               : "";
-      const assigned = crewMap[t.asignadoA]?.nom || (t.asignadoA===user?.id ? user?.name : "");
-      todosEvs.push({id:`task_${t.id}`,fecha:t.fechaLimite,dia:d.getDate(),tipo:"tarea",label:`✅ ${t.titulo}`,sub:refLabel||"Sin vínculo",color:"#7c5cff",hora:"",task:true,sourceId:t.id,modulo:"task",estado:t.estado||"Pendiente",responsableId:t.asignadoA||"",responsable:assigned,desc:t.desc||""});
+      const assignedNames = assignedNameList(t, crew, user);
+      const primaryAssigned = getAssignedIds(t)[0] || "";
+      todosEvs.push({id:`task_${t.id}`,fecha:t.fechaLimite,dia:d.getDate(),tipo:"tarea",label:`✅ ${t.titulo}`,sub:refLabel||"Sin vínculo",color:"#7c5cff",hora:"",task:true,sourceId:t.id,modulo:"task",estado:t.estado||"Pendiente",responsableId:primaryAssigned,responsable:assignedNames.join(", "),desc:t.desc||""});
     }
   });
   const facturasEmp=(facturas||[]).filter(f=>f.empId===empId);

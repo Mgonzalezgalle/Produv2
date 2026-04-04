@@ -262,6 +262,7 @@ const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   ini: piece.ini || campaign.ini || "",
   fin: piece.fin || "",
   des: piece.des || piece.descripcion || "",
+  link: piece.link || piece.url || "",
   comentarios: Array.isArray(piece.comentarios) ? piece.comentarios : [],
 });
 
@@ -3243,12 +3244,13 @@ function MCampanaContenido({open,data,clientes,listas,onClose,onSave}){
 
 function MPiezaContenido({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):{id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",comentarios:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):{id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",link:"",comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{(listas?.estadosPieza||DEFAULT_LISTAS.estadosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{(listas?.formatosPieza||DEFAULT_LISTAS.formatosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega / Publicación"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
+    <FG label="Enlace de la pieza"><FI value={f.link||""} onChange={e=>u("link",e.target.value)} placeholder="https://drive.google.com/..."/></FG>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, CTA, notas..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
@@ -3906,7 +3908,7 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
       </div>
       <Card>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH></TH></tr></thead>
+          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
             {piezasCamp.map(pc=><tr key={pc.id}>
               <TD bold>{pc.nom}</TD>
@@ -3915,11 +3917,16 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
               <TD><Badge label={pc.est||"Planificado"}/></TD>
               <TD mono style={{fontSize:11}}>{pc.ini?fmtD(pc.ini):"—"}</TD>
               <TD mono style={{fontSize:11}}>{pc.fin?fmtD(pc.fin):"—"}</TD>
+              <TD style={{fontSize:11}}>
+                {pc.link
+                  ? <a href={pc.link} target="_blank" rel="noreferrer" style={{color:"var(--cy)",fontWeight:700,textDecoration:"none"}}>Pieza ↗</a>
+                  : <span style={{color:"var(--gr2)"}}>—</span>}
+              </TD>
               <TD><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
                 {_cd&&_cd("contenidos")&&<><GBtn sm onClick={()=>openM("pieza",{...pc,campId:id})}>✏</GBtn><XBtn onClick={()=>deletePiece(pc.id)}/></>}
               </div></TD>
             </tr>)}
-            {!piezasCamp.length&&<tr><td colSpan={7}><Empty text="Sin piezas" sub="Crea la primera para esta campaña"/></td></tr>}
+            {!piezasCamp.length&&<tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera para esta campaña"/></td></tr>}
           </tbody>
         </table></div>
       </Card>

@@ -144,6 +144,51 @@ function cobranzaState(doc = {}) {
   return "Pendiente de pago";
 }
 
+function billingContact(entity = {}, type = "cliente") {
+  if (type === "auspiciador") {
+    return {
+      nombre: entity?.con || entity?.nom || "",
+      email: entity?.ema || "",
+      tel: entity?.tel || "",
+      entidad: entity?.nom || "",
+    };
+  }
+  const primary = Array.isArray(entity?.contactos) ? entity.contactos[0] : null;
+  return {
+    nombre: primary?.nom || entity?.nom || "",
+    email: primary?.ema || "",
+    tel: primary?.tel || "",
+    entidad: entity?.nom || "",
+  };
+}
+
+function openMailto(to = "", subject = "", body = "") {
+  window.open(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
+}
+
+function openWhatsApp(tel = "", body = "") {
+  const num = String(tel || "").replace(/[^0-9]/g, "");
+  if (!num) return;
+  const waNum = num.startsWith("56") ? num : `56${num}`;
+  window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(body)}`, "_blank");
+}
+
+function companyGoogleCalendarEnabled(empresa = {}) {
+  return !!empresa?.googleCalendarEnabled;
+}
+
+function userGoogleCalendar(user = {}) {
+  return {
+    connected: false,
+    email: "",
+    calendarId: "primary",
+    calendarName: "Calendario principal",
+    autoSync: false,
+    lastSyncAt: "",
+    ...user?.googleCalendar,
+  };
+}
+
 const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   id: piece.id || uid(),
   nom: piece.nom || piece.titulo || "Nueva pieza",
@@ -311,8 +356,8 @@ const DEFAULT_LISTAS = {
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     cr:today() },
-  { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", cr:today() },
+  { id:"emp1", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     googleCalendarEnabled:false, cr:today() },
+  { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", googleCalendarEnabled:false, cr:today() },
 ];
 const SEED_USERS = [
   { id:"u0", name:"Super Admin Produ", email:"super@produ.cl",      passwordHash:"4e4c56e4a15f89f05c2f4c72613da2a18c9665d4f0d6acce16415eb06f9be776", role:"superadmin", empId:null,   active:true },
@@ -467,10 +512,31 @@ body.light aside [style*="color:var(--gr3)"]{color:#e5edf7!important}
 body.light aside [style*="color:var(--wh)"]{color:#ffffff!important}
 body.light aside .active-nav{background:#ffffff18!important;color:#ffffff!important}
 body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+@media(max-width:1024px){
+  html{font-size:13px}
+  [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  [style*="repeat(6,1fr)"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  [style*="repeat(3,1fr)"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  [style*="1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important}
+  [style*="1fr 1fr"]{grid-template-columns:1fr!important}
+}
 @media(max-width:768px){
   aside{transform:translateX(-100%);transition:transform .25s ease!important;width:260px!important;z-index:300!important}
   aside.mob-open{transform:translateX(0)!important}
-  main{margin-left:0!important;width:100%!important}
+  main,.app-main{margin-left:0!important;width:100%!important}
+  .topbar{padding:0 14px!important;height:auto!important;min-height:60px;flex-wrap:wrap}
+  .app-page{padding:14px!important}
+  .app-breadcrumbs{min-width:0!important}
+  .app-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  [style*="repeat(4,1fr)"],[style*="repeat(6,1fr)"],[style*="repeat(3,1fr)"],[style*="1fr 1fr 1fr"],[style*="1fr 1fr"]{grid-template-columns:1fr!important}
+  [style*="width:260px"]{width:100%!important;max-width:100%!important}
+  [style*="min-width:190"]{min-width:0!important}
+  [style*="justify-content:space-between"][style*="width:260px"]{width:100%!important}
+  .login-shell,.company-shell{padding:16px!important}
+  .login-card,.company-card{width:100%!important;max-width:100%!important;padding:24px 18px!important}
+  .search-wrap{max-width:none!important;width:100%!important}
+  .toast-box{left:12px!important;right:12px!important;bottom:12px!important;max-width:none!important}
+  .pager{flex-direction:column;align-items:flex-start!important;gap:12px}
   .ham-btn{display:flex!important}
   .modal-wrap{align-items:flex-end!important;padding:0!important}
   .modal-box{border-radius:16px 16px 0 0!important;width:100%!important;max-width:100%!important;max-height:92vh!important}
@@ -520,7 +586,7 @@ function LoadingScreen({ title="Cargando datos...", sub="En los proximos segundo
 function Toast({msg,type,onDone}){
   useEffect(()=>{const t=setTimeout(onDone,2800);return()=>clearTimeout(t);},[]);
   const c={ok:"var(--cy)",err:"var(--red)",warn:"var(--yel)"}[type]||"var(--cy)";
-  return <div style={{position:"fixed",bottom:20,right:20,zIndex:9999,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 32px #0007",animation:"slideIn .2s ease",maxWidth:340,fontSize:13,color:"var(--wh)"}}><div style={{width:8,height:8,borderRadius:"50%",background:c,boxShadow:`0 0 8px ${c}`,flexShrink:0}}/>{msg}</div>;
+  return <div className="toast-box" style={{position:"fixed",bottom:20,right:20,zIndex:9999,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 32px #0007",animation:"slideIn .2s ease",maxWidth:340,fontSize:13,color:"var(--wh)"}}><div style={{width:8,height:8,borderRadius:"50%",background:c,boxShadow:`0 0 8px ${c}`,flexShrink:0}}/>{msg}</div>;
 }
 
 const BP={cyan:["var(--cg)","var(--cy)","var(--cm)"],green:["#00e08a18","#00e08a","#00e08a35"],red:["#ff556618","#ff5566","#ff556635"],yellow:["#ffcc4418","#ffcc44","#ffcc4435"],orange:["#ff884418","#ff8844","#ff884435"],purple:["#a855f718","#a855f7","#a855f735"],gray:["var(--bdr)","var(--gr2)","var(--bdr2)"]};
@@ -533,7 +599,7 @@ function Paginator({page,total,perPage,onChange}){
   const nums=[]; for(let i=1;i<=pages;i++){if(i===1||i===pages||Math.abs(i-page)<=1)nums.push(i);else if(Math.abs(i-page)===2)nums.push("…");}
   const dd=nums.filter((v,i,a)=>v!=="…"||a[i-1]!=="…");
   const bs=on=>({width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",border:`1px solid ${on?"var(--cy)":"var(--bdr2)"}`,background:on?"var(--cy)":"transparent",color:on?"var(--bg)":"var(--gr2)",fontFamily:"var(--fm)"});
-  return <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,paddingTop:14,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Mostrando <b style={{color:"var(--wh)"}}>{from}–{to}</b> de <b style={{color:"var(--wh)"}}>{total}</b></span><div style={{display:"flex",gap:4}}><button style={bs(false)} disabled={page<=1} onClick={()=>onChange(page-1)}>‹</button>{dd.map((v,i)=>v==="…"?<span key={i} style={{color:"var(--gr)",padding:"0 4px",fontSize:11,alignSelf:"center"}}>…</span>:<button key={v} style={bs(v===page)} onClick={()=>onChange(v)}>{v}</button>)}<button style={bs(false)} disabled={page>=pages} onClick={()=>onChange(page+1)}>›</button></div></div>;
+  return <div className="pager" style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:16,paddingTop:14,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Mostrando <b style={{color:"var(--wh)"}}>{from}–{to}</b> de <b style={{color:"var(--wh)"}}>{total}</b></span><div style={{display:"flex",gap:4,flexWrap:"wrap"}}><button style={bs(false)} disabled={page<=1} onClick={()=>onChange(page-1)}>‹</button>{dd.map((v,i)=>v==="…"?<span key={i} style={{color:"var(--gr)",padding:"0 4px",fontSize:11,alignSelf:"center"}}>…</span>:<button key={v} style={bs(v===page)} onClick={()=>onChange(v)}>{v}</button>)}<button style={bs(false)} disabled={page>=pages} onClick={()=>onChange(page+1)}>›</button></div></div>;
 }
 
 function Modal({open,onClose,title,sub,children,wide,extraWide}){
@@ -541,8 +607,8 @@ function Modal({open,onClose,title,sub,children,wide,extraWide}){
   useEffect(()=>{if(open){document.body.style.overflow="hidden";}else{document.body.style.overflow="";}return()=>{document.body.style.overflow="";};},[open]);
   if(!open) return null;
   const mob = window.innerWidth <= 768;
-  return <div onClick={e=>{if(e.target===e.currentTarget&&!mob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:mob?"flex-end":"center",justifyContent:"center",padding:mob?0:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:mob?"16px 16px 0 0":14,width:mob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:mob?"20px 16px":28,animation:mob?"slideIn .25s ease":"modalIn .2s ease"}}>
+  return <div className="modal-wrap" onClick={e=>{if(e.target===e.currentTarget&&!mob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:mob?"flex-end":"center",justifyContent:"center",padding:mob?0:20}}>
+    <div className="modal-box" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:mob?"16px 16px 0 0":14,width:mob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:mob?"20px 16px":28,animation:mob?"slideIn .25s ease":"modalIn .2s ease"}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
         <div><div style={{fontFamily:"var(--fh)",fontSize:mob?18:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:20,lineHeight:1}}>✕</button>
@@ -557,8 +623,8 @@ const FG=({label,children})=><div style={{marginBottom:14}}><label style={{displ
 const FI=p=><input style={FS} {...p}/>;
 const FSl=({children,...p})=><select style={{...FS,cursor:"pointer"}} {...p}>{children}</select>;
 const FTA=p=><textarea style={{...FS,resize:"vertical",minHeight:80}} {...p}/>;
-const R2=({children})=><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{children}</div>;
-const R3=({children})=><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{children}</div>;
+const R2=({children})=><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:12}}>{children}</div>;
+const R3=({children})=><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,180px),1fr))",gap:12}}>{children}</div>;
 const MFoot=({onClose,onSave,label="Guardar"})=><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:22,paddingTop:18,borderTop:"1px solid var(--bdr)"}}><button onClick={onClose} style={{padding:"8px 16px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>Cancelar</button><button onClick={onSave} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>{label}</button></div>;
 const Btn=({onClick,children,sm,s={}})=><button onClick={onClick} style={{display:"inline-flex",alignItems:"center",gap:6,padding:sm?"6px 12px":"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:sm?11:12,fontWeight:700,whiteSpace:"nowrap",...s}}>{children}</button>;
 const GBtn=({onClick,children,sm,s={}})=><button onClick={onClick} style={{padding:sm?"5px 11px":"7px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:sm?11:12,fontWeight:600,...s}}>{children}</button>;
@@ -573,7 +639,7 @@ const Empty=({text,sub})=><div style={{textAlign:"center",padding:"44px 24px",co
 const Sep=()=><hr style={{border:"none",borderTop:"1px solid var(--bdr)",margin:"16px 0"}}/>;
 const Tabs=({tabs,active,onChange})=><div style={{display:"flex",gap:8,marginBottom:20,overflowX:"auto",paddingBottom:2}}>{tabs.map((t,i)=><div key={t} onClick={()=>onChange(i)} style={{padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer",border:`1px solid ${active===i?"var(--cm)":"var(--bdr)"}`,borderRadius:999,background:active===i?"linear-gradient(180deg,var(--cg),transparent)":"var(--card)",color:active===i?"var(--cy)":"var(--gr2)",whiteSpace:"nowrap",boxShadow:active===i?"inset 0 0 0 1px var(--cg)":"none"}}>{t}</div>)}</div>;
 const KV=({label,value})=><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>{label}</span><span style={{fontSize:13,textAlign:"right",maxWidth:"60%"}}>{value}</span></div>;
-function SearchBar({value,onChange,placeholder}){return <div style={{display:"flex",alignItems:"center",gap:8,background:"linear-gradient(180deg,var(--sur),var(--card2))",border:"1px solid var(--bdr2)",borderRadius:10,padding:"10px 13px",maxWidth:320,flex:1,boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{background:"none",border:"none",color:"var(--wh)",fontFamily:"var(--fb)",fontSize:13,flex:1,outline:"none"}}/>{value&&<span onClick={()=>onChange("")} style={{cursor:"pointer",color:"var(--gr2)",fontSize:14}}>×</span>}</div>;}
+function SearchBar({value,onChange,placeholder}){return <div className="search-wrap" style={{display:"flex",alignItems:"center",gap:8,background:"linear-gradient(180deg,var(--sur),var(--card2))",border:"1px solid var(--bdr2)",borderRadius:10,padding:"10px 13px",maxWidth:320,flex:1,boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{background:"none",border:"none",color:"var(--wh)",fontFamily:"var(--fb)",fontSize:13,flex:1,outline:"none",minWidth:0}}/>{value&&<span onClick={()=>onChange("")} style={{cursor:"pointer",color:"var(--gr2)",fontSize:14}}>×</span>}</div>;}
 function FilterSel({value,onChange,options,placeholder}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{padding:"10px 12px",background:"linear-gradient(180deg,var(--sur),var(--card2))",border:"1px solid var(--bdr2)",borderRadius:10,color:"var(--gr3)",fontFamily:"var(--fb)",fontSize:12,cursor:"pointer",outline:"none",boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}><option value="">{placeholder}</option>{options.map(o=>typeof o==="object"?<option key={o.value} value={o.value}>{o.label}</option>:<option key={o}>{o}</option>)}</select>;}
 function MultiSelect({options,value=[],onChange,placeholder="Seleccionar..."}){
   const [open,setOpen]=useState(false);const ref=useRef();
@@ -671,10 +737,10 @@ function Login({users,onLogin}){
     setLoad(false);
   };
   const GRID="linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px)";
-  return <><div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
+  return <><div className="login-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
     <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
-    <div style={{position:"relative",width:440,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:16,padding:40,boxShadow:"0 24px 80px #0009"}}>
+    <div className="login-card" style={{position:"relative",width:"min(440px,100%)",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:16,padding:40,boxShadow:"0 24px 80px #0009"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
           <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
@@ -706,7 +772,7 @@ function Login({users,onLogin}){
 function EmpresaSelector({empresas,onSelect}){
   const [q,setQ]=useState("");
   const fd=(empresas||[]).filter(e=>e.nombre.toLowerCase().includes(q.toLowerCase()));
-  return <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
+  return <div className="company-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6,justifyContent:"center"}}>
       <div style={{width:44,height:44,borderRadius:10,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 20px var(--cm)"}}>
         <svg viewBox="0 0 24 24" fill="var(--bg)" width="20" height="20"><polygon points="5,3 20,12 5,21"/></svg>
@@ -717,7 +783,7 @@ function EmpresaSelector({empresas,onSelect}){
       </div>
     </div>
     <div style={{fontSize:12,color:"var(--gr2)",letterSpacing:1,textTransform:"uppercase",marginBottom:28,textAlign:"center"}}>Super Admin · Seleccionar empresa</div>
-    <div style={{width:460}}>
+    <div className="company-card" style={{width:"min(460px,100%)"}}>
       <SearchBar value={q} onChange={setQ} placeholder="Buscar empresa..."/>
       <div style={{marginTop:12}}>
         {fd.map(emp=>(
@@ -922,7 +988,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
   ];
   const SW=collapsed?64:240;
-  return <aside style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside className="app-sidebar" style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
@@ -995,56 +1061,92 @@ function ContactBtns({ tel, ema, nombre, mensaje }) {
   );
 }
 
-// ── ALERTAS — Fechas de grabación próximas ────────────────────
-function calcAlertas(episodios, programas, eventos, empId) {
+// ── ALERTAS — Bandeja operativa ───────────────────────────────
+function calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, empId) {
   const hoy = new Date();
   const alerts = [];
+  const pushAlert = alert => alerts.push(alert);
 
-  // Desde episodios con fechaGrab
   (episodios||[]).filter(e=>e.empId===empId).forEach(ep => {
     if (!ep.fechaGrab) return;
     const d = new Date(ep.fechaGrab + "T12:00:00");
     const pg = (programas||[]).find(x=>x.id===ep.pgId);
     const diff = Math.ceil((d - hoy) / (1000*60*60*24));
     if (diff < 0) return;
-    if (diff <= 2)  alerts.push({ id:ep.id+"_ep", tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
-    else if (diff <= 7)  alerts.push({ id:ep.id+"_ep", tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
-    else if (diff <= 30) alerts.push({ id:ep.id+"_ep", tipo:"info",    icon:"🔵", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
+    if (diff <= 2)  pushAlert({ id:ep.id+"_ep", tipo:"urgente", area:"operacion", icon:"🎬", titulo:`Grabación HOY/MAÑANA: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
+    else if (diff <= 7)  pushAlert({ id:ep.id+"_ep", tipo:"pronto", area:"operacion", icon:"🎬", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
+    else if (diff <= 30) pushAlert({ id:ep.id+"_ep", tipo:"info", area:"operacion", icon:"🎬", titulo:`Grabación en ${diff} días: Ep.${ep.num} — ${ep.titulo}`, sub:pg?.nom||"Episodio", fecha:ep.fechaGrab, diff });
   });
 
-  // Desde eventos de calendario tipo "grabacion"
   (eventos||[]).filter(e=>e.empId===empId&&e.tipo==="grabacion"&&e.fecha).forEach(ev => {
     const d = new Date(ev.fecha + "T12:00:00");
     const diff = Math.ceil((d - hoy) / (1000*60*60*24));
     if (diff < 0) return;
     const sub = ev.hora ? `${ev.hora}${ev.desc?" · "+ev.desc:""}` : (ev.desc||"Calendario");
-    if (diff <= 2)  alerts.push({ id:ev.id+"_ev", tipo:"urgente", icon:"🔴", titulo:`Grabación HOY/MAÑANA: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
-    else if (diff <= 7)  alerts.push({ id:ev.id+"_ev", tipo:"pronto", icon:"🟡", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
-    else if (diff <= 30) alerts.push({ id:ev.id+"_ev", tipo:"info",   icon:"🔵", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+    if (diff <= 2)  pushAlert({ id:ev.id+"_ev", tipo:"urgente", area:"operacion", icon:"📅", titulo:`Grabación HOY/MAÑANA: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+    else if (diff <= 7)  pushAlert({ id:ev.id+"_ev", tipo:"pronto", area:"operacion", icon:"📅", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
+    else if (diff <= 30) pushAlert({ id:ev.id+"_ev", tipo:"info", area:"operacion", icon:"📅", titulo:`Grabación en ${diff} días: ${ev.titulo}`, sub, fecha:ev.fecha, diff });
   });
 
-  return alerts.sort((a,b)=>a.diff-b.diff);
+  (tareas||[]).filter(t=>t.empId===empId&&t.fechaLimite&&t.estado!=="Completada").forEach(t=>{
+    const d = new Date(t.fechaLimite + "T12:00:00");
+    const diff = Math.ceil((d - hoy) / (1000*60*60*24));
+    const tipo = diff < 0 ? "urgente" : diff <= 2 ? "urgente" : diff <= 7 ? "pronto" : "info";
+    const label = diff < 0 ? `Tarea vencida: ${t.titulo}` : diff === 0 ? `Tarea vence hoy: ${t.titulo}` : diff === 1 ? `Tarea vence mañana: ${t.titulo}` : `Tarea vence en ${diff} días: ${t.titulo}`;
+    pushAlert({ id:t.id+"_task", tipo, area:"equipo", icon:"✅", titulo:label, sub:t.estado||"Pendiente", fecha:t.fechaLimite, diff:Math.max(diff,0) });
+  });
+
+  (facturas||[]).filter(f=>f.empId===empId&&f.fechaVencimiento&&cobranzaState(f)!=="Pagado").forEach(f=>{
+    const d = new Date(f.fechaVencimiento + "T12:00:00");
+    const diff = Math.ceil((d - hoy) / (1000*60*60*24));
+    const tipo = diff < 0 ? "urgente" : diff <= 3 ? "urgente" : diff <= 7 ? "pronto" : "info";
+    const label = diff < 0 ? `Cobranza vencida: ${f.correlativo || "Invoice"}` : diff === 0 ? `Invoice vence hoy: ${f.correlativo || "Invoice"}` : `Invoice vence en ${Math.max(diff,0)} días: ${f.correlativo || "Invoice"}`;
+    pushAlert({ id:f.id+"_bill", tipo, area:"comercial", icon:"💸", titulo:label, sub:fmtM(f.total||0), fecha:f.fechaVencimiento, diff:Math.max(diff,0) });
+  });
+
+  (contratos||[]).filter(c=>c.empId===empId&&c.vig).forEach(ct=>{
+    const days = daysUntil(ct.vig);
+    if (days===null || days > Number(ct.alertaDias || 30)) return;
+    const tipo = days < 0 ? "urgente" : days <= 7 ? "urgente" : "pronto";
+    const label = days < 0 ? `Contrato vencido: ${ct.nom}` : `Contrato por vencer: ${ct.nom}`;
+    pushAlert({ id:ct.id+"_ct", tipo, area:"comercial", icon:"📄", titulo:label, sub:ct.est||"Vigente", fecha:ct.vig, diff:Math.max(days,0) });
+  });
+
+  return alerts.sort((a,b)=>{
+    const pri = {urgente:0,pronto:1,info:2};
+    return (pri[a.tipo]??9) - (pri[b.tipo]??9) || a.diff-b.diff;
+  });
 }
-function useAlertas(episodios, programas, eventos, empId) {
+function useAlertas(episodios, programas, eventos, tareas, facturas, contratos, empId) {
   const [alerts, setAlerts] = useState([]);
   const epLen = (episodios||[]).length;
   const evLen = (eventos||[]).length;
+  const tarLen = (tareas||[]).length;
+  const factLen = (facturas||[]).length;
+  const ctLen = (contratos||[]).length;
   useEffect(() => {
-    setAlerts(calcAlertas(episodios, programas, eventos, empId));
-  }, [epLen, evLen, empId]); // use lengths not arrays to avoid infinite loop
+    setAlerts(calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, empId));
+  }, [epLen, evLen, tarLen, factLen, ctLen, empId]);
   return alerts;
 }
 
 function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) {
   const noLeidas = alertas.filter(a=>!leidas.includes(a.id));
   const siLeidas = alertas.filter(a=>leidas.includes(a.id));
+  const [filtro,setFiltro]=useState("todas");
+  const filteredUnread=noLeidas.filter(a=>filtro==="todas"||a.tipo===filtro||a.area===filtro);
+  const counters={
+    urgentes:noLeidas.filter(a=>a.tipo==="urgente").length,
+    equipo:noLeidas.filter(a=>a.area==="equipo").length,
+    comercial:noLeidas.filter(a=>a.area==="comercial").length,
+  };
   return (
-    <div style={{position:"fixed",top:70,right:20,zIndex:888,width:380,background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:12,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
+    <div style={{position:"fixed",top:70,right:20,zIndex:888,width:410,maxWidth:"calc(100vw - 24px)",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,boxShadow:"0 12px 40px #0009",animation:"slideIn .25s ease",overflow:"hidden"}}>
       <div style={{padding:"14px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:18}}>🔔</span>
           <div>
-            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Alertas de Grabación</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Centro de Alertas</div>
             <div style={{fontSize:10,color:"var(--gr2)"}}>{noLeidas.length} sin leer · {alertas.length} total</div>
           </div>
         </div>
@@ -1053,9 +1155,12 @@ function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) 
           <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
         </div>
       </div>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",gap:8,flexWrap:"wrap"}}>
+        {[["todas","Todas",noLeidas.length],["urgente","Urgentes",counters.urgentes],["equipo","Equipo",counters.equipo],["comercial","Comercial",counters.comercial]].map(([key,label,count])=><button key={key} onClick={()=>setFiltro(key)} style={{padding:"6px 10px",borderRadius:999,border:`1px solid ${filtro===key?"var(--cy)":"var(--bdr2)"}`,background:filtro===key?"var(--cg)":"transparent",color:filtro===key?"var(--cy)":"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>{label} {count?`(${count})`:""}</button>)}
+      </div>
       <div style={{maxHeight:420,overflowY:"auto"}}>
-        {alertas.length===0&&<div style={{padding:24,textAlign:"center",color:"var(--gr2)",fontSize:13}}>Sin grabaciones próximas</div>}
-        {noLeidas.map(a=>{
+        {alertas.length===0&&<div style={{padding:24,textAlign:"center",color:"var(--gr2)",fontSize:13}}>Sin alertas activas</div>}
+        {filteredUnread.map(a=>{
           const colores={urgente:["#ff556615","#ff5566"],pronto:["#ffcc4415","#ffcc44"],info:["var(--cg)","var(--cy)"]};
           const [bg,color]=colores[a.tipo]||["var(--cg)","var(--cy)"];
           return <div key={a.id} style={{display:"flex",gap:10,padding:"12px 16px",borderBottom:"1px solid var(--bdr)",background:bg,alignItems:"flex-start"}}>
@@ -1063,10 +1168,15 @@ function AlertasPanel({ alertas, leidas=[], onMarcar, onMarcarTodas, onClose }) 
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:12,fontWeight:600,color:"var(--wh)",lineHeight:1.3}}>{a.titulo}</div>
               <div style={{fontSize:11,color:"var(--gr2)",marginTop:3}}>{a.sub} · {fmtD(a.fecha)}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+                <Badge label={a.area==="comercial"?"Comercial":a.area==="equipo"?"Equipo":"Operación"} color={a.area==="comercial"?"red":a.area==="equipo"?"purple":"cyan"} sm/>
+                <Badge label={a.tipo==="urgente"?"Urgente":a.tipo==="pronto"?"Próxima":"Info"} color={a.tipo==="urgente"?"red":a.tipo==="pronto"?"yellow":"gray"} sm/>
+              </div>
             </div>
             <button onClick={()=>onMarcar(a.id)} title="Marcar como leída" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leída</button>
           </div>;
         })}
+        {filteredUnread.length===0&&noLeidas.length>0&&<div style={{padding:18,textAlign:"center",color:"var(--gr2)",fontSize:12}}>No hay alertas en este filtro.</div>}
         {siLeidas.length>0&&<><div style={{padding:"8px 16px",fontSize:10,color:"var(--gr)",letterSpacing:1,textTransform:"uppercase",fontWeight:600,borderBottom:"1px solid var(--bdr)"}}>Ya leídas</div>
         {siLeidas.map(a=><div key={a.id} style={{display:"flex",gap:10,padding:"10px 16px",borderBottom:"1px solid var(--bdr)",opacity:.5,alignItems:"center"}}>
           <span style={{fontSize:14,flexShrink:0}}>✓</span>
@@ -1641,6 +1751,7 @@ const THEME_PRESETS={
 function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
+  const [integrationEmpId,setIntegrationEmpId]=useState("");
   const [q,setQ]=useState("");
   const [planF,setPlanF]=useState("");
   const [stateF,setStateF]=useState("");
@@ -1660,17 +1771,18 @@ function SuperAdminPanel({empresas,users,onSave}){
     (!uState||(uState==="active"?u.active:u.active===false)) &&
     (!uEmp||u.empId===uEmp)
   );
+  const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
   const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
   return <div>
-    <Tabs tabs={["Empresas","Usuarios del sistema","Solicitudes"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Empresas","Usuarios del sistema","Integraciones","Solicitudes"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Empresas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
@@ -1691,7 +1803,9 @@ function SuperAdminPanel({empresas,users,onSave}){
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:13,fontWeight:700}}>{emp.nombre}</div>
             <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut||"Sin RUT"} · {emp.ema||"Sin email"} · ID: {emp.id}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>{(emp.addons||[]).length?(emp.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:10,color:"var(--gr2)"}}>Sin addons</span>}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
+              {(emp.addons||[]).length?(emp.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:10,color:"var(--gr2)"}}>Sin addons</span>}
+            </div>
           </div>
           <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
           <Badge label={emp.plan} color="gray" sm/>
@@ -1733,11 +1847,40 @@ function SuperAdminPanel({empresas,users,onSave}){
         </div>
         <Badge label={ROLES[u.role]?.label||u.role} color={{superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"}[u.role]||"gray"} sm/>
         <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
+        <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
       </div>;
       })}
       {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
     </div>}
     {tab===2&&<div>
+      <div style={{fontSize:12,color:"var(--gr3)",marginBottom:14}}>Aquí quedan las bases de integraciones por empresa. Se habilitan o deshabilitan a nivel de instancia, y luego cada integración futura podrá conectarse por usuario cuando exista backend real.</div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
+        <FilterSel value={integrationEmpId} onChange={setIntegrationEmpId} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Selecciona una empresa"/>
+      </div>
+      {selectedIntegrationEmp ? <div style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:16}}>
+        <Card title="Google Calendar" sub={selectedIntegrationEmp.nombre}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <Badge label={companyGoogleCalendarEnabled(selectedIntegrationEmp)?"Activa":"Desactivada"} color={companyGoogleCalendarEnabled(selectedIntegrationEmp)?"green":"gray"} sm/>
+            <Badge label="Base preparada" color="cyan" sm/>
+            <Badge label="Conexión futura por usuario" color="purple" sm/>
+          </div>
+          <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.6,marginBottom:14}}>
+            La integración está modelada para multiempresa y conexión individual por usuario. Mientras no exista OAuth/backend real, mantenerla desactivada evita mostrar opciones incompletas dentro del calendario.
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <Btn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,googleCalendarEnabled:true}:e))} sm>Activar base</Btn>
+            <GBtn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,googleCalendarEnabled:false}:e))} sm>Desactivar</GBtn>
+          </div>
+        </Card>
+        <Card title="Estado operativo" sub="Lo que ya queda resuelto en el producto">
+          <KV label="Visibilidad en Calendario" value={companyGoogleCalendarEnabled(selectedIntegrationEmp)?"Oculta hasta tener sync real":"Oculta"}/>
+          <KV label="Gobierno" value="Super Admin por empresa"/>
+          <KV label="Conexión futura" value="Usuario individual"/>
+          <KV label="Modelo" value="Multiempresa / multiusuario"/>
+        </Card>
+      </div> : <Empty text="Selecciona una empresa para administrar integraciones"/>}
+    </div>}
+    {tab===3&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
         const tempPassword=uid().slice(1,9);
         const newUser={id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"productor",empId:empId||"",active:true};
@@ -1927,7 +2070,7 @@ function ListasEditor({ listas, saveListas }) {
 function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   const [ef, setEf] = useState({});
   const [editing, setEditing] = useState(false);
-  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", printColor:companyPrintColor(empresa), plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
+  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", printColor:companyPrintColor(empresa), plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[], googleCalendarEnabled:companyGoogleCalendarEnabled(empresa) }); }, [empresa.id]);
   const save = () => {
     const updated = { ...empresa, ...ef };
     saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
@@ -1941,7 +2084,7 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <GBtn sm onClick={() => setEditing(true)}>✏ Editar</GBtn>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"],["Color de impresos", companyPrintColorLabel(empresa)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"],["Color de impresos", companyPrintColorLabel(empresa)],["Google Calendar", companyGoogleCalendarEnabled(empresa)?"Habilitado por Super Admin":"No habilitado"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </div>
       <div style={{marginTop:14}}>
         <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Información bancaria</div>
@@ -2078,6 +2221,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
           <Badge label={ROLES[u.role]?.label||u.role} color={rcol[u.role]||"gray"} sm/>
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
+          <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
           <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
           <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
           <GBtn sm onClick={()=>saveUsers((users||[]).map(x=>x.id===u.id?{...x,active:!x.active}:x))}>{u.active?"Desactivar":"Activar"}</GBtn>
@@ -2183,7 +2327,7 @@ export default function App(){
   const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
   const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
-  const alertas = useAlertas(episodios, programas, eventos||[], empId);
+  const alertas = useAlertas(episodios, programas, eventos||[], tareas||[], facturas||[], contratos||[], empId);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
@@ -2434,7 +2578,7 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a)};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
@@ -2476,27 +2620,31 @@ export default function App(){
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");document.getElementById("mob-overlay").style.display="none";}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
     <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");const o=document.getElementById("mob-overlay");if(o)o.style.display="none";}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
+    <main className="app-main" style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
       {/* Topbar */}
-      <div style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+      <div className="topbar" style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
         {/* Hamburger - solo visible en móvil via CSS */}
         <button className="ham-btn" onClick={()=>{const s=document.querySelector("aside");const o=document.getElementById("mob-overlay");if(s){s.classList.add("mob-open");}if(o){o.style.display="block";}}} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
-        <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
+        <div className="app-breadcrumbs" style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}
             <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
           </span>)}
         </div>
-        <div style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
+        <div className="app-actions" style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
     {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
           {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
-          {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"none",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:16,display:"flex",alignItems:"center",gap:6}}>
-            🔔
+          {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"var(--sur)",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
+            <span style={{fontSize:16}}>🔔</span>
+            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+              Alertas
+              {alertas.filter(a=>a.tipo==="urgente"&&!alertasLeidas.includes(a.id)).length>0&&<span style={{fontSize:10,color:"#ff5566"}}>Urgente</span>}
+            </span>
             {alertas.filter(a=>!alertasLeidas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)).length}</span>}
           </button>}
         </div>
       </div>
-      <div style={{flex:1,padding:"18px 26px 28px"}}>
+      <div className="app-page" style={{flex:1,padding:"18px 26px 28px"}}>
         <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
@@ -3488,19 +3636,31 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
 }
 
 // ── CALENDARIO ────────────────────────────────────────────────
-function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos,openM,canDo:_cd,cSave,cDel,setEventos}){
+function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodios,programas,piezas,producciones,eventos,facturas,contratos,openM,canDo:_cd,cSave,cDel,setEventos,ntf}){
   const empId=empresa?.id;
   const [mes,setMes]=useState(()=>{const h=new Date();return{y:h.getFullYear(),m:h.getMonth()};});
   const [filtro,setFiltro]=useState("todos");
   const [diaSelec,setDiaSelec]=useState(null);
   const [vistaLista,setVistaLista]=useState(false);
+  const [subTab,setSubTab]=useState(0);
+  const [filtroModulo,setFiltroModulo]=useState("");
+  const [filtroResponsable,setFiltroResponsable]=useState("");
+  const [filtroEstado,setFiltroEstado]=useState("");
+  const [filtroCliente,setFiltroCliente]=useState("");
   const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const addMes=delta=>setMes(prev=>{let m=prev.m+delta,y=prev.y;if(m>11){m=0;y++;}if(m<0){m=11;y--;}return{y,m};});
-  const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"estreno",ico:"🌟",lbl:"Estreno",c:"#ff5566"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
+  const addMes=delta=>setMes(prev=>{let m=prev.m+delta,y=prev.y;if(m>11){m=0;y++;}if(m<0){m=11;y--; }return{y,m};});
+  const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"tarea",ico:"✅",lbl:"Tarea",c:"#7c5cff"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"cobranza",ico:"💸",lbl:"Cobranza",c:"#ff5566"},{v:"estreno",ico:"🌟",lbl:"Publicado",c:"#22c55e"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
   const tc=v=>TIPOS.find(t=>t.v===v)?.c||"#7c7c8a";
   const ti=v=>TIPOS.find(t=>t.v===v)?.ico||"📌";
+  const moduloLabel = ev => ({pro:"Proyecto",pg:"Producción",ep:"Episodio",pz:"Contenidos",cal:"Evento",task:"Tarea",billing:"Cobranza",contract:"Contrato"})[ev.modulo]||"General";
+  const safeTasks = Array.isArray(tareas) ? tareas.filter(t=>t&&t.empId===empId) : [];
+  const crewMap = Object.fromEntries((crew||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const editCalItem=ev=>{
     if(!ev||!(_cd&&_cd("calendario"))) return;
+    if(ev.task){
+      openM("tarea",safeTasks.find(t=>t.id===ev.sourceId)||{id:ev.sourceId});
+      return;
+    }
     if(ev.custom){
       const original=(eventos||[]).find(x=>x.id===ev.id);
       if(original) openM("evento",original);
@@ -3521,7 +3681,6 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
       if(contenido) openM("contenido",contenido);
     }
   };
-  // Build events
   const todosEvs=[];
   (eventos||[]).filter(e=>e.empId===empId).forEach(ev=>{
     if(!ev.fecha) return;
@@ -3532,107 +3691,300 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
         : (ev.refTipo==="pieza"||ev.refTipo==="contenido")
           ? (piezas||[]).find(x=>x.id===ev.ref)
           : (programas||[]).find(x=>x.id===ev.ref);
-      todosEvs.push({id:ev.id,dia:d.getDate(),tipo:ev.tipo,label:`${ti(ev.tipo)} ${ev.titulo}`,sub:ref?ref.nom:"Sin vinculación",color:tc(ev.tipo),hora:ev.hora||"",custom:true,desc:ev.desc||""});
+      todosEvs.push({id:ev.id,fecha:ev.fecha,dia:d.getDate(),tipo:ev.tipo,label:`${ti(ev.tipo)} ${ev.titulo}`,sub:ref?ref.nom:"Sin vinculación",color:tc(ev.tipo),hora:ev.hora||"",custom:true,desc:ev.desc||"",modulo:"cal",estado:"Programado"});
     }
   });
   (episodios||[]).filter(e=>e.empId===empId).forEach(ep=>{
     const pg=(programas||[]).find(x=>x.id===ep.pgId);
-    if(ep.fechaGrab){const d=new Date(ep.fechaGrab+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_g",dia:d.getDate(),tipo:"grabacion",label:`🎬 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"var(--cy)",hora:"",auto:true,editModal:"ep",sourceId:ep.id});}
-    if(ep.fechaEmision){const d=new Date(ep.fechaEmision+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_e",dia:d.getDate(),tipo:"emision",label:`📡 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"#00e08a",hora:"",auto:true,editModal:"ep",sourceId:ep.id});}
+    if(ep.fechaGrab){const d=new Date(ep.fechaGrab+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_g",fecha:ep.fechaGrab,dia:d.getDate(),tipo:"grabacion",label:`🎬 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"var(--cy)",hora:"",auto:true,editModal:"ep",sourceId:ep.id,modulo:"ep",estado:ep.estado||"Planificado"});}
+    if(ep.fechaEmision){const d=new Date(ep.fechaEmision+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:ep.id+"_e",fecha:ep.fechaEmision,dia:d.getDate(),tipo:"emision",label:`📡 Ep.${ep.num}: ${ep.titulo}`,sub:pg?.nom||"",color:"#00e08a",hora:"",auto:true,editModal:"ep",sourceId:ep.id,modulo:"ep",estado:ep.estado||"Programado"});}
   });
   (producciones||[]).filter(p=>p.empId===empId).forEach(p=>{
-    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Proyecto",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
-    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Proyecto",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id});}
+    if(p.ini){const d=new Date(p.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_ini",fecha:p.ini,dia:d.getDate(),tipo:"otro",label:`▶ Inicio: ${p.nom}`,sub:"Proyecto",color:"#a855f7",hora:"",auto:true,editModal:"pro",sourceId:p.id,modulo:"pro",estado:p.est||"En Curso",clienteId:p.cliId||""});}
+    if(p.fin){const d=new Date(p.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:p.id+"_fin",fecha:p.fin,dia:d.getDate(),tipo:"entrega",label:`✓ Entrega: ${p.nom}`,sub:"Proyecto",color:"#ff8844",hora:"",auto:true,editModal:"pro",sourceId:p.id,modulo:"pro",estado:p.est||"En Curso",clienteId:p.cliId||""});}
   });
   (piezas||[]).filter(p=>p.empId===empId).forEach(c=>{
-    if(c.ini){const d=new Date(c.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_ini",dia:d.getDate(),tipo:"otro",label:`📱 Inicio campaña: ${c.nom}`,sub:"Contenidos",color:"#a855f7",hora:"",auto:true,editModal:"contenido",sourceId:c.id});}
-    if(c.fin){const d=new Date(c.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_fin",dia:d.getDate(),tipo:"entrega",label:`✓ Cierre campaña: ${c.nom}`,sub:"Contenidos",color:"#ff8844",hora:"",auto:true,editModal:"contenido",sourceId:c.id});}
+    if(c.ini){const d=new Date(c.ini+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_ini",fecha:c.ini,dia:d.getDate(),tipo:"otro",label:`📱 Inicio campaña: ${c.nom}`,sub:"Contenidos",color:"#a855f7",hora:"",auto:true,editModal:"contenido",sourceId:c.id,modulo:"pz",estado:c.est||"Planificada",clienteId:c.cliId||""});}
+    if(c.fin){const d=new Date(c.fin+"T12:00:00");if(d.getFullYear()===mes.y&&d.getMonth()===mes.m)todosEvs.push({id:c.id+"_fin",fecha:c.fin,dia:d.getDate(),tipo:"entrega",label:`✓ Cierre campaña: ${c.nom}`,sub:"Contenidos",color:"#ff8844",hora:"",auto:true,editModal:"contenido",sourceId:c.id,modulo:"pz",estado:c.est||"Planificada",clienteId:c.cliId||""});}
     (c.piezas||[]).forEach(pc=>{
       if(pc.fin){
         const d=new Date(pc.fin+"T12:00:00");
-        if(d.getFullYear()===mes.y&&d.getMonth()===mes.m) todosEvs.push({id:pc.id+"_fin",dia:d.getDate(),tipo:pc.est==="Publicado"?"estreno":"entrega",label:`📌 ${pc.nom}`,sub:c.nom,color:pc.est==="Publicado"?"#00e08a":"#ff8844",hora:"",auto:true});
+        if(d.getFullYear()===mes.y&&d.getMonth()===mes.m) todosEvs.push({id:pc.id+"_fin",fecha:pc.fin,dia:d.getDate(),tipo:pc.est==="Publicado"?"estreno":"entrega",label:`📌 ${pc.nom}`,sub:c.nom,color:pc.est==="Publicado"?"#00e08a":"#ff8844",hora:"",auto:true,modulo:"pz",estado:pc.est||"",clienteId:c.cliId||""});
       }
     });
   });
-  const evFiltrados=filtro==="todos"?todosEvs:todosEvs.filter(e=>e.tipo===filtro);
+  (safeTasks||[]).forEach(t=>{
+    if(!t.fechaLimite) return;
+    const d=new Date(t.fechaLimite+"T12:00:00");
+    if(d.getFullYear()===mes.y&&d.getMonth()===mes.m){
+      const refLabel = t.refTipo==="pro"
+        ? (producciones||[]).find(x=>x.id===t.refId)?.nom
+        : t.refTipo==="pg"
+          ? (programas||[]).find(x=>x.id===t.refId)?.nom
+          : t.refTipo==="pz"
+            ? (piezas||[]).find(x=>x.id===t.refId)?.nom
+            : t.refTipo==="crew"
+              ? (crew||[]).find(x=>x.id===t.refId)?.nom
+              : "";
+      const assigned = crewMap[t.asignadoA]?.nom || (t.asignadoA===user?.id ? user?.name : "");
+      todosEvs.push({id:`task_${t.id}`,fecha:t.fechaLimite,dia:d.getDate(),tipo:"tarea",label:`✅ ${t.titulo}`,sub:refLabel||"Sin vínculo",color:"#7c5cff",hora:"",task:true,sourceId:t.id,modulo:"task",estado:t.estado||"Pendiente",responsableId:t.asignadoA||"",responsable:assigned,desc:t.desc||""});
+    }
+  });
+  const dueInvoices = cobranzaItems.filter(f=>f.fechaVencimiento).map(f=>{
+    const d=new Date(f.fechaVencimiento+"T12:00:00");
+    if(d.getFullYear()!==mes.y||d.getMonth()!==mes.m) return null;
+    return {id:`bill_${f.id}`,fecha:f.fechaVencimiento,dia:d.getDate(),tipo:"cobranza",label:`💸 ${f.correlativo||f.tipoDoc||"Invoice"}`,sub:f.entidad,color:"#ff5566",hora:"",modulo:"billing",estado:f.estadoCobranza,clienteId:f.tipo==="cliente"?f.entidadId:"",desc:fmtM(f.total||0)};
+  }).filter(Boolean);
+  const dueContracts = contratosEmp.filter(ct=>ct.vig).map(ct=>{
+    const d=new Date(ct.vig+"T12:00:00");
+    if(d.getFullYear()!==mes.y||d.getMonth()!==mes.m) return null;
+    return {id:`ct_${ct.id}`,fecha:ct.vig,dia:d.getDate(),tipo:"cobranza",label:`📄 ${ct.nom}`,sub:"Vigencia contrato",color:"#f59e0b",hora:"",modulo:"contract",estado:contractVisualState(ct),clienteId:ct.cliId||"",desc:ct.not||""};
+  }).filter(Boolean);
+  todosEvs.push(...dueInvoices,...dueContracts);
+  const eventosFiltrados=todosEvs.filter(e=>
+    (filtro==="todos"||e.tipo===filtro) &&
+    (!filtroModulo||e.modulo===filtroModulo) &&
+    (!filtroResponsable||e.responsableId===filtroResponsable) &&
+    (!filtroEstado||String(e.estado||"")===filtroEstado) &&
+    (!filtroCliente||e.clienteId===filtroCliente)
+  );
+  const evFiltrados=eventosFiltrados;
   const primerDia=new Date(mes.y,mes.m,1).getDay();
   const diasMes=new Date(mes.y,mes.m+1,0).getDate();
   const hoy=new Date();
+  const hoyStr=today();
   const esHoy=d=>hoy.getFullYear()===mes.y&&hoy.getMonth()===mes.m&&hoy.getDate()===d;
   const celdas=[];for(let i=0;i<primerDia;i++)celdas.push(null);for(let d=1;d<=diasMes;d++)celdas.push(d);
   const evsDelDia=d=>evFiltrados.filter(e=>e.dia===d).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
   const evsDiaSel=diaSelec?evFiltrados.filter(e=>e.dia===diaSelec):[];
-  const proximos=[...evFiltrados].sort((a,b)=>a.dia-b.dia);
+  const proximos=[...evFiltrados].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"") || (a.hora||"").localeCompare(b.hora||""));
+  const agendaHoy=proximos.filter(ev=>ev.fecha===hoyStr);
+  const agendaSemana=proximos.filter(ev=>ev.fecha>=hoyStr).slice(0,8);
+  const programacion=proximos.filter(ev=>["grabacion","emision","entrega","estreno"].includes(ev.tipo));
+  const agendaEquipo=proximos.filter(ev=>ev.tipo==="tarea");
+  const hitosCriticos=proximos.filter(ev=>ev.tipo==="cobranza" || ev.estado==="En Revisión" || ev.estado==="Retrasado de pago").slice(0,8);
+  const facturasEmp=(facturas||[]).filter(f=>f.empId===empId);
+  const contratosEmp=(contratos||[]).filter(c=>c.empId===empId);
+  const cobranzaItems=facturasEmp.filter(f=>f.fechaVencimiento).map(f=>{
+    const estado=cobranzaState(f);
+    const entidad = f.tipo==="auspiciador"
+      ? (auspiciadores||[]).find(a=>a.id===f.entidadId)?.nom
+      : (clientes||[]).find(c=>c.id===f.entidadId)?.nom;
+    return {...f,estadoCobranza:estado,entidad:entidad||"Sin entidad"};
+  }).sort((a,b)=>(a.fechaVencimiento||"").localeCompare(b.fechaVencimiento||""));
+  const contratosPorVencer=contratosEmp.filter(ct=>ct.vig && ct.vig>=hoyStr).sort((a,b)=>(a.vig||"").localeCompare(b.vig||"")).slice(0,6);
+  const estadoOptions = Array.from(new Set(todosEvs.map(ev=>ev.estado).filter(Boolean)));
   const delEvento=async evId=>{ await cDel(eventos,setEventos,evId,null,"Evento eliminado"); };
   return <div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <button onClick={()=>addMes(-1)} style={{width:36,height:36,borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:18}}>‹</button>
-        <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,minWidth:190,textAlign:"center"}}>{MESES[mes.m]} {mes.y}</div>
-        <button onClick={()=>addMes(1)}  style={{width:36,height:36,borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:18}}>›</button>
-        <button onClick={()=>setMes({y:hoy.getFullYear(),m:hoy.getMonth()})} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>Hoy</button>
-        <button onClick={()=>setVistaLista(!vistaLista)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:vistaLista?"var(--cg)":"transparent",color:vistaLista?"var(--cy)":"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>{vistaLista?"📅 Grilla":"☰ Lista"}</button>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:18}}>
+      <div>
+        <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:800}}>Calendario Operativo</div>
+        <div style={{fontSize:12,color:"var(--gr2)",marginTop:4}}>Programación, agenda del equipo y vencimientos en un solo lugar.</div>
       </div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
         {_cd&&_cd("calendario")&&<Btn onClick={()=>openM("evento",{})} sm>+ Nuevo Evento</Btn>}
-        {["todos",...TIPOS.map(t=>t.v)].map(v=><button key={v} onClick={()=>setFiltro(v)} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${filtro===v?tc(v):"var(--bdr2)"}`,background:filtro===v?tc(v)+"22":"transparent",color:filtro===v?tc(v):"var(--gr3)",cursor:"pointer",fontSize:10,fontWeight:600}}>{v==="todos"?"Todos":ti(v)+" "+TIPOS.find(t=>t.v===v)?.lbl}</button>)}
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
-      {[["Total",evFiltrados.length,"var(--cy)"],["Grabaciones",evFiltrados.filter(e=>e.tipo==="grabacion").length,"var(--cy)"],["Emisiones",evFiltrados.filter(e=>e.tipo==="emision").length,"#00e08a"],["Reuniones+",evFiltrados.filter(e=>!["grabacion","emision"].includes(e.tipo)).length,"#ffcc44"]].map(([l,v,c])=><Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]}/>)}
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
-      {!vistaLista?<div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,overflow:"hidden"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--bdr)"}}>{DIAS.map(d=><div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:11,fontWeight:600,color:"var(--gr2)",letterSpacing:1}}>{d}</div>)}</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-          {celdas.map((d,i)=>{const evs=d?evsDelDia(d):[];const isTod=d&&esHoy(d);const isSel=d&&diaSelec===d;return(
-            <div key={i} onClick={()=>d&&setDiaSelec(diaSelec===d?null:d)} style={{minHeight:90,padding:"5px 3px",borderRight:i%7!==6?"1px solid var(--bdr)":"none",borderBottom:"1px solid var(--bdr)",background:isSel?"var(--am)":isTod?"var(--cg)":"transparent",cursor:d?"pointer":"default",transition:".1s"}}>
-              {d&&<><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,padding:"0 2px"}}>
-                <span style={{fontSize:12,fontWeight:isTod||isSel?700:400,color:isTod||isSel?"var(--cy)":"var(--gr3)"}}>{d}</span>
-                {_cd&&_cd("calendario")&&<span onClick={e=>{e.stopPropagation();openM("evento",{fecha:`${mes.y}-${String(mes.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`});}} style={{fontSize:10,color:"var(--gr)",cursor:"pointer",opacity:.6}}>+</span>}
-              </div>
-              {evs.slice(0,3).map(ev=><div key={ev.id} onClick={e=>{e.stopPropagation();if(_cd&&_cd("calendario")) editCalItem(ev);}} style={{fontSize:9,padding:"2px 4px",borderRadius:3,marginBottom:2,background:ev.color+"25",color:ev.color,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:_cd&&_cd("calendario")?"pointer":"default"}} title={(_cd&&_cd("calendario")?"Clic para editar · ":"")+ev.label+" · "+ev.sub+(ev.hora?" · "+ev.hora:"")}>{ev.hora?<span style={{opacity:.7}}>{ev.hora} </span>:""}{ev.label}</div>)}
-              {evs.length>3&&<div style={{fontSize:9,color:"var(--gr2)",padding:"0 2px"}}>+{evs.length-3} más</div>}</>}
+
+    <Tabs tabs={["Agenda","Calendario","Programación","Cobranza"]} active={subTab} onChange={setSubTab}/>
+    <Card title="Filtros operativos" sub="Afina la lectura por tipo, módulo, responsable, estado o cliente." style={{marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:10}}>
+        <FilterSel value={filtroModulo} onChange={setFiltroModulo} placeholder="Todos los módulos" options={[
+          {value:"pro",label:"Proyectos"},
+          {value:"pg",label:"Producciones"},
+          {value:"ep",label:"Episodios"},
+          {value:"pz",label:"Contenidos"},
+          {value:"task",label:"Tareas"},
+          {value:"billing",label:"Cobranza"},
+          {value:"contract",label:"Contratos"},
+          {value:"cal",label:"Eventos manuales"},
+        ]}/>
+        <FilterSel value={filtroResponsable} onChange={setFiltroResponsable} placeholder="Todos los responsables" options={(crew||[]).filter(c=>c.empId===empId).map(c=>({value:c.id,label:c.nom}))}/>
+        <FilterSel value={filtroEstado} onChange={setFiltroEstado} placeholder="Todos los estados" options={estadoOptions}/>
+        <FilterSel value={filtroCliente} onChange={setFiltroCliente} placeholder="Todos los clientes" options={(clientes||[]).filter(c=>c.empId===empId).map(c=>({value:c.id,label:c.nom}))}/>
+        <FilterSel value={filtro} onChange={setFiltro} placeholder="Todos los tipos" options={TIPOS.map(t=>({value:t.v,label:`${t.ico} ${t.lbl}`}))}/>
+      </div>
+    </Card>
+
+    {subTab===0&&<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+        {[["Hoy",agendaHoy.length,"var(--cy)"],["Próx. 7 días",agendaSemana.length,"#00e08a"],["Equipo",agendaEquipo.length,"#7c5cff"],["Críticos",hitosCriticos.length,"#ff5566"]].map(([l,v,c])=><Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]}/>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr",gap:16}}>
+        <Card title="Próximos eventos">
+          {agendaSemana.length?agendaSemana.map(ev=><div key={ev.id} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
+            <div style={{width:44,height:44,borderRadius:10,background:ev.color+"20",border:`1px solid ${ev.color}35`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{fontSize:14}}>{ti(ev.tipo)}</div>
+              <div style={{fontSize:9,fontFamily:"var(--fm)",fontWeight:700,color:ev.color}}>{ev.fecha?fmtD(ev.fecha).split(" ").slice(0,2).join(" "):"--"}</div>
             </div>
-          );})}
-        </div>
-      </div>:
-      <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:20}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700,marginBottom:16}}>Todos los eventos — {MESES[mes.m]} {mes.y}</div>
-        {proximos.length>0?proximos.map(ev=><div key={ev.id} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
-          <div style={{width:44,height:44,borderRadius:8,background:ev.color+"22",border:`1px solid ${ev.color}40`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            <span style={{fontSize:14}}>{ti(ev.tipo)}</span>
-            <span style={{fontSize:9,fontFamily:"var(--fm)",fontWeight:700,color:ev.color}}>{String(ev.dia).padStart(2,"0")}</span>
-          </div>
-          <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:13,fontWeight:600}}>{ev.label}</div><div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:3}}>{ev.desc}</div>}</div>
-          {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
-        </div>):<Empty text="Sin eventos este mes"/>}
-      </div>}
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {diaSelec&&<div style={{background:"var(--card)",border:"1px solid var(--cy)",borderRadius:10,padding:16}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700}}>{diaSelec} de {MESES[mes.m]}</div>
-            {_cd&&_cd("calendario")&&<GBtn sm onClick={()=>openM("evento",{fecha:`${mes.y}-${String(mes.m+1).padStart(2,"0")}-${String(diaSelec).padStart(2,"0")}`})}>+ Agregar</GBtn>}
-          </div>
-          {evsDiaSel.length>0?evsDiaSel.map(ev=><div key={ev.id} style={{display:"flex",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
-            <span style={{fontSize:16,flexShrink:0}}>{ti(ev.tipo)}</span>
-            <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:12,fontWeight:600,color:ev.color}}>{ev.label.replace(/^[^\s]+\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ev.sub}{ev.hora?" · "+ev.hora:""}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:2}}>{ev.desc}</div>}</div>
-            {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
-          </div>):<Empty text="Sin eventos este día" sub="Clic en '+' para agregar"/>}
-        </div>}
-        <Card title="Próximos" sub={`${MESES[mes.m]} ${mes.y}`}>
-          {proximos.slice(0,8).map(ev=><div key={ev.id} style={{display:"flex",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)",alignItems:"center"}}>
-            <div style={{width:26,height:26,borderRadius:6,background:ev.color+"22",border:`1px solid ${ev.color}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontFamily:"var(--fm)",fontSize:10,fontWeight:700,color:ev.color}}>{String(ev.dia).padStart(2,"0")}</span></div>
-            <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.label}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{ev.sub}</div></div>
-          </div>)}
-          {!proximos.length&&<Empty text="Sin eventos"/>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700}}>{ev.label}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub}{ev.hora?` · ${ev.hora}`:""} · {moduloLabel(ev)}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:5}}>
+                {ev.estado&&<Badge label={ev.estado} color={ev.tipo==="cobranza"?"red":"gray"} sm/>}
+                {ev.responsable&&<Badge label={ev.responsable} color="purple" sm/>}
+              </div>
+              {ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:4}}>{ev.desc}</div>}
+            </div>
+            {_cd&&_cd("calendario")&&<GBtn sm onClick={()=>editCalItem(ev)}>Abrir</GBtn>}
+          </div>):<Empty text="Sin eventos próximos" sub="Cuando programes fechas, aparecerán aquí."/>}
         </Card>
-        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:16}}>
-          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:10}}>Leyenda</div>
-          {TIPOS.map(t=><div key={t.v} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}><div style={{width:10,height:10,borderRadius:3,background:t.c,flexShrink:0}}/><span style={{fontSize:11,color:"var(--gr3)"}}>{t.ico} {t.lbl}</span></div>)}
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <Card title="Hoy">
+            {agendaHoy.length?agendaHoy.map(ev=><div key={ev.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:ev.color}}>{ev.label}</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{ev.sub} · {moduloLabel(ev)}</div>
+              </div>
+              {ev.hora&&<Badge label={ev.hora} color="gray" sm/>}
+            </div>):<Empty text="Nada programado hoy"/>}
+          </Card>
+          <Card title="Hitos críticos">
+            {hitosCriticos.length?hitosCriticos.map(ev=><div key={ev.id} style={{padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:ev.color}}>{ev.label}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub} · {ev.fecha?fmtD(ev.fecha):"Sin fecha"}</div>
+            </div>):<Empty text="Sin hitos críticos"/>}
+          </Card>
+          <Card title="Acciones rápidas">
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {_cd&&_cd("calendario")&&<Btn onClick={()=>openM("evento",{})} sm>Crear evento manual</Btn>}
+              {_cd&&_cd("calendario")&&<GBtn onClick={()=>{setSubTab(1);setVistaLista(false);}} sm>Ver mes completo</GBtn>}
+              <GBtn onClick={()=>setSubTab(2)} sm>Ir a Programación</GBtn>
+              <GBtn onClick={()=>setSubTab(3)} sm>Revisar Cobranza</GBtn>
+            </div>
+          </Card>
         </div>
       </div>
-    </div>
+    </>}
+
+    {subTab===1&&<>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={()=>addMes(-1)} style={{width:36,height:36,borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:18}}>‹</button>
+          <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,minWidth:190,textAlign:"center"}}>{MESES[mes.m]} {mes.y}</div>
+          <button onClick={()=>addMes(1)}  style={{width:36,height:36,borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:18}}>›</button>
+          <button onClick={()=>setMes({y:hoy.getFullYear(),m:hoy.getMonth()})} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>Hoy</button>
+          <button onClick={()=>setVistaLista(!vistaLista)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:vistaLista?"var(--cg)":"transparent",color:vistaLista?"var(--cy)":"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>{vistaLista?"📅 Grilla":"☰ Lista"}</button>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+          {["todos",...TIPOS.map(t=>t.v)].map(v=><button key={v} onClick={()=>setFiltro(v)} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${filtro===v?tc(v):"var(--bdr2)"}`,background:filtro===v?tc(v)+"22":"transparent",color:filtro===v?tc(v):"var(--gr3)",cursor:"pointer",fontSize:10,fontWeight:600}}>{v==="todos"?"Todos":ti(v)+" "+TIPOS.find(t=>t.v===v)?.lbl}</button>)}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+        {[["Total",evFiltrados.length,"var(--cy)"],["Grabaciones",evFiltrados.filter(e=>e.tipo==="grabacion").length,"var(--cy)"],["Emisiones",evFiltrados.filter(e=>e.tipo==="emision").length,"#00e08a"],["Reuniones+",evFiltrados.filter(e=>!["grabacion","emision"].includes(e.tipo)).length,"#ffcc44"]].map(([l,v,c])=><Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]}/>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
+        {!vistaLista?<div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--bdr)"}}>{DIAS.map(d=><div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:11,fontWeight:600,color:"var(--gr2)",letterSpacing:1}}>{d}</div>)}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {celdas.map((d,i)=>{const evs=d?evsDelDia(d):[];const isTod=d&&esHoy(d);const isSel=d&&diaSelec===d;return(
+              <div key={i} onClick={()=>d&&setDiaSelec(diaSelec===d?null:d)} style={{minHeight:90,padding:"5px 3px",borderRight:i%7!==6?"1px solid var(--bdr)":"none",borderBottom:"1px solid var(--bdr)",background:isSel?"var(--am)":isTod?"var(--cg)":"transparent",cursor:d?"pointer":"default",transition:".1s"}}>
+                {d&&<><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,padding:"0 2px"}}>
+                  <span style={{fontSize:12,fontWeight:isTod||isSel?700:400,color:isTod||isSel?"var(--cy)":"var(--gr3)"}}>{d}</span>
+                  {_cd&&_cd("calendario")&&<span onClick={e=>{e.stopPropagation();openM("evento",{fecha:`${mes.y}-${String(mes.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`});}} style={{fontSize:10,color:"var(--gr)",cursor:"pointer",opacity:.6}}>+</span>}
+                </div>
+                {evs.slice(0,3).map(ev=><div key={ev.id} onClick={e=>{e.stopPropagation();if(_cd&&_cd("calendario")) editCalItem(ev);}} style={{fontSize:9,padding:"2px 4px",borderRadius:3,marginBottom:2,background:ev.color+"25",color:ev.color,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:_cd&&_cd("calendario")?"pointer":"default"}} title={(_cd&&_cd("calendario")?"Clic para editar · ":"")+ev.label+" · "+ev.sub+(ev.hora?" · "+ev.hora:"")}>{ev.hora?<span style={{opacity:.7}}>{ev.hora} </span>:""}{ev.label}</div>)}
+                {evs.length>3&&<div style={{fontSize:9,color:"var(--gr2)",padding:"0 2px"}}>+{evs.length-3} más</div>}</>}
+              </div>
+            );})}
+          </div>
+        </div>:
+        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:20}}>
+          <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700,marginBottom:16}}>Todos los eventos — {MESES[mes.m]} {mes.y}</div>
+          {proximos.length>0?proximos.map(ev=><div key={ev.id} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
+            <div style={{width:44,height:44,borderRadius:8,background:ev.color+"22",border:`1px solid ${ev.color}40`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontSize:14}}>{ti(ev.tipo)}</span>
+              <span style={{fontSize:9,fontFamily:"var(--fm)",fontWeight:700,color:ev.color}}>{String(ev.dia).padStart(2,"0")}</span>
+            </div>
+            <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:13,fontWeight:600}}>{ev.label}</div><div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub}{ev.hora?" · "+ev.hora:""} · {moduloLabel(ev)}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:3}}>{ev.desc}</div>}</div>
+            {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
+          </div>):<Empty text="Sin eventos este mes"/>}
+        </div>}
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {diaSelec&&<div style={{background:"var(--card)",border:"1px solid var(--cy)",borderRadius:10,padding:16}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700}}>{diaSelec} de {MESES[mes.m]}</div>
+              {_cd&&_cd("calendario")&&<GBtn sm onClick={()=>openM("evento",{fecha:`${mes.y}-${String(mes.m+1).padStart(2,"0")}-${String(diaSelec).padStart(2,"0")}`})}>+ Agregar</GBtn>}
+            </div>
+            {evsDiaSel.length>0?evsDiaSel.map(ev=><div key={ev.id} style={{display:"flex",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
+              <span style={{fontSize:16,flexShrink:0}}>{ti(ev.tipo)}</span>
+              <div style={{flex:1,minWidth:0,cursor:_cd&&_cd("calendario")?"pointer":"default"}} onClick={()=>_cd&&_cd("calendario")&&editCalItem(ev)}><div style={{fontSize:12,fontWeight:600,color:ev.color}}>{ev.label.replace(/^[^\s]+\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ev.sub}{ev.hora?" · "+ev.hora:""} · {moduloLabel(ev)}</div>{ev.desc&&<div style={{fontSize:11,color:"var(--gr3)",marginTop:2}}>{ev.desc}</div>}</div>
+              {_cd&&_cd("calendario")&&<div style={{display:"flex",gap:4,alignItems:"flex-start"}}><GBtn sm onClick={()=>editCalItem(ev)}>✏</GBtn>{ev.custom&&<XBtn onClick={()=>delEvento(ev.id)}/>}</div>}
+            </div>):<Empty text="Sin eventos este día" sub="Clic en '+' para agregar"/>}
+          </div>}
+          <Card title="Próximos" sub={`${MESES[mes.m]} ${mes.y}`}>
+            {proximos.slice(0,8).map(ev=><div key={ev.id} style={{display:"flex",gap:8,padding:"8px 0",borderBottom:"1px solid var(--bdr)",alignItems:"center"}}>
+              <div style={{width:26,height:26,borderRadius:6,background:ev.color+"22",border:`1px solid ${ev.color}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontFamily:"var(--fm)",fontSize:10,fontWeight:700,color:ev.color}}>{String(ev.dia).padStart(2,"0")}</span></div>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.label}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{ev.sub} · {moduloLabel(ev)}</div></div>
+            </div>)}
+            {!proximos.length&&<Empty text="Sin eventos"/>}
+          </Card>
+          <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:16}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:10}}>Leyenda</div>
+            {TIPOS.map(t=><div key={t.v} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}><div style={{width:10,height:10,borderRadius:3,background:t.c,flexShrink:0}}/><span style={{fontSize:11,color:"var(--gr3)"}}>{t.ico} {t.lbl}</span></div>)}
+          </div>
+        </div>
+      </div>
+    </>}
+
+    {subTab===2&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <Card title="Grabaciones y emisiones" sub="Vista operativa para producción y post.">
+        {programacion.length?programacion.map(ev=><div key={ev.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:ev.color}}>{ev.label}</div>
+            <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.sub} · {ev.fecha?fmtD(ev.fecha):"Sin fecha"}</div>
+          </div>
+          <Badge label={TIPOS.find(t=>t.v===ev.tipo)?.lbl||"Evento"} color={ev.tipo==="grabacion"?"cyan":ev.tipo==="emision"?"green":ev.tipo==="entrega"?"orange":"purple"} sm/>
+        </div>):<Empty text="Sin hitos de programación"/>}
+      </Card>
+      <Card title="Agenda del equipo">
+        {agendaEquipo.length?agendaEquipo.slice(0,8).map(ev=><div key={ev.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:ev.color}}>{ev.label}</div>
+            <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>{ev.responsable||"Sin asignar"} · {ev.fecha?fmtD(ev.fecha):"Sin fecha"}</div>
+          </div>
+          <Badge label={ev.estado||"Pendiente"} color="purple" sm/>
+        </div>):<Empty text="Sin tareas con fecha límite"/>}
+      </Card>
+      <Card title="Resumen por tipo">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {TIPOS.filter(t=>["grabacion","emision","entrega","estreno","tarea","cobranza"].includes(t.v)).map(t=><div key={t.v} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:14}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{t.lbl}</div>
+            <div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:t.c}}>{evFiltrados.filter(ev=>ev.tipo===t.v).length}</div>
+          </div>)}
+        </div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginTop:12}}>Esta vista está pensada para revisar rápido grabaciones, entregas y publicaciones sin navegar por cada módulo.</div>
+      </Card>
+    </div>}
+
+    {subTab===3&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <Card title="Documentos por cobrar" sub="Estado comercial y próximos vencimientos.">
+        {cobranzaItems.length?cobranzaItems.map(doc=>{
+          const late = doc.estadoCobranza==="Retrasado de pago";
+          const badgeColor = doc.estadoCobranza==="Pagado" ? "green" : late ? "red" : doc.estadoCobranza==="No pagado" ? "orange" : "yellow";
+          return <div key={doc.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}>{doc.correlativo||doc.tipoDoc||"Invoice"}</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{doc.entidad} · vence {fmtD(doc.fechaVencimiento)}</div>
+              <div style={{fontSize:11,color:"var(--gr3)",marginTop:3}}>{fmtM(doc.total||0)}</div>
+            </div>
+            <Badge label={doc.estadoCobranza} color={badgeColor} sm/>
+          </div>;
+        }):<Empty text="Sin documentos con vencimiento"/>}
+      </Card>
+      <Card title="Contratos por vencer" sub="Control comercial complementario.">
+        {contratosPorVencer.length?contratosPorVencer.map(ct=>{
+          const cli=(clientes||[]).find(x=>x.id===ct.cliId)?.nom||"Sin cliente";
+          return <div key={ct.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}>{ct.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{cli} · vigencia {fmtD(ct.vig)}</div>
+            </div>
+            <Badge label={`${daysUntil(ct.vig)} días`} color="yellow" sm/>
+          </div>;
+        }):<Empty text="Sin contratos por vencer"/>}
+      </Card>
+    </div>}
   </div>;
 }
 
@@ -4509,7 +4861,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
 function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,setMovimientos,saveFacturaDoc,ntf}){
   const empId=empresa?.id;
   const [tab,setTab]=useState(0);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fc,setFc]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
   const allDocs = (facturas||[]).filter(x=>x.empId===empId);
@@ -4518,6 +4870,10 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     return(ent.toLowerCase().includes(q.toLowerCase())||(f.correlativo||"").toLowerCase().includes(q.toLowerCase()))&&(!fe||f.estado===fe);
   });
   const invoices = allDocs.filter(f=>f.tipoDoc==="Invoice");
+  const cobranzaDocs = invoices.filter(f=>{
+    const ent=invoiceEntityName(f,clientes,auspiciadores);
+    return (ent.toLowerCase().includes(q.toLowerCase()) || (f.correlativo||"").toLowerCase().includes(q.toLowerCase())) && (!fc || cobranzaState(f)===fc);
+  });
   const cuentasPorCobrar = invoices.filter(f=>cobranzaState(f)!=="Pagado");
   const pendiente=cuentasPorCobrar.reduce((s,f)=>s+Number(f.total||0),0);
   const pagado=invoices.filter(f=>cobranzaState(f)==="Pagado").reduce((s,f)=>s+Number(f.total||0),0);
@@ -4601,6 +4957,36 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     await persistSeries(nextFacts);
     ntf?.(newDocs.length ? `Serie regenerada ✓ (${newDocs.length} mes${newDocs.length===1?"":"es"} nuevo${newDocs.length===1?"":"s"})` : "La serie ya estaba completa ✓");
   };
+  const billingMessage = (doc, entity) => {
+    const contact = billingContact(entity, doc.tipo);
+    const due = doc.fechaVencimiento ? fmtD(doc.fechaVencimiento) : "sin vencimiento definido";
+    return `Hola ${contact.nombre || ""}, te escribimos desde ${empresa?.nombre || "Produ"} por el invoice ${doc.correlativo || ""} por ${fmtM(doc.total || 0)}, con vencimiento ${due}. Quedamos atentos a tu confirmación de pago.\n\n${empresa?.bankInfo || ""}`.trim();
+  };
+  const statementMessage = (docs, entity, type) => {
+    const contact = billingContact(entity, type);
+    const lines = docs.map(doc=>`- ${doc.correlativo || "Invoice"} · ${fmtM(doc.total || 0)} · ${cobranzaState(doc)}${doc.fechaVencimiento ? ` · vence ${fmtD(doc.fechaVencimiento)}` : ""}`);
+    return `Hola ${contact.nombre || ""}, te compartimos tu estado de cuenta con ${empresa?.nombre || "Produ"}.\n\n${lines.join("\n")}\n\nTotal pendiente: ${fmtM(docs.filter(doc=>cobranzaState(doc)!=="Pagado").reduce((s,doc)=>s+Number(doc.total||0),0))}\n\n${empresa?.bankInfo || ""}`.trim();
+  };
+  const sendBillingEmail = (doc, entity) => {
+    const contact = billingContact(entity, doc.tipo);
+    if (!contact.email) { alert("La entidad no tiene email de cobranza registrado."); return; }
+    openMailto(contact.email, `Cobranza invoice ${doc.correlativo || ""}`, billingMessage(doc, entity));
+  };
+  const sendBillingWhatsApp = (doc, entity) => {
+    const contact = billingContact(entity, doc.tipo);
+    if (!contact.tel) { alert("La entidad no tiene teléfono registrado."); return; }
+    openWhatsApp(contact.tel, billingMessage(doc, entity));
+  };
+  const sendStatementEmail = (docs, entity, type) => {
+    const contact = billingContact(entity, type);
+    if (!contact.email) { alert("La entidad no tiene email de cobranza registrado."); return; }
+    openMailto(contact.email, `Estado de cuenta ${contact.entidad || ""}`.trim(), statementMessage(docs, entity, type));
+  };
+  const sendStatementWhatsApp = (docs, entity, type) => {
+    const contact = billingContact(entity, type);
+    if (!contact.tel) { alert("La entidad no tiene teléfono registrado."); return; }
+    openWhatsApp(contact.tel, statementMessage(docs, entity, type));
+  };
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
@@ -4661,13 +5047,18 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     </Card>
     </>}
     {tab===1 && <Card title="Cobranza" sub="Cuentas por cobrar por invoice emitido">
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar invoice o entidad..."/>
+        <FilterSel value={fc} onChange={v=>{setFc(v);setPg(1);}} options={COBRANZA_STATES} placeholder="Todo cobro"/>
+      </div>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Invoice</TH><TH>Entidad</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Estado de cobro</TH><TH></TH></tr></thead>
+          <thead><tr><TH>Invoice</TH><TH>Entidad</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
           <tbody>
-            {invoices.length ? invoices.map(f=>{
+            {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
               const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
               const cobro=cobranzaState(f);
+              const entityDocs=invoices.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
               return <tr key={f.id}>
                 <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?recurringSummary(f, f.fechaEmision || today()):"Único"}</div></TD>
                 <TD>{ent?.nom||"—"}</TD>
@@ -4675,15 +5066,25 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
                 <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
                 <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>
                 <TD>
-                  {_cd&&_cd("facturacion")&&<FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
-                    {COBRANZA_STATES.map(st=><option key={st}>{st}</option>)}
-                  </FSl>}
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+                    {_cd&&_cd("facturacion")&&<FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
+                      {COBRANZA_STATES.map(st=><option key={st}>{st}</option>)}
+                    </FSl>}
+                    <GBtn sm onClick={()=>sendBillingEmail(f,ent)}>✉ Correo</GBtn>
+                    <GBtn sm onClick={()=>sendBillingWhatsApp(f,ent)}>
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+                      WhatsApp
+                    </GBtn>
+                    <GBtn sm onClick={()=>sendStatementEmail(entityDocs,ent,f.tipo)}>Estado cta. correo</GBtn>
+                    <GBtn sm onClick={()=>sendStatementWhatsApp(entityDocs,ent,f.tipo)}>Estado cta. WA</GBtn>
+                  </div>
                 </TD>
               </tr>;
             }) : <tr><td colSpan={6}><Empty text="Sin invoices emitidos" sub="Emite un invoice para empezar a gestionar su cobranza."/></td></tr>}
           </tbody>
         </table>
       </div>
+      <Paginator page={pg} total={cobranzaDocs.length} perPage={PP} onChange={setPg}/>
     </Card>}
     {tab===2 && <Card title="Recurrencias" sub="Administra series activas sin mezclar cobro ni pago">
       {seriesList.length ? <div style={{overflowX:"auto"}}>

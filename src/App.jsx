@@ -1447,6 +1447,11 @@ function SolicitudesPanel({onAceptar, onRechazar, empresas}){
   </div>;
 }
 
+const THEME_PRESETS={
+  dark:{mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a"},
+  light:{mode:"light",bg:"#f3f5f9",surface:"#ffffff",card:"#ffffff",border:"#e4e7ee",accent:"#00b4cc",accent2:"#0097ad",white:"#111827",gray:"#64748b"},
+};
+
 function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
@@ -1473,7 +1478,8 @@ function SuperAdminPanel({empresas,users,onSave}){
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
-    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const prev=empresas.find(e=>e.id===eid)||{};
+    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -1799,7 +1805,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
   useEffect(()=>setLt(theme||{}),[theme]);
-  const FIELDS=[["bg","Fondo principal"],["surface","Fondo lateral"],["card","Tarjetas"],["border","Bordes"],["accent","Acento"],["white","Texto"],["gray","Texto secundario"]];
+  const FIELDS=[["bg","Fondo principal"],["surface","Superficies"],["card","Tarjetas"],["border","Bordes"],["accent","Acento"],["accent2","Acento secundario"],["white","Texto"],["gray","Texto secundario"]];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
   const filteredUsers=empUsers.filter(u=>(!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase()))&&(!uRole||u.role===uRole)&&(!uState||(uState==="active"?u.active:u.active===false)));
@@ -1831,7 +1837,25 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     </div>
     <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
-      <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Cambia los colores del sistema. Se aplican para todos los usuarios.</div>
+      <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Define el tono visual de tu instancia. Se aplica para todos los usuarios de esta empresa manteniendo la identidad de Produ.</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        {Object.entries(THEME_PRESETS).map(([key,preset])=>{
+          const active=(lt.mode||"dark")===preset.mode;
+          return <button key={key} onClick={(e)=>{e.stopPropagation();setLt({...preset,accent:lt.accent||empresa?.color||preset.accent,accent2:lt.accent2||preset.accent2});}} style={{textAlign:"left",padding:"14px 16px",borderRadius:10,border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,background:"var(--sur)",cursor:"pointer"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,color:"var(--wh)"}}>{preset.mode==="dark"?"Produ Dark":"Produ Light"}</div>
+              {active&&<Badge label="Activo" color="cyan" sm/>}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              {[preset.bg,preset.surface,preset.card,preset.accent].map(c=><span key={c} style={{width:24,height:24,borderRadius:8,background:c,border:"1px solid var(--bdr2)"}}/>)}
+            </div>
+          </button>;
+        })}
+      </div>
+      <R2>
+        <FG label="Modo"><FSl value={lt.mode||"dark"} onChange={e=>setLt(p=>({...THEME_PRESETS[e.target.value],accent:p.accent||empresa?.color||THEME_PRESETS[e.target.value].accent,accent2:p.accent2||THEME_PRESETS[e.target.value].accent2}))}><option value="dark">Dark</option><option value="light">Light</option></FSl></FG>
+        <FG label="Color de marca"><FI type="color" value={lt.accent||empresa?.color||THEME_PRESETS[lt.mode||"dark"].accent} onChange={e=>setLt(p=>({...p,accent:e.target.value}))}/></FG>
+      </R2>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         {FIELDS.map(([k,lbl])=><div key={k} style={{display:"flex",alignItems:"center",gap:10,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"8px 12px"}}>
           <input type="color" value={lt[k]||"#000"} onChange={e=>setLt(p=>({...p,[k]:e.target.value}))} style={{width:36,height:36,borderRadius:6,border:"none",background:"none",cursor:"pointer",flexShrink:0}}/>
@@ -1840,8 +1864,8 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       </div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={(e)=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aplicar</button>
-        <button onClick={(e)=>{e.stopPropagation();const dt={bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a",mode:"dark"};setLt(dt);onSaveTheme(dt);ntf("Tema oscuro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>🌙 Oscuro</button>
-        <button onClick={(e)=>{e.stopPropagation();const lt2={bg:"#f0f2f7",surface:"#ffffff",card:"#ffffff",border:"#e8eaef",accent:"#3b82f6",accent2:"#2563eb",white:"#0f1623",gray:"#6b7280",mode:"light"};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
+        <button onClick={(e)=>{e.stopPropagation();const dt={...THEME_PRESETS.dark,accent:empresa?.color||THEME_PRESETS.dark.accent};setLt(dt);onSaveTheme(dt);ntf("Tema oscuro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>🌙 Oscuro</button>
+        <button onClick={(e)=>{e.stopPropagation();const lt2={...THEME_PRESETS.light,accent:empresa?.color||THEME_PRESETS.light.accent};setLt(lt2);onSaveTheme(lt2);ntf("Tema claro");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>☀ Claro</button>
       </div>
     </div>}
     {tab===1&&<div>
@@ -1939,7 +1963,7 @@ export default function App(){
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
   const [users,setUsersRaw,savUsrRef]=useDB("produ:users");
-  const [themeDB,setThemeDB]=useDB("produ:theme");
+  const [,setThemeDB]=useDB("produ:theme");
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
@@ -1984,8 +2008,7 @@ export default function App(){
   useEffect(()=>{
     dbGet("produ:empresas").then(v=>{ if(!v){setEmpresasRaw(SEED_EMPRESAS);dbSet("produ:empresas",SEED_EMPRESAS);}else setEmpresasRaw(v); });
     dbGet("produ:users").then(v=>{ if(!v){setUsersRaw(SEED_USERS);dbSet("produ:users",SEED_USERS);}else setUsersRaw(v); });
-    applyTheme(DEFAULT_T); // Apply immediately
-    dbGet("produ:theme").then(v=>{ if(v&&v.mode) applyTheme(v); });
+    applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
   },[]);
 
@@ -2034,17 +2057,43 @@ export default function App(){
     if(changed) setPiezas(normalized);
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
 
-  const DEFAULT_T={mode:"light",bg:"#f0f2f7",surface:"#ffffff",card:"#ffffff",border:"#e4e6ed",accent:"#4f46e5",accent2:"#4338ca",white:"#1a1a2e",gray:"#64748b"};
+  const DEFAULT_T=THEME_PRESETS.dark;
   const [theme,setThemeState]=useState(DEFAULT_T);
+  const resolveTheme=(rawTheme,emp)=>{
+    const base=THEME_PRESETS[rawTheme?.mode||"dark"]||DEFAULT_T;
+    const accent=rawTheme?.accent||emp?.color||base.accent;
+    return {...base,...rawTheme,accent,accent2:rawTheme?.accent2||base.accent2};
+  };
   const applyTheme=t=>{
-    const merged={...DEFAULT_T,...t};
+    const merged=resolveTheme(t,curEmp);
     setThemeState(merged);
     const r=document.documentElement;
     const map={"--bg":merged.bg,"--sur":merged.surface,"--card":merged.card,"--card2":merged.card,"--bdr":merged.border,"--bdr2":merged.border,"--cy":merged.accent,"--cy2":merged.accent2||merged.accent,"--cg":merged.accent+"20","--cm":merged.accent+"40","--wh":merged.white,"--gr":merged.gray,"--gr2":merged.gray,"--gr3":merged.white+"cc"};
     Object.entries(map).forEach(([k,v])=>r.style.setProperty(k,v));
     document.body.className=merged.mode==="light"?"light":"dark";
   };
-  const saveTheme=t=>{applyTheme(t);dbSet("produ:theme",t);};
+  const saveTheme=t=>{
+    const next=resolveTheme(t,curEmp);
+    applyTheme(next);
+    if(curEmp?.id){
+      const updated=(empresas||[]).map(e=>e.id===curEmp.id?{...e,theme:next,color:next.accent||e.color}:e);
+      setEmpresasRaw(updated);
+      dbSet("produ:empresas",updated);
+    }else{
+      setThemeDB(next);
+      dbSet("produ:theme",next);
+    }
+  };
+
+  useEffect(()=>{
+    if(curEmp?.id){
+      const freshEmp=(empresas||[]).find(e=>e.id===curEmp.id)||curEmp;
+      applyTheme(freshEmp?.theme||{accent:freshEmp?.color||DEFAULT_T.accent,mode:"dark"});
+      if(freshEmp!==curEmp) setCurEmp(freshEmp);
+      return;
+    }
+    applyTheme(DEFAULT_T);
+  },[curEmp?.id,empresas]);
 
   const ntf=useCallback((msg,type="ok")=>{setToast({msg,type});setSyncPulse(true);setTimeout(()=>setSyncPulse(false),2000);},[]);
   const openM=(k,d={})=>{setMData(d);setMOpen(k);};

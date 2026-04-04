@@ -1414,7 +1414,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,auspiciadores,movimientos,presupuestos,facturas,activos,alertas,navTo}){
+function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,auspiciadores,movimientos,presupuestos,facturas,contratos,piezas,activos,alertas,navTo}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const mvs=(movimientos||[]).filter(m=>m.empId===empId);
@@ -1424,6 +1424,21 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const pros=(producciones||[]).filter(x=>x.empId===empId);
   const pgs=(programas||[]).filter(x=>x.empId===empId);
   const eps=(episodios||[]).filter(x=>x.empId===empId);
+  const cts=(contratos||[]).filter(x=>x.empId===empId);
+  const campaigns=(piezas||[]).filter(x=>x.empId===empId);
+  const pres=(presupuestos||[]).filter(x=>x.empId===empId);
+  const facts=(facturas||[]).filter(x=>x.empId===empId);
+  const canContracts = hasAddon(empresa, "contratos");
+  const canBudgets = hasAddon(empresa, "presupuestos");
+  const canInvoices = hasAddon(empresa, "facturacion");
+  const canSocial = hasAddon(empresa, "social");
+  const projectedRecurring = facts.filter(f=>f.recurring).reduce((s,f)=>s+Number(f.total||0),0);
+  const overdueFacts = facts.filter(f=>f.estado!=="Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
+  const payableSoon = facts.filter(f=>f.estado!=="Pagada" && f.fechaVencimiento && daysUntil(f.fechaVencimiento)!==null && daysUntil(f.fechaVencimiento)>=0 && daysUntil(f.fechaVencimiento)<=7);
+  const contractsExpiring = cts.filter(ct=>daysUntil(ct.vig)!==null && daysUntil(ct.vig)>=0 && daysUntil(ct.vig)<=30);
+  const acceptedBudgets = pres.filter(p=>p.estado==="Aceptado");
+  const recurringBudgets = pres.filter(p=>p.recurring);
+  const activeCampaigns = campaigns.filter(c=>c.est==="Activa" || c.est==="Planificada");
   return <div className="va">
     <div style={{marginBottom:12}}><span style={{fontSize:12,color:"var(--gr2)"}}>Bienvenido, <b style={{color:"var(--wh)"}}>{user?.name}</b> · <span style={{color:"var(--cy)"}}>{empresa?.nombre}</span></span></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
@@ -1432,6 +1447,20 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
       <Stat label="Ingresos"     value={fmtM(ti)}      sub="todos proyectos"  accent="#00e08a"   vc="#00e08a"/>
       <Stat label="Balance"      value={fmtM(ti-tg)}   sub={`gastos: ${fmtM(tg)}`} accent={ti-tg>=0?"#00e08a":"#ff5566"} vc={ti-tg>=0?"#00e08a":"#ff5566"}/>
     </div>
+    {(canBudgets || canInvoices || canContracts || canSocial) && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+      {canBudgets
+        ? <Stat label="Presupuestos Aceptados" value={acceptedBudgets.length} sub={acceptedBudgets.length?fmtM(acceptedBudgets.reduce((s,p)=>s+Number(p.total||0),0)):"Sin aprobados"} accent="var(--cy)" vc="var(--cy)"/>
+        : <Stat label="Producciones" value={pgs.length} sub={`${eps.filter(e=>e.estado==="Publicado").length} episodios publicados`}/>}
+      {canInvoices
+        ? <Stat label="Proyección Recurrente" value={fmtM(projectedRecurring)} sub={`${facts.filter(f=>f.recurring).length} documentos recurrentes`} accent="#7c5cff" vc="#7c5cff"/>
+        : <Stat label="Auspiciadores" value={(auspiciadores||[]).filter(a=>a.empId===empId).length} sub="registros activos" accent="#ffcc44" vc="#ffcc44"/>}
+      {canContracts
+        ? <Stat label="Contratos por Vencer" value={contractsExpiring.length} sub={contractsExpiring[0]?fmtD(contractsExpiring[0].vig):"sin alertas"} accent="#ffcc44" vc="#ffcc44"/>
+        : <Stat label="Activos" value={(activos||[]).filter(a=>a.empId===empId).length} sub="inventario" accent="#00e08a" vc="#00e08a"/>}
+      {canSocial
+        ? <Stat label="Campañas Activas" value={activeCampaigns.length} sub={activeCampaigns[0]?`${activeCampaigns[0].mes || ""} ${activeCampaigns[0].ano || ""}`:"sin campañas"} accent="#00e08a" vc="#00e08a"/>
+        : <Stat label="Facturas Vencidas" value={overdueFacts.length} sub={overdueFacts.length?fmtM(overdueFacts.reduce((s,f)=>s+Number(f.total||0),0)):"sin deuda"} accent="#ff5566" vc="#ff5566"/>}
+    </div>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Proyectos Recientes" action={{label:"Ver todos →",fn:()=>navTo("producciones")}}>
         {pros.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Estado</TH><TH>Balance</TH></tr></thead><tbody>
@@ -1453,6 +1482,45 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
         {!(auspiciadores||[]).filter(a=>a.empId===empId&&a.est==="Activo").length&&<Empty text="Sin auspiciadores activos"/>}
       </Card>
     </div>
+    {(canInvoices || canContracts || canBudgets) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+      {canInvoices && <Card title="Cobranza y Vencimientos" action={{label:"Ver facturación →",fn:()=>navTo("facturacion")}}>
+        {overdueFacts.length || payableSoon.length ? [...overdueFacts.slice(0,3), ...payableSoon.filter(f=>!overdueFacts.some(o=>o.id===f.id)).slice(0,3)].map(f=>{
+          const ent = invoiceEntityName(f, clientes, auspiciadores);
+          const late = f.fechaVencimiento && String(f.fechaVencimiento) < today();
+          return <div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600}}>{f.correlativo || f.tipoDoc || "Documento"}</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{ent} · {f.fechaVencimiento ? `vence ${fmtD(f.fechaVencimiento)}` : "sin vencimiento"}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontFamily:"var(--fm)",fontSize:12,color:late?"#ff5566":"#ffcc44"}}>{fmtM(f.total||0)}</div>
+              <Badge label={late?"Vencida":"Próxima"} color={late?"red":"yellow"} sm/>
+            </div>
+          </div>;
+        }) : <Empty text="Sin alertas de cobranza"/>}
+      </Card>}
+      {canContracts && <Card title="Contratos por Vencer" action={{label:"Ver contratos →",fn:()=>navTo("contratos")}}>
+        {contractsExpiring.length ? contractsExpiring.slice(0,5).map(ct=>{
+          const cli=(clientes||[]).find(x=>x.id===ct.cliId);
+          return <div key={ct.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{cli?.nom || "Sin cliente"} · {fmtD(ct.vig)}</div>
+            </div>
+            <Badge label={`${daysUntil(ct.vig)} día${daysUntil(ct.vig)===1?"":"s"}`} color="yellow" sm/>
+          </div>;
+        }) : <Empty text="Sin contratos por vencer"/>}
+      </Card>}
+      {canBudgets && <Card title="Pipeline Comercial" action={{label:"Ver presupuestos →",fn:()=>navTo("presupuestos")}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
+          {[["Aceptados",acceptedBudgets.length,"#00e08a"],["Recurrentes",recurringBudgets.length,"#7c5cff"],["Listos para facturar",pres.filter(p=>p.autoFactura).length,"var(--cy)"]].map(([label,val,color])=><div key={label} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 10px",textAlign:"center"}}>
+            <div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color}}>{val}</div>
+            <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{label}</div>
+          </div>)}
+        </div>
+        <div style={{fontSize:12,color:"var(--gr2)"}}>Monto aceptado actual: <span style={{fontFamily:"var(--fm)",color:"var(--wh)"}}>{fmtM(acceptedBudgets.reduce((s,p)=>s+Number(p.total||0),0))}</span></div>
+      </Card>}
+    </div>}
     {/* Alertas en dashboard */}
     {alertas&&alertas.length>0&&<div style={{marginBottom:16}}>
       <Card title="🔔 Próximas Grabaciones" sub={`${alertas.length} fecha${alertas.length!==1?"s":""} próxima${alertas.length!==1?"s":""}`}>

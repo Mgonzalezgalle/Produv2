@@ -1819,7 +1819,7 @@ function ListasEditor({ listas, saveListas }) {
 function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   const [ef, setEf] = useState({});
   const [editing, setEditing] = useState(false);
-  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
+  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
   const save = () => {
     const updated = { ...empresa, ...ef };
     saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
@@ -1834,6 +1834,10 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
         {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+      </div>
+      <div style={{marginTop:14}}>
+        <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Información bancaria</div>
+        <div style={{background:"var(--card2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"10px 12px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{empresa.bankInfo||"Sin información bancaria configurada"}</div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:12}}>{(empresa.addons||[]).length?(empresa.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin addons activos</span>}</div>
     </div>
@@ -1854,6 +1858,7 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <FG label="Estado"><FSl value={ef.active!==false?"true":"false"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG>
       </R2>
       <FG label="Dirección"><FI value={ef.dir} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG>
+      <FG label="Información bancaria"><FTA value={ef.bankInfo||""} onChange={e=>setEf(p=>({...p,bankInfo:e.target.value}))} placeholder="Banco: BancoEstado&#10;Tipo de cuenta: Cuenta Corriente&#10;N° cuenta: 123456789&#10;RUT: 78.118.348-2&#10;Email pagos: pagos@empresa.cl"/></FG>
       <div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Addons activos</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -3931,9 +3936,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
             }))
           : [{ label:"Sin ítems", value:"—" }],
       },
-      ...(pres.notasPago || pres.fechaPago ? [{
+      ...(empresa?.bankInfo || pres.notasPago || pres.fechaPago ? [{
         title:"Datos de pago",
-        text:[pres.notasPago || "", pres.fechaPago ? `Fecha de pago esperada: ${fmtD(pres.fechaPago)}` : ""].filter(Boolean).join("\n"),
+        text:[empresa?.bankInfo || "", pres.notasPago || "", pres.fechaPago ? `Fecha de pago esperada: ${fmtD(pres.fechaPago)}` : ""].filter(Boolean).join("\n\n"),
       }] : []),
       ...(pres.obs ? [{ title:"Observaciones", text:pres.obs }] : []),
     ],
@@ -4028,7 +4033,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
           { label:"Referencia", value:ref ? ref.nom || "—" : "Sin referencia" },
         ],
       },
-      ...(fact.obs ? [{ title:"Datos de pago / información bancaria", text:fact.obs }] : []),
+      ...(empresa?.bankInfo || fact.obs ? [{ title:"Datos de pago / información bancaria", text:[empresa?.bankInfo || "", fact.obs || ""].filter(Boolean).join("\n\n") }] : []),
       ...(fact.obs2 ? [{ title:"Observaciones", text:fact.obs2 }] : []),
       ...(docType === "Invoice" ? [{ title:"Nota", text:"Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." }] : []),
     ],

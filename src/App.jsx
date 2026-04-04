@@ -164,6 +164,24 @@ function nextTenantCode(empresas = []) {
   return `T-${String(max + 1).padStart(4, "0")}`;
 }
 
+function contractRefPrefix(refType = "") {
+  return { produccion:"p", programa:"pg", contenido:"pz" }[refType] || "";
+}
+
+function contractMatchesReference(contract = {}, refType = "", refId = "") {
+  if (!refType || !refId) return true;
+  const prefix = contractRefPrefix(refType);
+  const links = Array.isArray(contract?.pids) ? contract.pids.filter(Boolean) : [];
+  if (!links.length || !prefix) return false;
+  return links.includes(`${prefix}:${refId}`) || links.includes(refId);
+}
+
+function contractsForReference(contratos = [], cliId = "", refType = "", refId = "") {
+  const base = (contratos || []).filter(ct => !cliId || ct.cliId === cliId);
+  if (!refType || !refId) return base;
+  return base.filter(ct => contractMatchesReference(ct, refType, refId));
+}
+
 function recurringSummary(item = {}, fallbackDate = today()) {
   if (!item?.recurring) return "Único";
   const count = Math.max(1, Number(item.recMonths || 1));
@@ -3520,6 +3538,7 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
   const c=(clientes||[]).find(x=>x.id===p.cliId);
+  const contratosRel = contractsForReference(contratos||[], p.cliId, "produccion", id);
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(p.crewIds||[]).includes(x.id));
   const cContacto=(c?.contactos||[])[0];
@@ -3555,9 +3574,9 @@ function ViewProDet({id,empresa,clientes,producciones,programas,piezas,contratos
       </Card>
       <MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={_cd&&_cd("calendario")} titulo={p.nom}/>
     </div>}
-    {tab===5&&<Card title="Contratos del cliente" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:p.cliId})}:null}>
-      {(contratos||[]).filter(x=>x.cliId===p.cliId).map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
-      {!(contratos||[]).filter(x=>x.cliId===p.cliId).length&&<Empty text="Sin contratos"/>}
+    {tab===5&&<Card title="Contratos Relacionados" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:p.cliId,pids:[`p:${id}`],tip:"Producción",nom:`Contrato ${p.nom}`})}:null}>
+      {contratosRel.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
+      {!contratosRel.length&&<Empty text="Sin contratos relacionados"/>}
     </Card>}
     {tab===6&&<TareasContexto title="Tareas del Proyecto" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
@@ -3807,7 +3826,7 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
   const canContracts = hasAddon(empresa,"contratos");
   const canInvoices = hasAddon(empresa,"facturacion") && !!(_cd&&_cd("facturacion"));
   const presupuestosCamp = (presupuestos||[]).filter(pr=>pr.tipo==="contenido" && pr.refId===id);
-  const contratosCamp = (contratos||[]).filter(ct=>(ct.pids||[]).includes(`pz:${id}`) || ct.cliId===pz.cliId);
+  const contratosCamp = contractsForReference(contratos||[], pz.cliId, "contenido", id);
   const facturasCamp = (facturas||[]).filter(fc=>fc.tipoRef==="contenido" && fc.proId===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pz.crewIds||[]).includes(x.id));
   const [tab,setTab]=useState(0);
@@ -3886,7 +3905,7 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
     </div>}
-    {(canPres || canContracts || canInvoices) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginTop:16}}>
+    {(canPres || canInvoices) && <div style={{display:"grid",gridTemplateColumns:canPres&&canInvoices?"1fr 1fr":"1fr",gap:16,marginTop:16}}>
       {canPres && <Card title="Presupuestos de la Campaña" action={_cd&&_cd("presupuestos")?{label:"+ Nuevo",fn:()=>openM("pres",{tipo:"contenido",refId:id,cliId:pz.cliId,titulo:pz.nom,modoDetalle:"piezas",cantidadPiezas:pz.plannedPieces||1,detallePiezas:`Piezas ${pz.mes||"mensuales"}`})}:null}>
         {presupuestosCamp.length ? presupuestosCamp.slice(0,4).map(pr=><div key={pr.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
           <div>
@@ -3895,15 +3914,6 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
           </div>
           <div style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{fmtM(pr.total||0)}</div>
         </div>) : <Empty text="Sin presupuestos"/>}
-      </Card>}
-      {canContracts && <Card title="Contratos Relacionados" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:pz.cliId,pids:[`pz:${id}`],tip:"Servicio",nom:`Contrato ${pz.nom}`})}:null}>
-        {contratosCamp.length ? contratosCamp.slice(0,4).map(ct=><div key={ct.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:700}}>{ct.nom}</div>
-            <div style={{fontSize:11,color:"var(--gr2)"}}>{contractVisualState(ct)}</div>
-          </div>
-          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"#ffcc44"}}>{ct.mon?fmtM(ct.mon):"—"}</div>
-        </div>) : <Empty text="Sin contratos"/>}
       </Card>}
       {canInvoices && <Card title="Facturación de la Campaña" action={_cd&&_cd("facturacion")?{label:"+ Nueva",fn:()=>openM("fact",{tipo:"cliente",entidadId:pz.cliId,tipoRef:"contenido",proId:id,montoNeto:0,iva:true})}:null}>
         {facturasCamp.length ? facturasCamp.slice(0,4).map(fc=><div key={fc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
@@ -4563,7 +4573,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
   const total=subtotal+ivaVal;
   const recurringMonths=Math.max(1,Number(f.recMonths||1));
   const projectedTotal=f.recurring?total*recurringMonths:total;
-  const contratosCli = (contratos||[]).filter(ct=>!f.cliId || ct.cliId===f.cliId);
+  const contratosCli = contractsForReference(contratos||[], f.cliId, f.tipo, f.refId);
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
     <R2>
       <FG label="Título / Descripción *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Proyecto / Producción Q2 2025"/></FG>
@@ -5328,7 +5338,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   const projectedTotal=f.recurring?total*recurringMonths:total;
   // Solo auspiciadores principales y secundarios para programas
   const ausValidos=(auspiciadores||[]).filter(a=>["Auspiciador Principal","Auspiciador Secundario"].includes(a.tip));
-  const contratosEntidad=(contratos||[]).filter(ct=>!f.entidadId || ct.cliId===f.entidadId);
+  const contratosEntidad=contractsForReference(contratos||[], f.entidadId, f.tipoRef, f.proId);
   return <Modal open={open} onClose={onClose} title={data?.id?`Editar ${f.tipoDoc||"Documento"}`:`Nuevo ${f.tipoDoc||"Documento"}`} sub="Registro de cobro y documento comercial">
     {canPres && <FG label="Presupuesto origen">
       <FSl value={f.presupuestoId||""} onChange={e=>applyPresupuesto(e.target.value)}>

@@ -40,6 +40,11 @@ const fmtMonthPeriod = d => {
   catch { return d || "—"; }
 };
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const PRINT_COLORS = [
+  { value:"#545454", label:"Gris ejecutivo" },
+  { value:"#000000", label:"Negro" },
+  { value:"#172554", label:"Azul institucional" },
+];
 const CAMPANA_ESTADOS = ["Planificada","Activa","Pausada","Cerrada"];
 const PIEZA_ESTADOS = ["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"];
 const PIEZA_FORMATOS = ["Reel","Carrusel","Historia","TikTok","Post","Video","Story","Otro"];
@@ -114,6 +119,14 @@ function budgetRefLabel(item = {}, producciones = [], programas = [], piezas = [
 function invoiceEntityName(fact = {}, clientes = [], auspiciadores = []) {
   if (fact.tipo === "auspiciador") return (auspiciadores || []).find(x => x.id === fact.entidadId)?.nom || "—";
   return (clientes || []).find(x => x.id === fact.entidadId)?.nom || "—";
+}
+
+function companyPrintColor(empresa = {}) {
+  return PRINT_COLORS.find(opt => opt.value === empresa?.printColor)?.value || "#172554";
+}
+
+function companyPrintColorLabel(empresa = {}) {
+  return PRINT_COLORS.find(opt => opt.value === companyPrintColor(empresa))?.label || "Azul institucional";
 }
 
 function recurringSummary(item = {}, fallbackDate = today()) {
@@ -1837,7 +1850,7 @@ function ListasEditor({ listas, saveListas }) {
 function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   const [ef, setEf] = useState({});
   const [editing, setEditing] = useState(false);
-  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
+  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", printColor:companyPrintColor(empresa), plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
   const save = () => {
     const updated = { ...empresa, ...ef };
     saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
@@ -1851,7 +1864,7 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <GBtn sm onClick={() => setEditing(true)}>✏ Editar</GBtn>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"],["Color de impresos", companyPrintColorLabel(empresa)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </div>
       <div style={{marginTop:14}}>
         <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Información bancaria</div>
@@ -1876,6 +1889,11 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <FG label="Estado"><FSl value={ef.active!==false?"true":"false"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG>
       </R2>
       <FG label="Dirección"><FI value={ef.dir} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG>
+      <FG label="Color de impresos">
+        <FSl value={ef.printColor||"#172554"} onChange={e=>setEf(p=>({...p,printColor:e.target.value}))}>
+          {PRINT_COLORS.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        </FSl>
+      </FG>
       <FG label="Información bancaria"><FTA value={ef.bankInfo||""} onChange={e=>setEf(p=>({...p,bankInfo:e.target.value}))} placeholder="Banco: BancoEstado&#10;Tipo de cuenta: Cuenta Corriente&#10;N° cuenta: 123456789&#10;RUT: 78.118.348-2&#10;Email pagos: pagos@empresa.cl"/></FG>
       <div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Addons activos</div>
@@ -3977,7 +3995,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const subtotal = Number(pres.subtotal||0);
   const ivaVal = Number(pres.ivaVal||0);
   const total = Number(pres.total||0);
-  const accent = empresa?.color || "#00d4e8";
+  const accent = companyPrintColor(empresa);
   return buildModernPdf({
     fileName: presupuestoPdfFileName(pres),
     title: pres.correlativo ? `Presupuesto ${pres.correlativo}` : "Presupuesto",
@@ -4074,7 +4092,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const mn = Number(fact.montoNeto||0);
   const ivaV = fact.iva ? Math.round(mn*0.19) : 0;
   const total = Number(fact.total || (mn + ivaV));
-  const accent = empresa?.color || "#00d4e8";
+  const accent = companyPrintColor(empresa);
   const docType = fact.tipoDoc || "Orden de Factura";
   return buildModernPdf({
     fileName: facturaPdfFileName(fact),

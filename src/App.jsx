@@ -34,6 +34,13 @@ const addMonths = (dateStr = today(), months = 0) => {
 };
 const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
+const fmtMoney = (n, currency="CLP") => {
+  const value = Number(n || 0);
+  if (currency === "UF") return `UF ${value.toLocaleString("es-CL",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  if (currency === "USD") return "US$" + value.toLocaleString("es-CL",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (currency === "EUR") return "€" + value.toLocaleString("es-CL",{minimumFractionDigits:2,maximumFractionDigits:2});
+  return fmtM(value);
+};
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
 const fmtMonthPeriod = d => {
   try { return new Date(`${d || today()}T12:00:00`).toLocaleDateString("es-CL",{month:"long",year:"numeric"}); }
@@ -442,7 +449,7 @@ const DEFAULT_LISTAS = {
   areasCrew:   ["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"],
   rolesCrew:   ["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"],
   estadosPres: ["Pendiente","Borrador","Enviado","En Revisión","Aceptado","Rechazado"],
-  monedas:     ["CLP","USD","EUR"],
+  monedas:     ["CLP","UF","USD","EUR"],
   impuestos:   ["Sin impuesto","IVA 19%","Boleta Honorarios 15,25%"],
   tiposPres:   ["Proyecto","Producción","Contenidos","Servicio"],
   estadosFact: ["Borrador","Emitida","Anulada"],
@@ -456,8 +463,8 @@ const DEFAULT_LISTAS = {
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
-  { id:"emp1", tenantCode:"T-0001", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     googleCalendarEnabled:false, billingMonthly:449000, billingDiscountPct:10, billingDiscountNote:"Partner estratégico", billingStatus:"Al día", billingDueDay:5, billingLastPaidAt:"2026-04-01", contractOwner:"Matías González", clientPortalUrl:"https://portal.produ.cl/playmedia", cr:today() },
-  { id:"emp2", tenantCode:"T-0002", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", googleCalendarEnabled:false, billingMonthly:119000, billingDiscountPct:0, billingDiscountNote:"", billingStatus:"Pendiente", billingDueDay:10, billingLastPaidAt:"2026-03-10", contractOwner:"Carla González", clientPortalUrl:"https://portal.produ.cl/gonzalez", cr:today() },
+  { id:"emp1", tenantCode:"T-0001", nombre:"Play Media SpA",        rut:"78.118.348-2", dir:"Av. Providencia 1234, Santiago", tel:"+56 2 2345 6789", ema:"contacto@playmedia.cl",  logo:"", color:"#00d4e8", addons:["television","social","presupuestos","facturacion","activos","contratos","crew"], active:true, plan:"pro",     googleCalendarEnabled:false, billingCurrency:"UF", billingMonthly:12.9, billingDiscountPct:10, billingDiscountNote:"Partner estratégico", billingStatus:"Al día", billingDueDay:5, billingLastPaidAt:"2026-04-01", contractOwner:"Matías González", clientPortalUrl:"https://portal.produ.cl/playmedia", cr:today() },
+  { id:"emp2", tenantCode:"T-0002", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", googleCalendarEnabled:false, billingCurrency:"UF", billingMonthly:3.2, billingDiscountPct:0, billingDiscountNote:"", billingStatus:"Pendiente", billingDueDay:10, billingLastPaidAt:"2026-03-10", contractOwner:"Carla González", clientPortalUrl:"https://portal.produ.cl/gonzalez", cr:today() },
 ];
 const SEED_USERS = [
   { id:"u0", name:"Super Admin Produ", email:"super@produ.cl",      passwordHash:"4e4c56e4a15f89f05c2f4c72613da2a18c9665d4f0d6acce16415eb06f9be776", role:"superadmin", empId:null,   active:true },
@@ -1943,7 +1950,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -1951,6 +1958,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     onSave("empresas",(empresas||[]).map(e=>e.id===empId?{
       ...e,
       ...patch,
+      billingCurrency:patch.billingCurrency ?? e.billingCurrency ?? "UF",
       billingMonthly:Number(patch.billingMonthly ?? e.billingMonthly ?? 0),
       billingDiscountPct:companyBillingDiscountPct({billingDiscountPct:patch.billingDiscountPct ?? e.billingDiscountPct ?? 0}),
       billingDueDay:Number(patch.billingDueDay ?? e.billingDueDay ?? 0),
@@ -2023,9 +2031,9 @@ function SuperAdminPanel({empresas,users,onSave}){
     {tab===1&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:10,marginBottom:16}}>
         <Stat label="Empresas activas" value={activeEmp} sub="Tenants operativos" accent="var(--cy)"/>
-        <Stat label="MRR bruto" value={fmtM(grossMRR)} sub="Suma mensual pactada" accent="#00e08a"/>
-        <Stat label="Descuentos" value={fmtM(totalDiscountMRR)} sub="Rebajas activas" accent="#ffcc44" vc="#ffcc44"/>
-        <Stat label="MRR neto" value={fmtM(netMRR)} sub="Valor mensual Produ" accent="#a855f7" vc="#a855f7"/>
+        <Stat label="MRR bruto" value={fmtMoney(grossMRR,"UF")} sub="Suma mensual pactada" accent="#00e08a"/>
+        <Stat label="Descuentos" value={fmtMoney(totalDiscountMRR,"UF")} sub="Rebajas activas" accent="#ffcc44" vc="#ffcc44"/>
+        <Stat label="MRR neto" value={fmtMoney(netMRR,"UF")} sub="Valor mensual Produ" accent="#a855f7" vc="#a855f7"/>
         <Stat label="Con mora" value={overdueEmp} sub="Vencidas o suspendidas" accent="#ff5566" vc="#ff5566"/>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
@@ -2048,7 +2056,7 @@ function SuperAdminPanel({empresas,users,onSave}){
                   </div>
                   <Badge label={status} color={payColor} sm/>
                 </div>
-                <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.userCount} usuario{emp.userCount===1?"":"s"} · {fmtM(companyBillingNet(emp))}/mes</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.userCount} usuario{emp.userCount===1?"":"s"} · {fmtMoney(companyBillingNet(emp), emp.billingCurrency||"UF")}/mes</div>
               </button>;
             })}
             {!filteredPortfolio.length&&<Empty text="Sin empresas en cartera para este filtro" sub="Ajusta plan, estado de pago o búsqueda."/>}
@@ -2064,12 +2072,13 @@ function SuperAdminPanel({empresas,users,onSave}){
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
                   <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{String(emp.plan||"starter").toUpperCase()}</div></div>
                   <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Usuarios</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{emp.userCount}</div></div>
-                  <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Valor Produ</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--cy)"}}>{fmtM(net)}</div></div>
+                  <div style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Valor Produ</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--cy)"}}>{fmtMoney(net, emp.billingCurrency||"UF")}</div></div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
-                  <FG label="Valor mensual pactado"><FI type="number" min="0" value={emp.billingMonthly||0} onChange={e=>savePortfolio(emp.id,{billingMonthly:e.target.value})} placeholder="0"/></FG>
-                  <FG label="Descuento (%)"><FI type="number" min="0" max="100" value={emp.billingDiscountPct||0} onChange={e=>savePortfolio(emp.id,{billingDiscountPct:e.target.value})} placeholder="0"/></FG>
+                  <FG label="Moneda cartera"><FSl value={emp.billingCurrency||"UF"} onChange={e=>savePortfolio(emp.id,{billingCurrency:e.target.value})}><option value="UF">UF</option><option value="CLP">CLP</option><option value="USD">USD</option></FSl></FG>
+                  <FG label="Valor mensual pactado"><FI type="number" min="0" step="0.01" value={emp.billingMonthly||0} onChange={e=>savePortfolio(emp.id,{billingMonthly:e.target.value})} placeholder="0"/></FG>
                 </div>
+                <FG label="Descuento (%)"><FI type="number" min="0" max="100" value={emp.billingDiscountPct||0} onChange={e=>savePortfolio(emp.id,{billingDiscountPct:e.target.value})} placeholder="0"/></FG>
                 <R2>
                   <FG label="Contratado por"><FI value={emp.contractOwner||""} onChange={e=>savePortfolio(emp.id,{contractOwner:e.target.value})} placeholder="Nombre del responsable comercial"/></FG>
                   <FG label="Portal cliente"><FI value={emp.clientPortalUrl||""} onChange={e=>savePortfolio(emp.id,{clientPortalUrl:e.target.value})} placeholder="https://cliente.produ.cl/empresa"/></FG>
@@ -2091,7 +2100,8 @@ function SuperAdminPanel({empresas,users,onSave}){
                   <KV label="Último pago" value={emp.billingLastPaidAt?fmtD(emp.billingLastPaidAt):"Sin registro"}/>
                   <KV label="Frecuencia" value={companyPaymentDayLabel(emp)}/>
                   <KV label="Descuento activo" value={`${companyBillingDiscountPct(emp)}%`}/>
-                  <KV label="Valor mensual Produ" value={fmtM(net)}/>
+                  <KV label="Moneda cartera" value={emp.billingCurrency||"UF"}/>
+                  <KV label="Valor mensual Produ" value={fmtMoney(net, emp.billingCurrency||"UF")}/>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
                   <FG label="Estado de pago">
@@ -4707,7 +4717,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
           <td style={{padding:"6px 12px"}}><input value={it.desc||""} onChange={e=>updItem(i,"desc",e.target.value)} placeholder="Descripción del ítem" style={{...FS,padding:"6px 8px",fontSize:12}}/></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updItem(i,"qty",e.target.value)} min="1" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updItem(i,"precio",e.target.value)} min="0" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
-          <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtM(Number(it.qty||0)*Number(it.precio||0))}</td>
+          <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
           <td style={{padding:"6px 8px",textAlign:"center"}}><XBtn onClick={()=>delItem(i)}/></td>
         </tr>)}</tbody>
       </table>
@@ -4715,10 +4725,10 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
     {!(canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas") && !(f.items||[]).length&&<div style={{textAlign:"center",padding:14,color:"var(--gr2)",fontSize:12,border:"1px dashed var(--bdr2)",borderRadius:8,marginBottom:12}}>Sin ítems. Haz clic en "+ Agregar Ítem"</div>}
     {/* Totales */}
     <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,padding:"12px 16px",marginBottom:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtM(subtotal)}</span></div>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>IVA 19%</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{f.iva?fmtM(ivaVal):"—"}</span></div>
-      <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:13,fontWeight:700}}>Total Final</span><span style={{fontFamily:"var(--fm)",fontSize:15,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</span></div>
-      {f.recurring && <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,marginTop:8,borderTop:"1px dashed var(--bdr2)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Proyección {recurringMonths} mes{recurringMonths===1?"":"es"}</span><span style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:700,color:"#00e08a"}}>{fmtM(projectedTotal)}</span></div>}
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtMoney(subtotal,f.moneda||"CLP")}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>IVA 19%</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{f.iva?fmtMoney(ivaVal,f.moneda||"CLP"):"—"}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:13,fontWeight:700}}>Total Final</span><span style={{fontFamily:"var(--fm)",fontSize:15,fontWeight:700,color:"var(--cy)"}}>{fmtMoney(total,f.moneda||"CLP")}</span></div>
+      {f.recurring && <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,marginTop:8,borderTop:"1px dashed var(--bdr2)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Proyección {recurringMonths} mes{recurringMonths===1?"":"es"}</span><span style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:700,color:"#00e08a"}}>{fmtMoney(projectedTotal,f.moneda||"CLP")}</span></div>}
     </div>
     <R2>
       <FG label="Método de Pago"><FI value={f.metodoPago||""} onChange={e=>u("metodoPago",e.target.value)} placeholder="Transferencia, cuotas..."/></FG>
@@ -5031,9 +5041,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
       pres.metodoPago ? `Método de pago: ${pres.metodoPago}` : "",
     ],
     summaryRows: [
-      { label:"Subtotal neto", value:fmtM(subtotal) },
-      { label:pres.honorarios ? "Boleta honorarios 15,25%" : "IVA 19%", value:(pres.iva||pres.honorarios) ? fmtM(ivaVal) : "No aplica" },
-      { label:"Total final", value:fmtM(total), highlight:true, color:hexToRgb(accent) },
+      { label:"Subtotal neto", value:fmtMoney(subtotal, pres.moneda || "CLP") },
+      { label:pres.honorarios ? "Boleta honorarios 15,25%" : "IVA 19%", value:(pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "No aplica" },
+      { label:"Total final", value:fmtMoney(total, pres.moneda || "CLP"), highlight:true, color:hexToRgb(accent) },
     ],
     bodySections: [
       {
@@ -5041,7 +5051,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
         rows:(pres.items||[]).length
           ? (pres.items||[]).map((it, idx)=>({
               label:`${idx+1}. ${it.desc || "Ítem sin descripción"}`,
-              value:`${it.qty || 0} × ${fmtM(it.precio || 0)} = ${fmtM(Number(it.qty||0)*Number(it.precio||0))}`,
+              value:`${it.qty || 0} × ${fmtMoney(it.precio || 0, pres.moneda || "CLP")} = ${fmtMoney(Number(it.qty||0)*Number(it.precio||0), pres.moneda || "CLP")}`,
             }))
           : [{ label:"Sin ítems", value:"—" }],
       },
@@ -5191,7 +5201,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
             <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
             <TD><Badge label={p.estado||"Borrador"}/></TD>
             <TD mono style={{fontSize:11}}>{(p.items||[]).length}{p.recurring && <div style={{fontSize:10,color:"#00e08a",marginTop:4}}>{p.recMonths || 1} mes(es)</div>}</TD>
-            <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(p.total||0)}</TD>
+            <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtMoney(p.total||0,p.moneda||"CLP")}</TD>
             <TD style={{fontSize:11,color:"var(--gr2)"}}>{(contratos||[]).find(ct=>ct.id===p.contratoId)?.nom||"—"}</TD>
             <TD><div style={{display:"flex",gap:4}}>
               <GBtn sm onClick={e=>{e.stopPropagation();navTo("pres-det",p.id);}}>Ver</GBtn>
@@ -5282,10 +5292,10 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
       </Card>}
     </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <Stat label="Subtotal Neto" value={fmtM(p.subtotal||0)}/>
-      <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtM(p.ivaVal||0):"No aplica"}/>
-      <Stat label="Total Final"   value={fmtM(p.total||0)} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtM(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1))):(p.items||[]).length}/>
+      <Stat label="Subtotal Neto" value={fmtMoney(p.subtotal||0,p.moneda||"CLP")}/>
+      <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtMoney(p.ivaVal||0,p.moneda||"CLP"):"No aplica"}/>
+      <Stat label="Total Final"   value={fmtMoney(p.total||0,p.moneda||"CLP")} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtMoney(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1)),p.moneda||"CLP"):(p.items||[]).length}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
@@ -5300,12 +5310,12 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
     <Card title="Detalle de Ítems" style={{marginBottom:16}}>
       {(p.items||[]).length>0?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Descripción</TH><TH>Cantidad</TH><TH>Precio Unit.</TH><TH>Total</TH></tr></thead>
-        <tbody>{(p.items||[]).map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtM(it.precio||0)}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(Number(it.qty||0)*Number(it.precio||0))}</TD></tr>)}</tbody>
+        <tbody>{(p.items||[]).map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
       </table></div>:<Empty text="Sin ítems"/>}
       <div style={{marginTop:16,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtM(p.subtotal||0)}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19%</span><span style={{fontFamily:"var(--fm)"}}>{p.iva||p.honorarios?fmtM(p.ivaVal||0):"—"}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(p.total||0)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotal||0,p.moneda||"CLP")}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19%</span><span style={{fontFamily:"var(--fm)"}}>{p.iva||p.honorarios?fmtMoney(p.ivaVal||0,p.moneda||"CLP"):"—"}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtMoney(p.total||0,p.moneda||"CLP")}</span></div>
       </div>
     </Card>
     {p.obs&&<Card title="Observaciones"><p style={{fontSize:12,color:"var(--gr3)"}}>{p.obs}</p></Card>}

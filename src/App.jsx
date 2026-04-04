@@ -3718,7 +3718,7 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
   page.drawText(title, { x:width-300, y:height-44, size:24, font:bold, color:rgb(1,1,1) });
   if (badge) {
     const badgeWidth = Math.max(92, bold.widthOfTextAtSize(badge, 10) + 22);
-    page.drawRoundedRectangle({ x:width-40-badgeWidth, y:height-74, width:badgeWidth, height:24, radius:12, color:rgb(1,1,1), opacity:0.18 });
+    page.drawRectangle({ x:width-40-badgeWidth, y:height-74, width:badgeWidth, height:24, color:rgb(1,1,1), opacity:0.18 });
     page.drawText(badge, { x:width-40-badgeWidth+11, y:height-66, size:10, font:bold, color:rgb(1,1,1) });
   }
 
@@ -3944,9 +3944,15 @@ function downloadFile(file) {
 }
 
 async function generarPDF(pres, cliente, empresa) {
-  const file = await buildBudgetPdfFile(pres, cliente, empresa);
-  downloadFile(file);
-  return file;
+  try {
+    const file = await buildBudgetPdfFile(pres, cliente, empresa);
+    downloadFile(file);
+    return file;
+  } catch (err) {
+    console.error(err);
+    alert("No se pudo generar el PDF del presupuesto.");
+    return null;
+  }
 }
 
 async function enviarPresupuestoWhatsApp(pres, cliente, empresa) {
@@ -3955,7 +3961,14 @@ async function enviarPresupuestoWhatsApp(pres, cliente, empresa) {
     alert("El cliente no tiene teléfono de contacto registrado.");
     return;
   }
-  const file = await buildBudgetPdfFile(pres, cliente, empresa);
+  let file;
+  try {
+    file = await buildBudgetPdfFile(pres, cliente, empresa);
+  } catch (err) {
+    console.error(err);
+    alert("No se pudo generar el PDF del presupuesto.");
+    return;
+  }
   const msg = `Hola ${contacto.nom || ""}, te compartimos el presupuesto ${pres.correlativo || pres.titulo || ""}.`;
   const canShareFile = typeof navigator !== "undefined" && navigator.share && navigator.canShare && navigator.canShare({ files:[file] });
   if (canShareFile) {
@@ -4017,9 +4030,15 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
 }
 
 async function generarPDFFactura(fact, entidad, ref, empresa) {
-  const file = await buildFactPdfFile(fact, entidad, ref, empresa);
-  downloadFile(file);
-  return file;
+  try {
+    const file = await buildFactPdfFile(fact, entidad, ref, empresa);
+    downloadFile(file);
+    return file;
+  } catch (err) {
+    console.error(err);
+    alert("No se pudo generar el PDF del documento.");
+    return null;
+  }
 }
 
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────

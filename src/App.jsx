@@ -32,6 +32,38 @@ const CAMPANA_ESTADOS = ["Planificada","Activa","Pausada","Cerrada"];
 const PIEZA_ESTADOS = ["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"];
 const PIEZA_FORMATOS = ["Reel","Carrusel","Historia","TikTok","Post","Video","Story","Otro"];
 const PIEZA_PLATAFORMAS = ["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"];
+const HASH_RE = /^[a-f0-9]{64}$/i;
+
+async function sha256Hex(text="") {
+  const data = new TextEncoder().encode(String(text));
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+function isPasswordHash(v="") {
+  return HASH_RE.test(String(v||""));
+}
+
+async function normalizeUserAuth(user={}) {
+  const { password, ...rest } = user||{};
+  const passwordHash = user.passwordHash
+    ? user.passwordHash
+    : user.password
+      ? await sha256Hex(user.password)
+      : "";
+  return {
+    ...rest,
+    passwordHash,
+  };
+}
+
+async function normalizeUsersAuth(users=[]) {
+  return Promise.all((Array.isArray(users)?users:[]).filter(Boolean).map(normalizeUserAuth));
+}
+
+function sessionPayload(user, emp) {
+  return JSON.stringify({ userId:user?.id||"", empId:emp?.id||null });
+}
 
 const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   id: piece.id || uid(),
@@ -135,11 +167,11 @@ const SEED_EMPRESAS = [
   { id:"emp2", nombre:"González & Asociados",  rut:"78.171.372-4", dir:"Las Condes 456, Santiago",       tel:"+56 9 8765 4321", ema:"info@gonzalez.cl",       logo:"", color:"#00e08a", addons:["presupuestos"],                        active:true, plan:"starter", cr:today() },
 ];
 const SEED_USERS = [
-  { id:"u0", name:"Super Admin Produ", email:"super@produ.cl",      password:"super123", role:"superadmin", empId:null,   active:true },
-  { id:"u1", name:"Admin Play Media",  email:"admin@playmedia.cl",  password:"admin123", role:"admin",      empId:"emp1", active:true },
-  { id:"u2", name:"María Productora",  email:"maria@playmedia.cl",  password:"prod123",  role:"productor",  empId:"emp1", active:true },
-  { id:"u3", name:"Carlos Comercial",  email:"carlos@playmedia.cl", password:"com123",   role:"comercial",  empId:"emp1", active:true },
-  { id:"u4", name:"Admin González",    email:"admin@gonzalez.cl",   password:"gonz123",  role:"admin",      empId:"emp2", active:true },
+  { id:"u0", name:"Super Admin Produ", email:"super@produ.cl",      passwordHash:"4e4c56e4a15f89f05c2f4c72613da2a18c9665d4f0d6acce16415eb06f9be776", role:"superadmin", empId:null,   active:true },
+  { id:"u1", name:"Admin Play Media",  email:"admin@playmedia.cl",  passwordHash:"240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", role:"admin",      empId:"emp1", active:true },
+  { id:"u2", name:"María Productora",  email:"maria@playmedia.cl",  passwordHash:"97f08b12c985e818cb86cd3d6f7c4dec65a586d95874ce54db426d20d383ab2a", role:"productor",  empId:"emp1", active:true },
+  { id:"u3", name:"Carlos Comercial",  email:"carlos@playmedia.cl", passwordHash:"6144f27586e33c13fd0a75787389fb03e046b2fef1f22a2af0f4cf6e803172a7", role:"comercial",  empId:"emp1", active:true },
+  { id:"u4", name:"Admin González",    email:"admin@gonzalez.cl",   passwordHash:"f5a78f31ce940dbaa4ae5aebe2a6e500e3f2d1ef26d9e1963d2d0db50ae4522c", role:"admin",      empId:"emp2", active:true },
 ];
 const SEED_DATA = (empId) => ({
   clientes: empId==="emp1"?[
@@ -474,7 +506,19 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
 function Login({users,onLogin}){
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
   const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
-  const login=async()=>{setLoad(true);setErr("");await new Promise(r=>setTimeout(r,400));const u=(users||[]).find(u=>u.email.toLowerCase()===email.toLowerCase()&&u.password===pass&&u.active);if(u)onLogin(u);else setErr("Email o contraseña incorrectos");setLoad(false);};
+  const login=async()=>{
+    setLoad(true);setErr("");
+    await new Promise(r=>setTimeout(r,400));
+    const hashedPass = await sha256Hex(pass);
+    const userByEmail = (users||[]).find(u=>u.email?.toLowerCase()===email.toLowerCase()&&u.active);
+    const valid = userByEmail && (
+      userByEmail.passwordHash===hashedPass ||
+      (!userByEmail.passwordHash && userByEmail.password===pass)
+    );
+    if(valid) onLogin(userByEmail);
+    else setErr("Email o contraseña incorrectos");
+    setLoad(false);
+  };
   const GRID="linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px)";
   return <><div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
@@ -1380,11 +1424,12 @@ function SuperAdminPanel({empresas,users,onSave}){
     </div>}
     {tab===2&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
-        const newUser={id:uid(),name:sol.nom,email:sol.ema,password:uid().slice(1,9),role:sol.rol||"productor",empId:empId||"",active:true};
+        const tempPassword=uid().slice(1,9);
+        const newUser={id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"productor",empId:empId||"",active:true};
         onSave("users",[...(users||[]),newUser]);
         const cur=await dbGet("produ:solicitudes")||[];
         await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
-        alert("Usuario creado. Email: "+sol.ema+" / Contrasena: "+newUser.password);
+        alert("Usuario creado. Email: "+sol.ema+" / Contrasena temporal: "+tempPassword);
       }} onRechazar={async(sol)=>{
         const cur=await dbGet("produ:solicitudes")||[];
         await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
@@ -1401,7 +1446,7 @@ function SolicitudesAdmin({ users, onSaveUsers }) {
   const aprobar = async (s) => {
     const pw = prompt("Contraseña temporal para "+s.nombre+":", "produ2024");
     if(!pw) return;
-    const newUser = {id:uid(),name:s.nombre,email:s.email,password:pw,role:"productor",empId:"",active:true};
+    const newUser = {id:uid(),name:s.nombre,email:s.email,passwordHash:await sha256Hex(pw),role:"productor",empId:"",active:true};
     onSaveUsers([...(users||[]),newUser]);
     const upd = sols.map(x=>x.id===s.id?{...x,estado:"aprobada"}:x);
     setSols(upd);
@@ -1588,10 +1633,14 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const FIELDS=[["bg","Fondo principal"],["surface","Fondo lateral"],["card","Tarjetas"],["border","Bordes"],["accent","Acento"],["white","Texto"],["gray","Texto secundario"]];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
-  const saveUser=()=>{
+  const saveUser=async()=>{
     if(!uf.name||!uf.email) return;
     const id=uid2||uid();
-    const obj={id,name:uf.name,email:uf.email,password:uf.password||(users||[]).find(x=>x.id===id)?.password||"",role:uf.role||"viewer",empId:empresa?.id||null,active:uf.active!==false};
+    const prev=(users||[]).find(x=>x.id===id);
+    const passwordHash = uf.password
+      ? await sha256Hex(uf.password)
+      : prev?.passwordHash || (prev?.password ? await sha256Hex(prev.password) : "");
+    const obj={id,name:uf.name,email:uf.email,passwordHash,role:uf.role||"viewer",empId:empresa?.id||null,active:uf.active!==false};
     saveUsers(uid2?(users||[]).map(u=>u.id===uid2?obj:u):[...(users||[]),obj]);
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
@@ -1618,7 +1667,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
           <Badge label={ROLES[u.role]?.label||u.role} color={rcol[u.role]||"gray"} sm/>
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
-          <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u});}}>✏</GBtn>
+          <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
           <GBtn sm onClick={()=>saveUsers((users||[]).map(x=>x.id===u.id?{...x,active:!x.active}:x))}>{u.active?"Desactivar":"Activar"}</GBtn>
           {u.role!=="superadmin"&&<XBtn onClick={()=>{ if(!confirm("¿Eliminar usuario?")) return; saveUsers((users||[]).filter(x=>x.id!==u.id)); }}/>}
         </div>)}
@@ -1682,6 +1731,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
 export default function App(){
   const [curUser,setCurUser]=useState(null);
   const [curEmp,setCurEmp]=useState(null);
+  const [storedSession,setStoredSession]=useState(null);
   const [view,setView]=useState("dashboard");
   const [detId,setDetId]=useState(null);
   const [toast,setToast]=useState(null);
@@ -1744,8 +1794,34 @@ export default function App(){
     dbGet("produ:users").then(v=>{ if(!v){setUsersRaw(SEED_USERS);dbSet("produ:users",SEED_USERS);}else setUsersRaw(v); });
     applyTheme(DEFAULT_T); // Apply immediately
     dbGet("produ:theme").then(v=>{ if(v&&v.mode) applyTheme(v); });
-    try{const s=localStorage.getItem("produ_session");if(s){const p=JSON.parse(s);setCurUser(p.user);setCurEmp(p.emp);}}catch{}
+    try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
   },[]);
+
+  useEffect(()=>{
+    if(!Array.isArray(users) || !users.length) return;
+    normalizeUsersAuth(users).then(next=>{
+      const changed = JSON.stringify(next) !== JSON.stringify(users);
+      if(changed){
+        setUsersRaw(next);
+        dbSet("produ:users",next);
+      }
+    });
+  },[users]);
+
+  useEffect(()=>{
+    if(!storedSession || !Array.isArray(users) || !Array.isArray(empresas)) return;
+    const freshUser=(users||[]).find(u=>u.id===storedSession.userId&&u.active);
+    if(!freshUser){
+      setCurUser(null);setCurEmp(null);
+      try{localStorage.removeItem("produ_session");}catch{}
+      setStoredSession(null);
+      return;
+    }
+    const sessionEmpId=freshUser.role==="superadmin" ? storedSession.empId : freshUser.empId;
+    const freshEmp=sessionEmpId?(empresas||[]).find(e=>e.id===sessionEmpId&&e.active!==false):null;
+    setCurUser(freshUser);
+    setCurEmp(freshEmp||null);
+  },[storedSession,users,empresas]);
 
   // Seed per-empresa data
   useEffect(()=>{
@@ -1784,16 +1860,20 @@ export default function App(){
   const navTo=(v,id=null)=>{setView(v);setDetId(id);};
 
   const login=u=>{
-    if(u.role==="superadmin"){setCurUser(u);setCurEmp(null);return;}
+    if(u.role==="superadmin"){
+      setCurUser(u);setCurEmp(null);
+      try{localStorage.setItem("produ_session",sessionPayload(u,null));}catch{}
+      return;
+    }
     const emp=(empresas||SEED_EMPRESAS).find(e=>e.id===u.empId);
     setCurUser(u);setCurEmp(emp||null);
-    try{localStorage.setItem("produ_session",JSON.stringify({user:u,emp}));}catch{}
+    try{localStorage.setItem("produ_session",sessionPayload(u,emp||null));}catch{}
   };
   const logout=()=>{setCurUser(null);setCurEmp(null);try{localStorage.removeItem("produ_session");}catch{}};
   const selectEmp=emp=>{
     if(emp==="__super__"){setSuperPanel(true);return;}
     setCurEmp(emp);
-    try{localStorage.setItem("produ_session",JSON.stringify({user:curUser,emp}));}catch{}
+    try{localStorage.setItem("produ_session",sessionPayload(curUser,emp));}catch{}
   };
 
   // CRUD
@@ -1822,7 +1902,11 @@ export default function App(){
   };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
 
-  const saveUsers=u=>{setUsersRaw(u);dbSet("produ:users",u);};
+  const saveUsers=async u=>{
+    const normalized = await normalizeUsersAuth(u);
+    setUsersRaw(normalized);
+    dbSet("produ:users",normalized);
+  };
   const saveEmpresas=e=>{setEmpresasRaw(e);dbSet("produ:empresas",e);};
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 

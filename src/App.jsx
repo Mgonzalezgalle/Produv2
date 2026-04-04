@@ -353,6 +353,14 @@ const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   ini: piece.ini || campaign.ini || "",
   fin: piece.fin || "",
   des: piece.des || piece.descripcion || "",
+  objetivo: piece.objetivo || "",
+  cta: piece.cta || "",
+  copy: piece.copy || "",
+  hashtags: piece.hashtags || "",
+  responsableId: piece.responsableId || "",
+  approval: piece.approval || "Pendiente",
+  publishDate: piece.publishDate || piece.fin || campaign.fin || "",
+  publishedAt: piece.publishedAt || "",
   link: piece.link || piece.url || "",
   comentarios: Array.isArray(piece.comentarios) ? piece.comentarios : [],
 });
@@ -3417,16 +3425,20 @@ function MCampanaContenido({open,data,clientes,listas,onClose,onSave}){
   </Modal>;
 }
 
-function MPiezaContenido({open,data,listas,onClose,onSave}){
+function MPiezaContenido({open,data,listas,crewOptions,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):{id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",link:"",comentarios:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):normalizeSocialPiece({id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",link:"",comentarios:[]},data||{}));},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{(listas?.estadosPieza||DEFAULT_LISTAS.estadosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{(listas?.formatosPieza||DEFAULT_LISTAS.formatosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega / Publicación"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
+    <R3><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{(listas?.formatosPieza||DEFAULT_LISTAS.formatosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Responsable"><FSl value={f.responsableId||""} onChange={e=>u("responsableId",e.target.value)}><option value="">— Sin responsable —</option>{(crewOptions||[]).map(member=><option key={member.id} value={member.id}>{member.nom} · {member.rol||"Crew"}</option>)}</FSl></FG></R3>
+    <R3><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG><FG label="Fecha de Publicación"><FI type="date" value={f.publishDate||""} onChange={e=>u("publishDate",e.target.value)}/></FG></R3>
+    <R2><FG label="Estado de aprobación"><FSl value={f.approval||"Pendiente"} onChange={e=>u("approval",e.target.value)}><option>Pendiente</option><option>En revisión</option><option>Aprobada</option><option>Observada</option></FSl></FG><FG label="Fecha de publicación real"><FI type="date" value={f.publishedAt||""} onChange={e=>u("publishedAt",e.target.value)}/></FG></R2>
     <FG label="Enlace de la pieza"><FI value={f.link||""} onChange={e=>u("link",e.target.value)} placeholder="https://drive.google.com/..."/></FG>
-    <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, CTA, notas..."/></FG>
+    <R2><FG label="Objetivo de la pieza"><FI value={f.objetivo||""} onChange={e=>u("objetivo",e.target.value)} placeholder="Awareness, conversión, engagement..."/></FG><FG label="CTA"><FI value={f.cta||""} onChange={e=>u("cta",e.target.value)} placeholder="Desliza, compra, comenta, guarda..."/></FG></R2>
+    <FG label="Copy principal"><FTA value={f.copy||""} onChange={e=>u("copy",e.target.value)} placeholder="Texto o bajada principal que acompañará la publicación."/></FG>
+    <FG label="Hashtags"><FI value={f.hashtags||""} onChange={e=>u("hashtags",e.target.value)} placeholder="#marca #campaña #contenido"/></FG>
+    <FG label="Descripción / Brief"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Concepto creativo, referencias, notas y criterios editoriales..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
 }
@@ -3523,17 +3535,18 @@ function MMov({open,data,listas,onClose,onSave}){
 
 function MCrew({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data,tipo:"externo"}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
+  useEffect(()=>{setF(data?.id?{...data}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const ROLES_C=listas?.rolesCrew||DEFAULT_LISTAS.rolesCrew;
+  const managedByUser = f.managedByUser===true;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Miembro":"Agregar al Equipo"} sub="Crew de producción">
-    <FG label="Tipo de Crew"><FSl value="externo" disabled><option value="externo">Externo — tarifa aplica a producciones</option></FSl></FG>
-    <div style={{fontSize:11,color:"var(--gr2)",marginTop:-6,marginBottom:12}}>El crew interno ahora se administra desde Panel Administrador / Usuarios marcando si el usuario pertenece al crew.</div>
-    <R2><FG label="Nombre completo *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Juan Pérez"/></FG><FG label="Rol / Cargo"><FSl value={f.rol||""} onChange={e=>u("rol",e.target.value)}><option value="">Seleccionar...</option>{ROLES_C.map(r=><option key={r}>{r}</option>)}</FSl></FG></R2>
+    <FG label="Tipo de Crew"><FSl value={f.tipo||"externo"} disabled><option value="externo">Externo — tarifa aplica a producciones</option><option value="interno">Interno — derivado de usuarios</option></FSl></FG>
+    {managedByUser&&<div style={{fontSize:11,color:"var(--gr2)",marginTop:-6,marginBottom:12}}>Este miembro viene desde `Usuarios`. Aquí puedes complementar datos operativos como área, teléfono, disponibilidad y notas.</div>}
+    <R2><FG label="Nombre completo *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Juan Pérez" disabled={managedByUser}/></FG><FG label="Rol / Cargo">{managedByUser?<FI value={f.rol||""} disabled placeholder="Cargo sincronizado desde usuario"/>:<FSl value={f.rol||""} onChange={e=>u("rol",e.target.value)}><option value="">Seleccionar...</option>{ROLES_C.map(r=><option key={r}>{r}</option>)}</FSl>}</FG></R2>
     <R2><FG label="Área"><FSl value={f.area||""} onChange={e=>u("area",e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</FSl></FG><FG label="Disponibilidad"><FI value={f.dis||""} onChange={e=>u("dis",e.target.value)} placeholder="Lun-Vie, Fines de semana..."/></FG></R2>
-    <R2><FG label="Teléfono"><FI value={f.tel||""} onChange={e=>u("tel",e.target.value)} placeholder="+56 9 1234 5678"/></FG><FG label="Email"><FI type="email" value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="juan@email.cl"/></FG></R2>
-    <R2><FG label="Tarifa"><FI value={f.tarifa||""} onChange={e=>u("tarifa",e.target.value)} placeholder="$150.000/día"/></FG><FG label="Estado"><FSl value={f.active!==false?"true":"false"} onChange={e=>u("active",e.target.value==="true")}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R2>
+    <R2><FG label="Teléfono"><FI value={f.tel||""} onChange={e=>u("tel",e.target.value)} placeholder="+56 9 1234 5678"/></FG><FG label="Email"><FI type="email" value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="juan@email.cl" disabled={managedByUser}/></FG></R2>
+    <R2><FG label="Tarifa"><FI value={f.tarifa||""} onChange={e=>u("tarifa",e.target.value)} placeholder="$150.000/día" disabled={managedByUser}/></FG><FG label="Estado"><FSl value={f.active!==false?"true":"false"} onChange={e=>u("active",e.target.value==="true")} disabled={managedByUser}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R2>
     <FG label="Notas"><FTA value={f.not||""} onChange={e=>u("not",e.target.value)} placeholder="Especialidades, observaciones..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
@@ -3572,7 +3585,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
     <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
     <MCampanaContenido open={mOpen==="contenido"} data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
-    <MPiezaContenido open={mOpen==="pieza"} data={mData} listas={VP.listas} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
+    <MPiezaContenido open={mOpen==="pieza"} data={mData} listas={VP.listas} crewOptions={(VP.crew||[]).filter(c=>c.empId===empresa?.id&&c.active!==false)} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
     <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
@@ -4047,8 +4060,14 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
   const [tab,setTab]=useState(0);
   const [piezaQ,setPiezaQ]=useState("");
   const [piezaEstado,setPiezaEstado]=useState("");
+  const [piezaResp,setPiezaResp]=useState("");
   const piezasCamp=(pz.piezas||[]).filter(pc=>(pc.nom||"").toLowerCase().includes(piezaQ.toLowerCase())&&(!piezaEstado||pc.est===piezaEstado));
+  const piezasFiltradas=piezasCamp.filter(pc=>(!piezaResp||pc.responsableId===piezaResp));
   const piezasPub=(pz.piezas||[]).filter(pc=>pc.est==="Publicado").length;
+  const piezasProgramadas=(pz.piezas||[]).filter(pc=>pc.est==="Programado").length;
+  const piezasRevision=(pz.piezas||[]).filter(pc=>(pc.approval||"Pendiente")==="En revisión" || pc.est==="Correcciones").length;
+  const piezasAprobadas=(pz.piezas||[]).filter(pc=>(pc.approval||"Pendiente")==="Aprobada").length;
+  const crewMap=Object.fromEntries((crew||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const addCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
   const remCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
   const savePiece=async piece=>{
@@ -4077,22 +4096,29 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
     </div>}
     {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
+        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Publicadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#00e08a"}}>{piezasPub}</div></div>
+        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Programadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"var(--cy)"}}>{piezasProgramadas}</div></div>
+        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>En revisión</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#ffcc44"}}>{piezasRevision}</div></div>
+        <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Aprobadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#7cffa6"}}>{piezasAprobadas}</div></div>
+      </div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={piezaQ} onChange={v=>setPiezaQ(v)} placeholder="Buscar pieza..."/>
         <FilterSel value={piezaEstado} onChange={setPiezaEstado} options={PIEZA_ESTADOS} placeholder="Todo estados"/>
+        <FilterSel value={piezaResp} onChange={setPiezaResp} options={pCrew.map(m=>({value:m.id,label:m.nom}))} placeholder="Todos los responsables"/>
         {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("pieza",{campId:id,plataforma:pz.plataforma,ini:pz.ini,fin:pz.fin})}>+ Nueva Pieza</Btn>}
       </div>
       <Card>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Enlace</TH><TH></TH></tr></thead>
+          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Responsable</TH><TH>Estado</TH><TH>Aprobación</TH><TH>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
-            {piezasCamp.map(pc=><tr key={pc.id}>
-              <TD bold>{pc.nom}</TD>
+            {piezasFiltradas.map(pc=><tr key={pc.id}>
+              <TD bold><div>{pc.nom}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{pc.objetivo||pc.plataforma||"—"}</div></TD>
               <TD><Badge label={pc.formato||"Pieza"} color="gray" sm/></TD>
-              <TD>{pc.plataforma||"—"}</TD>
+              <TD>{pc.responsableId&&crewMap[pc.responsableId]?crewMap[pc.responsableId].nom:<span style={{color:"var(--gr2)"}}>—</span>}</TD>
               <TD><Badge label={pc.est||"Planificado"}/></TD>
-              <TD mono style={{fontSize:11}}>{pc.ini?fmtD(pc.ini):"—"}</TD>
-              <TD mono style={{fontSize:11}}>{pc.fin?fmtD(pc.fin):"—"}</TD>
+              <TD><Badge label={pc.approval||"Pendiente"} color={(pc.approval||"Pendiente")==="Aprobada"?"green":(pc.approval||"Pendiente")==="Observada"?"red":(pc.approval||"Pendiente")==="En revisión"?"yellow":"gray"} sm/></TD>
+              <TD mono style={{fontSize:11}}>{pc.publishDate?fmtD(pc.publishDate):pc.fin?fmtD(pc.fin):"—"}{pc.publishedAt&&<div style={{fontSize:10,color:"#00e08a",marginTop:4}}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>
               <TD style={{fontSize:11}}>
                 {pc.link
                   ? <a href={pc.link} target="_blank" rel="noreferrer" style={{color:"var(--cy)",fontWeight:700,textDecoration:"none"}}>Pieza ↗</a>
@@ -4102,10 +4128,27 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
                 {_cd&&_cd("contenidos")&&<><GBtn sm onClick={()=>openM("pieza",{...pc,campId:id})}>✏</GBtn><XBtn onClick={()=>deletePiece(pc.id)}/></>}
               </div></TD>
             </tr>)}
-            {!piezasCamp.length&&<tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera para esta campaña"/></td></tr>}
+            {!piezasFiltradas.length&&<tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera para esta campaña"/></td></tr>}
           </tbody>
         </table></div>
       </Card>
+      {!!piezasFiltradas.length&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginTop:16}}>
+        {piezasFiltradas.slice(0,4).map(pc=><div key={pc.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",marginBottom:10}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:800}}>{pc.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{pc.formato||"Pieza"} · {pc.plataforma||"—"}</div>
+            </div>
+            <Badge label={pc.est||"Planificado"} sm/>
+          </div>
+          <div style={{display:"grid",gap:6,fontSize:12,color:"var(--gr3)"}}>
+            <div><strong style={{color:"var(--wh)"}}>Responsable:</strong> {pc.responsableId&&crewMap[pc.responsableId]?crewMap[pc.responsableId].nom:"—"}</div>
+            <div><strong style={{color:"var(--wh)"}}>Objetivo:</strong> {pc.objetivo||"—"}</div>
+            <div><strong style={{color:"var(--wh)"}}>CTA:</strong> {pc.cta||"—"}</div>
+            <div><strong style={{color:"var(--wh)"}}>Publicación:</strong> {pc.publishDate?fmtD(pc.publishDate):"—"}</div>
+          </div>
+        </div>)}
+      </div>}
     </div>}
     {tab===2&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
@@ -4208,7 +4251,8 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
   const [q,setQ]=useState("");const [fa,setFa]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa));
-  const canManageMember=m=>_cd&&_cd("crew")&&!m?.managedByUser;
+  const canEditMember=m=>_cd&&_cd("crew");
+  const canDeleteMember=m=>_cd&&_cd("crew")&&!m?.managedByUser;
   const exportCSV=()=>{
     const header="Nombre,Rol,Área,Email,Teléfono,Disponibilidad,Tarifa,Estado";
     const rows=fd.map(m=>[m.nom,m.rol,m.area,m.ema,m.tel,m.dis,m.tarifa,m.active!==false?"Activo":"Inactivo"].map(v=>`"${v||""}"`).join(","));
@@ -4223,7 +4267,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
       {_cd&&_cd("crew")&&<Btn onClick={()=>openM("crew",{})}>+ Agregar Miembro</Btn>}
       <GBtn onClick={exportCSV}>⬇ Exportar CSV</GBtn>
     </div>
-    <div style={{fontSize:11,color:"var(--gr2)",marginBottom:16}}>El crew interno proviene de `Usuarios`. Para agregarlo o cambiar su cargo, usa `Panel Administrador &gt; Usuarios` y marca si pertenece al crew.</div>
+    <div style={{fontSize:11,color:"var(--gr2)",marginBottom:16}}>El crew interno proviene de `Usuarios`. Desde aquí puedes completar sus datos operativos; para cambiar nombre, cargo o estado base, usa `Panel Administrador &gt; Usuarios`.</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:20}}>
       {AREAS.slice(0,6).map(a=>{const cnt=(crew||[]).filter(x=>x.empId===empId&&x.area===a).length;return<div key={a} onClick={()=>setFa(fa===a?"":a)} style={{background:"var(--card)",border:`1px solid ${fa===a?"var(--cy)":"var(--bdr)"}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",textAlign:"center"}}><div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color:fa===a?"var(--cy)":"var(--wh)"}}>{cnt}</div><div style={{fontSize:9,color:"var(--gr2)",marginTop:2}}>{a}</div></div>;})}
     </div>
@@ -4251,7 +4295,8 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
             <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{m.tarifa||"—"}</span>
             <div style={{display:"flex",gap:4}}>
-              {canManageMember(m)&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
+              {canEditMember(m)&&<GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn>}
+              {canDeleteMember(m)&&<XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/>}
             </div>
           </div>
         </div>)}
@@ -4273,7 +4318,8 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
             <TD mono style={{fontSize:11}}>{m.tarifa||"—"}</TD>
             <TD><Badge label={m.active!==false?"Activo":"Inactivo"} color={m.active!==false?"green":"red"} sm/></TD>
             <TD><div style={{display:"flex",gap:4}}>
-              {canManageMember(m)&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
+              {canEditMember(m)&&<GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn>}
+              {canDeleteMember(m)&&<XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/>}
             </div></TD>
           </tr>)}
           {!fd.length&&<tr><td colSpan={9}><Empty text="Sin miembros" sub={_cd&&_cd("crew")?"Agrega el primero arriba":""}/></td></tr>}

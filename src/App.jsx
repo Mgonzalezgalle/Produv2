@@ -4495,6 +4495,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
 
 function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,setMovimientos,saveFacturaDoc,ntf}){
   const empId=empresa?.id;
+  const [tab,setTab]=useState(0);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
@@ -4591,37 +4592,17 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Emitidas / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`vencidas: ${vencidas}`}/>
     </div>
+    <Tabs tabs={["Documentos emitidos","Recurrencias"]} active={tab} onChange={idx=>{setTab(idx);setPg(1);}}/>
+    {/* Nota importante */}
+    <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
+      ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
+    </div>
+    {tab===0 && <>
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar factura o entidad..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Pendiente","Emitida","Pagada","Vencida","Anulada"]} placeholder="Todo estados"/>
       {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{})}>+ Nuevo Documento</Btn>}
     </div>
-    {/* Nota importante */}
-    <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
-      ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
-    </div>
-    {!!seriesList.length && <Card title="Series Recurrentes" sub="Administra mensualidades sin editar documento por documento" style={{marginBottom:16}}>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Serie</TH><TH>Entidad</TH><TH>Estado</TH><TH>Meses</TH><TH>Próximo</TH><TH>Proyección</TH><TH></TH></tr></thead>
-          <tbody>
-            {seriesList.map(series=><tr key={series.id}>
-              <TD><div style={{fontWeight:700}}>{series.first.correlativo?.replace(/-\d{2}$/,"") || series.first.tipoDoc || "Serie"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{series.first.tipoDoc || "Documento"} · {series.first.tipoRef==="produccion"?"Proyecto":series.first.tipoRef==="contenido"?"Campaña":"Producción"}</div></TD>
-              <TD>{series.entityName || "—"}</TD>
-              <TD><Badge label={series.status}/></TD>
-              <TD mono>{series.docs.length}/{series.totalMonths}</TD>
-              <TD style={{fontSize:11}}>{series.nextDate ? fmtMonthPeriod(series.nextDate) : "Sin próximos"}</TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(series.projected)}</TD>
-              <TD><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>pauseSeries(series)}>{series.status==="Pausada"?"▶ Reactivar":"⏸ Pausar"}</GBtn>}
-                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>regenerateSeries(series)}>↻ Regenerar</GBtn>}
-                {_cd&&_cd("facturacion")&&<XBtn onClick={()=>{if(!confirm("¿Cortar los meses futuros de esta serie?")) return; cutSeries(series);}} title="Cortar meses futuros"/>}
-              </div></TD>
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
-    </Card>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
@@ -4664,6 +4645,29 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
     </Card>
+    </>}
+    {tab===1 && <Card title="Series Recurrentes" sub="Administra mensualidades sin editar documento por documento">
+      {seriesList.length ? <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Serie</TH><TH>Entidad</TH><TH>Estado</TH><TH>Meses</TH><TH>Próximo</TH><TH>Proyección</TH><TH></TH></tr></thead>
+          <tbody>
+            {seriesList.map(series=><tr key={series.id}>
+              <TD><div style={{fontWeight:700}}>{series.first.correlativo?.replace(/-\d{2}$/,"") || series.first.tipoDoc || "Serie"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{series.first.tipoDoc || "Documento"} · {series.first.tipoRef==="produccion"?"Proyecto":series.first.tipoRef==="contenido"?"Campaña":"Producción"}</div></TD>
+              <TD>{series.entityName || "—"}</TD>
+              <TD><Badge label={series.status}/></TD>
+              <TD mono>{series.docs.length}/{series.totalMonths}</TD>
+              <TD style={{fontSize:11}}>{series.nextDate ? fmtMonthPeriod(series.nextDate) : "Sin próximos"}</TD>
+              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(series.projected)}</TD>
+              <TD><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>pauseSeries(series)}>{series.status==="Pausada"?"▶ Reactivar":"⏸ Pausar"}</GBtn>}
+                {_cd&&_cd("facturacion")&&<GBtn sm onClick={()=>regenerateSeries(series)}>↻ Regenerar</GBtn>}
+                {_cd&&_cd("facturacion")&&<XBtn onClick={()=>{if(!confirm("¿Cortar los meses futuros de esta serie?")) return; cutSeries(series);}} title="Cortar meses futuros"/>}
+              </div></TD>
+            </tr>)}
+          </tbody>
+        </table>
+      </div> : <Empty text="Sin recurrencias activas" sub="Crea un documento recurrente desde el botón de nuevo documento."/>}
+    </Card>}
   </div>;
 }
 

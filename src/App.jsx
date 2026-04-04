@@ -753,7 +753,7 @@ tbody td.r{text-align:right;font-family:monospace}
 }
 
 // ── NAV GROUPS — Menú colapsable por grupo ───────────────────
-function NavGroups({ NAV, base, collapsed, onNav, user }) {
+function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
   // Inicializa todos los grupos abiertos
   const initOpen = () => {
     const o = {};
@@ -789,11 +789,11 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
       const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
       if (!items.length) return null;
       const isOpen = open[grp.group] !== false;
-      return <div key={grp.group} style={{ margin:"0 8px 8px",background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,overflow:"hidden" }}>
+      return <div key={grp.group} style={{ margin:"0 8px 8px",background:flatSidebar?"transparent":"var(--card)",border:flatSidebar?"1px solid rgba(255,255,255,.08)":"1px solid var(--bdr)",borderRadius:12,overflow:"hidden" }}>
         {/* Group header */}
         <div onClick={() => toggle(grp.group)}
-          style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px 8px",cursor:"pointer",userSelect:"none",background:"linear-gradient(180deg,var(--card2),transparent)" }}>
-          <span style={{ fontSize:10,letterSpacing:1.7,textTransform:"uppercase",fontWeight:800,color:"var(--gr2)" }}>{grp.group}</span>
+          style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px 8px",cursor:"pointer",userSelect:"none",background:flatSidebar?"transparent":"linear-gradient(180deg,var(--card2),transparent)" }}>
+          <span style={{ fontSize:10,letterSpacing:1.7,textTransform:"uppercase",fontWeight:800,color:flatSidebar?"#94a3b8":"var(--gr2)" }}>{grp.group}</span>
           <span style={{ fontSize:10,color:"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
         </div>
         {/* Items */}
@@ -801,10 +801,10 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)}
-              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cg),transparent)":"transparent",border:`1px solid ${active?"var(--cm)":"transparent"}`,borderRadius:10,transition:".1s",marginBottom:4 }}>
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"var(--cy)":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cg),transparent)":"transparent",border:`1px solid ${active?"var(--cm)":"transparent"}`,borderRadius:10,transition:".1s",marginBottom:4 }}>
               <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center",filter:active?"drop-shadow(0 0 8px var(--cm))":"none" }}>{n.icon}</span>
               <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
-              {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
+              {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"var(--cy)":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
             </div>;
           })}
         </div>}
@@ -815,6 +815,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
 
 // ── SIDEBAR ──────────────────────────────────────────────────
 function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse}){
+  const flatSidebar=typeof document!=="undefined" && document.body.classList.contains("light");
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
@@ -837,7 +838,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
   ];
   const SW=collapsed?64:240;
-  return <aside style={{width:SW,minHeight:"100vh",background:"linear-gradient(180deg,var(--sur),var(--card))",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside style={{width:SW,minHeight:"100vh",background:flatSidebar?"#0f172a":"linear-gradient(180deg,var(--sur),var(--card))",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
     <div style={{padding:"14px 14px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
@@ -857,7 +858,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
         </div>}
     </div>
     {/* Empresa chip */}
-    {!collapsed&&empresa&&<div style={{padding:"10px 12px",borderBottom:"1px solid var(--bdr)",background:"linear-gradient(180deg,var(--cg),transparent)"}}>
+    {!collapsed&&empresa&&<div style={{padding:"10px 12px",borderBottom:"1px solid var(--bdr)",background:flatSidebar?"transparent":"linear-gradient(180deg,var(--cg),transparent)"}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <div style={{width:28,height:28,borderRadius:6,background:empresa.color+"30",border:`1px solid ${empresa.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
           {empresa.logo
@@ -870,16 +871,16 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     </div>}
     {/* Nav */}
     <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
-      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user}/>
+      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} flatSidebar={flatSidebar}/>
     </nav>
     {/* Footer */}
-    {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid var(--bdr)",background:"linear-gradient(180deg,transparent,var(--card2))"}}>
-      {(user?.role==="admin"||user?.role==="superadmin")&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--gr3)",fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
+    {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid var(--bdr)",background:flatSidebar?"#0f172a":"linear-gradient(180deg,transparent,var(--card2))"}}>
+      {(user?.role==="admin"||user?.role==="superadmin")&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid var(--bdr2)",background:flatSidebar?"transparent":"var(--card)",color:flatSidebar?"#e5edf7":"var(--gr3)",fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
         <span style={{fontSize:9,color:"var(--gr2)"}}>Sincronizado · Supabase</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:"var(--card)",border:"1px solid var(--bdr)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:flatSidebar?"transparent":"var(--card)",border:"1px solid var(--bdr)"}}>
         <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(user?.name||"")}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={ROLES[user?.role]?.label||user?.role} color={rcol[user?.role]||"gray"} sm/></div>
         <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:14,padding:2}}>⏏</button>

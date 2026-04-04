@@ -164,6 +164,18 @@ function nextTenantCode(empresas = []) {
   return `T-${String(max + 1).padStart(4, "0")}`;
 }
 
+function normalizeEmpresasTenantCodes(empresas = []) {
+  let current = (Array.isArray(empresas) ? empresas : []).reduce((acc, emp) => Math.max(acc, tenantOrdinal(emp?.tenantCode)), 0);
+  return (Array.isArray(empresas) ? empresas : []).map(emp => {
+    if (emp?.tenantCode) return emp;
+    current += 1;
+    return {
+      ...emp,
+      tenantCode: `T-${String(current).padStart(4, "0")}`,
+    };
+  });
+}
+
 function contractRefPrefix(refType = "") {
   return { produccion:"p", programa:"pg", contenido:"pz" }[refType] || "";
 }
@@ -2756,7 +2768,17 @@ export default function App(){
 
   // Init global data
   useEffect(()=>{
-    dbGet("produ:empresas").then(v=>{ if(!v){setEmpresasRaw(SEED_EMPRESAS);dbSet("produ:empresas",SEED_EMPRESAS);}else setEmpresasRaw(v); });
+    dbGet("produ:empresas").then(v=>{
+      if(!v){
+        const seeded = normalizeEmpresasTenantCodes(SEED_EMPRESAS);
+        setEmpresasRaw(seeded);
+        dbSet("produ:empresas",seeded);
+      }else{
+        const normalized = normalizeEmpresasTenantCodes(v);
+        setEmpresasRaw(normalized);
+        if(JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:empresas",normalized);
+      }
+    });
     dbGet("produ:users").then(v=>{ if(!v){setUsersRaw(SEED_USERS);dbSet("produ:users",SEED_USERS);}else setUsersRaw(v); });
     applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
@@ -2977,7 +2999,7 @@ export default function App(){
     setUsersRaw(normalized);
     dbSet("produ:users",normalized);
   };
-  const saveEmpresas=e=>{setEmpresasRaw(e);dbSet("produ:empresas",e);};
+  const saveEmpresas=e=>{const normalized=normalizeEmpresasTenantCodes(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);

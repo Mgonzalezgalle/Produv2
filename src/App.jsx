@@ -363,8 +363,8 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* Modern light theme enhancements */
-body.light .sidebar-inner{background:#0f172a!important}
-body.light aside{background:#0f172a!important;border-right:none!important}
+body.light .sidebar-inner{background:var(--sidebar-bg)!important}
+body.light aside{background:var(--sidebar-bg)!important;border-right:none!important}
 body.light aside *{border-color:#ffffff14!important}
 body.light aside .nav-label{color:#e2e8f0!important}
 body.light .card-wrap,.card{border-radius:12px}
@@ -376,9 +376,9 @@ body.light input:focus,body.light select:focus,body.light textarea:focus{border-
 body.light button[class*="btn"]{transition:all .15s}
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#eef2f7;--sur:#ffffff;--card:#ffffff;--card2:#f3f6fb;--bdr:#d7dee8;--bdr2:#c2ccd8;--wh:#0f172a;--gr:#64748b;--gr2:#475569;--gr3:#1e293b;--sidebar:#111827;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#0ea5b7}
-body.light .sidebar-wrap{background:#0f172a!important}
+body.light .sidebar-wrap{background:var(--sidebar-bg)!important}
 body.light .sidebar-wrap *{border-color:#ffffff15!important}
-body.light aside{background:#0f172a!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
+body.light aside{background:var(--sidebar-bg)!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
 body.light aside .nav-group-label{color:#94a3b8!important}
 body.light aside,body.light aside button,body.light aside div,body.light aside span,body.light aside small{color:#e5edf7!important}
 body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}
@@ -815,7 +815,10 @@ function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
 
 // ── SIDEBAR ──────────────────────────────────────────────────
 function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse}){
-  const flatSidebar=typeof document!=="undefined" && document.body.classList.contains("light");
+  const sbBg="var(--sidebar-bg)";
+  const sbPanel="var(--sidebar-panel)";
+  const sbText="var(--sidebar-text)";
+  const sbMuted="var(--sidebar-muted)";
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
@@ -838,9 +841,9 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
   ];
   const SW=collapsed?64:240;
-  return <aside style={{width:SW,minHeight:"100vh",background:flatSidebar?"#0f172a":"linear-gradient(180deg,var(--sur),var(--card))",boxShadow:collapsed?"0 0 0 rgba(0,0,0,0)":"10px 0 30px rgba(0,0,0,.10)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside style={{width:SW,minHeight:"100vh",background:sbBg,boxShadow:collapsed?"0 0 0 rgba(0,0,0,0)":"10px 0 30px rgba(0,0,0,.16)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
-    <div style={{padding:"14px 14px",borderBottom:"1px solid var(--bdr)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
+    <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 16px var(--cm)",flexShrink:0}}>
@@ -848,42 +851,42 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
           </div>
           <div>
             <div style={{fontFamily:"var(--fh)",fontSize:17,fontWeight:800,letterSpacing:-.5,lineHeight:1,color:"var(--cy)"}}>produ</div>
-            <div style={{fontSize:8,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
+            <div style={{fontSize:8,color:sbMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
           </div>
         </div>
-        <button onClick={onToggle} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>‹</button>
+        <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>‹</button>
       </>:
         <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
           <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
         </div>}
     </div>
     {/* Empresa chip */}
-    {!collapsed&&empresa&&<div style={{padding:"10px 12px",borderBottom:"1px solid var(--bdr)",background:flatSidebar?"transparent":"linear-gradient(180deg,var(--cg),transparent)"}}>
+    {!collapsed&&empresa&&<div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <div style={{width:28,height:28,borderRadius:6,background:empresa.color+"30",border:`1px solid ${empresa.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+        <div style={{width:28,height:28,borderRadius:6,background:sbPanel,border:`1px solid rgba(255,255,255,.08)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
           {empresa.logo
             ? <img src={empresa.logo} style={{width:28,height:28,objectFit:"contain",borderRadius:6}} alt={empresa.nombre}/>
             : <span style={{fontFamily:"var(--fh)",fontSize:10,fontWeight:800,color:empresa.color}}>{ini(empresa.nombre)}</span>}
         </div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{empresa.nombre}</div><div style={{fontSize:9,color:"var(--gr2)"}}>{empresa.rut}</div></div>
-        {user?.role==="superadmin"&&<button onClick={onChangeEmp} title="Cambiar empresa" style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:13,padding:2}}>⇄</button>}
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:700,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{empresa.nombre}</div><div style={{fontSize:9,color:sbMuted}}>{empresa.rut}</div></div>
+        {user?.role==="superadmin"&&<button onClick={onChangeEmp} title="Cambiar empresa" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:13,padding:2}}>⇄</button>}
       </div>
     </div>}
     {/* Nav */}
     <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
-      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} flatSidebar={flatSidebar}/>
+      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} flatSidebar={true}/>
     </nav>
     {/* Footer */}
-    {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid var(--bdr)",background:flatSidebar?"#0f172a":"linear-gradient(180deg,transparent,var(--card2))"}}>
-      {(user?.role==="admin"||user?.role==="superadmin")&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid var(--bdr2)",background:flatSidebar?"transparent":"var(--card)",color:flatSidebar?"#e5edf7":"var(--gr3)",fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
+    {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
+      {(user?.role==="admin"||user?.role==="superadmin")&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",background:sbPanel,color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
-        <span style={{fontSize:9,color:"var(--gr2)"}}>Sincronizado · Supabase</span>
+        <span style={{fontSize:9,color:sbMuted}}>Sincronizado · Supabase</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:flatSidebar?"transparent":"var(--card)",border:"1px solid var(--bdr)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:sbPanel,border:"1px solid rgba(255,255,255,.08)"}}>
         <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(user?.name||"")}</div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={ROLES[user?.role]?.label||user?.role} color={rcol[user?.role]||"gray"} sm/></div>
-        <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:14,padding:2}}>⏏</button>
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={ROLES[user?.role]?.label||user?.role} color={rcol[user?.role]||"gray"} sm/></div>
+        <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:14,padding:2}}>⏏</button>
       </div>
     </div>}
   </aside>;
@@ -1463,26 +1466,26 @@ const THEME_PRESETS={
   clasico:{
     label:"Produ Clásico",
     description:"La identidad original de Produ, limpia y reconocible.",
-    dark:{mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a"},
-    light:{mode:"light",bg:"#eef2f7",surface:"#ffffff",card:"#ffffff",border:"#d7dee8",accent:"#00b4cc",accent2:"#0097ad",white:"#0f172a",gray:"#475569"},
+    dark:{mode:"dark",bg:"#080809",surface:"#0f0f11",card:"#141416",border:"#1e1e24",accent:"#00d4e8",accent2:"#00b8c8",white:"#f4f4f6",gray:"#7c7c8a",sidebarBg:"#0f172a",sidebarPanel:"#132033",sidebarText:"#e5f5ff",sidebarMuted:"#9fb3c8"},
+    light:{mode:"light",bg:"#eef2f7",surface:"#ffffff",card:"#ffffff",border:"#d7dee8",accent:"#00b4cc",accent2:"#0097ad",white:"#0f172a",gray:"#475569",sidebarBg:"#0f172a",sidebarPanel:"#132033",sidebarText:"#e5f5ff",sidebarMuted:"#9fb3c8"},
   },
   editorial:{
     label:"Editorial",
     description:"Más contraste y tono de sala de edición.",
-    dark:{mode:"dark",bg:"#0a0a0e",surface:"#101119",card:"#171924",border:"#252838",accent:"#4ade80",accent2:"#16a34a",white:"#f5f7fb",gray:"#94a3b8"},
-    light:{mode:"light",bg:"#f4f6f8",surface:"#ffffff",card:"#ffffff",border:"#d8dee8",accent:"#15803d",accent2:"#166534",white:"#111827",gray:"#526072"},
+    dark:{mode:"dark",bg:"#0a0a0e",surface:"#101119",card:"#171924",border:"#252838",accent:"#4ade80",accent2:"#16a34a",white:"#f5f7fb",gray:"#94a3b8",sidebarBg:"#111827",sidebarPanel:"#172033",sidebarText:"#eefbf4",sidebarMuted:"#a5b7cb"},
+    light:{mode:"light",bg:"#f4f6f8",surface:"#ffffff",card:"#ffffff",border:"#d8dee8",accent:"#15803d",accent2:"#166534",white:"#111827",gray:"#526072",sidebarBg:"#111827",sidebarPanel:"#172033",sidebarText:"#eefbf4",sidebarMuted:"#a5b7cb"},
   },
   corporativo:{
     label:"Corporativo",
     description:"Más sobrio y ejecutivo para clientes e instancias formales.",
-    dark:{mode:"dark",bg:"#081018",surface:"#0d1722",card:"#13202f",border:"#213348",accent:"#38bdf8",accent2:"#0284c7",white:"#f3f7fb",gray:"#8ca0b7"},
-    light:{mode:"light",bg:"#eef4f8",surface:"#ffffff",card:"#ffffff",border:"#d3dfe8",accent:"#0369a1",accent2:"#075985",white:"#0f172a",gray:"#4b5563"},
+    dark:{mode:"dark",bg:"#081018",surface:"#0d1722",card:"#13202f",border:"#213348",accent:"#38bdf8",accent2:"#0284c7",white:"#f3f7fb",gray:"#8ca0b7",sidebarBg:"#0b1b2b",sidebarPanel:"#10243a",sidebarText:"#ecf6ff",sidebarMuted:"#9eb4ca"},
+    light:{mode:"light",bg:"#eef4f8",surface:"#ffffff",card:"#ffffff",border:"#d3dfe8",accent:"#0369a1",accent2:"#075985",white:"#0f172a",gray:"#4b5563",sidebarBg:"#0b1b2b",sidebarPanel:"#10243a",sidebarText:"#ecf6ff",sidebarMuted:"#9eb4ca"},
   },
   minimal:{
     label:"Minimal",
     description:"Más neutral, ordenado y con menor ruido visual.",
-    dark:{mode:"dark",bg:"#0b0b0c",surface:"#121214",card:"#19191c",border:"#2a2a2f",accent:"#e5e7eb",accent2:"#9ca3af",white:"#fafafa",gray:"#9ca3af"},
-    light:{mode:"light",bg:"#f7f7f8",surface:"#ffffff",card:"#ffffff",border:"#dddddf",accent:"#374151",accent2:"#111827",white:"#111111",gray:"#5b6472"},
+    dark:{mode:"dark",bg:"#0b0b0c",surface:"#121214",card:"#19191c",border:"#2a2a2f",accent:"#e5e7eb",accent2:"#9ca3af",white:"#fafafa",gray:"#9ca3af",sidebarBg:"#171717",sidebarPanel:"#202022",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
+    light:{mode:"light",bg:"#f7f7f8",surface:"#ffffff",card:"#ffffff",border:"#dddddf",accent:"#374151",accent2:"#111827",white:"#111111",gray:"#5b6472",sidebarBg:"#171717",sidebarPanel:"#202022",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
   },
 };
 
@@ -2106,7 +2109,7 @@ export default function App(){
     const merged=resolveTheme(t,curEmp);
     setThemeState(merged);
     const r=document.documentElement;
-    const map={"--bg":merged.bg,"--sur":merged.surface,"--card":merged.card,"--card2":merged.card,"--bdr":merged.border,"--bdr2":merged.border,"--cy":merged.accent,"--cy2":merged.accent2||merged.accent,"--cg":merged.accent+"20","--cm":merged.accent+"40","--wh":merged.white,"--gr":merged.gray,"--gr2":merged.gray,"--gr3":merged.white+"cc"};
+    const map={"--bg":merged.bg,"--sur":merged.surface,"--card":merged.card,"--card2":merged.card,"--bdr":merged.border,"--bdr2":merged.border,"--cy":merged.accent,"--cy2":merged.accent2||merged.accent,"--cg":merged.accent+"20","--cm":merged.accent+"40","--wh":merged.white,"--gr":merged.gray,"--gr2":merged.gray,"--gr3":merged.white+"cc","--sidebar-bg":merged.sidebarBg||"#0f172a","--sidebar-panel":merged.sidebarPanel||"#132033","--sidebar-text":merged.sidebarText||"#e5f5ff","--sidebar-muted":merged.sidebarMuted||"#9fb3c8"};
     Object.entries(map).forEach(([k,v])=>r.style.setProperty(k,v));
     document.body.className=merged.mode==="light"?"light":"dark";
   };

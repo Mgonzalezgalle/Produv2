@@ -363,10 +363,10 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* Modern light theme enhancements */
-body.light .sidebar-inner{background:#111827!important}
-body.light aside{background:#111827!important;border-right:none!important}
+body.light .sidebar-inner{background:#0f172a!important}
+body.light aside{background:#0f172a!important;border-right:none!important}
 body.light aside *{border-color:#ffffff14!important}
-body.light aside .nav-label{color:#cbd5e1!important}
+body.light aside .nav-label{color:#e2e8f0!important}
 body.light .card-wrap,.card{border-radius:12px}
 body.light .card-wrap{box-shadow:0 1px 4px rgba(0,0,0,.07),0 2px 12px rgba(0,0,0,.04)!important;border:none!important}
 body.light main{background:#eef2f7}
@@ -376,11 +376,14 @@ body.light input:focus,body.light select:focus,body.light textarea:focus{border-
 body.light button[class*="btn"]{transition:all .15s}
 .va{animation:fadeUp .2s ease}
 body.light{--bg:#eef2f7;--sur:#ffffff;--card:#ffffff;--card2:#f3f6fb;--bdr:#d7dee8;--bdr2:#c2ccd8;--wh:#0f172a;--gr:#64748b;--gr2:#475569;--gr3:#1e293b;--sidebar:#111827;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#0ea5b7}
-body.light .sidebar-wrap{background:#111827!important}
+body.light .sidebar-wrap{background:#0f172a!important}
 body.light .sidebar-wrap *{border-color:#ffffff15!important}
-body.light aside{background:#111827!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.18)}
+body.light aside{background:#0f172a!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
 body.light aside .nav-group-label{color:#94a3b8!important}
-body.light aside *{color:#e2e8f0}
+body.light aside,body.light aside button,body.light aside div,body.light aside span,body.light aside small{color:#e5edf7!important}
+body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}
+body.light aside [style*="color:var(--gr3)"]{color:#e5edf7!important}
+body.light aside [style*="color:var(--wh)"]{color:#ffffff!important}
 body.light aside .active-nav{background:#ffffff18!important;color:#ffffff!important}
 body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow:0 1px 3px rgba(15,23,42,.05)}
 @media(max-width:768px){

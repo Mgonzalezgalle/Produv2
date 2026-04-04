@@ -25,9 +25,20 @@ async function dbSet(key, val) {
 // ── UTILS ────────────────────────────────────────────────────
 const uid   = () => "_" + Math.random().toString(36).slice(2,10);
 const today = () => new Date().toISOString().split("T")[0];
+const addMonths = (dateStr = today(), months = 0) => {
+  const [year, month, day] = String(dateStr || today()).split("-").map(Number);
+  const base = new Date(year || new Date().getFullYear(), (month || 1) - 1, day || 1);
+  if (Number.isNaN(base.getTime())) return dateStr || today();
+  base.setMonth(base.getMonth() + Number(months || 0));
+  return base.toISOString().split("T")[0];
+};
 const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
+const fmtMonthPeriod = d => {
+  try { return new Date(`${d || today()}T12:00:00`).toLocaleDateString("es-CL",{month:"long",year:"numeric"}); }
+  catch { return d || "—"; }
+};
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const CAMPANA_ESTADOS = ["Planificada","Activa","Pausada","Cerrada"];
 const PIEZA_ESTADOS = ["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"];
@@ -103,6 +114,13 @@ function budgetRefLabel(item = {}, producciones = [], programas = [], piezas = [
 function invoiceEntityName(fact = {}, clientes = [], auspiciadores = []) {
   if (fact.tipo === "auspiciador") return (auspiciadores || []).find(x => x.id === fact.entidadId)?.nom || "—";
   return (clientes || []).find(x => x.id === fact.entidadId)?.nom || "—";
+}
+
+function recurringSummary(item = {}, fallbackDate = today()) {
+  if (!item?.recurring) return "Único";
+  const count = Math.max(1, Number(item.recMonths || 1));
+  const start = item.recStart || item.fechaEmision || fallbackDate;
+  return `Mensual · ${count} mes${count === 1 ? "" : "es"} · desde ${fmtMonthPeriod(start)}`;
 }
 
 const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
@@ -2230,33 +2248,67 @@ export default function App(){
   };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
   const saveFacturaDoc=async fact=>{
-    const item={...fact, empId:fact.empId || curEmp?.id, id:fact.id || uid(), cr:fact.cr || today()};
     const currentFacts=Array.isArray(facturas)?facturas:[];
-    const nextFacts=currentFacts.some(x=>x.id===item.id)?currentFacts.map(x=>x.id===item.id?item:x):[...currentFacts,item];
+    const isNew = !fact.id;
+    const recurringEnabled = !!fact.recurring && isNew;
+    const recurringMonths = Math.max(1, Number(fact.recMonths || 1));
+    const seriesId = fact.seriesId || uid();
+    const baseDate = fact.recStart || fact.fechaEmision || today();
+    const series = recurringEnabled
+      ? Array.from({ length: recurringMonths }, (_, idx) => {
+          const fechaEmision = addMonths(baseDate, idx);
+          const fechaVencimiento = fact.fechaVencimiento ? addMonths(fact.fechaVencimiento, idx) : "";
+          const fechaPago = fact.estado === "Pagada" && fact.fechaPago ? addMonths(fact.fechaPago, idx) : fact.estado === "Pagada" ? fechaEmision : "";
+          return {
+            ...fact,
+            empId:fact.empId || curEmp?.id,
+            id:uid(),
+            cr:idx === 0 ? (fact.cr || today()) : today(),
+            recurring:true,
+            recMonths:recurringMonths,
+            recStart:baseDate,
+            seriesId,
+            seriesIndex:idx + 1,
+            seriesTotal:recurringMonths,
+            fechaEmision,
+            fechaVencimiento,
+            fechaPago,
+            correlativo:fact.correlativo
+              ? (recurringMonths > 1 ? `${fact.correlativo}-${String(idx + 1).padStart(2,"0")}` : fact.correlativo)
+              : "",
+          };
+        })
+      : [{...fact, empId:fact.empId || curEmp?.id, id:fact.id || uid(), cr:fact.cr || today()}];
+    const itemsById = new Map(currentFacts.map(x=>[x.id,x]));
+    series.forEach(item=>itemsById.set(item.id,item));
+    const nextFacts = Array.from(itemsById.values());
     await setFacturas(nextFacts);
-    const targetEt=item.tipoRef==="produccion"?"pro":item.tipoRef==="programa"?"pg":item.tipoRef==="contenido"?"pz":"";
-    const movement={
-      empId:curEmp?.id,
-      eid:item.proId||"",
-      et:targetEt,
-      tipo:"ingreso",
-      cat:"Facturación",
-      des:`${item.tipoDoc||"Orden de Factura"}${item.correlativo?` ${item.correlativo}`:""}`,
-      mon:Number(item.total||0),
-      fec:item.fechaPago||item.fechaEmision||today(),
-      facturaId:item.id,
-    };
-    const existing=(movimientos||[]).find(m=>m.facturaId===item.id);
-    if(item.estado==="Pagada"){
-      const nextMovs=existing
-        ? (movimientos||[]).map(m=>m.facturaId===item.id?{...m,...movement,id:m.id}:m)
-        : [...(movimientos||[]),{id:uid(),...movement}];
-      await setMovimientos(nextMovs);
-    } else if(existing){
-      await setMovimientos((movimientos||[]).filter(m=>m.facturaId!==item.id));
-    }
+    let nextMovs = Array.isArray(movimientos) ? [...movimientos] : [];
+    series.forEach(item=>{
+      const targetEt=item.tipoRef==="produccion"?"pro":item.tipoRef==="programa"?"pg":item.tipoRef==="contenido"?"pz":"";
+      const movement={
+        empId:curEmp?.id,
+        eid:item.proId||"",
+        et:targetEt,
+        tipo:"ingreso",
+        cat:"Facturación",
+        des:`${item.tipoDoc||"Orden de Factura"}${item.correlativo?` ${item.correlativo}`:""}`,
+        mon:Number(item.total||0),
+        fec:item.fechaPago||item.fechaEmision||today(),
+        facturaId:item.id,
+      };
+      const existing=nextMovs.find(m=>m.facturaId===item.id);
+      if(item.estado==="Pagada"){
+        nextMovs = existing
+          ? nextMovs.map(m=>m.facturaId===item.id?{...m,...movement,id:m.id}:m)
+          : [...nextMovs,{id:uid(),...movement}];
+      } else if(existing){
+        nextMovs = nextMovs.filter(m=>m.facturaId!==item.id);
+      }
+    });
+    await setMovimientos(nextMovs);
     closeM();
-    ntf("Documento guardado ✓");
+    ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths===1?"":"s"})` : "Documento guardado ✓");
   };
 
   const saveUsers=async u=>{
@@ -3488,7 +3540,7 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
 function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa}){
-  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",precioPieza:"",cantidadPiezas:"",detallePiezas:"Piezas mensuales"};
+  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",precioPieza:"",cantidadPiezas:"",detallePiezas:"Piezas mensuales",recurring:false,recMonths:"6",recStart:today()};
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data,items:data.items||[]}:{...empty});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -3506,6 +3558,8 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
   const subtotal=pieceItems.reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
   const ivaVal=f.iva?Math.round(subtotal*0.19):f.honorarios?Math.round(subtotal*0.1525):0;
   const total=subtotal+ivaVal;
+  const recurringMonths=Math.max(1,Number(f.recMonths||1));
+  const projectedTotal=f.recurring?total*recurringMonths:total;
   const contratosCli = (contratos||[]).filter(ct=>!f.cliId || ct.cliId===f.cliId);
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
     <R2>
@@ -3566,6 +3620,24 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
         })}
       </FSl></FG>
     </R3>
+    <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:f.recurring?12:0}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:700}}>Servicio recurrente</div>
+          <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Usa esta opción cuando el presupuesto sea un fee mensual o una prestación continua.</div>
+        </div>
+        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
+          <input type="checkbox" checked={!!f.recurring} onChange={e=>u("recurring",e.target.checked)}/>
+          Activar mensualidad
+        </label>
+      </div>
+      {f.recurring && <R2>
+        <FG label="Inicio de recurrencia"><FI type="date" value={f.recStart||today()} onChange={e=>u("recStart",e.target.value)}/></FG>
+        <FG label="Cantidad de meses"><FSl value={String(f.recMonths||"6")} onChange={e=>u("recMonths",e.target.value)}>
+          {Array.from({length:24},(_,i)=>String(i+1)).map(m=><option key={m} value={m}>{m} mes{m==="1"?"":"es"}</option>)}
+        </FSl></FG>
+      </R2>}
+    </div>
     {canSocial && f.tipo==="contenido" && <R2>
       <FG label="Modo de cálculo">
         <FSl value={f.modoDetalle||"items"} onChange={e=>u("modoDetalle",e.target.value)}>
@@ -3614,6 +3686,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtM(subtotal)}</span></div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>IVA 19%</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{f.iva?fmtM(ivaVal):"—"}</span></div>
       <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:13,fontWeight:700}}>Total Final</span><span style={{fontFamily:"var(--fm)",fontSize:15,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</span></div>
+      {f.recurring && <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,marginTop:8,borderTop:"1px dashed var(--bdr2)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Proyección {recurringMonths} mes{recurringMonths===1?"":"es"}</span><span style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:700,color:"#00e08a"}}>{fmtM(projectedTotal)}</span></div>}
     </div>
     <R2>
       <FG label="Método de Pago"><FI value={f.metodoPago||""} onChange={e=>u("metodoPago",e.target.value)} placeholder="Transferencia, cuotas..."/></FG>
@@ -3636,7 +3709,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       const normalizedItems = canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
         ? [{id:"pieza-plan",desc:f.detallePiezas||"Piezas mensuales",qty:Number(f.cantidadPiezas||socialCampaign?.plannedPieces||0),precio:Number(f.precioPieza||0),und:"pieza"}]
         : (f.items||[]);
-      onSave({...f,items:normalizedItems,subtotal,ivaVal,total});
+      onSave({...f,items:normalizedItems,subtotal,ivaVal,total,projectedTotal});
     }}/>
   </Modal>;
 }
@@ -4081,11 +4154,11 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
         <thead><tr><TH>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return<tr key={p.id} onClick={()=>navTo("pres-det",p.id)}>
-            <TD bold>{p.titulo}</TD>
+            <TD><div style={{fontWeight:700}}>{p.titulo}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{recurringSummary(p, p.cr || today())}</div></TD>
             <TD>{c?c.nom:"—"}</TD>
             <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
             <TD><Badge label={p.estado||"Borrador"}/></TD>
-            <TD mono style={{fontSize:11}}>{(p.items||[]).length}</TD>
+            <TD mono style={{fontSize:11}}>{(p.items||[]).length}{p.recurring && <div style={{fontSize:10,color:"#00e08a",marginTop:4}}>{p.recMonths || 1} mes(es)</div>}</TD>
             <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(p.total||0)}</TD>
             <TD style={{fontSize:11,color:"var(--gr2)"}}>{(contratos||[]).find(ct=>ct.id===p.contratoId)?.nom||"—"}</TD>
             <TD><div style={{display:"flex",gap:4}}>
@@ -4155,7 +4228,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Aceptado")}>Aceptado</GBtn>}
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Rechazado")}>Rechazado</GBtn>}
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
-        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:p.notasPago||"",obs2:p.obs||""})}>🧾 Crear orden de factura</Btn>}
+        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:p.notasPago||"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear orden de factura</Btn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":"Proyecto"}</Btn>}
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
@@ -4180,11 +4253,11 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
       <Stat label="Subtotal Neto" value={fmtM(p.subtotal||0)}/>
       <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtM(p.ivaVal||0):"No aplica"}/>
       <Stat label="Total Final"   value={fmtM(p.total||0)} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Ítems"         value={(p.items||[]).length}/>
+      <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtM(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1))):(p.items||[]).length}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["IVA",p.iva?"19% incluido":"No aplica"],["Validez",`${p.validez||30} días`]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["IVA",p.iva?"19% incluido":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -4221,7 +4294,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
   useEffect(()=>{
-    const base={correlativo:"",tipoDoc:"Orden de Factura",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:true,estado:"Pendiente",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:""};
+    const base={correlativo:"",tipoDoc:"Orden de Factura",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:true,estado:"Pendiente",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:"",recurring:false,recMonths:"6",recStart:today()};
     setF(data?.id?{...base,...data}:{...base,...(data||{})});
   },[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -4240,9 +4313,14 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       contratoId:pres.contratoId||prev.contratoId,
       obs:prev.obs||pres.notasPago||"",
       obs2:prev.obs2||pres.obs||"",
+      recurring:typeof prev.recurring==="boolean" ? prev.recurring : !!pres.recurring,
+      recMonths:prev.recMonths || String(pres.recMonths || "6"),
+      recStart:prev.recStart || pres.recStart || prev.fechaEmision || today(),
     }));
   };
   const mn=Number(f.montoNeto||0);const ivaV=f.iva?Math.round(mn*0.19):0;const total=mn+ivaV;
+  const recurringMonths=Math.max(1,Number(f.recMonths||1));
+  const projectedTotal=f.recurring?total*recurringMonths:total;
   // Solo auspiciadores principales y secundarios para programas
   const ausValidos=(auspiciadores||[]).filter(a=>["Auspiciador Principal","Auspiciador Secundario"].includes(a.tip));
   const contratosEntidad=(contratos||[]).filter(ct=>!f.entidadId || ct.cliId===f.entidadId);
@@ -4298,6 +4376,25 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
         <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</div>
       </div>
     </R3>
+    <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:f.recurring?12:0}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:700}}>Facturación recurrente</div>
+          <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Genera una serie mensual de documentos vinculados para servicios recurrentes.</div>
+        </div>
+        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
+          <input type="checkbox" checked={!!f.recurring} onChange={e=>u("recurring",e.target.checked)}/>
+          Activar mensualidad
+        </label>
+      </div>
+      {f.recurring && <R2>
+        <FG label="Inicio de serie"><FI type="date" value={f.recStart||f.fechaEmision||today()} onChange={e=>{u("recStart",e.target.value); if(!f.fechaEmision) u("fechaEmision",e.target.value);}}/></FG>
+        <FG label="Cantidad de meses"><FSl value={String(f.recMonths||"6")} onChange={e=>u("recMonths",e.target.value)}>
+          {Array.from({length:24},(_,i)=>String(i+1)).map(m=><option key={m} value={m}>{m} mes{m==="1"?"":"es"}</option>)}
+        </FSl></FG>
+      </R2>}
+      {f.recurring && <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>Proyección de la serie: <span style={{fontFamily:"var(--fm)",color:"#00e08a"}}>{fmtM(projectedTotal)}</span></div>}
+    </div>
     <R2>
       <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG>
       <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={e=>u("fechaVencimiento",e.target.value)}/></FG>
@@ -4305,7 +4402,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     {f.estado==="Pagada" && <FG label="Fecha de Pago"><FI type="date" value={f.fechaPago||""} onChange={e=>u("fechaPago",e.target.value)} /></FG>}
     <FG label="Datos de Pago / Información Bancaria"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Banco: BancoEstado&#10;Cuenta Corriente: 123456789&#10;RUT: 78.118.348-2&#10;Email: pagos@empresa.cl"/></FG>
     <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones..."/></FG>
-    <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,fechaPago:f.estado==="Pagada"?(f.fechaPago||today()):"",ivaVal:ivaV,total});}}/>
+    <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,fechaPago:f.estado==="Pagada"?(f.fechaPago||today()):"",ivaVal:ivaV,total,projectedTotal});}}/>
   </Modal>;
 }
 
@@ -4322,12 +4419,13 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
   const pagado=fd.filter(f=>f.estado==="Pagada").reduce((s,f)=>s+Number(f.total||0),0);
   const vencidas=fd.filter(f=>f.estado==="Vencida").length;
   const emitidas=fd.filter(f=>f.estado==="Emitida").length;
+  const recurrentes=fd.filter(f=>f.recurring).length;
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Facturas" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Pendiente" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44"/>
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
-      <Stat label="Emitidas / Vencidas" value={`${emitidas} / ${vencidas}`} accent="#ff5566" vc="#ff5566"/>
+      <Stat label="Emitidas / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`vencidas: ${vencidas}`}/>
     </div>
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar factura o entidad..."/>
@@ -4350,7 +4448,7 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
             const pres=(presupuestos||[]).find(x=>x.id===f.presupuestoId);
             const ct=(contratos||[]).find(x=>x.id===f.contratoId);
             return<tr key={f.id}>
-              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipoDoc||"Orden de Factura"}</div></TD>
+              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipoDoc||"Orden de Factura"}</div><div style={{fontSize:10,color:f.recurring?"#00e08a":"var(--gr2)",marginTop:4}}>{recurringSummary(f, f.fechaEmision || today())}</div></TD>
               <TD><div>{ent?.nom||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div></TD>
               <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
               <TD><Badge label={f.estado||"Pendiente"}/></TD>

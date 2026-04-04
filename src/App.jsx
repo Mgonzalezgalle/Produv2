@@ -1073,7 +1073,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar }) 
 }
 
 // ── SIDEBAR ──────────────────────────────────────────────────
-function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse}){
+function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse,isMobile}){
   const sbBg="var(--sidebar-bg)";
   const sbPanel="var(--sidebar-panel)";
   const sbText="var(--sidebar-text)";
@@ -1113,7 +1113,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
             <div style={{fontSize:8,color:sbMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
           </div>
         </div>
-        <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>‹</button>
+        <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>{isMobile?"✕":"‹"}</button>
       </>:
         <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
           <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
@@ -2726,6 +2726,7 @@ export default function App(){
   const [mData,setMData]=useState({});
   const [adminOpen,setAdminOpen]=useState(false);
   const [collapsed,setCollapsed]=useState(false);
+  const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined" ? window.innerWidth<=768 : false);
   const [syncPulse,setSyncPulse]=useState(false);
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
@@ -2849,6 +2850,17 @@ export default function App(){
     const changed = JSON.stringify(normalized) !== JSON.stringify(piezas);
     if(changed) setPiezas(normalized);
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
+
+  useEffect(()=>{
+    const onResize=()=>{
+      const mobile=window.innerWidth<=768;
+      setIsMobile(mobile);
+      if(mobile) setCollapsed(false);
+    };
+    onResize();
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
 
   const DEFAULT_T={...THEME_PRESETS.clasico.dark,preset:"clasico"};
   const [theme,setThemeState]=useState(DEFAULT_T);
@@ -3064,7 +3076,20 @@ export default function App(){
   if(!curUser) return <><StyleTag/><Login users={users||SEED_USERS} onLogin={login}/></>;
   if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag/><EmpresaSelector empresas={empresas||SEED_EMPRESAS} onSelect={selectEmp}/></>;
 
-  const SW=collapsed?64:240;
+  const closeMobileSidebar=()=>{
+    document.querySelector("aside")?.classList.remove("mob-open");
+    const overlay=document.getElementById("mob-overlay");
+    if(overlay) overlay.style.display="none";
+  };
+  const openMobileSidebar=()=>{
+    setCollapsed(false);
+    const sidebar=document.querySelector("aside");
+    const overlay=document.getElementById("mob-overlay");
+    if(sidebar) sidebar.classList.add("mob-open");
+    if(overlay) overlay.style.display="block";
+  };
+  const sidebarCollapsed=isMobile?false:collapsed;
+  const SW=sidebarCollapsed?64:240;
   const bc=buildBc();
   const currentEmpresa=(empresas||[]).find(e=>e.id===curEmp?.id)||curEmp||null;
   const systemMessages=(currentEmpresa?.systemMessages||[]);
@@ -3084,13 +3109,13 @@ export default function App(){
   return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
     <StyleTag/>
     {/* Mobile overlay */}
-    <div id="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");document.getElementById("mob-overlay").style.display="none";}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");const o=document.getElementById("mob-overlay");if(o)o.style.display="none";}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
+    <div id="mob-overlay" onClick={closeMobileSidebar} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
+    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile}/>
     <main className="app-main" style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
       {/* Topbar */}
       <div className="topbar" style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
         {/* Hamburger - solo visible en móvil via CSS */}
-        <button className="ham-btn" onClick={()=>{const s=document.querySelector("aside");const o=document.getElementById("mob-overlay");if(s){s.classList.add("mob-open");}if(o){o.style.display="block";}}} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
+        <button className="ham-btn" onClick={openMobileSidebar} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
         <div className="app-breadcrumbs" style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
           {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
             {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}

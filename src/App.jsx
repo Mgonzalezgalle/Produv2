@@ -85,11 +85,15 @@ function contractVisualState(contract = {}) {
   return contract.est || "Borrador";
 }
 
-function budgetRefLabel(item = {}, producciones = [], programas = []) {
+function budgetRefLabel(item = {}, producciones = [], programas = [], piezas = []) {
   if (!item?.refId) return "Sin referencia";
   if (item.tipo === "programa") {
     const found = (programas || []).find(pg => pg.id === item.refId);
     return found ? `📺 ${found.nom}` : "Producción eliminada";
+  }
+  if (item.tipo === "contenido") {
+    const found = (piezas || []).find(pz => pz.id === item.refId);
+    return found ? `📱 ${found.nom}` : "Campaña eliminada";
   }
   const found = (producciones || []).find(pro => pro.id === item.refId);
   return found ? `📽 ${found.nom}` : "Proyecto eliminado";
@@ -251,10 +255,10 @@ const DEFAULT_LISTAS = {
   estadosPieza:["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"],
   areasCrew:   ["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"],
   rolesCrew:   ["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"],
-  estadosPres: ["Borrador","Enviado","En Revisión","Aceptado","Rechazado"],
+  estadosPres: ["Pendiente","Borrador","Enviado","En Revisión","Aceptado","Rechazado"],
   monedas:     ["CLP","USD","EUR"],
   impuestos:   ["Sin impuesto","IVA 19%","Boleta Honorarios 15,25%"],
-  tiposPres:   ["Proyecto","Producción","Servicio"],
+  tiposPres:   ["Proyecto","Producción","Contenidos","Servicio"],
   estadosFact: ["Pendiente","Emitida","Pagada","Vencida","Anulada"],
   tiposEntidadFact:["Cliente","Auspiciador"],
   catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
@@ -2595,8 +2599,8 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
-    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
-    <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
+    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
+    <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
     <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
@@ -3404,18 +3408,23 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
 
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
-function MPres({open,data,clientes,producciones,programas,contratos,listas,onClose,onSave,empresa}){
-  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Borrador",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false};
+function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa}){
+  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",precioPieza:"",cantidadPiezas:"",detallePiezas:"Piezas mensuales"};
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data,items:data.items||[]}:{...empty});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const canPrograms = hasAddon(empresa, "television");
+  const canSocial = hasAddon(empresa, "social");
   const canContracts = hasAddon(empresa, "contratos");
   const canInvoices = hasAddon(empresa, "facturacion");
   const addItem=()=>setF(p=>({...p,items:[...(p.items||[]),{id:uid(),desc:"",qty:1,precio:0,und:"Unidad"}]}));
   const updItem=(i,k,v)=>setF(p=>({...p,items:(p.items||[]).map((it,j)=>j===i?{...it,[k]:v}:it)}));
   const delItem=i=>setF(p=>({...p,items:(p.items||[]).filter((_,j)=>j!==i)}));
-  const subtotal=(f.items||[]).reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
+  const socialCampaign=(piezas||[]).find(x=>x.id===f.refId);
+  const pieceItems = f.modoDetalle==="piezas"
+    ? [{id:"pieza-plan",desc:f.detallePiezas||"Piezas mensuales",qty:Number(f.cantidadPiezas||socialCampaign?.plannedPieces||0),precio:Number(f.precioPieza||0),und:"pieza"}]
+    : (f.items||[]);
+  const subtotal=pieceItems.reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
   const ivaVal=f.iva?Math.round(subtotal*0.19):f.honorarios?Math.round(subtotal*0.1525):0;
   const total=subtotal+ivaVal;
   const contratosCli = (contratos||[]).filter(ct=>!f.cliId || ct.cliId===f.cliId);
@@ -3426,16 +3435,32 @@ function MPres({open,data,clientes,producciones,programas,contratos,listas,onClo
     </R2>
     <FG label="Cliente *"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Seleccionar cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
     <R2>
-      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposPres||DEFAULT_LISTAS.tiposPres).map(o=><option key={o} value={o==="Proyecto"?"produccion":o==="Producción"?"programa":"servicio"}>{o}</option>)}</FSl></FG>
-      <FG label="Estado"><FSl value={f.estado||"Borrador"} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosPres||DEFAULT_LISTAS.estadosPres).map(o=><option key={o}>{o}</option>)}</FSl></FG>
+      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposPres||DEFAULT_LISTAS.tiposPres).map(o=><option key={o} value={o==="Proyecto"?"produccion":o==="Producción"?"programa":o==="Contenidos"?"contenido":"servicio"}>{o}</option>)}</FSl></FG>
+      <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosPres||DEFAULT_LISTAS.estadosPres).map(o=><option key={o}>{o}</option>)}</FSl></FG>
     </R2>
     <R2>
-      <FG label={f.tipo==="programa"?"Producción asociada":"Proyecto asociado"}>
-        <FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+      <FG label={f.tipo==="programa"?"Producción asociada":f.tipo==="contenido"?"Campaña asociada":"Proyecto asociado"}>
+        <FSl value={f.refId||""} onChange={e=>{
+          const value=e.target.value;
+          if (f.tipo==="contenido") {
+            const campaign=(piezas||[]).find(x=>x.id===value);
+            setF(prev=>({
+              ...prev,
+              refId:value,
+              cantidadPiezas:prev.modoDetalle==="piezas" ? Number(prev.cantidadPiezas||campaign?.plannedPieces||0) : prev.cantidadPiezas,
+              cliId:prev.cliId || campaign?.cliId || "",
+              detallePiezas:prev.detallePiezas || `Piezas ${campaign?.mes || "mensuales"}`,
+            }));
+            return;
+          }
+          u("refId",value);
+        }}>
           <option value="">— Sin referencia directa —</option>
           {f.tipo==="programa"
             ? (canPrograms ? (programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>) : [])
-            : (producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}
+            : f.tipo==="contenido"
+              ? (canSocial ? (piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>) : [])
+              : (producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}
         </FSl>
       </FG>
       {canContracts
@@ -3462,13 +3487,37 @@ function MPres({open,data,clientes,producciones,programas,contratos,listas,onClo
         })}
       </FSl></FG>
     </R3>
+    {canSocial && f.tipo==="contenido" && <R2>
+      <FG label="Modo de cálculo">
+        <FSl value={f.modoDetalle||"items"} onChange={e=>u("modoDetalle",e.target.value)}>
+          <option value="piezas">Precio por pieza × cantidad</option>
+          <option value="items">Ítems personalizables</option>
+        </FSl>
+      </FG>
+      <FG label="Campaña vinculada">
+        <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"10px 12px",fontSize:12,color:"var(--gr3)"}}>
+          {socialCampaign ? `${socialCampaign.nom} · ${socialCampaign.mes || ""} ${socialCampaign.ano || ""}`.trim() : "Selecciona una campaña para vincular el presupuesto."}
+        </div>
+      </FG>
+    </R2>}
     <Sep/>
     {/* Items */}
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
       <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Ítems / Detalle Comercial</div>
-      <GBtn sm onClick={addItem}>+ Agregar Ítem</GBtn>
+      {!(canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas") && <GBtn sm onClick={addItem}>+ Agregar Ítem</GBtn>}
     </div>
-    {(f.items||[]).length>0&&<div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden",marginBottom:12}}>
+    {canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
+      ? <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
+          <R3>
+            <FG label="Detalle"><FI value={f.detallePiezas||"Piezas mensuales"} onChange={e=>u("detallePiezas",e.target.value)} placeholder="Gestión mensual de contenidos"/></FG>
+            <FG label="Cantidad de piezas"><FI type="number" value={f.cantidadPiezas || socialCampaign?.plannedPieces || ""} onChange={e=>u("cantidadPiezas",e.target.value)} min="1" placeholder={String(socialCampaign?.plannedPieces || 1)}/></FG>
+            <FG label="Precio por pieza"><FI type="number" value={f.precioPieza||""} onChange={e=>u("precioPieza",e.target.value)} min="0" placeholder="0"/></FG>
+          </R3>
+          <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>
+            {socialCampaign ? `La campaña tiene ${socialCampaign.plannedPieces || 0} pieza(s) mensuales planificadas.` : "Puedes cotizar por volumen mensual aunque todavía no haya piezas creadas."}
+          </div>
+        </div>
+      : (f.items||[]).length>0&&<div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden",marginBottom:12}}>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Descripción</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:80}}>Qty</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Precio Unit.</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
         <tbody>{(f.items||[]).map((it,i)=><tr key={it.id} style={{borderTop:"1px solid var(--bdr)"}}>
@@ -3480,7 +3529,7 @@ function MPres({open,data,clientes,producciones,programas,contratos,listas,onClo
         </tr>)}</tbody>
       </table>
     </div>}
-    {!(f.items||[]).length&&<div style={{textAlign:"center",padding:14,color:"var(--gr2)",fontSize:12,border:"1px dashed var(--bdr2)",borderRadius:8,marginBottom:12}}>Sin ítems. Haz clic en "+ Agregar Ítem"</div>}
+    {!(canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas") && !(f.items||[]).length&&<div style={{textAlign:"center",padding:14,color:"var(--gr2)",fontSize:12,border:"1px dashed var(--bdr2)",borderRadius:8,marginBottom:12}}>Sin ítems. Haz clic en "+ Agregar Ítem"</div>}
     {/* Totales */}
     <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,padding:"12px 16px",marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtM(subtotal)}</span></div>
@@ -3503,206 +3552,202 @@ function MPres({open,data,clientes,producciones,programas,contratos,listas,onClo
         Marcar como listo para facturar
       </label>
     </div>}
-    <MFoot onClose={onClose} onSave={()=>{if(!f.titulo?.trim()||!f.cliId)return;onSave({...f,subtotal,ivaVal,total});}}/>
+    <MFoot onClose={onClose} onSave={()=>{
+      if(!f.titulo?.trim()||!f.cliId)return;
+      const normalizedItems = canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
+        ? [{id:"pieza-plan",desc:f.detallePiezas||"Piezas mensuales",qty:Number(f.cantidadPiezas||socialCampaign?.plannedPieces||0),precio:Number(f.precioPieza||0),und:"pieza"}]
+        : (f.items||[]);
+      onSave({...f,items:normalizedItems,subtotal,ivaVal,total});
+    }}/>
   </Modal>;
 }
 
 // ── PDF GENERATOR — PRESUPUESTO ──────────────────────────────
-function generarPDF(pres, cliente, empresa) {
+function pdfEscape(text="") {
+  return String(text)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\\/g,"\\\\")
+    .replace(/\(/g,"\\(")
+    .replace(/\)/g,"\\)");
+}
+
+function pdfHexColor(hex="#000000") {
+  const raw = String(hex||"#000000").replace("#","");
+  const normalized = raw.length===3 ? raw.split("").map(ch=>ch+ch).join("") : raw.padEnd(6,"0").slice(0,6);
+  const parts = normalized.match(/.{2}/g) || ["00","00","00"];
+  return parts.map(p=>(parseInt(p,16)/255).toFixed(3)).join(" ");
+}
+
+function buildSimplePdfBlob(lines, accent="#00d4e8") {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const marginX = 42;
+  const marginY = 50;
+  const defaultGap = 16;
+  const pages = [];
+  let current = [];
+  let y = pageHeight - marginY;
+  const pushPage = () => {
+    pages.push(current);
+    current = [];
+    y = pageHeight - marginY;
+  };
+  const ensureGap = gap => {
+    if (y - gap < marginY) pushPage();
+  };
+
+  (lines||[]).forEach(line => {
+    const text = String(line?.text ?? "");
+    const chunks = text.split("\n");
+    chunks.forEach((chunk, index) => {
+      const size = line?.size || 12;
+      const gap = index===chunks.length-1 ? (line?.gap || defaultGap) : defaultGap;
+      ensureGap(gap);
+      current.push({
+        x: line?.x ?? marginX,
+        y,
+        size,
+        font: line?.bold ? "F2" : "F1",
+        color: line?.color || "#1f2937",
+        text: chunk,
+      });
+      y -= gap;
+    });
+  });
+  if (current.length || !pages.length) pages.push(current);
+
+  const accentColor = pdfHexColor(accent);
+  const objects = [];
+  const addObject = value => {
+    objects.push(value);
+    return objects.length;
+  };
+  const fontRegularId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBoldId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+  const pageIds = [];
+  const contentIds = [];
+  pages.forEach(pageLines => {
+    const commands = ["BT"];
+    let lastFont = "";
+    let lastSize = "";
+    let lastColor = "";
+    pageLines.forEach(line => {
+      if (line.font !== lastFont || String(line.size) !== lastSize) {
+        commands.push(`/${line.font} ${line.size} Tf`);
+        lastFont = line.font;
+        lastSize = String(line.size);
+      }
+      const color = pdfHexColor(line.color);
+      if (color !== lastColor) {
+        commands.push(`${color} rg`);
+        lastColor = color;
+      }
+      commands.push(`1 0 0 1 ${line.x} ${line.y} Tm (${pdfEscape(line.text)}) Tj`);
+    });
+    commands.push("ET");
+    const stream = commands.join("\n");
+    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    contentIds.push(contentId);
+    pageIds.push(addObject(`<< /Type /Page /Parent PAGES_ID 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`));
+  });
+
+  const pagesId = addObject(`<< /Type /Pages /Kids [${pageIds.map(id=>`${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`);
+  pageIds.forEach((id, index) => {
+    objects[id-1] = objects[id-1].replace("PAGES_ID", String(pagesId));
+    objects[contentIds[index]-1] = objects[contentIds[index]-1].replace("ACCENT_COLOR", accentColor);
+  });
+  const catalogId = addObject(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((obj, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index+1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach(off => {
+    pdf += `${String(off).padStart(10,"0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length+1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return new Blob([pdf], { type:"application/pdf" });
+}
+
+function presupuestoPdfFileName(pres = {}) {
+  return `${(pres.correlativo || pres.titulo || "presupuesto").replace(/[^a-z0-9]+/gi,"_").replace(/^_+|_+$/g,"").toLowerCase() || "presupuesto"}.pdf`;
+}
+
+function buildBudgetPdfFile(pres, cliente, empresa) {
   const contacto = (cliente?.contactos||[])[0];
-  const subtotal  = Number(pres.subtotal||0);
-  const ivaVal    = Number(pres.ivaVal||0);
-  const total     = Number(pres.total||0);
-  const ac        = empresa?.color || "#00d4e8";
-  const acLight   = ac + "18";
-  const correlativo = pres.correlativo || ("PRES-" + String(Date.now()).slice(-6));
-  const estadoBadgeColor = {Borrador:"#f0f0f0,#888",Enviado:"#e0f0ff,#0066cc","En Revisión":"#fff3cd,#856404",Aceptado:"#d4edda,#155724",Rechazado:"#f8d7da,#721c24"}[pres.estado||"Borrador"]||"#f0f0f0,#888";
-  const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
+  const subtotal = Number(pres.subtotal||0);
+  const ivaVal = Number(pres.ivaVal||0);
+  const total = Number(pres.total||0);
+  const accent = empresa?.color || "#00d4e8";
+  const lines = [
+    { text: empresa?.nombre || "Produ", size: 22, bold:true, color:accent, gap:18 },
+    { text: `Presupuesto ${pres.correlativo || ""}`.trim(), size: 18, bold:true, gap:20 },
+    { text: `Estado: ${pres.estado || "Pendiente"}`, size: 11, color:"#4b5563" },
+    { text: `Fecha de emision: ${fmtD(today())}`, size: 11, color:"#4b5563" },
+    { text: `Cliente: ${cliente?.nom || "—"}`, size: 12, bold:true, gap:18 },
+    { text: contacto ? `Contacto: ${contacto.nom}${contacto.tel ? ` · ${contacto.tel}` : ""}` : "Sin contacto principal registrado", size: 11, color:"#4b5563" },
+    { text: `Validez: ${pres.validez || 30} dias`, size: 11, color:"#4b5563", gap:18 },
+    { text: "Detalle", size: 14, bold:true, color:accent, gap:16 },
+    ...((pres.items||[]).length ? (pres.items||[]).flatMap((it, idx) => ([
+      { text: `${idx+1}. ${it.desc || "Item sin descripcion"}`, size: 11, bold:true, gap:14 },
+      { text: `Cantidad: ${it.qty || 0}   Unitario: ${fmtM(it.precio || 0)}   Total: ${fmtM(Number(it.qty||0)*Number(it.precio||0))}`, size: 10, color:"#4b5563", gap:14 },
+    ])) : [{ text:"Sin items cargados", size:11, color:"#6b7280", gap:16 }]),
+    { text:"Resumen", size:14, bold:true, color:accent, gap:16 },
+    { text:`Subtotal: ${fmtM(subtotal)}`, size:11 },
+    { text:`${pres.honorarios?"Boleta Honorarios 15,25%":"IVA 19%"}: ${(pres.iva||pres.honorarios)?fmtM(ivaVal):"No aplica"}`, size:11 },
+    { text:`Total final: ${fmtM(total)}`, size:13, bold:true, gap:18 },
+    ...(pres.metodoPago || pres.notasPago ? [
+      { text:"Informacion de pago", size:14, bold:true, color:accent, gap:16 },
+      { text:[pres.metodoPago ? `Metodo: ${pres.metodoPago}` : "", pres.fechaPago ? `Fecha de pago: ${fmtD(pres.fechaPago)}` : "", pres.notasPago || ""].filter(Boolean).join(" · "), size:11, color:"#4b5563", gap:18 },
+    ] : []),
+    ...(pres.obs ? [
+      { text:"Observaciones", size:14, bold:true, color:accent, gap:16 },
+      { text:pres.obs, size:11, color:"#4b5563", gap:18 },
+    ] : []),
+    { text:`Generado con Produ · ${empresa?.ema || ""}`, size:10, color:"#9ca3af", gap:14 },
+  ];
+  const blob = buildSimplePdfBlob(lines, accent);
+  return new File([blob], presupuestoPdfFileName(pres), { type:"application/pdf" });
+}
 
-  const logoHtml = empresa?.logo
-    ? `<img src="${empresa.logo}" style="max-height:140px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" alt="${empresa?.nombre||""}">`
-    : `<div style="font-size:28px;font-weight:900;color:${ac};letter-spacing:-1px;margin-bottom:4px;">${empresa?.nombre||""}</div>`;
+function downloadFile(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1200);
+}
 
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Presupuesto ${correlativo}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter',Arial,sans-serif;font-size:13px;color:#1e1e2e;background:#fff;padding:48px;line-height:1.5}
-  /* HEADER */
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px}
-  .header-left{}
-  .empresa-name{font-size:13px;color:#555;margin-top:6px}
-  .empresa-sub{font-size:11px;color:#888;margin-top:2px}
-  .header-right{text-align:right}
-  .doc-type{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:6px}
-  .doc-num{font-size:22px;font-weight:800;color:#1e1e2e;margin-bottom:12px}
-  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:${badgeBg};color:${badgeFg};margin-bottom:12px}
-  .meta{font-size:11px;color:#666;line-height:1.8}
-  .meta strong{color:#1e1e2e;font-weight:600}
-  /* DIVIDER */
-  .divider{height:3px;background:linear-gradient(90deg,${ac},${ac}44);border-radius:2px;margin-bottom:32px}
-  /* TÍTULO */
-  .doc-title{font-size:18px;font-weight:700;color:#1e1e2e;margin-bottom:28px;padding-bottom:12px;border-bottom:1px solid #eee}
-  /* GRID DATOS */
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px}
-  .box{background:#f8f9fc;border-radius:10px;padding:18px;border-left:3px solid ${ac}}
-  .box-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:12px}
-  .box-name{font-size:15px;font-weight:700;color:#1e1e2e;margin-bottom:8px}
-  .box-line{font-size:12px;color:#555;margin-bottom:3px}
-  /* TABLA */
-  .table-wrap{margin-bottom:0}
-  table{width:100%;border-collapse:collapse}
-  thead tr{background:${ac}}
-  thead th{padding:11px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff}
-  thead th.r{text-align:right}
-  tbody tr:nth-child(even){background:#f8f9fc}
-  tbody tr{border-bottom:1px solid #eee}
-  tbody td{padding:11px 14px;font-size:12px;color:#1e1e2e}
-  tbody td.r{text-align:right;font-family:'Courier New',monospace;font-size:12px}
-  /* TOTALES */
-  .totals-wrap{display:flex;justify-content:flex-end;margin-top:0;margin-bottom:32px;border-top:1px solid #eee;padding-top:16px}
-  .totals{width:280px}
-  .tot-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#555;border-bottom:1px solid #f0f0f0}
-  .tot-row.final{background:${ac};border-radius:8px;padding:10px 14px;margin-top:8px;color:#fff;font-weight:700;font-size:15px;border:none}
-  .tot-row.final span:last-child{font-family:'Courier New',monospace}
-  /* SECCIONES */
-  .section{margin-bottom:24px}
-  .section-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${ac};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${acLight}}
-  .section-content{font-size:12px;color:#444;line-height:1.8;white-space:pre-line}
-  /* FIRMA */
-  .firma-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;margin-bottom:32px}
-  .firma-box{border-top:2px solid #ddd;padding-top:10px;text-align:center}
-  .firma-label{font-size:11px;color:#888;margin-top:4px}
-  .firma-name{font-size:12px;font-weight:600;color:#1e1e2e;margin-top:2px}
-  /* OBS */
-  .obs-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:24px}
-  .obs-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#92400e;margin-bottom:8px}
-  .obs-text{font-size:12px;color:#78350f}
-  /* FOOTER */
-  .footer{text-align:center;font-size:10px;color:#bbb;padding-top:20px;border-top:1px solid #eee;margin-top:16px}
-  @media print{body{padding:24px}@page{margin:0}}
-</style>
-</head>
-<body>
+function generarPDF(pres, cliente, empresa) {
+  const file = buildBudgetPdfFile(pres, cliente, empresa);
+  downloadFile(file);
+  return file;
+}
 
-<!-- HEADER -->
-<div class="header">
-  <div class="header-left">
-    ${logoHtml}
-    ${empresa?.logo ? `<div class="empresa-name">${empresa?.nombre||""}</div>` : ""}
-    <div class="empresa-sub">${empresa?.rut||""}</div>
-    <div class="empresa-sub">${empresa?.dir||""}</div>
-    <div class="empresa-sub">${empresa?.ema||""} ${empresa?.tel ? "· " + empresa.tel : ""}</div>
-  </div>
-  <div class="header-right">
-    <div class="doc-type">Presupuesto / Cotización</div>
-    <div class="doc-num">${correlativo}</div>
-    <div class="badge">${pres.estado||"Borrador"}</div>
-    <div class="meta">
-      <strong>Fecha emisión</strong><br>${fmtD(today())}<br>
-      <strong>Válido por</strong><br>${pres.validez||30} días<br>
-      ${pres.moneda ? `<strong>Moneda</strong><br>${pres.moneda}` : ""}
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<div class="doc-title">${pres.titulo||"Presupuesto"}</div>
-
-<!-- DATOS EMISOR / CLIENTE -->
-<div class="grid2">
-  <div class="box">
-    <div class="box-title">Datos del Emisor</div>
-    <div class="box-name">${empresa?.nombre||""}</div>
-    ${empresa?.rut ? `<div class="box-line">RUT: ${empresa.rut}</div>` : ""}
-    ${empresa?.dir ? `<div class="box-line">${empresa.dir}</div>` : ""}
-    ${empresa?.ema ? `<div class="box-line">${empresa.ema}</div>` : ""}
-    ${empresa?.tel ? `<div class="box-line">${empresa.tel}</div>` : ""}
-  </div>
-  <div class="box">
-    <div class="box-title">Datos del Cliente</div>
-    <div class="box-name">${cliente?.nom||"—"}</div>
-    ${cliente?.rut ? `<div class="box-line">RUT: ${cliente.rut}</div>` : ""}
-    ${cliente?.dir ? `<div class="box-line">${cliente.dir}</div>` : ""}
-    ${contacto ? `<div class="box-line">Contacto: ${contacto.nom}${contacto.car ? " · " + contacto.car : ""}</div>
-    <div class="box-line">${contacto.ema||""} ${contacto.tel ? "· " + contacto.tel : ""}</div>` : ""}
-  </div>
-</div>
-
-<!-- TABLA DE ÍTEMS -->
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Descripción</th>
-        <th class="r" style="width:70px">Cant.</th>
-        <th class="r" style="width:130px">Precio Unit.</th>
-        <th class="r" style="width:140px">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${(pres.items||[]).length > 0
-        ? (pres.items||[]).map(it => `<tr>
-            <td>${it.desc||"—"}</td>
-            <td class="r">${it.qty||0}</td>
-            <td class="r">${fmtM(it.precio||0)}</td>
-            <td class="r">${fmtM(Number(it.qty||0)*Number(it.precio||0))}</td>
-          </tr>`).join("")
-        : `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Sin ítems</td></tr>`}
-    </tbody>
-  </table>
-</div>
-
-<!-- TOTALES -->
-<div class="totals-wrap">
-  <div class="totals">
-    <div class="tot-row"><span>Subtotal Neto</span><span style="font-family:monospace">${fmtM(subtotal)}</span></div>
-    <div class="tot-row"><span>${pres.honorarios?"Boleta Honorarios 15,25%":"IVA 19%"}</span><span style="font-family:monospace">${(pres.iva||pres.honorarios) ? fmtM(ivaVal) : "No aplica"}</span></div>
-    <div class="tot-row final"><span>Total Final</span><span>${fmtM(total)}</span></div>
-  </div>
-</div>
-
-<!-- PAGO -->
-${pres.metodoPago || pres.notasPago ? '<div class="section"><div class="section-title">Información de Pago</div><div class="section-content">' + [pres.metodoPago ? "Método de pago: " + pres.metodoPago : "", pres.fechaPago ? "Fecha de pago: " + fmtD(pres.fechaPago) : "", pres.notasPago || ""].filter(Boolean).join(" · ") + '</div></div>' : ""}
-
-<!-- OBSERVACIONES -->
-${pres.obs ? `
-<div class="obs-box">
-  <div class="obs-title">Observaciones</div>
-  <div class="obs-text">${pres.obs}</div>
-</div>` : ""}
-
-<!-- FIRMA -->
-<div class="firma-grid">
-  <div class="firma-box">
-    <div style="height:50px"></div>
-    <div class="firma-label">Firma y Timbre</div>
-    <div class="firma-name">${empresa?.nombre||""}</div>
-  </div>
-  <div class="firma-box">
-    <div style="height:50px"></div>
-    <div class="firma-label">Firma de Aceptación</div>
-    <div class="firma-name">${cliente?.nom||"Cliente"}</div>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<div class="footer">
-  ${empresa?.nombre||""} · ${empresa?.rut||""} · ${empresa?.ema||""} &nbsp;|&nbsp; Generado con Produ
-</div>
-
-</body>
-</html>`;
-
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => w.print(), 800);
+async function enviarPresupuestoWhatsApp(pres, cliente, empresa) {
+  const contacto = (cliente?.contactos||[])[0];
+  if (!contacto?.tel) {
+    alert("El cliente no tiene teléfono de contacto registrado.");
+    return;
+  }
+  const file = buildBudgetPdfFile(pres, cliente, empresa);
+  const msg = `Hola ${contacto.nom || ""}, te compartimos el presupuesto ${pres.correlativo || pres.titulo || ""}.`;
+  const canShareFile = typeof navigator !== "undefined" && navigator.share && navigator.canShare && navigator.canShare({ files:[file] });
+  if (canShareFile) {
+    await navigator.share({ files:[file], title:pres.titulo || "Presupuesto", text:msg });
+    return;
+  }
+  downloadFile(file);
+  const num = String(contacto.tel || "").replace(/[^0-9]/g, "");
+  const waNum = num.startsWith("56") ? num : "56" + num;
+  window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg + " El PDF ya se descargó en tu dispositivo para adjuntarlo en este chat.")}`, "_blank");
 }
 
 // ── PDF GENERATOR — FACTURA ───────────────────────────────────
@@ -3710,7 +3755,7 @@ function generarPDFFactura(fact, entidad, ref, empresa) {
   const ac       = empresa?.color || "#00d4e8";
   const acLight  = ac + "18";
   const correlativo = fact.correlativo || ("OC-" + String(Date.now()).slice(-6));
-  const estadoBadgeColor = {Pendiente:"#fff3cd,#856404",Emitida:"#cce5ff,#004085",Pagada:"#d4edda,#155724",Vencida:"#f8d7da,#721c24",Anulada:"#e2e3e5,#383d41"}[fact.estado||"Pendiente"]||"#fff3cd,#856404";
+  const estadoBadgeColor = {Pendiente:"#fff3cd,#856404",Borrador:"#f3f4f6,#4b5563",Enviado:"#e0f0ff,#0066cc","En Revisión":"#fff3cd,#856404",Aceptado:"#d4edda,#155724",Rechazado:"#f8d7da,#721c24",Emitida:"#cce5ff,#004085",Pagada:"#d4edda,#155724",Vencida:"#f8d7da,#721c24",Anulada:"#e2e3e5,#383d41"}[fact.estado||"Pendiente"]||"#fff3cd,#856404";
   const [badgeBg,badgeFg] = estadoBadgeColor.split(",");
   const mn    = Number(fact.montoNeto||0);
   const ivaV  = fact.iva ? Math.round(mn*0.19) : 0;
@@ -3819,9 +3864,9 @@ function generarPDFFactura(fact, entidad, ref, empresa) {
 
 <!-- REFERENCIA -->
 ${ref ? `<div class="ref-box">
-  <div class="ref-icon">${fact.tipoRef === "produccion" ? "📽" : "📺"}</div>
+  <div class="ref-icon">${fact.tipoRef === "produccion" ? "📽" : fact.tipoRef === "contenido" ? "📱" : "📺"}</div>
   <div>
-    <div class="ref-label">${fact.tipoRef === "produccion" ? "Proyecto" : "Producción"} asociada</div>
+    <div class="ref-label">${fact.tipoRef === "produccion" ? "Proyecto" : fact.tipoRef === "contenido" ? "Campaña" : "Producción"} asociada</div>
     <div class="ref-name">${ref.nom||""}</div>
     ${ref.est ? `<div class="ref-type">Estado: ${ref.est}</div>` : ""}
   </div>
@@ -3876,12 +3921,13 @@ ${fact.obs2 ? `<div class="obs-box">
 }
 
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────
-function ViewPres({empresa,presupuestos,clientes,producciones,programas,contratos,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos}){
+function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,contratos,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const fd=(presupuestos||[]).filter(x=>x.empId===empId).filter(p=>(p.titulo||"").toLowerCase().includes(q.toLowerCase())&&(!fe||p.estado===fe));
   const total=fd.reduce((s,p)=>s+Number(p.total||0),0);
   const aceptados=fd.filter(p=>p.estado==="Aceptado").reduce((s,p)=>s+Number(p.total||0),0);
+  const setEstadoRapido=(evt,pres,estado)=>{evt.stopPropagation();cSave(presupuestos,setPresupuestos,{...pres,estado});};
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total"     value={fd.length}                                          accent="var(--cy)" vc="var(--cy)"/>
@@ -3901,7 +3947,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,contrato
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return<tr key={p.id} onClick={()=>navTo("pres-det",p.id)}>
             <TD bold>{p.titulo}</TD>
             <TD>{c?c.nom:"—"}</TD>
-            <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas)}</TD>
+            <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
             <TD><Badge label={p.estado||"Borrador"}/></TD>
             <TD mono style={{fontSize:11}}>{(p.items||[]).length}</TD>
             <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(p.total||0)}</TD>
@@ -3909,7 +3955,12 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,contrato
             <TD><div style={{display:"flex",gap:4}}>
               <GBtn sm onClick={e=>{e.stopPropagation();navTo("pres-det",p.id);}}>Ver</GBtn>
               <GBtn sm onClick={e=>{e.stopPropagation();const c=(clientes||[]).find(x=>x.id===p.cliId);generarPDF(p,c,empresa);}} title="Descargar PDF">⬇</GBtn>
-              <GBtn sm onClick={e=>{e.stopPropagation();const c=(clientes||[]).find(x=>x.id===p.cliId);const co=(c?.contactos||[])[0];if(!co?.tel){alert("Sin teléfono de contacto.");return;}generarPDF(p,c,empresa);setTimeout(()=>{const num=((co.tel||"").replace(/[^0-9]/g,""));const waNum=num.startsWith("56")?num:"56"+num;window.open("https://wa.me/"+waNum+"?text="+encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". El PDF se abrió en tu pantalla para que lo descargues y adjuntes aquí."),"_blank");},1200);}} title="PDF + WhatsApp">💬</GBtn>
+              <GBtn sm onClick={async e=>{e.stopPropagation();const c=(clientes||[]).find(x=>x.id===p.cliId);await enviarPresupuestoWhatsApp(p,c,empresa);}} title="Enviar por WhatsApp">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+              </GBtn>
+              {_cd&&_cd("presupuestos")&&<GBtn sm onClick={e=>setEstadoRapido(e,p,"Pendiente")} title="Marcar pendiente">⌛</GBtn>}
+              {_cd&&_cd("presupuestos")&&<GBtn sm onClick={e=>setEstadoRapido(e,p,"Aceptado")} title="Marcar aceptado">✓</GBtn>}
+              {_cd&&_cd("presupuestos")&&<GBtn sm onClick={e=>setEstadoRapido(e,p,"Rechazado")} title="Marcar rechazado">✕</GBtn>}
               {_cd&&_cd("presupuestos")&&<XBtn onClick={e=>{e.stopPropagation();cDel(presupuestos,setPresupuestos,p.id,null,"Presupuesto eliminado");}}/>}
             </div></TD>
           </tr>;})}
@@ -3921,7 +3972,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,contrato
   </div>;
 }
 
-function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setMovimientos}){
+function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setMovimientos}){
   const empId=empresa?.id;
   const p=(presupuestos||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
   const c=(clientes||[]).find(x=>x.id===p.cliId);
@@ -3933,6 +3984,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,co
   const [convOpen,setConvOpen]=useState(false);
   const [convTipo,setConvTipo]=useState("produccion");
   const [convNom,setConvNom]=useState(p.titulo||"");
+  const setEstadoPres = estado => cSave(presupuestos,setPresupuestos,{...p,estado});
   const convertir=async()=>{
     if(!convNom.trim()) return;
     const newId=uid();
@@ -3957,19 +4009,15 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,co
     <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <Btn onClick={()=>generarPDF(p,c,empresa)}>⬇ Descargar PDF</Btn>
-        <GBtn onClick={()=>{
-          const co=(c?.contactos||[])[0];
-          if(!co?.tel){alert("El cliente no tiene teléfono de contacto registrado.");return;}
-          // Step 1: Generate and download PDF
-          generarPDF(p,c,empresa);
-          // Step 2: Open WhatsApp after short delay (PDF needs to open first)
-          setTimeout(()=>{
-            const num=((co.tel||"").replace(/[^0-9]/g,""));
-            const waNum=num.startsWith("56")?num:"56"+num;
-            const msg=encodeURIComponent("Hola "+co.nom+", te adjunto el presupuesto por la producción "+p.titulo+". El PDF se abrió en tu pantalla para que lo descargues y adjuntes aquí.");
-            window.open("https://wa.me/"+waNum+"?text="+msg,"_blank");
-          },1200);
-        }}>💬 PDF + WhatsApp</GBtn>
+        <GBtn onClick={async()=>{await enviarPresupuestoWhatsApp(p,c,empresa);}}>
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+            WhatsApp
+          </span>
+        </GBtn>
+        {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Pendiente")}>Pendiente</GBtn>}
+        {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Aceptado")}>Aceptado</GBtn>}
+        {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Rechazado")}>Rechazado</GBtn>}
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
         {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:p.notasPago||"",obs2:p.obs||""})}>🧾 Crear orden de factura</Btn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":"Proyecto"}</Btn>}
@@ -4000,7 +4048,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,co
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["IVA",p.iva?"19% incluido":"No aplica"],["Validez",`${p.validez||30} días`]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["IVA",p.iva?"19% incluido":"No aplica"],["Validez",`${p.validez||30} días`]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -4031,7 +4079,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,co
 }
 
 // ── FACTURACIÓN ───────────────────────────────────────────────
-function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,presupuestos,contratos,listas,onClose,onSave}){
+function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,listas,onClose,onSave}){
   const [f,setF]=useState({});
   const canPrograms = hasAddon(empresa, "television");
   const canPres = hasAddon(empresa, "presupuestos");
@@ -4083,12 +4131,13 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       </FSl>
     </FG>
     <R2>
-    <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}</FSl></FG>
+    <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
       <FG label="Proyecto / Producción">
         <FSl value={f.proId||""} onChange={e=>u("proId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           <optgroup label="Proyectos">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
           {canPrograms&&<optgroup label="Producciones">{(programas||[]).map(p=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>}
+          {hasAddon(empresa,"social")&&<optgroup label="Campañas">{(piezas||[]).map(p=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>}
         </FSl>
       </FG>
     </R2>
@@ -4117,7 +4166,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   </Modal>;
 }
 
-function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas}){
+function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
@@ -4152,13 +4201,15 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
             const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
-            const ref=f.tipoRef==="produccion"?(producciones||[]).find(x=>x.id===f.proId):(programas||[]).find(x=>x.id===f.proId);
+            const ref=f.tipoRef==="produccion"
+              ? (producciones||[]).find(x=>x.id===f.proId)
+              : (f.tipoRef==="contenido" ? (piezas||[]).find(x=>x.id===f.proId) : (programas||[]).find(x=>x.id===f.proId));
             const pres=(presupuestos||[]).find(x=>x.id===f.presupuestoId);
             const ct=(contratos||[]).find(x=>x.id===f.contratoId);
             return<tr key={f.id}>
               <TD bold>{f.correlativo||"—"}</TD>
               <TD><div>{ent?.nom||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div></TD>
-              <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":"📺"} ${ref.nom}`:"—"}</TD>
+              <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
               <TD><Badge label={f.estado||"Pendiente"}/></TD>
               <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
               <TD style={{fontSize:11,color:"var(--gr2)"}}>{canPres?(pres?.correlativo||pres?.titulo||"—"):"—"}</TD>
@@ -4173,7 +4224,9 @@ function ViewFact({empresa,facturas,clientes,auspiciadores,producciones,programa
                 {_cd&&_cd("facturacion")&&f.estado!=="Pagada"&&<GBtn sm onClick={()=>cSave(facturas,setFacturas,{...f,estado:"Pagada",fechaPago:today()})}>✓</GBtn>}
                 <GBtn sm onClick={()=>{
                   const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
-                  const ref=f.tipoRef==="produccion"?(producciones||[]).find(x=>x.id===f.proId):(programas||[]).find(x=>x.id===f.proId);
+                  const ref=f.tipoRef==="produccion"
+                    ? (producciones||[]).find(x=>x.id===f.proId)
+                    : (f.tipoRef==="contenido" ? (piezas||[]).find(x=>x.id===f.proId) : (programas||[]).find(x=>x.id===f.proId));
                   generarPDFFactura(f,ent,ref,empresa);
                 }}>⬇ PDF</GBtn>
               </div></TD>

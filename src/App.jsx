@@ -789,12 +789,12 @@ function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
       const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
       if (!items.length) return null;
       const isOpen = open[grp.group] !== false;
-      return <div key={grp.group} style={{ margin:"0 8px 8px",background:flatSidebar?"transparent":"var(--card)",border:flatSidebar?"1px solid rgba(255,255,255,.08)":"1px solid var(--bdr)",borderRadius:12,overflow:"hidden" }}>
+      return <div key={grp.group} style={{ margin:"0 8px 10px",background:"transparent",border:"none",borderRadius:12,overflow:"hidden" }}>
         {/* Group header */}
         <div onClick={() => toggle(grp.group)}
           style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px 8px",cursor:"pointer",userSelect:"none",background:flatSidebar?"transparent":"linear-gradient(180deg,var(--card2),transparent)" }}>
           <span style={{ fontSize:10,letterSpacing:1.7,textTransform:"uppercase",fontWeight:800,color:flatSidebar?"#94a3b8":"var(--gr2)" }}>{grp.group}</span>
-          <span style={{ fontSize:10,color:"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
+          <span style={{ fontSize:10,color:flatSidebar?"#94a3b8":"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
         </div>
         {/* Items */}
         {isOpen && <div style={{ padding:"0 6px 8px" }}>
@@ -1472,20 +1472,20 @@ const THEME_PRESETS={
   editorial:{
     label:"Editorial",
     description:"Más contraste y tono de sala de edición.",
-    dark:{mode:"dark",bg:"#0a0a0e",surface:"#101119",card:"#171924",border:"#252838",accent:"#4ade80",accent2:"#16a34a",white:"#f5f7fb",gray:"#94a3b8",sidebarBg:"#111827",sidebarPanel:"#172033",sidebarText:"#eefbf4",sidebarMuted:"#a5b7cb"},
-    light:{mode:"light",bg:"#f4f6f8",surface:"#ffffff",card:"#ffffff",border:"#d8dee8",accent:"#15803d",accent2:"#166534",white:"#111827",gray:"#526072",sidebarBg:"#111827",sidebarPanel:"#172033",sidebarText:"#eefbf4",sidebarMuted:"#a5b7cb"},
+    dark:{mode:"dark",bg:"#0a0a0e",surface:"#101119",card:"#171924",border:"#252838",accent:"#4ade80",accent2:"#16a34a",white:"#f5f7fb",gray:"#94a3b8",sidebarBg:"#1b1020",sidebarPanel:"#28172f",sidebarText:"#f8eefb",sidebarMuted:"#c8b0d1"},
+    light:{mode:"light",bg:"#f4f6f8",surface:"#ffffff",card:"#ffffff",border:"#d8dee8",accent:"#15803d",accent2:"#166534",white:"#111827",gray:"#526072",sidebarBg:"#1b1020",sidebarPanel:"#28172f",sidebarText:"#f8eefb",sidebarMuted:"#c8b0d1"},
   },
   corporativo:{
     label:"Corporativo",
     description:"Más sobrio y ejecutivo para clientes e instancias formales.",
-    dark:{mode:"dark",bg:"#081018",surface:"#0d1722",card:"#13202f",border:"#213348",accent:"#38bdf8",accent2:"#0284c7",white:"#f3f7fb",gray:"#8ca0b7",sidebarBg:"#0b1b2b",sidebarPanel:"#10243a",sidebarText:"#ecf6ff",sidebarMuted:"#9eb4ca"},
-    light:{mode:"light",bg:"#eef4f8",surface:"#ffffff",card:"#ffffff",border:"#d3dfe8",accent:"#0369a1",accent2:"#075985",white:"#0f172a",gray:"#4b5563",sidebarBg:"#0b1b2b",sidebarPanel:"#10243a",sidebarText:"#ecf6ff",sidebarMuted:"#9eb4ca"},
+    dark:{mode:"dark",bg:"#081018",surface:"#0d1722",card:"#13202f",border:"#213348",accent:"#38bdf8",accent2:"#0284c7",white:"#f3f7fb",gray:"#8ca0b7",sidebarBg:"#10233f",sidebarPanel:"#173155",sidebarText:"#edf5ff",sidebarMuted:"#abc1d9"},
+    light:{mode:"light",bg:"#eef4f8",surface:"#ffffff",card:"#ffffff",border:"#d3dfe8",accent:"#0369a1",accent2:"#075985",white:"#0f172a",gray:"#4b5563",sidebarBg:"#10233f",sidebarPanel:"#173155",sidebarText:"#edf5ff",sidebarMuted:"#abc1d9"},
   },
   minimal:{
     label:"Minimal",
     description:"Más neutral, ordenado y con menor ruido visual.",
-    dark:{mode:"dark",bg:"#0b0b0c",surface:"#121214",card:"#19191c",border:"#2a2a2f",accent:"#e5e7eb",accent2:"#9ca3af",white:"#fafafa",gray:"#9ca3af",sidebarBg:"#171717",sidebarPanel:"#202022",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
-    light:{mode:"light",bg:"#f7f7f8",surface:"#ffffff",card:"#ffffff",border:"#dddddf",accent:"#374151",accent2:"#111827",white:"#111111",gray:"#5b6472",sidebarBg:"#171717",sidebarPanel:"#202022",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
+    dark:{mode:"dark",bg:"#0b0b0c",surface:"#121214",card:"#19191c",border:"#2a2a2f",accent:"#e5e7eb",accent2:"#9ca3af",white:"#fafafa",gray:"#9ca3af",sidebarBg:"#151515",sidebarPanel:"#1d1d1f",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
+    light:{mode:"light",bg:"#f7f7f8",surface:"#ffffff",card:"#ffffff",border:"#dddddf",accent:"#374151",accent2:"#111827",white:"#111111",gray:"#5b6472",sidebarBg:"#151515",sidebarPanel:"#1d1d1f",sidebarText:"#f5f5f5",sidebarMuted:"#b0b0b4"},
   },
 };
 
@@ -2250,7 +2250,7 @@ export default function App(){
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");document.getElementById("mob-overlay").style.display="none";}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
     <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");const o=document.getElementById("mob-overlay");if(o)o.style.display="none";}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"linear-gradient(180deg,var(--bg),color-mix(in srgb, var(--bg) 88%, var(--card) 12%))"}}>
+    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)"}}>
       {/* Topbar */}
       <div style={{height:64,background:"color-mix(in srgb, var(--sur) 84%, transparent)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",padding:"0 22px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
         {/* Hamburger - solo visible en móvil via CSS */}
@@ -2271,7 +2271,7 @@ export default function App(){
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"18px 20px 28px"}}>
-        <div className="va" key={view+detId+superPanel} style={{maxWidth:1400,margin:"0 auto"}}>
+        <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>
       </div>

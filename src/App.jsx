@@ -921,6 +921,7 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
 
 function Login({users,onLogin}){
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
+  const [showPass,setShowPass]=useState(false);
   const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
   const login=async()=>{
     setLoad(true);setErr("");
@@ -954,7 +955,14 @@ function Login({users,onLogin}){
       <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--fh)",marginBottom:4,textAlign:"center"}}>Bienvenido de vuelta</div>
       <div style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
       <FG label="Email"><FI type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.cl" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
-      <FG label="Contraseña"><FI type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
+      <FG label="Contraseña">
+        <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"center"}}>
+          <FI type={showPass?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()}/>
+          <button type="button" onClick={()=>setShowPass(v=>!v)} style={{height:38,padding:"0 12px",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+            {showPass?"Ocultar":"Ver"}
+          </button>
+        </div>
+      </FG>
       {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:6,padding:"8px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
       <button onClick={login} disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:16}}>{load?"Verificando...":"Ingresar →"}</button>
       <div style={{textAlign:"center"}}>
@@ -4743,9 +4751,14 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
 function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa}){
-  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",precioPieza:"",cantidadPiezas:"",detallePiezas:"Piezas mensuales",recurring:false,recMonths:"6",recStart:today()};
+  const pieceLine = () => ({id:uid(),desc:"Piezas mensuales",qty:1,precio:0,und:"pieza"});
+  const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",detallePiezas:"Piezas mensuales",pieceLines:[pieceLine()],recurring:false,recMonths:"6",recStart:today()};
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?{...data,items:data.items||[]}:{...empty});},[data,open]);
+  useEffect(()=>{
+    setF(data?.id
+      ? {...data,items:data.items||[],pieceLines:(data.pieceLines||data.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]}
+      : {...empty});
+  },[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const canPrograms = hasAddon(empresa, "television");
   const canSocial = hasAddon(empresa, "social");
@@ -4754,9 +4767,19 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
   const addItem=()=>setF(p=>({...p,items:[...(p.items||[]),{id:uid(),desc:"",qty:1,precio:0,und:"Unidad"}]}));
   const updItem=(i,k,v)=>setF(p=>({...p,items:(p.items||[]).map((it,j)=>j===i?{...it,[k]:v}:it)}));
   const delItem=i=>setF(p=>({...p,items:(p.items||[]).filter((_,j)=>j!==i)}));
+  const addPieceLine=()=>setF(p=>({...p,pieceLines:[...(p.pieceLines||[]),pieceLine()]}));
+  const updPieceLine=(i,k,v)=>setF(p=>({...p,pieceLines:(p.pieceLines||[]).map((it,j)=>j===i?{...it,[k]:v}:it)}));
+  const delPieceLine=i=>setF(p=>({...p,pieceLines:(p.pieceLines||[]).filter((_,j)=>j!==i)}));
   const socialCampaign=(piezas||[]).find(x=>x.id===f.refId);
   const pieceItems = f.modoDetalle==="piezas"
-    ? [{id:"pieza-plan",desc:f.detallePiezas||"Piezas mensuales",qty:Number(f.cantidadPiezas||socialCampaign?.plannedPieces||0),precio:Number(f.precioPieza||0),und:"pieza"}]
+    ? ((f.pieceLines||[]).length?(f.pieceLines||[]):[pieceLine()]).map((it,i)=>({
+        ...it,
+        id:it.id||uid(),
+        desc:it.desc||`Piezas ${i+1}`,
+        qty:Number(it.qty||0),
+        precio:Number(it.precio||0),
+        und:"pieza",
+      }))
     : (f.items||[]);
   const subtotal=pieceItems.reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
   const ivaVal=f.iva?Math.round(subtotal*0.19):f.honorarios?Math.round(subtotal*0.1525):0;
@@ -4783,9 +4806,8 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
             setF(prev=>({
               ...prev,
               refId:value,
-              cantidadPiezas:prev.modoDetalle==="piezas" ? Number(prev.cantidadPiezas||campaign?.plannedPieces||0) : prev.cantidadPiezas,
               cliId:prev.cliId || campaign?.cliId || "",
-              detallePiezas:prev.detallePiezas || `Piezas ${campaign?.mes || "mensuales"}`,
+              pieceLines:prev.modoDetalle==="piezas" && !(prev.pieceLines||[]).length ? [{id:uid(),desc:`Piezas ${campaign?.mes || "mensuales"}`,qty:Number(campaign?.plannedPieces||1),precio:0,und:"pieza"}] : prev.pieceLines,
             }));
             return;
           }
@@ -4858,15 +4880,24 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
     {/* Items */}
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
       <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Ítems / Detalle Comercial</div>
-      {!(canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas") && <GBtn sm onClick={addItem}>+ Agregar Ítem</GBtn>}
+      {canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
+        ? <GBtn sm onClick={addPieceLine}>+ Agregar línea de piezas</GBtn>
+        : <GBtn sm onClick={addItem}>+ Agregar Ítem</GBtn>}
     </div>
     {canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
       ? <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
-          <R3>
-            <FG label="Detalle"><FI value={f.detallePiezas||"Piezas mensuales"} onChange={e=>u("detallePiezas",e.target.value)} placeholder="Gestión mensual de contenidos"/></FG>
-            <FG label="Cantidad de piezas"><FI type="number" value={f.cantidadPiezas || socialCampaign?.plannedPieces || ""} onChange={e=>u("cantidadPiezas",e.target.value)} min="1" placeholder={String(socialCampaign?.plannedPieces || 1)}/></FG>
-            <FG label="Precio por pieza"><FI type="number" value={f.precioPieza||""} onChange={e=>u("precioPieza",e.target.value)} min="0" placeholder="0"/></FG>
-          </R3>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Detalle</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Cantidad de piezas</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:140}}>Precio por pieza</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
+              <tbody>{pieceItems.map((it,i)=><tr key={it.id} style={{borderTop:"1px solid var(--bdr)"}}>
+                <td style={{padding:"6px 12px"}}><input value={it.desc||""} onChange={e=>updPieceLine(i,"desc",e.target.value)} placeholder="Gestión mensual de contenidos" style={{...FS,padding:"6px 8px",fontSize:12}}/></td>
+                <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updPieceLine(i,"qty",e.target.value)} min="1" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
+                <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updPieceLine(i,"precio",e.target.value)} min="0" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
+                <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
+                <td style={{padding:"6px 8px",textAlign:"center"}}>{pieceItems.length>1&&<XBtn onClick={()=>delPieceLine(i)}/>}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
           <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>
             {socialCampaign ? `La campaña tiene ${socialCampaign.plannedPieces || 0} pieza(s) mensuales planificadas.` : "Puedes cotizar por volumen mensual aunque todavía no haya piezas creadas."}
           </div>
@@ -4910,9 +4941,9 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
     <MFoot onClose={onClose} onSave={()=>{
       if(!f.titulo?.trim()||!f.cliId)return;
       const normalizedItems = canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
-        ? [{id:"pieza-plan",desc:f.detallePiezas||"Piezas mensuales",qty:Number(f.cantidadPiezas||socialCampaign?.plannedPieces||0),precio:Number(f.precioPieza||0),und:"pieza"}]
+        ? pieceItems
         : (f.items||[]);
-      onSave({...f,items:normalizedItems,subtotal,ivaVal,total,projectedTotal});
+      onSave({...f,items:normalizedItems,pieceLines:canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas" ? pieceItems : (f.pieceLines||[]),subtotal,ivaVal,total,projectedTotal});
     }}/>
   </Modal>;
 }

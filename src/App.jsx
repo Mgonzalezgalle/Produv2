@@ -198,9 +198,34 @@ const ADDONS = {
 // ── LISTAS ADMINISTRABLES — valores por defecto ─────────────
 const DEFAULT_LISTAS = {
   tiposPro:    ["Producción","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Videoclip","Evento","Otro"],
+  estadosPro:  ["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"],
+  tiposPg:     ["Producción","Podcast","Web Series","Talk Show","Documental","Otro"],
+  estadosPg:   ["Activo","En Desarrollo","Pausado","Finalizado"],
+  freqsPg:     ["Diario","Semanal","Quincenal","Mensual","Irregular"],
+  estadosEp:   ["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"],
+  tiposAus:    ["Auspiciador Principal","Auspiciador Secundario","Colaborador","Canje","Media Partner"],
+  frecPagoAus: ["Mensual","Semestral","Anual","Único"],
+  estadosAus:  ["Activo","Negociación","Vencido","Cancelado"],
+  tiposCt:     ["Producción","Auspicio","Servicio","Licencia","Confidencialidad","Otro"],
+  estadosCt:   ["Borrador","En Revisión","Firmado","Vigente","Vencido"],
   catMov:      ["General","Honorarios","Equipamiento","Locación","Post-Producción","Transporte","Alimentación","Marketing","Producción","Impuestos","Otros"],
   industriasCli:["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Banca","Energía","Otro"],
+  estadosCamp: ["Planificada","Activa","Pausada","Cerrada"],
+  plataformasContenido:["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"],
+  formatosPieza:["Reel","Carrusel","Historia","TikTok","Post","Video","Story","Otro"],
+  estadosPieza:["Planificado","Creado","En Edición","Entregado Cliente","Programado","Correcciones","Publicado","Cancelado"],
+  areasCrew:   ["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"],
+  rolesCrew:   ["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"],
+  estadosPres: ["Borrador","Enviado","En Revisión","Aceptado","Rechazado"],
+  monedas:     ["CLP","USD","EUR"],
+  impuestos:   ["Sin impuesto","IVA 19%","Boleta Honorarios 15,25%"],
+  tiposPres:   ["Proyecto","Producción","Servicio"],
+  estadosFact: ["Pendiente","Emitida","Pagada","Vencida","Anulada"],
+  tiposEntidadFact:["Cliente","Auspiciador"],
   catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
+  estadosActivos:["Disponible","Asignado","En Mantención","Baja"],
+  prioridadesTarea:["Alta","Media","Baja"],
+  estadosTarea:["Pendiente","En Progreso","En Revisión","Completada"],
 };
 
 // ── SEED ─────────────────────────────────────────────────────
@@ -966,7 +991,7 @@ const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
 const PRIO_COLORS = { Alta:"#ff5566", Media:"#fbbf24", Baja:"#60a5fa" };
 const PRIO_BG    = { Alta:"#ff556618", Media:"#fbbf2418", Baja:"#60a5fa18" };
 
-function MTarea({ open, data, producciones, programas, piezas, crew, onClose, onSave }) {
+function MTarea({ open, data, producciones, programas, piezas, crew, listas, onClose, onSave }) {
   const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"" };
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? { ...data } : { ...empty }); }, [data, open]);
@@ -977,10 +1002,10 @@ function MTarea({ open, data, producciones, programas, piezas, crew, onClose, on
       <FG label="Descripción"><FTA value={f.desc||""} onChange={e=>u("desc",e.target.value)} placeholder="Detalle opcional..."/></FG>
       <R2>
         <FG label="Prioridad"><FSl value={f.prioridad||"Media"} onChange={e=>u("prioridad",e.target.value)}>
-          <option>Alta</option><option>Media</option><option>Baja</option>
+          {(listas?.prioridadesTarea||DEFAULT_LISTAS.prioridadesTarea).map(o=><option key={o}>{o}</option>)}
         </FSl></FG>
         <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}>
-          {COLS_TAREAS.map(c=><option key={c}>{c}</option>)}
+          {(listas?.estadosTarea||DEFAULT_LISTAS.estadosTarea).map(c=><option key={c}>{c}</option>)}
         </FSl></FG>
       </R2>
       <R2>
@@ -1425,34 +1450,63 @@ function SolicitudesPanel({onAceptar, onRechazar, empresas}){
 function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
+  const [q,setQ]=useState("");
+  const [planF,setPlanF]=useState("");
+  const [stateF,setStateF]=useState("");
+  const totalEmp=(empresas||[]).length;
+  const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
+  const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
+  const totalUsers=(users||[]).filter(u=>u.role!=="superadmin").length;
+  const filteredEmp=(empresas||[]).filter(emp=>(!q||emp.nombre?.toLowerCase().includes(q.toLowerCase())||emp.rut?.toLowerCase().includes(q.toLowerCase()))&&(!planF||emp.plan===planF)&&(!stateF||(stateF==="Activa"?emp.active!==false:emp.active===false)));
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
-    const id=eid||uid();
-    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",cr:today()};
+    const id=eid||`emp_${uid().slice(1,7)}`;
+    const obj={id,nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
   return <div>
     <Tabs tabs={["Empresas","Usuarios del sistema","Solicitudes"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Empresas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
+        <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Activas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{activeEmp}</div></div>
+        <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Planes Pro+</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#ffcc44"}}>{proEmp}</div></div>
+        <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--wh)"}}>{totalUsers}</div></div>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={q} onChange={setQ} placeholder="Buscar empresa por nombre o RUT..."/>
+        <FilterSel value={planF} onChange={setPlanF} options={["starter","pro","enterprise"]} placeholder="Todos los planes"/>
+        <FilterSel value={stateF} onChange={setStateF} options={["Activa","Inactiva"]} placeholder="Todos los estados"/>
+      </div>
       <div style={{marginBottom:14}}>
-        {(empresas||[]).map(emp=><div key={emp.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:6}}>
+        {filteredEmp.map(emp=><div key={emp.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:8}}>
           <div style={{width:34,height:34,borderRadius:8,background:emp.color+"30",border:`2px solid ${emp.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--fh)",fontSize:13,fontWeight:800,color:emp.color,flexShrink:0,overflow:"hidden"}}>
             {emp.logo ? <img src={emp.logo} style={{width:34,height:34,objectFit:"contain",borderRadius:6}} alt={emp.nombre}/> : ini(emp.nombre)}
           </div>
-          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{emp.nombre}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut} · Addons: {emp.addons?.join(", ")||"ninguno"}</div></div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:700}}>{emp.nombre}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut||"Sin RUT"} · {emp.ema||"Sin email"} · ID: {emp.id}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>{(emp.addons||[]).length?(emp.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:10,color:"var(--gr2)"}}>Sin addons</span>}</div>
+          </div>
           <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
           <Badge label={emp.plan} color="gray" sm/>
           <GBtn sm onClick={()=>{setEid(emp.id);setEf({...emp});}}>✏</GBtn>
           <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,active:!e.active}:e))}>{emp.active?"Desactivar":"Activar"}</GBtn>
         </div>)}
+        {!filteredEmp.length&&<Empty text="Sin empresas para este filtro"/>}
       </div>
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{eid?"Editar Empresa":"Nueva Empresa"}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>{eid?"Editar Empresa":"Nueva Empresa"}</div>
+          {eid&&<span style={{fontSize:11,color:"var(--gr2)"}}>ID instancia: {eid}</span>}
+        </div>
         <R2><FG label="Nombre *"><FI value={ef.nombre||""} onChange={e=>setEf(p=>({...p,nombre:e.target.value}))} placeholder="Play Media SpA"/></FG><FG label="RUT"><FI value={ef.rut||""} onChange={e=>setEf(p=>({...p,rut:e.target.value}))} placeholder="78.118.348-2"/></FG></R2>
         <R2><FG label="Email"><FI value={ef.ema||""} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG><FG label="Plan"><FSl value={ef.plan||"starter"} onChange={e=>setEf(p=>({...p,plan:e.target.value}))}><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></FSl></FG></R2>
+        <R2><FG label="Teléfono"><FI value={ef.tel||""} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG><FG label="Dirección"><FI value={ef.dir||""} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG></R2>
         <FG label="Addons activados"><MultiSelect options={Object.entries(ADDONS).map(([v,a])=>({value:v,label:a.icon+" "+a.label}))} value={ef.addons||[]} onChange={v=>setEf(p=>({...p,addons:v}))} placeholder="Seleccionar addons..."/></FG>
         <R2><FG label="Color acento"><FI type="color" value={ef.color||"#00d4e8"} onChange={e=>setEf(p=>({...p,color:e.target.value}))}/></FG><FG label="Estado"><FSl value={ef.active===false?"false":"true"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
+        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>La creación de empresa genera la instancia principal. Luego los datos operativos se poblarán al primer acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveEmp}>{eid?"Actualizar":"Crear Empresa"}</Btn>{eid&&<GBtn onClick={()=>{setEid(null);setEf({});}}>Cancelar</GBtn>}</div>
       </div>
     </div>}
@@ -1545,9 +1599,34 @@ function ListasEditor({ listas, saveListas }) {
 
   const GROUPS = [
     { key:"tiposPro",      label:"Tipos de Proyecto" },
+    { key:"estadosPro",    label:"Estados de Proyecto" },
+    { key:"tiposPg",       label:"Tipos de Producción" },
+    { key:"estadosPg",     label:"Estados de Producción" },
+    { key:"freqsPg",       label:"Frecuencias de Producción" },
+    { key:"estadosEp",     label:"Estados de Episodio" },
+    { key:"tiposAus",      label:"Tipos de Auspiciador" },
+    { key:"frecPagoAus",   label:"Frecuencias de Pago" },
+    { key:"estadosAus",    label:"Estados de Auspiciador" },
+    { key:"tiposCt",       label:"Tipos de Contrato" },
+    { key:"estadosCt",     label:"Estados de Contrato" },
     { key:"catMov",        label:"Categorías de Movimientos" },
     { key:"industriasCli", label:"Industrias de Clientes" },
+    { key:"estadosCamp",   label:"Estados de Campaña" },
+    { key:"plataformasContenido", label:"Plataformas de Contenido" },
+    { key:"formatosPieza", label:"Formatos de Pieza" },
+    { key:"estadosPieza",  label:"Estados de Pieza" },
+    { key:"areasCrew",     label:"Áreas de Crew" },
+    { key:"rolesCrew",     label:"Roles de Crew" },
+    { key:"tiposPres",     label:"Tipos de Presupuesto" },
+    { key:"estadosPres",   label:"Estados de Presupuesto" },
+    { key:"monedas",       label:"Monedas" },
+    { key:"impuestos",     label:"Impuestos" },
+    { key:"estadosFact",   label:"Estados de Facturación" },
+    { key:"tiposEntidadFact", label:"Tipos de Entidad Factura" },
     { key:"catActivos",    label:"Categorías de Activos" },
+    { key:"estadosActivos",label:"Estados de Activos" },
+    { key:"prioridadesTarea", label:"Prioridades de Tarea" },
+    { key:"estadosTarea",  label:"Estados de Tarea" },
   ];
 
   const items = L[active] || [];
@@ -1630,7 +1709,7 @@ function ListasEditor({ listas, saveListas }) {
 function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   const [ef, setEf] = useState({});
   const [editing, setEditing] = useState(false);
-  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"" }); }, [empresa.id]);
+  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[] }); }, [empresa.id]);
   const save = () => {
     const updated = { ...empresa, ...ef };
     saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
@@ -1644,8 +1723,9 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <GBtn sm onClick={() => setEditing(true)}>✏ Editar</GBtn>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Addons", empresa.addons?.join(", ")||"ninguno"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Plan", empresa.plan],["Estado", empresa.active!==false?"Activa":"Inactiva"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:12}}>{(empresa.addons||[]).length?(empresa.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin addons activos</span>}</div>
     </div>
   );
   return (
@@ -1659,7 +1739,24 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
         <FG label="Email"><FI value={ef.ema} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG>
         <FG label="Teléfono"><FI value={ef.tel} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG>
       </R2>
+      <R2>
+        <FG label="Plan"><FSl value={ef.plan||"starter"} onChange={e=>setEf(p=>({...p,plan:e.target.value}))}><option value="starter">starter</option><option value="pro">pro</option><option value="enterprise">enterprise</option></FSl></FG>
+        <FG label="Estado"><FSl value={ef.active!==false?"true":"false"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG>
+      </R2>
       <FG label="Dirección"><FI value={ef.dir} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG>
+      <div style={{marginTop:12}}>
+        <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Addons activos</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {Object.entries(ADDONS).map(([key,val])=>{
+            const checked=(ef.addons||[]).includes(key);
+            return <label key={key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--card)",border:`1px solid ${checked?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,cursor:"pointer"}}>
+              <input type="checkbox" checked={checked} onChange={e=>setEf(p=>({...p,addons:e.target.checked?[...(p.addons||[]),key]:(p.addons||[]).filter(x=>x!==key)}))}/>
+              <span style={{fontSize:16}}>{val.icon}</span>
+              <span style={{fontSize:12,color:"var(--wh)"}}>{val.label}</span>
+            </label>;
+          })}
+        </div>
+      </div>
       <div style={{ display:"flex", gap:8, marginTop:8 }}>
         <Btn onClick={save}>✓ Guardar</Btn>
         <GBtn onClick={() => setEditing(false)}>Cancelar</GBtn>
@@ -1672,10 +1769,22 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const [tab,setTab]=useState(0);
   const [lt,setLt]=useState(theme||{});
   const [uf,setUf]=useState({});const [uid2,setUid2]=useState(null);
+  const [uq,setUq]=useState("");
+  const [uRole,setURole]=useState("");
+  const [uState,setUState]=useState("");
   useEffect(()=>setLt(theme||{}),[theme]);
   const FIELDS=[["bg","Fondo principal"],["surface","Fondo lateral"],["card","Tarjetas"],["border","Bordes"],["accent","Acento"],["white","Texto"],["gray","Texto secundario"]];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
+  const filteredUsers=empUsers.filter(u=>(!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase()))&&(!uRole||u.role===uRole)&&(!uState||(uState==="active"?u.active:u.active===false)));
+  const activeUsers=empUsers.filter(u=>u.active!==false).length;
+  const inactiveUsers=empUsers.filter(u=>u.active===false).length;
+  const resetAccess=async target=>{
+    const temp=uid().slice(1,9);
+    await saveUsers((users||[]).map(u=>u.id===target.id?{...u,passwordHash:"",password:temp}:u));
+    ntf("Acceso temporal generado ✓");
+    alert(`Acceso temporal para ${target.email}: ${temp}`);
+  };
   const saveUser=async()=>{
     if(!uf.name||!uf.email) return;
     const id=uid2||uid();
@@ -1688,6 +1797,12 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} wide>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{activeUsers}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios inactivos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#ffcc44"}}>{inactiveUsers}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
+    </div>
     <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Cambia los colores del sistema. Se aplican para todos los usuarios.</div>
@@ -1704,21 +1819,29 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       </div>
     </div>}
     {tab===1&&<div>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={uq} onChange={setUq} placeholder="Buscar usuario por nombre o email..."/>
+        <FilterSel value={uRole} onChange={setURole} options={Object.keys(ROLES).filter(r=>r!=="superadmin")} placeholder="Todos los roles"/>
+        <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}].map(o=>o.label)} placeholder="Todos los estados"/>
+      </div>
       <div style={{marginBottom:14}}>
-        {empUsers.map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
+        {filteredUsers.map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
           <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
           <Badge label={ROLES[u.role]?.label||u.role} color={rcol[u.role]||"gray"} sm/>
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
           <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
+          <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
           <GBtn sm onClick={()=>saveUsers((users||[]).map(x=>x.id===u.id?{...x,active:!x.active}:x))}>{u.active?"Desactivar":"Activar"}</GBtn>
           {u.role!=="superadmin"&&<XBtn onClick={()=>{ if(!confirm("¿Eliminar usuario?")) return; saveUsers((users||[]).filter(x=>x.id!==u.id)); }}/>}
         </div>)}
+        {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
       </div>
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
         <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{uid2?"Editar":"Agregar"} Usuario</div>
         <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
-        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña":"Contraseña"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{Object.entries(ROLES).filter(([k])=>k!=="superadmin").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
+        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{Object.entries(ROLES).filter(([k])=>k!=="superadmin").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
+        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveUser}>Guardar Usuario</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar</GBtn>}</div>
       </div>
     </div>}
@@ -2127,21 +2250,21 @@ function MPro({open,data,clientes,listas,onClose,onSave}){
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Proyecto":"Nuevo Proyecto"} sub="Proyecto audiovisual">
     <FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre del proyecto"/></FG>
     <R2><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposPro||DEFAULT_LISTAS.tiposPro).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosPro||DEFAULT_LISTAS.estadosPro).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Descripción del proyecto..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
 }
 
-function MPg({open,data,clientes,onClose,onSave}){
+function MPg({open,data,clientes,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Producción",can:"",est:"Activo",totalEp:"",fre:"Semanal",temporada:"",conductor:"",prodEjec:"",des:"",cliId:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Producción":"Nueva Producción"} sub="TV, Podcast, Web Series…" wide>
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la producción"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Producción","Podcast","Web Series","Talk Show","Documental","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Canal / Plataforma"><FI value={f.can||""} onChange={e=>u("can",e.target.value)} placeholder="Canal 13, Spotify..."/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Activo","En Desarrollo","Pausado","Finalizado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R3><FG label="Total Episodios"><FI type="number" value={f.totalEp||""} onChange={e=>u("totalEp",Number(e.target.value))} placeholder="24"/></FG><FG label="Frecuencia"><FSl value={f.fre||""} onChange={e=>u("fre",e.target.value)}>{["Diario","Semanal","Quincenal","Mensual","Irregular"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Temporada"><FI value={f.temporada||""} onChange={e=>u("temporada",e.target.value)} placeholder="T1 2025"/></FG></R3>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la producción"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposPg||DEFAULT_LISTAS.tiposPg).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Canal / Plataforma"><FI value={f.can||""} onChange={e=>u("can",e.target.value)} placeholder="Canal 13, Spotify..."/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosPg||DEFAULT_LISTAS.estadosPg).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R3><FG label="Total Episodios"><FI type="number" value={f.totalEp||""} onChange={e=>u("totalEp",Number(e.target.value))} placeholder="24"/></FG><FG label="Frecuencia"><FSl value={f.fre||""} onChange={e=>u("fre",e.target.value)}>{(listas?.freqsPg||DEFAULT_LISTAS.freqsPg).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Temporada"><FI value={f.temporada||""} onChange={e=>u("temporada",e.target.value)} placeholder="T1 2025"/></FG></R3>
     <R2><FG label="Conductor / Host"><FI value={f.conductor||""} onChange={e=>u("conductor",e.target.value)} placeholder="Nombre del conductor"/></FG><FG label="Productor Ejecutivo"><FI value={f.prodEjec||""} onChange={e=>u("prodEjec",e.target.value)} placeholder="Nombre del productor"/></FG></R2>
     <FG label="Cliente asociado (opcional)"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="De qué trata el programa..."/></FG>
@@ -2149,13 +2272,13 @@ function MPg({open,data,clientes,onClose,onSave}){
   </Modal>;
 }
 
-function MCampanaContenido({open,data,clientes,onClose,onSave}){
+function MCampanaContenido({open,data,clientes,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?normalizeSocialCampaign(data):{nom:"",cliId:"",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificada",ini:today(),fin:"",des:"",crewIds:[],comentarios:[],plannedPieces:1,piezas:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Campaña":"Nueva Campaña"} sub="Contenidos para redes sociales" wide>
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la campaña"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
-    <R3><FG label="Plataforma principal"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificada"} onChange={e=>u("est",e.target.value)}>{CAMPANA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Piezas mensuales"><FSl value={String(f.plannedPieces ?? 1)} onChange={e=>u("plannedPieces",Number(e.target.value))}>{Array.from({length:200},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}</FSl></FG></R3>
+    <R3><FG label="Plataforma principal"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificada"} onChange={e=>u("est",e.target.value)}>{(listas?.estadosCamp||DEFAULT_LISTAS.estadosCamp).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Piezas mensuales"><FSl value={String(f.plannedPieces ?? 1)} onChange={e=>u("plannedPieces",Number(e.target.value))}>{Array.from({length:200},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}</FSl></FG></R3>
     <R2><FG label="Mes"><FSl value={f.mes||MESES[new Date().getMonth()]} onChange={e=>u("mes",e.target.value)}>{MESES.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Año"><FI type="number" value={f.ano||new Date().getFullYear()} onChange={e=>u("ano",Number(e.target.value))} min="2024"/></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Cierre"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, tono, entregables, alcance mensual..."/></FG>
@@ -2163,25 +2286,25 @@ function MCampanaContenido({open,data,clientes,onClose,onSave}){
   </Modal>;
 }
 
-function MPiezaContenido({open,data,onClose,onSave}){
+function MPiezaContenido({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?normalizeSocialPiece(data):{id:uid(),nom:"",formato:"Reel",plataforma:data?.plataforma||"Instagram",est:"Planificado",ini:data?.ini||today(),fin:"",des:"",comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Pieza":"Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{PIEZA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{PIEZA_FORMATOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est||"Planificado"} onChange={e=>u("est",e.target.value)}>{(listas?.estadosPieza||DEFAULT_LISTAS.estadosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Formato"><FSl value={f.formato||"Reel"} onChange={e=>u("formato",e.target.value)}>{(listas?.formatosPieza||DEFAULT_LISTAS.formatosPieza).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{(listas?.plataformasContenido||DEFAULT_LISTAS.plataformasContenido).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Entrega / Publicación"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, concepto creativo, CTA, notas..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
 }
 
-function MEp({open,data,programas,onClose,onSave}){
+function MEp({open,data,programas,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{pgId:data?.pgId||"",num:data?.num||1,titulo:"",estado:"Planificado",fechaGrab:"",fechaEmision:"",invitado:"",descripcion:"",locacion:"",duracion:"",notas:"",crewIds:[],comentarios:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Episodio":"Nuevo Episodio"} sub="Planificación de episodio" wide>
-    <R3><FG label="Producción"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
+    <R3><FG label="Producción"><FSl value={f.pgId||""} onChange={e=>u("pgId",e.target.value)}><option value="">Seleccionar...</option>{(programas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG><FG label="Número *"><FI type="number" value={f.num||""} onChange={e=>u("num",Number(e.target.value))} min="1" placeholder="1"/></FG><FG label="Estado"><FSl value={f.estado||""} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosEp||DEFAULT_LISTAS.estadosEp).map(o=><option key={o}>{o}</option>)}</FSl></FG></R3>
     <FG label="Título del Episodio *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Título descriptivo del episodio"/></FG>
     <R2><FG label="Invitado / Tema"><FI value={f.invitado||""} onChange={e=>u("invitado",e.target.value)} placeholder="Nombre o tema principal"/></FG><FG label="Locación"><FI value={f.locacion||""} onChange={e=>u("locacion",e.target.value)} placeholder="Estudio A, Exteriores..."/></FG></R2>
     <R3><FG label="Fecha Grabación"><FI type="date" value={f.fechaGrab||""} onChange={e=>u("fechaGrab",e.target.value)}/></FG><FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG><FG label="Duración (min)"><FI type="number" value={f.duracion||""} onChange={e=>u("duracion",e.target.value)} placeholder="45"/></FG></R3>
@@ -2191,22 +2314,22 @@ function MEp({open,data,programas,onClose,onSave}){
   </Modal>;
 }
 
-function MAus({open,data,programas,onClose,onSave}){
+function MAus({open,data,programas,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",tip:"Auspiciador Principal",con:"",ema:"",tel:"",pids:data?.pids||[],mon:"",vig:"",est:"Activo",frecPago:"Mensual",not:""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Auspiciador":"Nuevo Auspiciador"} sub="Marca o colaborador">
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Banco Estado"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Auspiciador Principal","Auspiciador Secundario","Colaborador","Canje","Media Partner"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Banco Estado"/></FG><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposAus||DEFAULT_LISTAS.tiposAus).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Contacto"><FI value={f.con||""} onChange={e=>u("con",e.target.value)} placeholder="María González"/></FG><FG label="Email"><FI value={f.ema||""} onChange={e=>u("ema",e.target.value)} placeholder="mg@empresa.cl"/></FG></R2>
-    <R2><FG label="Monto (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG><FG label="Frecuencia de Pago"><FSl value={f.frecPago||"Mensual"} onChange={e=>u("frecPago",e.target.value)}><option>Mensual</option><option>Semestral</option><option>Anual</option><option>Único</option></FSl></FG></R2>
+    <R2><FG label="Monto (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG><FG label="Frecuencia de Pago"><FSl value={f.frecPago||"Mensual"} onChange={e=>u("frecPago",e.target.value)}>{(listas?.frecPagoAus||DEFAULT_LISTAS.frecPagoAus).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <FG label="Producciones Asociadas"><MultiSelect options={(programas||[]).map(p=>({value:p.id,label:p.nom}))} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Seleccionar producciones..."/></FG>
-    <R2><FG label="Vigencia"><FI type="date" value={f.vig||""} onChange={e=>u("vig",e.target.value)}/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Activo","Negociación","Vencido","Cancelado"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Vigencia"><FI type="date" value={f.vig||""} onChange={e=>u("vig",e.target.value)}/></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosAus||DEFAULT_LISTAS.estadosAus).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <FG label="Notas"><FTA value={f.not||""} onChange={e=>u("not",e.target.value)} placeholder="Menciones, logo en créditos..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nom?.trim())return;onSave(f);}}/>
   </Modal>;
 }
 
-function MCt({open,data,clientes,producciones,programas,onClose,onSave}){
+function MCt({open,data,clientes,producciones,programas,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",cliId:data?.cliId||"",tip:"Producción",est:"Borrador",mon:"",vig:"",arc:"",not:"",pids:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -2214,7 +2337,7 @@ function MCt({open,data,clientes,producciones,programas,onClose,onSave}){
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Contrato":"Nuevo Contrato"} sub="Documento legal">
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de Proyecto Q2"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
     <FG label="Asociaciones"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder="Proyectos y producciones..."/></FG>
-    <R2><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{["Producción","Auspicio","Servicio","Licencia","Confidencialidad","Otro"].map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{["Borrador","En Revisión","Firmado","Vigente","Vencido"].map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposCt||DEFAULT_LISTAS.tiposCt).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosCt||DEFAULT_LISTAS.estadosCt).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Monto Total (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG><FG label="Vigencia"><FI type="date" value={f.vig||""} onChange={e=>u("vig",e.target.value)}/></FG></R2>
     <FG label="Archivo / URL"><FI value={f.arc||""} onChange={e=>u("arc",e.target.value)} placeholder="URL del documento"/></FG>
     <FG label="Notas"><FTA value={f.not||""} onChange={e=>u("not",e.target.value)} placeholder="Condiciones especiales..."/></FG>
@@ -2234,12 +2357,12 @@ function MMov({open,data,listas,onClose,onSave}){
   </Modal>;
 }
 
-function MCrew({open,data,onClose,onSave}){
+function MCrew({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",rol:"",area:"Producción",tipo:"externo",tel:"",ema:"",dis:"",tarifa:"",not:"",active:true});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  const AREAS=["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"];
-  const ROLES_C=["Conductor","Conductora","Director","Productora General","Productor Ejecutivo","Director de Cámara","Camarógrafo","Sonidista","Iluminador","Editor","Colorista","Diseñador Gráfico","Asistente de Producción","Community Manager","Maquillaje","Vestuario","Otro"];
+  const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
+  const ROLES_C=listas?.rolesCrew||DEFAULT_LISTAS.rolesCrew;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Miembro":"Agregar al Equipo"} sub="Crew de producción">
     <FG label="Tipo de Crew"><FSl value={f.tipo||"externo"} onChange={e=>u("tipo",e.target.value)}><option value="externo">Externo — tarifa aplica a producciones</option><option value="interno">Interno — personal de planta</option></FSl></FG>
     <R2><FG label="Nombre completo *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Juan Pérez"/></FG><FG label="Rol / Cargo"><FSl value={f.rol||""} onChange={e=>u("rol",e.target.value)}><option value="">Seleccionar...</option>{ROLES_C.map(r=><option key={r}>{r}</option>)}</FSl></FG></R2>
@@ -2282,19 +2405,19 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
   return <>
     <MCli    open={mOpen==="cli"}    data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
     <MPro    open={mOpen==="pro"}    data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(producciones,setProducciones,withEmp(d))}/>
-    <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
-    <MCampanaContenido open={mOpen==="contenido"} data={mData} clientes={clientes} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
-    <MPiezaContenido open={mOpen==="pieza"} data={mData} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
-    <MEp     open={mOpen==="ep"}     data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
-    <MAus    open={mOpen==="aus"}    data={mData} programas={programas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
-    <MCt     open={mOpen==="ct"}     data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
+    <MPg     open={mOpen==="pg"}     data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(programas,setProgramas,withEmp(d))}/>
+    <MCampanaContenido open={mOpen==="contenido"} data={mData} clientes={clientes} listas={VP.listas} onClose={closeM} onSave={d=>cSave(piezas,setPiezas,withEmp(d))}/>
+    <MPiezaContenido open={mOpen==="pieza"} data={mData} listas={VP.listas} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
+    <MEp     open={mOpen==="ep"}     data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
+    <MAus    open={mOpen==="aus"}    data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
+    <MCt     open={mOpen==="ct"}     data={mData} clientes={clientes} producciones={producciones} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
-    <MCrew   open={mOpen==="crew"}   data={mData} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
+    <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
-    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
-    <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
+    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
+    <MFact   open={mOpen==="fact"}   data={mData} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.facturas,setFacturas,withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
 }
 
@@ -2402,7 +2525,7 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
 }
 
 // ── PROYECTOS ──────────────────────────────────────────────
-function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd}){
+function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [pg,setPg]=useState(1);const PP=10;
@@ -2410,8 +2533,8 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción o cliente..."/>
-      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Pre-Producción","En Curso","Post-Producción","Finalizado","Pausado"]} placeholder="Todo estados"/>
-      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={["Producción","Podcast","Contenido Audiovisual","Spot Publicitario","Documental","Web Series","Otro"]} placeholder="Todo tipos"/>
+      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPro||DEFAULT_LISTAS.estadosPro} placeholder="Todo estados"/>
+      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposPro||DEFAULT_LISTAS.tiposPro} placeholder="Todo tipos"/>
       {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nuevo Proyecto</Btn>}
     </div>
     <Card>
@@ -2511,7 +2634,7 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
 }
 
 // ── PRODUCCIONES ──────────────────────────────────────────────
-function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd}){
+function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=9;
@@ -2519,7 +2642,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción..."/>
-      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Activo","En Desarrollo","Pausado","Finalizado"]} placeholder="Todo estados"/>
+      <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPg||DEFAULT_LISTAS.estadosPg} placeholder="Todo estados"/>
       {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nueva Producción</Btn>}
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
@@ -2835,10 +2958,10 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
 }
 
 // ── CREW ──────────────────────────────────────────────────────
-function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSave,cDel,setCrew}){
+function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSave,cDel,setCrew,listas}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fa,setFa]=useState("");const [pg,setPg]=useState(1);const PP=10;
-  const AREAS=["Producción","Técnica","Postprod.","Dirección","Arte","Sonido","Fotografía","Otro"];
+  const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa));
   const exportCSV=()=>{
     const header="Nombre,Rol,Área,Email,Teléfono,Disponibilidad,Tarifa,Estado";
@@ -2882,7 +3005,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
 }
 
 // ── AUSPICIADORES ─────────────────────────────────────────────
-function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,setAuspiciadores}){
+function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,setAuspiciadores,listas}){
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [pg,setPg]=useState(1);const PP=9;
   const fd=(auspiciadores||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.con||"").toLowerCase().includes(q.toLowerCase()))&&(!ft||a.tip===ft)&&(!fp||(a.pids||[]).includes(fp)));
@@ -2890,7 +3013,7 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar auspiciador..."/>
-      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={["Auspiciador Principal","Auspiciador Secundario","Colaborador","Canje","Media Partner"]} placeholder="Todo tipos"/>
+      <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposAus||DEFAULT_LISTAS.tiposAus} placeholder="Todo tipos"/>
       <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={pgOpts} placeholder="Todas producciones"/>
       {_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{})}>+ Nuevo Auspiciador</Btn>}
     </div>
@@ -3085,7 +3208,7 @@ function ViewCalendario({empresa,episodios,programas,piezas,producciones,eventos
 
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
-function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa}){
+function MPres({open,data,clientes,producciones,programas,listas,onClose,onSave,empresa}){
   const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Borrador",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[]};
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data,items:data.items||[]}:{...empty});},[data,open]);
@@ -3103,13 +3226,18 @@ function MPres({open,data,clientes,producciones,programas,onClose,onSave,empresa
     </R2>
     <FG label="Cliente *"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Seleccionar cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
     <R2>
-      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}><option value="produccion">Proyecto</option><option value="programa">Producción</option><option value="servicio">Servicio</option></FSl></FG>
-      <FG label="Estado"><FSl value={f.estado||"Borrador"} onChange={e=>u("estado",e.target.value)}><option>Borrador</option><option>Enviado</option><option>En Revisión</option><option>Aceptado</option><option>Rechazado</option></FSl></FG>
+      <FG label="Tipo"><FSl value={f.tipo||"produccion"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposPres||DEFAULT_LISTAS.tiposPres).map(o=><option key={o} value={o==="Proyecto"?"produccion":o==="Producción"?"programa":"servicio"}>{o}</option>)}</FSl></FG>
+      <FG label="Estado"><FSl value={f.estado||"Borrador"} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosPres||DEFAULT_LISTAS.estadosPres).map(o=><option key={o}>{o}</option>)}</FSl></FG>
     </R2>
     <R3>
       <FG label="Validez (días)"><FI type="number" value={f.validez||"30"} onChange={e=>u("validez",e.target.value)} placeholder="30"/></FG>
-      <FG label="Moneda"><FSl value={f.moneda||"CLP"} onChange={e=>u("moneda",e.target.value)}><option>CLP</option><option>USD</option><option>EUR</option></FSl></FG>
-      <FG label="Impuesto"><FSl value={f.honorarios?"hon":f.iva?"iva":"none"} onChange={e=>{const v=e.target.value;u("iva",v==="iva");u("honorarios",v==="hon");}}><option value="none">Sin impuesto</option><option value="iva">IVA 19%</option><option value="hon">Boleta Honorarios 15,25%</option></FSl></FG>
+      <FG label="Moneda"><FSl value={f.moneda||"CLP"} onChange={e=>u("moneda",e.target.value)}>{(listas?.monedas||DEFAULT_LISTAS.monedas).map(o=><option key={o}>{o}</option>)}</FSl></FG>
+      <FG label="Impuesto"><FSl value={f.honorarios?"hon":f.iva?"iva":"none"} onChange={e=>{const v=e.target.value;u("iva",v==="iva");u("honorarios",v==="hon");}}>
+        {(listas?.impuestos||DEFAULT_LISTAS.impuestos).map(o=>{
+          const value=o==="IVA 19%"?"iva":o==="Boleta Honorarios 15,25%"?"hon":"none";
+          return <option key={o} value={value}>{o}</option>;
+        })}
+      </FSl></FG>
     </R3>
     <Sep/>
     {/* Items */}
@@ -3648,7 +3776,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,na
 }
 
 // ── FACTURACIÓN ───────────────────────────────────────────────
-function MFact({open,data,clientes,auspiciadores,producciones,programas,onClose,onSave}){
+function MFact({open,data,clientes,auspiciadores,producciones,programas,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF(data?.id?{...data}:{correlativo:"",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:true,estado:"Pendiente",fechaEmision:today(),fechaVencimiento:"",obs:""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -3658,8 +3786,8 @@ function MFact({open,data,clientes,auspiciadores,producciones,programas,onClose,
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Orden de Factura":"Nueva Orden de Factura"} sub="Registro de cobro">
     <R3>
       <FG label="Correlativo Interno"><FI value={f.correlativo||""} onChange={e=>u("correlativo",e.target.value)} placeholder="OC-2025-001"/></FG>
-      <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}><option>Pendiente</option><option>Emitida</option><option>Pagada</option><option>Vencida</option><option>Anulada</option></FSl></FG>
-      <FG label="Tipo Entidad"><FSl value={f.tipo||"cliente"} onChange={e=>u("tipo",e.target.value)}><option value="cliente">Cliente</option><option value="auspiciador">Auspiciador</option></FSl></FG>
+      <FG label="Estado"><FSl value={f.estado||"Pendiente"} onChange={e=>u("estado",e.target.value)}>{(listas?.estadosFact||DEFAULT_LISTAS.estadosFact).map(o=><option key={o}>{o}</option>)}</FSl></FG>
+      <FG label="Tipo Entidad"><FSl value={f.tipo||"cliente"} onChange={e=>u("tipo",e.target.value)}>{(listas?.tiposEntidadFact||DEFAULT_LISTAS.tiposEntidadFact).map(o=><option key={o} value={o==="Auspiciador"?"auspiciador":"cliente"}>{o}</option>)}</FSl></FG>
     </R3>
     <FG label={f.tipo==="auspiciador"?"Auspiciador (Principal o Secundario) *":"Cliente *"}>
       <FSl value={f.entidadId||""} onChange={e=>u("entidadId",e.target.value)}>
@@ -3762,7 +3890,7 @@ function MActivo({open,data,producciones,listas,onClose,onSave}){
   useEffect(()=>{setF(data?.id?{...data}:{nom:"",categoria:"",marca:"",modelo:"",serial:"",valorCompra:"",fechaCompra:"",estado:"Disponible",asignadoA:"",obs:""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
-  const ESTADOS=["Disponible","En Uso","En Mantención","Dañado","Dado de Baja"];
+  const ESTADOS=listas?.estadosActivos||DEFAULT_LISTAS.estadosActivos;
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Activo":"Nuevo Activo"} sub="Equipamiento o bien de la productora">
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Canon EOS R5"/></FG><FG label="Categoría"><FSl value={f.categoria||""} onChange={e=>u("categoria",e.target.value)}><option value="">Seleccionar...</option>{CATS.map(c=><option key={c}>{c}</option>)}</FSl></FG></R2>
     <R3><FG label="Marca"><FI value={f.marca||""} onChange={e=>u("marca",e.target.value)} placeholder="Canon, Sony..."/></FG><FG label="Modelo"><FI value={f.modelo||""} onChange={e=>u("modelo",e.target.value)} placeholder="EOS R5"/></FG><FG label="N° Serie"><FI value={f.serial||""} onChange={e=>u("serial",e.target.value)} placeholder="SN-00001"/></FG></R3>
@@ -3777,7 +3905,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
-  const ESTADOS=["Disponible","En Uso","En Mantención","Dañado","Dado de Baja"];
+  const ESTADOS=listas?.estadosActivos||DEFAULT_LISTAS.estadosActivos;
   const fd=(activos||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.marca||"").toLowerCase().includes(q.toLowerCase()))&&(!fc||a.categoria===fc)&&(!fe||a.estado===fe));
   const totalValor=fd.reduce((s,a)=>s+Number(a.valorCompra||0),0);
   const dispCount=fd.filter(a=>a.estado==="Disponible").length;

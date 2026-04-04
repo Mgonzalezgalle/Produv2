@@ -1888,6 +1888,7 @@ function SuperAdminPanel({empresas,users,onSave}){
   const [portfolioQ,setPortfolioQ]=useState("");
   const [portfolioPlan,setPortfolioPlan]=useState("");
   const [portfolioStatus,setPortfolioStatus]=useState("");
+  const [portfolioEmpId,setPortfolioEmpId]=useState("");
   const [uq,setUQ]=useState("");
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
@@ -1914,6 +1915,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     (!portfolioPlan || emp.plan===portfolioPlan) &&
     (!portfolioStatus || emp.payStatus===portfolioStatus)
   );
+  const selectedPortfolioEmp = filteredPortfolio.find(emp=>emp.id===portfolioEmpId) || filteredPortfolio[0] || null;
   const sysUsers=(users||[]).filter(u=>u.role!=="superadmin");
   const filteredUsers=sysUsers.filter(u=>
     (!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase())) &&
@@ -2018,8 +2020,28 @@ function SuperAdminPanel({empresas,users,onSave}){
         <FilterSel value={portfolioPlan} onChange={setPortfolioPlan} options={["starter","pro","enterprise"]} placeholder="Todos los planes"/>
         <FilterSel value={portfolioStatus} onChange={setPortfolioStatus} options={["Al día","Pendiente","Vencido","Mora","Suspendido"]} placeholder="Todos los pagos"/>
       </div>
-      <div style={{display:"grid",gap:16}}>
-        {filteredPortfolio.map(emp=>{
+      <div style={{display:"grid",gridTemplateColumns:"360px 1fr",gap:16,alignItems:"start"}}>
+        <Card title="Empresas en cartera" sub={`${filteredPortfolio.length} tenant${filteredPortfolio.length===1?"":"s"} visibles`} style={{padding:14}}>
+          <div style={{display:"grid",gap:8}}>
+            {filteredPortfolio.map(emp=>{
+              const isActive = selectedPortfolioEmp?.id===emp.id;
+              const status=companyBillingStatus(emp);
+              const payColor=status==="Al día"?"green":status==="Pendiente"?"yellow":status==="Suspendido"?"red":"orange";
+              return <button key={emp.id} onClick={()=>setPortfolioEmpId(emp.id)} style={{textAlign:"left",padding:"12px 12px",borderRadius:14,border:`1px solid ${isActive?"var(--cy)":"var(--bdr2)"}`,background:isActive?"var(--cg)":"var(--sur)",cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",marginBottom:6}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:800,color:isActive?"var(--cy)":"var(--wh)"}}>{emp.nombre}</div>
+                    <div style={{fontSize:10,color:"var(--gr2)",marginTop:3}}>{emp.tenantCode||"—"} · {String(emp.plan||"starter").toUpperCase()}</div>
+                  </div>
+                  <Badge label={status} color={payColor} sm/>
+                </div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.userCount} usuario{emp.userCount===1?"":"s"} · {fmtM(companyBillingNet(emp))}/mes</div>
+              </button>;
+            })}
+            {!filteredPortfolio.length&&<Empty text="Sin empresas en cartera para este filtro" sub="Ajusta plan, estado de pago o búsqueda."/>}
+          </div>
+        </Card>
+        {selectedPortfolioEmp ? (()=>{const emp=selectedPortfolioEmp;
           const net=companyBillingNet(emp);
           const status=companyBillingStatus(emp);
           const payColor=status==="Al día"?"green":status==="Pendiente"?"yellow":status==="Suspendido"?"red":"orange";
@@ -2082,8 +2104,7 @@ function SuperAdminPanel({empresas,users,onSave}){
               </div>
             </div>
           </Card>;
-        })}
-        {!filteredPortfolio.length&&<Empty text="Sin empresas en cartera para este filtro" sub="Ajusta plan, estado de pago o búsqueda."/>}
+        })() : <Empty text="Selecciona una empresa para revisar su cartera" sub="Haz clic en una empresa de la lista izquierda."/>}
       </div>
     </div>}
     {tab===2&&<div>

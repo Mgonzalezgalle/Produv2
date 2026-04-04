@@ -3865,12 +3865,6 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
   const cli=(clientes||[]).find(x=>x.id===pz.cliId);
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
-  const canPres = hasAddon(empresa,"presupuestos") && !!(_cd&&_cd("presupuestos"));
-  const canContracts = hasAddon(empresa,"contratos");
-  const canInvoices = hasAddon(empresa,"facturacion") && !!(_cd&&_cd("facturacion"));
-  const presupuestosCamp = (presupuestos||[]).filter(pr=>pr.tipo==="contenido" && pr.refId===id);
-  const contratosCamp = contractsForReference(contratos||[], pz.cliId, "contenido", id);
-  const facturasCamp = (facturas||[]).filter(fc=>fc.tipoRef==="contenido" && fc.proId===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pz.crewIds||[]).includes(x.id));
   const [tab,setTab]=useState(0);
   const [piezaQ,setPiezaQ]=useState("");
@@ -3898,11 +3892,6 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
     </div>
-    {(canPres || canContracts || canInvoices) && <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-      {canPres && <Stat label="Presupuestos" value={presupuestosCamp.length} sub={presupuestosCamp.length?fmtM(presupuestosCamp.reduce((s,x)=>s+Number(x.total||0),0)):"Sin cotizar"} accent="var(--cy)" vc="var(--cy)"/>}
-      {canContracts && <Stat label="Contratos" value={contratosCamp.length} sub={contratosCamp[0]?contractVisualState(contratosCamp[0]):"Sin contrato"} accent="#ffcc44" vc="#ffcc44"/>}
-      {canInvoices && <Stat label="Facturación" value={facturasCamp.length} sub={facturasCamp.length?fmtM(facturasCamp.reduce((s,x)=>s+Number(x.total||0),0)):"Sin órdenes"} accent="#00e08a" vc="#00e08a"/>}
-    </div>}
     <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
     {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
@@ -3947,26 +3936,6 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
         {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Cierre",pz.fin?fmtD(pz.fin):"—"],["Crew",pCrew.length]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
-    </div>}
-    {(canPres || canInvoices) && <div style={{display:"grid",gridTemplateColumns:canPres&&canInvoices?"1fr 1fr":"1fr",gap:16,marginTop:16}}>
-      {canPres && <Card title="Presupuestos de la Campaña" action={_cd&&_cd("presupuestos")?{label:"+ Nuevo",fn:()=>openM("pres",{tipo:"contenido",refId:id,cliId:pz.cliId,titulo:pz.nom,modoDetalle:"piezas",cantidadPiezas:pz.plannedPieces||1,detallePiezas:`Piezas ${pz.mes||"mensuales"}`})}:null}>
-        {presupuestosCamp.length ? presupuestosCamp.slice(0,4).map(pr=><div key={pr.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:700}}>{pr.titulo}</div>
-            <div style={{fontSize:11,color:"var(--gr2)"}}>{pr.estado||"Pendiente"}</div>
-          </div>
-          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{fmtM(pr.total||0)}</div>
-        </div>) : <Empty text="Sin presupuestos"/>}
-      </Card>}
-      {canInvoices && <Card title="Facturación de la Campaña" action={_cd&&_cd("facturacion")?{label:"+ Nueva",fn:()=>openM("fact",{tipo:"cliente",entidadId:pz.cliId,tipoRef:"contenido",proId:id,montoNeto:0,iva:true})}:null}>
-        {facturasCamp.length ? facturasCamp.slice(0,4).map(fc=><div key={fc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:700}}>{fc.correlativo||"Sin correlativo"}</div>
-            <div style={{fontSize:11,color:"var(--gr2)"}}>{fc.estado||"Pendiente"}</div>
-          </div>
-          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"#00e08a"}}>{fmtM(fc.total||0)}</div>
-        </div>) : <Empty text="Sin facturación"/>}
-      </Card>}
     </div>}
     {tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
   </div>;

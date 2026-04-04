@@ -641,6 +641,11 @@ const Tabs=({tabs,active,onChange})=><div style={{display:"flex",gap:8,marginBot
 const KV=({label,value})=><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>{label}</span><span style={{fontSize:13,textAlign:"right",maxWidth:"60%"}}>{value}</span></div>;
 function SearchBar({value,onChange,placeholder}){return <div className="search-wrap" style={{display:"flex",alignItems:"center",gap:8,background:"linear-gradient(180deg,var(--sur),var(--card2))",border:"1px solid var(--bdr2)",borderRadius:10,padding:"10px 13px",maxWidth:320,flex:1,boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{background:"none",border:"none",color:"var(--wh)",fontFamily:"var(--fb)",fontSize:13,flex:1,outline:"none",minWidth:0}}/>{value&&<span onClick={()=>onChange("")} style={{cursor:"pointer",color:"var(--gr2)",fontSize:14}}>×</span>}</div>;}
 function FilterSel({value,onChange,options,placeholder}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{padding:"10px 12px",background:"linear-gradient(180deg,var(--sur),var(--card2))",border:"1px solid var(--bdr2)",borderRadius:10,color:"var(--gr3)",fontFamily:"var(--fb)",fontSize:12,cursor:"pointer",outline:"none",boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}><option value="">{placeholder}</option>{options.map(o=>typeof o==="object"?<option key={o.value} value={o.value}>{o.label}</option>:<option key={o}>{o}</option>)}</select>;}
+function ViewModeToggle({value,onChange}){
+  return <div style={{display:"flex",gap:4,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:3,boxShadow:"0 6px 18px rgba(0,0,0,.04)"}}>
+    {[["cards","⊟","Cards"],["list","☰","Lista"]].map(([v,icon,label])=><button key={v} onClick={()=>onChange(v)} title={label} style={{padding:"6px 10px",borderRadius:8,border:"none",background:value===v?"var(--cy)":"transparent",color:value===v?"var(--bg)":"var(--gr2)",cursor:"pointer",fontSize:13,fontWeight:700,minWidth:36}}>{icon}</button>)}
+  </div>;
+}
 function MultiSelect({options,value=[],onChange,placeholder="Seleccionar..."}){
   const [open,setOpen]=useState(false);const ref=useRef();
   useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
@@ -3050,15 +3055,47 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
 function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const fd=(producciones||[]).filter(p=>p.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return(p.nom.toLowerCase().includes(q.toLowerCase())||(c&&c.nom.toLowerCase().includes(q.toLowerCase())))&&(!fe||p.est===fe)&&(!ft||p.tip===ft);});
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPro||DEFAULT_LISTAS.estadosPro} placeholder="Todo estados"/>
       <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposPro||DEFAULT_LISTAS.tiposPro} placeholder="Todo tipos"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nuevo Proyecto</Btn>}
     </div>
+    {vista==="cards"?<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
+        {fd.slice((pg-1)*PP,pg*PP).map(p=>{
+          const c=(clientes||[]).find(x=>x.id===p.cliId);
+          const b=bal(p.id);
+          return <div key={p.id} onClick={()=>navTo("pro-det",p.id)} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,cursor:"pointer",transition:".15s",display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,lineHeight:1.25}}>{p.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{c?.nom||"Sin cliente"}</div>
+            </div>
+            <Badge label={p.est}/>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <Badge label={p.tip||"Sin tipo"} color="gray" sm/>
+            {p.ini&&<Badge label={`Ini ${fmtD(p.ini)}`} color="cyan" sm/>}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,paddingTop:12,borderTop:"1px solid var(--bdr)"}}>
+            <div><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Ingresos</div><div style={{fontFamily:"var(--fm)",fontSize:14,color:"#00e08a",marginTop:4}}>{fmtM(b.i)}</div></div>
+            <div><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Balance</div><div style={{fontFamily:"var(--fm)",fontSize:14,color:b.b>=0?"#00e08a":"#ff5566",marginTop:4}}>{fmtM(b.b)}</div></div>
+          </div>
+          <div style={{fontSize:11,color:"var(--gr2)",display:"flex",justifyContent:"space-between",marginTop:"auto"}}>
+            <span>{p.fin?`Entrega ${fmtD(p.fin)}`:"Sin entrega"}</span>
+            <span style={{color:"var(--cy)",fontWeight:700}}>Ver →</span>
+          </div>
+        </div>;
+        })}
+      </div>
+      {!fd.length&&<Empty text="Sin proyectos" sub="Crea el primero con el botón superior"/>}
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
@@ -3075,7 +3112,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
+    </Card>}
   </div>;
 }
 
@@ -3159,15 +3196,16 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
 function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=9;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
   const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe));
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPg||DEFAULT_LISTAS.estadosPg} placeholder="Todo estados"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nueva Producción</Btn>}
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
+    {vista==="cards"?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
       {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{
         const eps=(episodios||[]).filter(e=>e.pgId===pg_.id);
         const pub=eps.filter(e=>e.estado==="Publicado").length;
@@ -3188,8 +3226,25 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
           </div>
         </div>;
       })}
-    </div>
-    {!fd.length&&<Empty text="Sin producciones" sub="Crea la primera con el botón superior"/>}
+    </div>:<Card>
+      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Producción</TH><TH>Canal</TH><TH>Estado</TH><TH>Episodios</TH><TH>Publicados</TH><TH>Auspiciadores</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <tbody>
+          {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{const eps=(episodios||[]).filter(e=>e.pgId===pg_.id);const pub=eps.filter(e=>e.estado==="Publicado").length;const aus=(auspiciadores||[]).filter(a=>(a.pids||[]).includes(pg_.id)).length;const b=bal(pg_.id);return <tr key={pg_.id} onClick={()=>navTo("pg-det",pg_.id)}>
+            <TD bold>{pg_.nom}</TD>
+            <TD>{[pg_.can,pg_.fre].filter(Boolean).join(" · ")||"—"}</TD>
+            <TD><Badge label={pg_.est}/></TD>
+            <TD mono style={{fontSize:11}}>{eps.length}</TD>
+            <TD mono style={{fontSize:11,color:"#00e08a"}}>{pub}</TD>
+            <TD mono style={{fontSize:11}}>{aus}</TD>
+            <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
+            <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pg-det",pg_.id);}}>Ver →</GBtn></TD>
+          </tr>;})}
+          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin producciones" sub="Crea la primera con el botón superior"/></td></tr>}
+        </tbody>
+      </table></div>
+    </Card>}
+    {!fd.length&&vista==="cards"&&<Empty text="Sin producciones" sub="Crea la primera con el botón superior"/>}
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
   </div>;
 }
@@ -3197,15 +3252,39 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
 function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm));
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar campaña o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={CAMPANA_ESTADOS} placeholder="Todo estados"/>
       <FilterSel value={fm} onChange={v=>{setFm(v);setPg(1);}} options={MESES} placeholder="Todos los meses"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("contenido",{})}>+ Nueva Campaña</Btn>}
     </div>
+    {vista==="cards"?<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
+        {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return <div key={pz.id} onClick={()=>navTo("contenido-det",pz.id)} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,cursor:"pointer",display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,lineHeight:1.25}}>{pz.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{c?.nom||"Sin cliente"}</div>
+            </div>
+            <Badge label={pz.est||"Planificada"}/>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <Badge label={[pz.mes,pz.ano].filter(Boolean).join(" ")||"Sin mes"} color="cyan" sm/>
+            <Badge label={pz.plataforma||"Multi-plataforma"} color="gray" sm/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,paddingTop:12,borderTop:"1px solid var(--bdr)"}}>
+            <div><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Piezas</div><div style={{fontFamily:"var(--fm)",fontSize:14,marginTop:4}}>{countCampaignPieces(pz)}/{pz.plannedPieces||countCampaignPieces(pz)}</div></div>
+            <div><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Balance</div><div style={{fontFamily:"var(--fm)",fontSize:14,color:b.b>=0?"#00e08a":"#ff5566",marginTop:4}}>{fmtM(b.b)}</div></div>
+          </div>
+        </div>;})}
+      </div>
+      {!fd.length&&<Empty text="Sin campañas" sub="Crea la primera con el botón superior"/>}
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
@@ -3224,7 +3303,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
+    </Card>}
   </div>;
 }
 
@@ -3522,7 +3601,7 @@ function ViewEpDet({id,empresa,episodios,programas,movimientos,crew,eventos,navT
 // ── CREW ──────────────────────────────────────────────────────
 function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSave,cDel,setCrew,listas}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fa,setFa]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fa,setFa]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa));
   const exportCSV=()=>{
@@ -3535,12 +3614,44 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar por nombre o rol..."/>
       <FilterSel value={fa} onChange={v=>{setFa(v);setPg(1);}} options={AREAS} placeholder="Todas las áreas"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("crew")&&<Btn onClick={()=>openM("crew",{})}>+ Agregar Miembro</Btn>}
       <GBtn onClick={exportCSV}>⬇ Exportar CSV</GBtn>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:20}}>
       {AREAS.slice(0,6).map(a=>{const cnt=(crew||[]).filter(x=>x.empId===empId&&x.area===a).length;return<div key={a} onClick={()=>setFa(fa===a?"":a)} style={{background:"var(--card)",border:`1px solid ${fa===a?"var(--cy)":"var(--bdr)"}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",textAlign:"center"}}><div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color:fa===a?"var(--cy)":"var(--wh)"}}>{cnt}</div><div style={{fontSize:9,color:"var(--gr2)",marginTop:2}}>{a}</div></div>;})}
     </div>
+    {vista==="cards"?<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
+        {fd.slice((pg-1)*PP,pg*PP).map(m=><div key={m.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"var(--bg)",flexShrink:0}}>{ini(m.nom)}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,fontWeight:800}}>{m.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{m.rol||"Sin rol"}</div>
+            </div>
+            <Badge label={m.active!==false?"Activo":"Inactivo"} color={m.active!==false?"green":"red"} sm/>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <Badge label={m.area||"Sin área"} color="gray" sm/>
+            <Badge label={m.tipo==="interno"?"Planta":"Externo"} color={m.tipo==="interno"?"green":"yellow"} sm/>
+          </div>
+          <div style={{fontSize:11,color:"var(--gr2)",display:"grid",gap:5}}>
+            <span>✉ {m.ema||"—"}</span>
+            <span>☎ {m.tel||"—"}</span>
+            <span>Disponibilidad: {m.dis||"—"}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
+            <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{m.tarifa||"—"}</span>
+            <div style={{display:"flex",gap:4}}>
+              {_cd&&_cd("crew")&&<><GBtn sm onClick={()=>openM("crew",m)}>✏</GBtn><XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/></>}
+            </div>
+          </div>
+        </div>)}
+      </div>
+      {!fd.length&&<Empty text="Sin miembros" sub={_cd&&_cd("crew")?"Agrega el primero arriba":""}/>}
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Nombre</TH><TH>Rol</TH><TH>Área</TH><TH>Email</TH><TH>Teléfono</TH><TH>Disponibilidad</TH><TH>Tarifa</TH><TH>Estado</TH><TH></TH></tr></thead>
@@ -3562,14 +3673,14 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
+    </Card>}
   </div>;
 }
 
 // ── AUSPICIADORES ─────────────────────────────────────────────
 function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,setAuspiciadores,listas}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [pg,setPg]=useState(1);const PP=9;
+  const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
   const fd=(auspiciadores||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.con||"").toLowerCase().includes(q.toLowerCase()))&&(!ft||a.tip===ft)&&(!fp||(a.pids||[]).includes(fp)));
   const pgOpts=(programas||[]).filter(x=>x.empId===empId).map(p=>({value:p.id,label:p.nom}));
   return <div>
@@ -3577,15 +3688,32 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar auspiciador..."/>
       <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposAus||DEFAULT_LISTAS.tiposAus} placeholder="Todo tipos"/>
       <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={pgOpts} placeholder="Todas producciones"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{})}>+ Nuevo Auspiciador</Btn>}
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
+    {vista==="cards"?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
       {fd.slice((pg-1)*PP,pg*PP).map(a=>{
         const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)).filter(Boolean);
         return <AusCard key={a.id} a={a} pgs={pgs} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null} onDel={_cd&&_cd("auspiciadores")?()=>cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado"):null}/>;
       })}
-    </div>
-    {!fd.length&&<Empty text="Sin auspiciadores"/>}
+    </div>:<Card>
+      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH>Monto</TH><TH>Vigencia</TH><TH></TH></tr></thead>
+        <tbody>
+          {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)?.nom).filter(Boolean);return <tr key={a.id}>
+            <TD bold>{a.nom}</TD>
+            <TD><Badge label={a.tip} sm/></TD>
+            <TD style={{fontSize:11}}>{pgs.join(", ")||"—"}</TD>
+            <TD style={{fontSize:11}}>{[a.con,a.ema].filter(Boolean).join(" · ")||"—"}</TD>
+            <TD style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{a.mon?fmtM(a.mon):"—"}</TD>
+            <TD style={{fontSize:11}}>{a.vig?fmtD(a.vig):"—"}</TD>
+            <TD><div style={{display:"flex",gap:4}}>{_cd&&_cd("auspiciadores")&&<><GBtn sm onClick={()=>openM("aus",a)}>✏</GBtn><XBtn onClick={()=>cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado")}/></>}</div></TD>
+          </tr>;})}
+          {!fd.length&&<tr><td colSpan={7}><Empty text="Sin auspiciadores"/></td></tr>}
+        </tbody>
+      </table></div>
+    </Card>}
+    {!fd.length&&vista==="cards"&&<Empty text="Sin auspiciadores"/>}
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
   </div>;
 }
@@ -3593,7 +3721,7 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
 // ── CONTRATOS ─────────────────────────────────────────────────
 function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_cd,cSave,cDel,setContratos}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const fd=(contratos||[]).filter(x=>x.empId===empId).filter(c=>c.nom.toLowerCase().includes(q.toLowerCase())&&(!fe||contractVisualState(c)===fe||c.est===fe));
   const vigentes=fd.filter(ct=>contractVisualState(ct)==="Vigente").length;
   const porVencer=fd.filter(ct=>contractVisualState(ct)==="Por vencer").length;
@@ -3608,8 +3736,33 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar contrato..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Borrador","En Revisión","Firmado","Vigente","Vencido"]} placeholder="Todo estados"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("contratos")&&<Btn onClick={()=>openM("ct",{})}>+ Nuevo Contrato</Btn>}
     </div>
+    {vista==="cards"?<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
+        {fd.slice((pg-1)*PP,pg*PP).map(ct=>{const c=(clientes||[]).find(x=>x.id===ct.cliId);const vinculos=[(ct.pids||[]).length && `${(ct.pids||[]).length} vínculo${(ct.pids||[]).length===1?"":"s"}`,ct.presupuestoId && `${(presupuestos||[]).filter(p=>p.id===ct.presupuestoId).length} presupuesto`,(ct.facturaIds||[]).length && `${(ct.facturaIds||[]).length} factura${(ct.facturaIds||[]).length===1?"":"s"}`].filter(Boolean).join(" · ");return <div key={ct.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,lineHeight:1.25}}>{ct.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{c?.nom||"Sin cliente"}</div>
+            </div>
+            <Badge label={contractVisualState(ct)}/>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <Badge label={ct.tip||"Sin tipo"} color="gray" sm/>
+            {ct.vig&&<Badge label={`Vig. ${fmtD(ct.vig)}`} color="cyan" sm/>}
+          </div>
+          <div style={{fontSize:11,color:"var(--gr2)"}}>{vinculos||"Sin vínculos"}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
+            <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{ct.mon?fmtM(ct.mon):"—"}</span>
+            <div style={{display:"flex",gap:4}}>{_cd&&_cd("contratos")&&<><GBtn sm onClick={()=>openM("ct",ct)}>✏</GBtn><XBtn onClick={()=>cDel(contratos,setContratos,ct.id,null,"Contrato eliminado")}/></>}</div>
+          </div>
+        </div>;})}
+      </div>
+      {!fd.length&&<Empty text="Sin contratos"/>}
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Monto</TH><TH>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
@@ -3631,7 +3784,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
+    </Card>}
   </div>;
 }
 
@@ -5130,7 +5283,7 @@ function MActivo({open,data,producciones,listas,onClose,onSave}){
 
 function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,cDel,setActivos}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
   const ESTADOS=listas?.estadosActivos||DEFAULT_LISTAS.estadosActivos;
   const fd=(activos||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.marca||"").toLowerCase().includes(q.toLowerCase()))&&(!fc||a.categoria===fc)&&(!fe||a.estado===fe));
@@ -5149,12 +5302,40 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar activo o marca..."/>
       <FilterSel value={fc} onChange={v=>{setFc(v);setPg(1);}} options={CATS} placeholder="Todas categorías"/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={ESTADOS} placeholder="Todo estados"/>
+      <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("activos")&&<Btn onClick={()=>openM("activo",{})}>+ Nuevo Activo</Btn>}
     </div>
     {/* Chips por estado */}
     <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
       {ESTADOS.map(s=>{const cnt=(activos||[]).filter(a=>a.empId===empId&&a.estado===s).length;return<div key={s} onClick={()=>setFe(fe===s?"":s)} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:20,border:`1px solid ${fe===s?statColor(s):"var(--bdr2)"}`,background:fe===s?statColor(s)+"22":"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:fe===s?statColor(s):"var(--gr3)"}}><span style={{width:8,height:8,borderRadius:"50%",background:statColor(s),flexShrink:0}}/>{s} ({cnt})</div>;})}
     </div>
+    {vista==="cards"?<>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
+        {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pro=(producciones||[]).find(x=>x.id===a.asignadoA);return <div key={a.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,lineHeight:1.25}}>{a.nom}</div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{[a.marca,a.modelo].filter(Boolean).join(" · ")||"Sin marca/modelo"}</div>
+            </div>
+            <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:700,background:statColor(a.estado)+"22",color:statColor(a.estado),border:`1px solid ${statColor(a.estado)}40`}}>{a.estado||"—"}</span>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <Badge label={a.categoria||"Sin categoría"} color="gray" sm/>
+            {a.serial&&<Badge label={`SN ${a.serial}`} color="cyan" sm/>}
+          </div>
+          <div style={{fontSize:11,color:"var(--gr2)",display:"grid",gap:5}}>
+            <span>Asignado: {pro?pro.nom:"Sin asignar"}</span>
+            <span>Compra: {a.fechaCompra?fmtD(a.fechaCompra):"—"}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"auto",paddingTop:10,borderTop:"1px solid var(--bdr)"}}>
+            <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{a.valorCompra?fmtM(a.valorCompra):"—"}</span>
+            <div style={{display:"flex",gap:4}}>{_cd&&_cd("activos")&&<><GBtn sm onClick={()=>openM("activo",a)}>✏</GBtn><XBtn onClick={()=>cDel(activos,setActivos,a.id,null,"Activo eliminado")}/></>}</div>
+          </div>
+        </div>;})}
+      </div>
+      {!fd.length&&<Empty text="Sin activos registrados" sub={_cd&&_cd("activos")?"Registra el primero con el botón superior":""}/>}
+      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH>Valor</TH><TH></TH></tr></thead>
@@ -5175,7 +5356,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
+    </Card>}
     {/* Panel por categoría */}
     {CATS.filter(c=>(activos||[]).some(a=>a.empId===empId&&a.categoria===c)).length>0&&<div style={{marginTop:16}}>
       <div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:700,marginBottom:12}}>Por Categoría</div>

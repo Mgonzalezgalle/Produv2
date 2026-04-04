@@ -841,7 +841,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     ]},
   ];
   const SW=collapsed?64:240;
-  return <aside style={{width:SW,minHeight:"100vh",background:sbBg,boxShadow:collapsed?"0 0 0 rgba(0,0,0,0)":"10px 0 30px rgba(0,0,0,.16)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     {/* Logo Produ */}
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
@@ -2250,9 +2250,9 @@ export default function App(){
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={()=>{document.querySelector("aside")?.classList.remove("mob-open");document.getElementById("mob-overlay").style.display="none";}} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
     <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);document.querySelector("aside")?.classList.remove("mob-open");const o=document.getElementById("mob-overlay");if(o)o.style.display="none";}} onAdmin={()=>{setAdminOpen(true);document.querySelector("aside")?.classList.remove("mob-open");}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);document.querySelector("aside")?.classList.remove("mob-open");}:null} counts={counts} collapsed={collapsed} onToggle={()=>setCollapsed(!collapsed)} syncPulse={syncPulse}/>
-    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)"}}>
+    <main style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden"}}>
       {/* Topbar */}
-      <div style={{height:64,background:"color-mix(in srgb, var(--sur) 84%, transparent)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",padding:"0 22px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
+      <div style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
         {/* Hamburger - solo visible en móvil via CSS */}
         <button className="ham-btn" onClick={()=>{const s=document.querySelector("aside");const o=document.getElementById("mob-overlay");if(s){s.classList.add("mob-open");}if(o){o.style.display="block";}}} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
@@ -2270,7 +2270,7 @@ export default function App(){
           </button>}
         </div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"18px 20px 28px"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"18px 26px 28px"}}>
         <div className="va" key={view+detId+superPanel}>
           {isLoading ? <LoadingScreen/> : renderView()}
         </div>

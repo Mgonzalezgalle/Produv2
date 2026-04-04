@@ -50,6 +50,10 @@ const normalizeSocialCampaign = (item = {}) => {
   const piezas = looksLikeLegacyPiece
     ? [normalizeSocialPiece(item, item)]
     : (Array.isArray(item.piezas) ? item.piezas : []).map(p => normalizeSocialPiece(p, item));
+  const plannedPiecesRaw = item.plannedPieces ?? item.totalPiezas;
+  const plannedPieces = plannedPiecesRaw === "" || plannedPiecesRaw === null || plannedPiecesRaw === undefined
+    ? piezas.length
+    : Number(plannedPiecesRaw);
   return {
     ...item,
     id: item.id || uid(),
@@ -64,6 +68,7 @@ const normalizeSocialCampaign = (item = {}) => {
     des: item.des || item.descripcion || "",
     crewIds: Array.isArray(item.crewIds) ? item.crewIds : [],
     comentarios: Array.isArray(item.comentarios) ? item.comentarios : [],
+    plannedPieces: Number.isFinite(plannedPieces) ? Math.max(0, plannedPieces) : piezas.length,
     piezas,
   };
 };
@@ -2019,11 +2024,11 @@ function MPg({open,data,clientes,onClose,onSave}){
 
 function MCampanaContenido({open,data,clientes,onClose,onSave}){
   const [f,setF]=useState({});
-  useEffect(()=>{setF(data?.id?normalizeSocialCampaign(data):{nom:"",cliId:"",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificada",ini:today(),fin:"",des:"",crewIds:[],comentarios:[],piezas:[]});},[data,open]);
+  useEffect(()=>{setF(data?.id?normalizeSocialCampaign(data):{nom:"",cliId:"",plataforma:"Instagram",mes:MESES[new Date().getMonth()],ano:new Date().getFullYear(),est:"Planificada",ini:today(),fin:"",des:"",crewIds:[],comentarios:[],plannedPieces:1,piezas:[]});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Campaña":"Nueva Campaña"} sub="Contenidos para redes sociales" wide>
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Nombre de la campaña"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
-    <R3><FG label="Plataforma principal"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificada"} onChange={e=>u("est",e.target.value)}>{CAMPANA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Piezas planificadas"><FI type="number" value={countCampaignPieces(f)} readOnly/></FG></R3>
+    <R3><FG label="Plataforma principal"><FSl value={f.plataforma||"Instagram"} onChange={e=>u("plataforma",e.target.value)}>{PIEZA_PLATAFORMAS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||"Planificada"} onChange={e=>u("est",e.target.value)}>{CAMPANA_ESTADOS.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Piezas mensuales"><FSl value={String(f.plannedPieces ?? 1)} onChange={e=>u("plannedPieces",Number(e.target.value))}>{Array.from({length:200},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}</FSl></FG></R3>
     <R2><FG label="Mes"><FSl value={f.mes||MESES[new Date().getMonth()]} onChange={e=>u("mes",e.target.value)}>{MESES.map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Año"><FI type="number" value={f.ano||new Date().getFullYear()} onChange={e=>u("ano",Number(e.target.value))} min="2024"/></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini||""} onChange={e=>u("ini",e.target.value)}/></FG><FG label="Fecha Cierre"><FI type="date" value={f.fin||""} onChange={e=>u("fin",e.target.value)}/></FG></R2>
     <FG label="Descripción"><FTA value={f.des||""} onChange={e=>u("des",e.target.value)} placeholder="Objetivo, tono, entregables, alcance mensual..."/></FG>
@@ -2437,7 +2442,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
             <TD bold>{pz.nom}</TD>
             <TD>{c?.nom||"—"}</TD>
             <TD>{[pz.mes,pz.ano].filter(Boolean).join(" ")||"—"}</TD>
-            <TD><Badge label={`${countCampaignPieces(pz)} piezas`} color="gray" sm/></TD>
+            <TD><Badge label={`${countCampaignPieces(pz)}/${pz.plannedPieces||countCampaignPieces(pz)} piezas`} color="gray" sm/></TD>
             <TD><Badge label={pz.plataforma||"Multi-plataforma"} color="gray" sm/></TD>
             <TD><Badge label={pz.est||"Planificada"}/></TD>
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
@@ -2613,7 +2618,7 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
     {tab===5&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
     {tab===6&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos de la Campaña">
-        {[["Cliente",cli?.nom||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificada"}/>],["Total piezas",countCampaignPieces(pz)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Cliente",cli?.nom||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificada"}/>],["Piezas creadas",countCampaignPieces(pz)],["Piezas mensuales",pz.plannedPieces||countCampaignPieces(pz)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Timeline">
         {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Cierre",pz.fin?fmtD(pz.fin):"—"],["Crew",pCrew.length]].map(([l,v])=><KV key={l} label={l} value={v}/>)}

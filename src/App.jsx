@@ -782,19 +782,19 @@ function NavGroups({ NAV, base, collapsed, onNav, user }) {
       const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
       if (!items.length) return null;
       const isOpen = open[grp.group] !== false;
-      return <div key={grp.group} style={{ marginBottom:2 }}>
+      return <div key={grp.group} style={{ margin:"0 8px 8px",background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,overflow:"hidden" }}>
         {/* Group header */}
         <div onClick={() => toggle(grp.group)}
-          style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px 6px",cursor:"pointer",userSelect:"none" }}>
-          <span style={{ fontSize:11,letterSpacing:1.5,textTransform:"uppercase",fontWeight:800,color:"var(--wh)" }}>{grp.group}</span>
+          style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px 8px",cursor:"pointer",userSelect:"none",background:"linear-gradient(180deg,var(--card2),transparent)" }}>
+          <span style={{ fontSize:10,letterSpacing:1.7,textTransform:"uppercase",fontWeight:800,color:"var(--gr2)" }}>{grp.group}</span>
           <span style={{ fontSize:10,color:"var(--gr2)",transition:"transform .2s",display:"inline-block",transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▾</span>
         </div>
         {/* Items */}
-        {isOpen && <div style={{ paddingBottom:6 }}>
+        {isOpen && <div style={{ padding:"0 6px 8px" }}>
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)}
-              style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 16px",cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?600:400,background:active?"var(--cg)":"transparent",borderLeft:active?"3px solid var(--cy)":"3px solid transparent",transition:".1s",marginBottom:1 }}>
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"var(--cy)":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cg),transparent)":"transparent",border:`1px solid ${active?"var(--cm)":"transparent"}`,borderRadius:10,transition:".1s",marginBottom:4 }}>
               <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>
               <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
               {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":"var(--bdr2)",color:active?"var(--cy)":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
@@ -812,18 +812,22 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
     {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]},
-    {group:"Negocio",items:[{id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},{id:"producciones",icon:"▶",label:"Proyectos",need:"producciones",cnt:counts.pro}]},
-    {group:"Comercial",items:[
-      ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
-    ]},
-    ...(empresa?.addons?.some(a=>["television","social","facturacion","activos","contratos","crew"].includes(a))?[{group:"Addons",items:[
-      ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Producciones",need:"programas",cnt:counts.pg},{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
+    {group:"Operación",items:[
+      {id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},
+      {id:"producciones",icon:"▶",label:"Proyectos",need:"producciones",cnt:counts.pro},
+      ...(empresa?.addons?.includes("television")?[{id:"programas",icon:"📺",label:"Producciones",need:"programas",cnt:counts.pg}]:[]),
       ...(empresa?.addons?.includes("social")?[{id:"contenidos",icon:"📱",label:"Contenidos",need:"contenidos",cnt:counts.pz}]:[]),
+    ]},
+    {group:"Comercial",items:[
+      ...(empresa?.addons?.includes("television")?[{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
+      ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
-      ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
-      ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
+    ]},
+    {group:"Recursos",items:[
       ...(empresa?.addons?.includes("crew")?[{id:"crew",icon:"🎬",label:"Equipo / Crew",need:"crew",cnt:counts.crew}]:[]),
-    ]}]:[]),
+      ...(empresa?.addons?.includes("contratos")?[{id:"contratos",icon:"📄",label:"Contratos",need:"contratos",cnt:counts.ct}]:[]),
+      ...(empresa?.addons?.includes("activos")?[{id:"activos",icon:"📦",label:"Activos",need:"activos",cnt:counts.act}]:[]),
+    ]},
   ];
   const SW=collapsed?64:240;
   return <aside style={{width:SW,minHeight:"100vh",background:"var(--sur)",borderRight:"1px solid var(--bdr)",display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>

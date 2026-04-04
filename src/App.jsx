@@ -3731,8 +3731,8 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
 
   const logo = await loadPdfImage(pdf, empresa?.logo || "");
   if (logo) {
-    const dims = logo.scale(0.18);
-    page.drawImage(logo, { x:36, y:height-74, width:dims.width, height:dims.height });
+    const dims = logo.scale(0.24);
+    page.drawImage(logo, { x:36, y:height-82, width:dims.width, height:dims.height });
   } else {
     page.drawText(empresa?.nombre || "produ", { x:36, y:height-56, size:24, font:bold, color:white });
   }

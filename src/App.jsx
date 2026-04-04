@@ -2484,9 +2484,10 @@ function MAus({open,data,programas,listas,onClose,onSave}){
   </Modal>;
 }
 
-function MCt({open,data,empresa,clientes,producciones,programas,presupuestos,facturas,listas,onClose,onSave}){
+function MCt({open,data,empresa,clientes,producciones,programas,piezas,presupuestos,facturas,listas,onClose,onSave}){
   const [f,setF]=useState({});
   const canPrograms = hasAddon(empresa, "television");
+  const canSocial = hasAddon(empresa, "social");
   const canPres = hasAddon(empresa, "presupuestos");
   const canFact = hasAddon(empresa, "facturacion");
   useEffect(()=>{
@@ -2498,13 +2499,14 @@ function MCt({open,data,empresa,clientes,producciones,programas,presupuestos,fac
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const opts=[
     ...(producciones||[]).map(p=>({value:"p:"+p.id,label:"📽 "+p.nom})),
-    ...(canPrograms ? (programas||[]).map(p=>({value:"pg:"+p.id,label:"📺 "+p.nom})) : [])
+    ...(canPrograms ? (programas||[]).map(p=>({value:"pg:"+p.id,label:"📺 "+p.nom})) : []),
+    ...(canSocial ? (piezas||[]).map(p=>({value:"pz:"+p.id,label:"📱 "+p.nom})) : []),
   ];
   const presupuestosCli = (presupuestos||[]).filter(p => !f.cliId || p.cliId === f.cliId);
   const facturasCli = (facturas||[]).filter(x => !f.cliId || x.entidadId === f.cliId);
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Contrato":"Nuevo Contrato"} sub="Documento legal">
     <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de Proyecto Q2"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
-    <FG label="Asociaciones"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder={canPrograms?"Proyectos y producciones...":"Proyectos vinculados..."}/></FG>
+    <FG label="Asociaciones"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder={canSocial?"Proyectos, producciones y campañas...":canPrograms?"Proyectos y producciones...":"Proyectos vinculados..."}/></FG>
     <R2><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposCt||DEFAULT_LISTAS.tiposCt).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosCt||DEFAULT_LISTAS.estadosCt).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R3>
       <FG label="Monto Total (CLP)"><FI type="number" value={f.mon||""} onChange={e=>u("mon",e.target.value)} placeholder="0"/></FG>
@@ -2595,7 +2597,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPiezaContenido open={mOpen==="pieza"} data={mData} listas={VP.listas} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
-    <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
+    <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
@@ -2982,12 +2984,18 @@ function ViewPgDet({id,empresa,clientes,producciones,programas,piezas,episodios,
   </div>;
 }
 
-function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
+function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,tareas,presupuestos,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
   const cli=(clientes||[]).find(x=>x.id===pz.cliId);
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
+  const canPres = hasAddon(empresa,"presupuestos");
+  const canContracts = hasAddon(empresa,"contratos");
+  const canInvoices = hasAddon(empresa,"facturacion");
+  const presupuestosCamp = (presupuestos||[]).filter(pr=>pr.tipo==="contenido" && pr.refId===id);
+  const contratosCamp = (contratos||[]).filter(ct=>(ct.pids||[]).includes(`pz:${id}`) || ct.cliId===pz.cliId);
+  const facturasCamp = (facturas||[]).filter(fc=>fc.tipoRef==="contenido" && fc.proId===id);
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pz.crewIds||[]).includes(x.id));
   const [tab,setTab]=useState(0);
   const [piezaQ,setPiezaQ]=useState("");
@@ -3015,6 +3023,11 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
     </div>
+    {(canPres || canContracts || canInvoices) && <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
+      {canPres && <Stat label="Presupuestos" value={presupuestosCamp.length} sub={presupuestosCamp.length?fmtM(presupuestosCamp.reduce((s,x)=>s+Number(x.total||0),0)):"Sin cotizar"} accent="var(--cy)" vc="var(--cy)"/>}
+      {canContracts && <Stat label="Contratos" value={contratosCamp.length} sub={contratosCamp[0]?contractVisualState(contratosCamp[0]):"Sin contrato"} accent="#ffcc44" vc="#ffcc44"/>}
+      {canInvoices && <Stat label="Facturación" value={facturasCamp.length} sub={facturasCamp.length?fmtM(facturasCamp.reduce((s,x)=>s+Number(x.total||0),0)):"Sin órdenes"} accent="#00e08a" vc="#00e08a"/>}
+    </div>}
     <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
     {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
@@ -3059,6 +3072,35 @@ function ViewContenidoDet({id,empresa,clientes,piezas,movimientos,crew,eventos,t
         {[["Inicio",pz.ini?fmtD(pz.ini):"—"],["Cierre",pz.fin?fmtD(pz.fin):"—"],["Crew",pCrew.length]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
+    </div>}
+    {(canPres || canContracts || canInvoices) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginTop:16}}>
+      {canPres && <Card title="Presupuestos de la Campaña" action={_cd&&_cd("presupuestos")?{label:"+ Nuevo",fn:()=>openM("pres",{tipo:"contenido",refId:id,cliId:pz.cliId,titulo:pz.nom,modoDetalle:"piezas",cantidadPiezas:pz.plannedPieces||1,detallePiezas:`Piezas ${pz.mes||"mensuales"}`})}:null}>
+        {presupuestosCamp.length ? presupuestosCamp.slice(0,4).map(pr=><div key={pr.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700}}>{pr.titulo}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{pr.estado||"Pendiente"}</div>
+          </div>
+          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{fmtM(pr.total||0)}</div>
+        </div>) : <Empty text="Sin presupuestos"/>}
+      </Card>}
+      {canContracts && <Card title="Contratos Relacionados" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:pz.cliId,pids:[`pz:${id}`],tip:"Servicio",nom:`Contrato ${pz.nom}`})}:null}>
+        {contratosCamp.length ? contratosCamp.slice(0,4).map(ct=><div key={ct.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700}}>{ct.nom}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{contractVisualState(ct)}</div>
+          </div>
+          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"#ffcc44"}}>{ct.mon?fmtM(ct.mon):"—"}</div>
+        </div>) : <Empty text="Sin contratos"/>}
+      </Card>}
+      {canInvoices && <Card title="Facturación de la Campaña" action={_cd&&_cd("facturacion")?{label:"+ Nueva",fn:()=>openM("fact",{tipo:"cliente",entidadId:pz.cliId,tipoRef:"contenido",proId:id,montoNeto:0,iva:true})}:null}>
+        {facturasCamp.length ? facturasCamp.slice(0,4).map(fc=><div key={fc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:700}}>{fc.correlativo||"Sin correlativo"}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{fc.estado||"Pendiente"}</div>
+          </div>
+          <div style={{fontFamily:"var(--fm)",fontSize:12,color:"#00e08a"}}>{fmtM(fc.total||0)}</div>
+        </div>) : <Empty text="Sin facturación"/>}
+      </Card>}
     </div>}
     {tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
   </div>;
@@ -3243,6 +3285,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
             <TD mono style={{fontSize:11}}>{ct.vig?fmtD(ct.vig):"—"}</TD>
             <TD style={{fontSize:11,color:"var(--gr2)"}}>
               {[
+                (ct.pids||[]).length && `${(ct.pids||[]).length} vinc.`,
                 ct.presupuestoId && `${(presupuestos||[]).filter(p=>p.id===ct.presupuestoId).length} pres.`,
                 (ct.facturaIds||[]).length && `${(ct.facturaIds||[]).length} fact.`
               ].filter(Boolean).join(" · ") || "Sin vínculos"}
@@ -4132,7 +4175,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     </FG>
     <R2>
     <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={e=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
-      <FG label="Proyecto / Producción">
+      <FG label="Proyecto / Producción / Campaña">
         <FSl value={f.proId||""} onChange={e=>u("proId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           <optgroup label="Proyectos">{(producciones||[]).map(p=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>

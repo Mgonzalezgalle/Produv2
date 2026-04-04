@@ -3712,9 +3712,18 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
   const white = hexToRgb("#ffffff");
   const surface = hexToRgb("#f1f5f9");
   const border = hexToRgb("#cbd5e1");
+  const drawRoundedBlock = (x, y, w, h, color) => {
+    const r = 12;
+    page.drawRectangle({ x:x+r, y, width:w-(r*2), height:h, color });
+    page.drawRectangle({ x, y:y+r, width:w, height:h-(r*2), color });
+    page.drawCircle({ x:x+r, y:y+r, size:r, color });
+    page.drawCircle({ x:x+w-r, y:y+r, size:r, color });
+    page.drawCircle({ x:x+r, y:y+h-r, size:r, color });
+    page.drawCircle({ x:x+w-r, y:y+h-r, size:r, color });
+  };
   const drawCard = (x, y, w, h, titleText, titleColor=white, headerFill=accentColor) => {
-    page.drawRectangle({ x, y, width:w, height:h, color:panel, borderColor:light, borderWidth:1 });
-    page.drawRectangle({ x, y:y+h-28, width:w, height:28, color:headerFill, borderColor:border, borderWidth:1 });
+    drawRoundedBlock(x, y, w, h, panel);
+    drawRoundedBlock(x, y+h-28, w, 28, headerFill);
     page.drawText(titleText, { x:x+14, y:y+h-18, size:10, font:bold, color:titleColor });
   };
   page.drawRectangle({ x:0, y:0, width, height, color:hexToRgb("#ffffff") });
@@ -3728,11 +3737,6 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
     page.drawText(empresa?.nombre || "produ", { x:36, y:height-56, size:24, font:bold, color:white });
   }
   page.drawText(title, { x:width-300, y:height-54, size:22, font:bold, color:white });
-  if (badge) {
-    const badgeWidth = Math.max(92, bold.widthOfTextAtSize(badge, 10) + 22);
-    page.drawRectangle({ x:width-36-badgeWidth, y:height-84, width:badgeWidth, height:24, color:white, opacity:0.18 });
-    page.drawText(badge, { x:width-36-badgeWidth+11, y:height-76, size:10, font:bold, color:white });
-  }
 
   page.drawText(empresa?.nombre || "", { x:36, y:height-128, size:18, font:bold, color:textColor });
   const emisorLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
@@ -3742,22 +3746,22 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
     emisorY -= 14;
   });
 
-  drawCard(36, height-286, 258, 110, counterpartTitle);
-  page.drawText(counterpartName || "—", { x:50, y:height-224, size:16, font:bold, color:textColor });
-  let cpY = height-244;
+  drawCard(36, height-322, 258, 110, counterpartTitle);
+  page.drawText(counterpartName || "—", { x:50, y:height-260, size:16, font:bold, color:textColor });
+  let cpY = height-280;
   counterpartLines.filter(Boolean).forEach(line => {
     page.drawText(line, { x:50, y:cpY, size:10, font, color:muted });
     cpY -= 13;
   });
 
-  drawCard(318, height-286, 258, 110, "Resumen");
-  let metaY = height-214;
+  drawCard(318, height-322, 258, 110, "Resumen");
+  let metaY = height-250;
   metaLines.filter(Boolean).forEach(line => {
     page.drawText(line, { x:332, y:metaY, size:10, font, color:textColor });
     metaY -= 14;
   });
 
-  let sectionY = height-316;
+  let sectionY = height-352;
   bodySections.forEach(section => {
     const sectionRows = section.rows || [];
     const textExtra = section.text ? 42 : 0;
@@ -3766,7 +3770,7 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
     let innerY = sectionY - 46;
     if (section.rows) {
       section.rows.forEach(row => {
-        page.drawRectangle({ x:50, y:innerY-8, width:512, height:22, color:white, borderColor:border, borderWidth:0.6 });
+        drawRoundedBlock(50, innerY-8, 512, 22, white);
         page.drawText(row.label, { x:60, y:innerY-1, size:10, font:row.bold?bold:font, color:textColor });
         page.drawText(row.value, { x:350, y:innerY-1, size:10, font:row.valueBold?bold:font, color:row.valueColor || textColor });
         innerY -= 28;

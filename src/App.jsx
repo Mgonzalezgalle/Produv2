@@ -3695,7 +3695,7 @@ function drawWrappedText(page, text, x, y, maxWidth, font, size, color, lineGap=
 
 async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[] }) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([842, 595]);
+  const page = pdf.addPage([612, 792]);
   const { width, height } = page.getSize();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -3704,77 +3704,83 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
   const muted = hexToRgb("#64748b");
   const light = hexToRgb("#e2e8f0");
   const panel = hexToRgb("#f8fafc");
-  const success = hexToRgb("#16a34a");
+  const white = hexToRgb("#ffffff");
+  const surface = hexToRgb("#f1f5f9");
+  const border = hexToRgb("#cbd5e1");
+  const drawCard = (x, y, w, h, titleText, titleColor=white, headerFill=accentColor) => {
+    page.drawRectangle({ x, y, width:w, height:h, color:panel, borderColor:light, borderWidth:1 });
+    page.drawRectangle({ x, y:y+h-28, width:w, height:28, color:headerFill, borderColor:border, borderWidth:1 });
+    page.drawText(titleText, { x:x+14, y:y+h-18, size:10, font:bold, color:titleColor });
+  };
   page.drawRectangle({ x:0, y:0, width, height, color:hexToRgb("#ffffff") });
-  page.drawRectangle({ x:0, y:height-86, width, height:86, color:accentColor });
+  page.drawRectangle({ x:0, y:height-96, width, height:96, color:accentColor });
 
   const logo = await loadPdfImage(pdf, empresa?.logo || "");
   if (logo) {
-    const dims = logo.scale(0.22);
-    page.drawImage(logo, { x:40, y:height-66, width:dims.width, height:dims.height });
+    const dims = logo.scale(0.18);
+    page.drawImage(logo, { x:36, y:height-74, width:dims.width, height:dims.height });
   } else {
-    page.drawText(empresa?.nombre || "produ", { x:40, y:height-50, size:24, font:bold, color:rgb(1,1,1) });
+    page.drawText(empresa?.nombre || "produ", { x:36, y:height-56, size:24, font:bold, color:white });
   }
-  page.drawText(title, { x:width-300, y:height-44, size:24, font:bold, color:rgb(1,1,1) });
+  page.drawText(title, { x:width-300, y:height-54, size:22, font:bold, color:white });
   if (badge) {
     const badgeWidth = Math.max(92, bold.widthOfTextAtSize(badge, 10) + 22);
-    page.drawRectangle({ x:width-40-badgeWidth, y:height-74, width:badgeWidth, height:24, color:rgb(1,1,1), opacity:0.18 });
-    page.drawText(badge, { x:width-40-badgeWidth+11, y:height-66, size:10, font:bold, color:rgb(1,1,1) });
+    page.drawRectangle({ x:width-36-badgeWidth, y:height-84, width:badgeWidth, height:24, color:white, opacity:0.18 });
+    page.drawText(badge, { x:width-36-badgeWidth+11, y:height-76, size:10, font:bold, color:white });
   }
 
-  page.drawText(empresa?.nombre || "", { x:40, y:height-116, size:18, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:36, y:height-128, size:18, font:bold, color:textColor });
   const emisorLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
-  let emisorY = height-136;
+  let emisorY = height-150;
   emisorLines.forEach(line => {
-    page.drawText(line, { x:40, y:emisorY, size:10, font, color:muted });
+    page.drawText(line, { x:36, y:emisorY, size:10, font, color:muted });
     emisorY -= 14;
   });
 
-  page.drawRectangle({ x:40, y:height-250, width:360, height:86, color:panel, borderColor:light, borderWidth:1 });
-  page.drawText(counterpartTitle, { x:56, y:height-186, size:10, font:bold, color:muted });
-  page.drawText(counterpartName || "—", { x:56, y:height-208, size:16, font:bold, color:textColor });
-  let cpY = height-226;
+  drawCard(36, height-286, 258, 110, counterpartTitle);
+  page.drawText(counterpartName || "—", { x:50, y:height-224, size:16, font:bold, color:textColor });
+  let cpY = height-244;
   counterpartLines.filter(Boolean).forEach(line => {
-    page.drawText(line, { x:56, y:cpY, size:10, font, color:muted });
+    page.drawText(line, { x:50, y:cpY, size:10, font, color:muted });
     cpY -= 13;
   });
 
-  page.drawRectangle({ x:425, y:height-250, width:377, height:86, color:panel, borderColor:light, borderWidth:1 });
-  page.drawText("Resumen", { x:441, y:height-186, size:10, font:bold, color:muted });
-  let metaY = height-208;
+  drawCard(318, height-286, 258, 110, "Resumen");
+  let metaY = height-214;
   metaLines.filter(Boolean).forEach(line => {
-    page.drawText(line, { x:441, y:metaY, size:10, font, color:textColor });
+    page.drawText(line, { x:332, y:metaY, size:10, font, color:textColor });
     metaY -= 14;
   });
 
-  let sectionY = height-286;
+  let sectionY = height-316;
   bodySections.forEach(section => {
-    page.drawText(section.title, { x:40, y:sectionY, size:12, font:bold, color:accentColor });
-    sectionY -= 18;
+    const sectionRows = section.rows || [];
+    const textExtra = section.text ? 42 : 0;
+    const sectionHeight = Math.max(70, 44 + sectionRows.length * 28 + textExtra);
+    drawCard(36, sectionY-sectionHeight, 540, sectionHeight, section.title, white, accentColor);
+    let innerY = sectionY - 46;
     if (section.rows) {
       section.rows.forEach(row => {
-        page.drawRectangle({ x:40, y:sectionY-10, width:762, height:24, color:rgb(0.98,0.99,1), borderColor:light, borderWidth:0.6 });
-        page.drawText(row.label, { x:52, y:sectionY-2, size:10, font:row.bold?bold:font, color:textColor });
-        page.drawText(row.value, { x:560, y:sectionY-2, size:10, font:row.valueBold?bold:font, color:row.valueColor || textColor });
-        sectionY -= 28;
+        page.drawRectangle({ x:50, y:innerY-8, width:512, height:22, color:white, borderColor:border, borderWidth:0.6 });
+        page.drawText(row.label, { x:60, y:innerY-1, size:10, font:row.bold?bold:font, color:textColor });
+        page.drawText(row.value, { x:350, y:innerY-1, size:10, font:row.valueBold?bold:font, color:row.valueColor || textColor });
+        innerY -= 28;
       });
     }
     if (section.text) {
-      sectionY = drawWrappedText(page, section.text, 40, sectionY, 760, font, 10, muted, 5);
-      sectionY -= 8;
+      drawWrappedText(page, section.text, 54, innerY+2, 500, font, 10, muted, 5);
     }
-    sectionY -= 10;
+    sectionY -= sectionHeight + 14;
   });
 
-  page.drawRectangle({ x:425, y:40, width:377, height:110, color:panel, borderColor:light, borderWidth:1 });
-  page.drawText("Totales", { x:441, y:126, size:11, font:bold, color:textColor });
-  let totalY = 104;
+  drawCard(318, 40, 258, 124, "Totales");
+  let totalY = 126;
   summaryRows.forEach(row => {
-    page.drawText(row.label, { x:441, y:totalY, size:10, font:row.highlight?bold:font, color:row.highlight?textColor:muted });
-    page.drawText(row.value, { x:690, y:totalY, size:11, font:row.highlight?bold:font, color:row.color || textColor });
+    page.drawText(row.label, { x:332, y:totalY, size:10, font:row.highlight?bold:font, color:row.highlight?textColor:muted });
+    page.drawText(row.value, { x:468, y:totalY, size:11, font:row.highlight?bold:font, color:row.color || textColor });
     totalY -= 18;
   });
-  page.drawText("Generado con Produ", { x:40, y:28, size:9, font, color:muted });
+  page.drawText("Generado con Produ", { x:36, y:28, size:9, font, color:muted });
   const bytes = await pdf.save();
   return new File([bytes], fileName, { type:"application/pdf" });
 }

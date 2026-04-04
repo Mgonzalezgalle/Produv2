@@ -267,6 +267,22 @@ function normalizeEmpresasTenantCodes(empresas = []) {
   });
 }
 
+function normalizeEmpresasAddons(empresas = []) {
+  return (Array.isArray(empresas) ? empresas : []).map(emp => {
+    if (emp?.migratedTasksAddon) return emp;
+    const addons = Array.isArray(emp?.addons) ? emp.addons : [];
+    return {
+      ...emp,
+      addons: addons.includes("tareas") ? addons : [...addons, "tareas"],
+      migratedTasksAddon: true,
+    };
+  });
+}
+
+function normalizeEmpresasModel(empresas = []) {
+  return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas));
+}
+
 function contractRefPrefix(refType = "") {
   return { produccion:"p", programa:"pg", contenido:"pz" }[refType] || "";
 }
@@ -504,15 +520,21 @@ function canDo(user, action, empresa) {
 
 function canAccessModule(user, view, empresa) {
   const gated = {
+    tareas: "tareas",
     presupuestos: "presupuestos",
     "pres-det": "presupuestos",
     facturacion: "facturacion",
   };
   const action = gated[view];
-  return action ? canDo(user, action, empresa) : true;
+  if (!action) return true;
+  if (action==="tareas") return hasAddon(empresa,"tareas") && user?.role!=="viewer";
+  if (action==="presupuestos" && !hasAddon(empresa,"presupuestos")) return false;
+  if (action==="facturacion" && !hasAddon(empresa,"facturacion")) return false;
+  return canDo(user, action, empresa);
 }
 
 const ADDONS = {
+  tareas:      { label:"Tareas",         icon:"✅" },
   television:  { label:"Televisión",     icon:"📺" },
   social:      { label:"Contenidos RRSS",icon:"📱" },
   presupuestos:{ label:"Presupuestos",   icon:"📋" },
@@ -1184,7 +1206,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const NAV=[
-    {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]},
+    {group:"General",items:[{id:"dashboard",icon:"⊞",label:"Dashboard"},{id:"calendario",icon:"📅",label:"Calendario"},...(hasAddon(empresa,"tareas")?[{id:"tareas",icon:"✅",label:"Mis Tareas",cnt:counts.tar}]:[])]},
     {group:"Operación",items:[
       {id:"clientes",icon:"👥",label:"Clientes",need:"clientes",cnt:counts.cli},
       {id:"producciones",icon:"▶",label:"Proyectos",need:"producciones",cnt:counts.pro},
@@ -1629,10 +1651,10 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
         </div>}
         <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>Puedes adjuntar hasta 4 imágenes como respaldo visual del comentario.</div>
       </div>
-      <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
+      {!!onCreateTask&&<label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
         <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
         Marcar para pasar a tarea
-      </label>
+      </label>}
       <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
         {editingId&&<GBtn sm onClick={resetForm}>Cancelar</GBtn>}
         <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
@@ -2076,7 +2098,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -2893,7 +2915,8 @@ export default function App(){
   const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
   const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
-  const alertas = useAlertas(episodios, programas, eventos||[], tareas||[], facturas||[], contratos||[], empId);
+  const tasksEnabled = hasAddon(curEmp,"tareas");
+  const alertas = useAlertas(episodios, programas, eventos||[], tasksEnabled?(tareas||[]):[], facturas||[], contratos||[], empId);
 
   // Polling
   usePoll(`produ:${eId}:clientes`,setClientes,savCli);
@@ -2965,6 +2988,15 @@ export default function App(){
       setSystemLeidas([]);
     }
   },[curEmp?.id,curUser?.id]);
+
+  useEffect(()=>{
+    if(!Array.isArray(empresas) || !empresas.length) return;
+    const normalized = normalizeEmpresasModel(empresas);
+    if(JSON.stringify(normalized)!==JSON.stringify(empresas)){
+      setEmpresasRaw(normalized);
+      dbSet("produ:empresas",normalized);
+    }
+  },[empresas]);
 
   // Seed per-empresa data
   useEffect(()=>{
@@ -3170,12 +3202,12 @@ export default function App(){
       await setCrew(syncedCrew);
     }
   };
-  const saveEmpresas=e=>{const normalized=normalizeEmpresasTenantCodes(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
+  const saveEmpresas=e=>{const normalized=normalizeEmpresasModel(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&t.asignadoA===curUser?.id&&t.estado!=="Completada").length:0};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -3769,6 +3801,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
 
 function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
+  const tasksEnabled=hasAddon(empresa,"tareas");
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
   const c=(clientes||[]).find(x=>x.id===p.cliId);
@@ -3792,12 +3825,12 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
       <Stat label="Balance"  value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
       <Stat label="Crew"     value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)"/>
     </div>
-    <Tabs tabs={["Comentarios","Ingresos","Gastos","Crew","Fechas","Contratos","Tareas"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Comentarios","Ingresos","Gastos","Crew","Fechas","Contratos",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
     {(tab===1||tab===2)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
@@ -3812,7 +3845,7 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
       {contratosRel.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!contratosRel.length&&<Empty text="Sin contratos relacionados"/>}
     </Card>}
-    {tab===6&&<TareasContexto title="Tareas del Proyecto" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
+    {tasksEnabled&&tab===6&&<TareasContexto title="Tareas del Proyecto" refTipo="pro" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("producciones")}/>}
   </div>;
 }
 
@@ -3961,6 +3994,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
 
 function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
+  const tasksEnabled=hasAddon(empresa,"tareas");
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;
   const eps=(episodios||[]).filter(e=>e.pgId===id).sort((a,b)=>a.num-b.num);
@@ -3988,13 +4022,13 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
       <span style={{fontSize:12,color:"var(--gr2)"}}>Conductor: <b style={{color:"var(--wh)"}}>{pg_.conductor}</b>{pg_.prodEjec?` · Prod: ${pg_.prodEjec}`:""}</span>
       {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos sobre el programa "${pg_.nom}".`}/>)}
     </div>}
-    <Tabs tabs={["Comentarios","Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Comentarios","Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
     {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
@@ -4046,12 +4080,13 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
         {pg_.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pg_.des}</div></>}
       </Card>
     </div>}
-    {tab===8&&<TareasContexto title="Tareas de la Producción" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
+    {tasksEnabled&&tab===8&&<TareasContexto title="Tareas de la Producción" refTipo="pg" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("programas")}/>}
   </div>;
 }
 
 function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,eventos,tareas,presupuestos,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
   const empId=empresa?.id;
+  const tasksEnabled=hasAddon(empresa,"tareas");
   const bal=useBal(movimientos,empId);
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
   const cli=(clientes||[]).find(x=>x.id===pz.cliId);
@@ -4089,12 +4124,12 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b>=0?"#00e08a":"#ff5566"} vc={b.b>=0?"#00e08a":"#ff5566"}/>
     </div>
-    <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info","Tareas"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Comentarios","Piezas","Ingresos","Gastos","Crew","Fechas","Info",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
     {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task={id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,asignadoA:comment.asignadoA||""};await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
         <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Publicadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#00e08a"}}>{piezasPub}</div></div>
@@ -4163,7 +4198,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
         {pz.des&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{pz.des}</div></>}
       </Card>
     </div>}
-    {tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
+    {tasksEnabled&&tab===7&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
   </div>;
 }
 
@@ -4444,6 +4479,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
 // ── CALENDARIO ────────────────────────────────────────────────
 function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodios,programas,piezas,producciones,eventos,facturas,contratos,openM,canDo:_cd,cSave,cDel,setEventos,ntf}){
   const empId=empresa?.id;
+  const tasksEnabled=hasAddon(empresa,"tareas");
   const [mes,setMes]=useState(()=>{const h=new Date();return{y:h.getFullYear(),m:h.getMonth()};});
   const [filtro,setFiltro]=useState("todos");
   const [diaSelec,setDiaSelec]=useState(null);
@@ -4455,11 +4491,11 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
   const [filtroCliente,setFiltroCliente]=useState("");
   const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const addMes=delta=>setMes(prev=>{let m=prev.m+delta,y=prev.y;if(m>11){m=0;y++;}if(m<0){m=11;y--; }return{y,m};});
-  const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"tarea",ico:"✅",lbl:"Tarea",c:"#7c5cff"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"cobranza",ico:"💸",lbl:"Cobranza",c:"#ff5566"},{v:"estreno",ico:"🌟",lbl:"Publicado",c:"#22c55e"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
+  const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},...(tasksEnabled?[{v:"tarea",ico:"✅",lbl:"Tarea",c:"#7c5cff"}]:[]),{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"cobranza",ico:"💸",lbl:"Cobranza",c:"#ff5566"},{v:"estreno",ico:"🌟",lbl:"Publicado",c:"#22c55e"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
   const tc=v=>TIPOS.find(t=>t.v===v)?.c||"#7c7c8a";
   const ti=v=>TIPOS.find(t=>t.v===v)?.ico||"📌";
   const moduloLabel = ev => ({pro:"Proyecto",pg:"Producción",ep:"Episodio",pz:"Contenidos",cal:"Evento",task:"Tarea",billing:"Cobranza",contract:"Contrato"})[ev.modulo]||"General";
-  const safeTasks = Array.isArray(tareas) ? tareas.filter(t=>t&&t.empId===empId) : [];
+  const safeTasks = tasksEnabled && Array.isArray(tareas) ? tareas.filter(t=>t&&t.empId===empId) : [];
   const crewMap = Object.fromEntries((crew||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const editCalItem=ev=>{
     if(!ev||!(_cd&&_cd("calendario"))) return;
@@ -4600,7 +4636,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
           {value:"pg",label:"Producciones"},
           {value:"ep",label:"Episodios"},
           {value:"pz",label:"Contenidos"},
-          {value:"task",label:"Tareas"},
+          ...(tasksEnabled?[{value:"task",label:"Tareas"}]:[]),
           {value:"billing",label:"Cobranza"},
           {value:"contract",label:"Contratos"},
           {value:"cal",label:"Eventos manuales"},

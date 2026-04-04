@@ -299,25 +299,50 @@ const ROLES = {
   comercial: { label:"Comercial",     color:"#ffcc44" },
   viewer:    { label:"Visualizador",  color:"#7c7c8a" },
 };
+const ROLE_COLOR_MAP={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
 const PERMS = {
   productor:["clientes","producciones","programas","piezas","contenidos","crew","calendario","movimientos","eventos"],
   comercial:["clientes","auspiciadores","contratos"],
 };
-function canDo(user, action) {
+const ROLE_PERMISSION_GROUPS=[
+  { label:"General", items:[["calendario","Calendario"],["tareas","Tareas"]] },
+  { label:"Operación", items:[["clientes","Clientes"],["producciones","Proyectos"],["programas","Producciones"],["contenidos","Contenidos"],["crew","Crew"],["movimientos","Movimientos"]] },
+  { label:"Comercial", items:[["auspiciadores","Auspiciadores"],["contratos","Contratos"],["presupuestos","Presupuestos"],["facturacion","Facturación"]] },
+  { label:"Recursos", items:[["activos","Activos"]] },
+];
+function getCustomRoles(empresa={}) {
+  return Array.isArray(empresa?.customRoles) ? empresa.customRoles : [];
+}
+function getRoleConfig(role, empresa) {
+  if (ROLES[role]) return { key:role, label:ROLES[role].label, color:ROLES[role].color, badge:ROLE_COLOR_MAP[role]||"gray", permissions:PERMS[role]||[] };
+  const custom=getCustomRoles(empresa).find(r=>r.key===role);
+  if (custom) return { key:custom.key, label:custom.label, color:custom.color||"#7c7c8a", badge:custom.badge||"gray", permissions:Array.isArray(custom.permissions)?custom.permissions:[] };
+  return { key:role, label:role, color:"#7c7c8a", badge:"gray", permissions:[] };
+}
+function roleOptions(empresa, includeSuperadmin=false) {
+  const base=Object.entries(ROLES)
+    .filter(([k])=>includeSuperadmin || k!=="superadmin")
+    .map(([k,v])=>({value:k,label:v.label}));
+  const custom=getCustomRoles(empresa).map(r=>({value:r.key,label:r.label}));
+  return [...base,...custom];
+}
+function canDo(user, action, empresa) {
   if (!user) return false;
   if (user.role==="superadmin"||user.role==="admin") return true;
   if (user.role==="viewer") return false;
+  const custom=getCustomRoles(empresa).find(r=>r.key===user.role);
+  if (custom) return (custom.permissions||[]).includes(action);
   return PERMS[user.role]?.includes(action)??false;
 }
 
-function canAccessModule(user, view) {
+function canAccessModule(user, view, empresa) {
   const gated = {
     presupuestos: "presupuestos",
     "pres-det": "presupuestos",
     facturacion: "facturacion",
   };
   const action = gated[view];
-  return action ? canDo(user, action) : true;
+  return action ? canDo(user, action, empresa) : true;
 }
 
 const ADDONS = {
@@ -915,7 +940,7 @@ tbody td.r{text-align:right;font-family:monospace}
 }
 
 // ── NAV GROUPS — Menú colapsable por grupo ───────────────────
-function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
+function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar }) {
   // Inicializa todos los grupos abiertos
   const initOpen = () => {
     const o = {};
@@ -929,7 +954,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
     // Modo colapsado — solo iconos centrados
     return <div style={{ padding:"8px 8px 12px" }}>
       {NAV.map(grp => {
-        const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
+        const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa) || user?.role==="admin" || user?.role==="superadmin");
         if (!items.length) return null;
         return <div key={grp.group} style={{marginBottom:10}}>
           <div style={{width:28,height:1,background:"var(--bdr2)",margin:"0 auto 8px",opacity:.7}}/>
@@ -948,7 +973,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, flatSidebar }) {
 
   return <div style={{ padding:"4px 0" }}>
     {NAV.map(grp => {
-      const items = grp.items.filter(n => !n.need || canDo(user, n.need) || user?.role==="admin" || user?.role==="superadmin");
+      const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa) || user?.role==="admin" || user?.role==="superadmin");
       if (!items.length) return null;
       const isOpen = open[grp.group] !== false;
       return <div key={grp.group} style={{ margin:"0 8px 10px",background:"transparent",border:"none",borderRadius:12,overflow:"hidden" }}>
@@ -1036,7 +1061,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     </div>}
     {/* Nav */}
     <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
-      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} flatSidebar={true}/>
+      <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} empresa={empresa} flatSidebar={true}/>
     </nav>
     {/* Footer */}
     {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
@@ -1047,7 +1072,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
       </div>
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:sbPanel,border:"1px solid rgba(255,255,255,.08)"}}>
         <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(user?.name||"")}</div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={ROLES[user?.role]?.label||user?.role} color={rcol[user?.role]||"gray"} sm/></div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={getRoleConfig(user?.role, empresa).label} color={getRoleConfig(user?.role, empresa).badge} sm/></div>
         <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:14,padding:2}}>⏏</button>
       </div>
     </div>}
@@ -1597,8 +1622,8 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const pres=(presupuestos||[]).filter(x=>x.empId===empId);
   const facts=(facturas||[]).filter(x=>x.empId===empId);
   const canContracts = hasAddon(empresa, "contratos");
-  const canBudgets = hasAddon(empresa, "presupuestos") && canDo(user, "presupuestos");
-  const canInvoices = hasAddon(empresa, "facturacion") && canDo(user, "facturacion");
+  const canBudgets = hasAddon(empresa, "presupuestos") && canDo(user, "presupuestos", empresa);
+  const canInvoices = hasAddon(empresa, "facturacion") && canDo(user, "facturacion", empresa);
   const canSocial = hasAddon(empresa, "social");
   const projectedRecurring = facts.filter(f=>f.recurring).reduce((s,f)=>s+Number(f.total||0),0);
   const overdueFacts = facts.filter(f=>f.estado!=="Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
@@ -1903,7 +1928,7 @@ function SuperAdminPanel({empresas,users,onSave}){
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:12}}>Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde el Panel Admin.</div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={uq} onChange={setUQ} placeholder="Buscar usuario por nombre o email..."/>
-        <FilterSel value={uRole} onChange={setURole} options={Object.keys(ROLES).filter(r=>r!=="superadmin")} placeholder="Todos los roles"/>
+        <FilterSel value={uRole} onChange={setURole} options={roleOptions(null, false)} placeholder="Todos los roles"/>
         <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}]} placeholder="Todos los estados"/>
         <FilterSel value={uEmp} onChange={setUEmp} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Todas las empresas"/>
       </div>
@@ -1916,7 +1941,7 @@ function SuperAdminPanel({empresas,users,onSave}){
           <div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div>
           <div style={{fontSize:11,color:"var(--gr3)"}}>Empresa: {empresa?.nombre||"Sin empresa"}</div>
         </div>
-        <Badge label={ROLES[u.role]?.label||u.role} color={{superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"}[u.role]||"gray"} sm/>
+        <Badge label={getRoleConfig(u.role, (empresas||[]).find(e=>e.id===u.empId)).label} color={getRoleConfig(u.role, (empresas||[]).find(e=>e.id===u.empId)).badge} sm/>
         <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
         <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
       </div>;
@@ -2256,6 +2281,84 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   );
 }
 
+function RolesEditor({ empresa, empresas, saveEmpresas, ntf }){
+  const [activeKey,setActiveKey]=useState("");
+  const [draft,setDraft]=useState({label:"",color:"#7c7c8a",badge:"gray",permissions:[]});
+  const customRoles=getCustomRoles(empresa);
+  const roleList=[...Object.entries(ROLES).filter(([k])=>k!=="superadmin").map(([key,val])=>({key,base:true,label:val.label,color:val.color,badge:ROLE_COLOR_MAP[key]||"gray",permissions:PERMS[key]||[]})),...customRoles.map(r=>({...r,base:false}))];
+  useEffect(()=>{
+    const first=roleList[0]?.key||"";
+    if(!activeKey && first) setActiveKey(first);
+  },[roleList.length]);
+  useEffect(()=>{
+    const selected=roleList.find(r=>r.key===activeKey);
+    if(selected) setDraft({label:selected.label||"",color:selected.color||"#7c7c8a",badge:selected.badge||"gray",permissions:[...(selected.permissions||[])]});
+  },[activeKey]);
+  const selected=roleList.find(r=>r.key===activeKey);
+  const persistRoles=nextCustomRoles=>saveEmpresas((empresas||[]).map(em=>em.id===empresa.id?{...em,customRoles:nextCustomRoles}:em));
+  const createRole=()=>{
+    const nextRole={key:`custom_${uid().slice(1,7)}`,label:"Nuevo rol",color:"#7c7c8a",badge:"gray",permissions:[]};
+    persistRoles([...(customRoles||[]),nextRole]);
+    setActiveKey(nextRole.key);
+    ntf("Rol creado ✓");
+  };
+  const saveRole=()=>{
+    if(!selected || selected.base || !draft.label?.trim()) return;
+    const nextCustomRoles=(customRoles||[]).map(r=>r.key===selected.key?{...r,label:draft.label.trim(),color:draft.color,badge:draft.badge,permissions:[...(draft.permissions||[])]}:r);
+    persistRoles(nextCustomRoles);
+    ntf("Rol actualizado ✓");
+  };
+  const deleteRole=()=>{
+    if(!selected || selected.base) return;
+    if(!confirm("¿Eliminar este rol personalizado?")) return;
+    persistRoles((customRoles||[]).filter(r=>r.key!==selected.key));
+    setActiveKey(roleList.find(r=>r.key!==selected.key)?.key||"");
+    ntf("Rol eliminado","warn");
+  };
+  const togglePerm=perm=>setDraft(p=>({...p,permissions:p.permissions.includes(perm)?p.permissions.filter(x=>x!==perm):[...p.permissions,perm]}));
+  return <div>
+    <div style={{fontSize:12,color:"var(--gr2)",marginBottom:16}}>Crea roles personalizados por empresa y define qué módulos puede usar cada perfil. Los roles base se pueden revisar, pero no eliminar.</div>
+    <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,alignItems:"start"}}>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,overflow:"hidden"}}>
+        {roleList.map(role=><div key={role.key} onClick={()=>setActiveKey(role.key)} style={{padding:"11px 14px",cursor:"pointer",borderBottom:"1px solid var(--bdr)",background:activeKey===role.key?"var(--cg)":"transparent",borderLeft:activeKey===role.key?"3px solid var(--cy)":"3px solid transparent"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+            <span style={{fontSize:12,fontWeight:700,color:activeKey===role.key?"var(--cy)":"var(--gr3)"}}>{role.label}</span>
+            {role.base?<Badge label="Base" color="gray" sm/>:<Badge label="Custom" color="cyan" sm/>}
+          </div>
+          <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{(role.permissions||[]).length} permisos</div>
+        </div>)}
+        <div style={{padding:12}}><Btn onClick={createRole} sm>+ Nuevo rol</Btn></div>
+      </div>
+      {selected?<div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:10,padding:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Rol: {selected.label}</div>
+          {!selected.base&&<DBtn onClick={deleteRole} sm>Eliminar</DBtn>}
+        </div>
+        <R3>
+          <FG label="Nombre del rol"><FI value={draft.label||""} onChange={e=>setDraft(p=>({...p,label:e.target.value}))} disabled={selected.base}/></FG>
+          <FG label="Color label"><FI type="color" value={draft.color||"#7c7c8a"} onChange={e=>setDraft(p=>({...p,color:e.target.value}))} disabled={selected.base}/></FG>
+          <FG label="Badge"><FSl value={draft.badge||"gray"} onChange={e=>setDraft(p=>({...p,badge:e.target.value}))} disabled={selected.base}>{["gray","cyan","green","yellow","red","purple"].map(c=><option key={c} value={c}>{c}</option>)}</FSl></FG>
+        </R3>
+        <div style={{display:"grid",gap:12,marginTop:8}}>
+          {ROLE_PERMISSION_GROUPS.map(group=><div key={group.label} style={{background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:10,padding:12}}>
+            <div style={{fontSize:11,fontWeight:800,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.4,marginBottom:10}}>{group.label}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+              {group.items.map(([perm,label])=><label key={perm} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--card)",border:`1px solid ${draft.permissions.includes(perm)?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,cursor:selected.base?"default":"pointer",opacity:selected.base?.75:1}}>
+                <input type="checkbox" checked={draft.permissions.includes(perm)} disabled={selected.base} onChange={()=>togglePerm(perm)}/>
+                <span style={{fontSize:12,color:"var(--wh)"}}>{label}</span>
+              </label>)}
+            </div>
+          </div>)}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          {!selected.base&&<Btn onClick={saveRole}>Guardar rol</Btn>}
+          {selected.base&&<div style={{fontSize:11,color:"var(--gr2)"}}>Los roles base se usan como referencia y no se editan desde aquí.</div>}
+        </div>
+      </div>:<Empty text="Selecciona un rol para editar"/>}
+    </div>
+  </div>;
+}
+
 function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,saveUsers,saveEmpresas,listas,saveListas,onPurge,ntf}){
   const [tab,setTab]=useState(0);
   const [lt,setLt]=useState(theme||{});
@@ -2264,7 +2367,6 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
   useEffect(()=>setLt(theme||{}),[theme]);
-  const rcol={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
   const filteredUsers=empUsers.filter(u=>(!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase()))&&(!uRole||u.role===uRole)&&(!uState||(uState==="active"?u.active:u.active===false)));
   const activeUsers=empUsers.filter(u=>u.active!==false).length;
@@ -2293,7 +2395,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
     </div>
-    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Datos"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Roles y Permisos","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Selecciona un preset visual curado para tu instancia. Conserva la identidad de Produ y evita combinaciones de color poco legibles.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
@@ -2332,14 +2434,14 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={uq} onChange={setUq} placeholder="Buscar usuario por nombre o email..."/>
-        <FilterSel value={uRole} onChange={setURole} options={Object.keys(ROLES).filter(r=>r!=="superadmin")} placeholder="Todos los roles"/>
+        <FilterSel value={uRole} onChange={setURole} options={roleOptions(empresa)} placeholder="Todos los roles"/>
         <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}].map(o=>o.label)} placeholder="Todos los estados"/>
       </div>
       <div style={{marginBottom:14}}>
         {filteredUsers.map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
           <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
-          <Badge label={ROLES[u.role]?.label||u.role} color={rcol[u.role]||"gray"} sm/>
+          <Badge label={getRoleConfig(u.role, empresa).label} color={getRoleConfig(u.role, empresa).badge} sm/>
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
           <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
           <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
@@ -2352,7 +2454,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
         <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{uid2?"Editar":"Agregar"} Usuario</div>
         <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
-        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{Object.entries(ROLES).filter(([k])=>k!=="superadmin").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
+        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{roleOptions(empresa).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
         <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveUser}>Guardar Usuario</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar</GBtn>}</div>
       </div>
@@ -2395,7 +2497,8 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       {empresa&&<EmpresaEdit empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf}/>}
     </div>}
     {tab===3&&<ListasEditor listas={listas} saveListas={saveListas}/>}
-    {tab===4&&<div>
+    {tab===4&&<RolesEditor empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf}/>}
+    {tab===5&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Acciones sobre la base de datos de esta empresa.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         <GBtn onClick={()=>{ if(!confirm("¿Restaurar datos demo?")) return; const sd=SEED_DATA(empresa?.id||"emp1"); Object.entries(sd).forEach(([k,v])=>dbSet(`produ:${empresa?.id}:${k}`,v)); ntf("Datos demo restaurados"); onClose(); }}>🔄 Restaurar Demo</GBtn>
@@ -2710,12 +2813,12 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a,curEmp)};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
-    if(!canAccessModule(curUser, view)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para administradores" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
+    if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
     case"tareas":       return <ViewTareas {...VP} saveTareas={async t=>{await setTareas(t);}} cSave={cSave} cDel={cDel} setTareas={setTareas} openM={openM} canDo={canDo}/>;
@@ -2779,8 +2882,8 @@ export default function App(){
           </span>)}
         </div>
         <div className="app-actions" style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
-    {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
-          {view==="ep-det"&&canDo(curUser,"movimientos")&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
+    {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos",curEmp)&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
+          {view==="ep-det"&&canDo(curUser,"movimientos",curEmp)&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
           {curEmp&&<button onClick={()=>{setSystemOpen(!systemOpen);setAlertasOpen(false);}} style={{position:"relative",background:systemOpen?"var(--cg)":"var(--sur)",border:`1px solid ${systemOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:systemOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
             <span style={{fontSize:16}}>💬</span>
             <span>Mensajes</span>

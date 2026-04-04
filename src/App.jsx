@@ -124,6 +124,48 @@ function exportComentariosCSV(items, nombre="comentarios") {
   URL.revokeObjectURL(url);
 }
 
+function exportComentariosPDF(items, nombre="comentarios") {
+  const safeItems = Array.isArray(items) ? items : [];
+  const htmlRows = safeItems.map(it => `
+    <tr>
+      <td>${it?.upd || it?.cr || "—"}</td>
+      <td>${String(it?.text || "—").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")}</td>
+    </tr>
+  `).join("");
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Comentarios - ${nombre}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:Arial,sans-serif;color:#111827;padding:32px}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #00d4e8;padding-bottom:14px;margin-bottom:20px}
+    .brand{font-size:28px;font-weight:800;color:#00d4e8;letter-spacing:-1px}
+    .title{font-size:20px;font-weight:700;margin-bottom:4px}
+    .meta{font-size:11px;color:#6b7280}
+    table{width:100%;border-collapse:collapse}
+    thead tr{background:#00d4e8}
+    thead th{padding:10px 12px;text-align:left;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+    tbody td{padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;vertical-align:top}
+    tbody tr:nth-child(even){background:#f8fafc}
+    .empty{padding:20px;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#6b7280}
+  </style></head><body>
+    <div class="head">
+      <div>
+        <div class="brand">produ</div>
+        <div class="title">${nombre}</div>
+        <div class="meta">Comentarios exportados</div>
+      </div>
+      <div class="meta">Generado: ${new Date().toLocaleDateString("es-CL")}</div>
+    </div>
+    ${safeItems.length ? `<table><thead><tr><th style="width:140px">Fecha</th><th>Comentario</th></tr></thead><tbody>${htmlRows}</tbody></table>` : `<div class="empty">No hay comentarios para exportar.</div>`}
+    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
+  </body></html>`;
+  const w = window.open("", "_blank", "width=980,height=720");
+  if(!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 // ── ROLES ────────────────────────────────────────────────────
 const ROLES = {
   superadmin:{ label:"Super Admin",   color:"#ff5566" },
@@ -1079,6 +1121,7 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
   return <Card title={title}>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
       {!!items.length&&<GBtn sm onClick={()=>exportComentariosCSV(items,title)}>⬇ Exportar CSV</GBtn>}
+      {!!items.length&&<GBtn sm onClick={()=>exportComentariosPDF(items,title)}>⬇ Exportar PDF</GBtn>}
     </div>
     {canEdit&&<div style={{marginBottom:16}}>
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>

@@ -2065,9 +2065,18 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
   const [filtroRef, setFiltroRef] = useState("");
   const [dragId, setDragId] = useState(null);
   const [dropCol, setDropCol] = useState("");
+  const [isMobile, setIsMobile] = useState(()=>typeof window!=="undefined" ? window.innerWidth<=768 : false);
+  const [mobileCol, setMobileCol] = useState("Pendiente");
   const dragIdRef = useRef(null);
   const safeTareas = Array.isArray(tareas) ? tareas.filter(t => t && typeof t==="object") : [];
   const normalizedTareas = safeTareas.map(normalizeTaskAssignees);
+
+  useEffect(()=>{
+    const onResize=()=>setIsMobile(typeof window!=="undefined" ? window.innerWidth<=768 : false);
+    onResize();
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
 
   const misTareas = normalizedTareas.filter(t => t.empId===empId);
   const tareasVis = filtro==="mis"
@@ -2099,6 +2108,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
   };
 
   const colColors = { Pendiente:"var(--bdr2)", "En Progreso":"#60a5fa", "En Revisión":"#fbbf24", Completada:"#4ade80" };
+  const mobileItems = porColumna(mobileCol);
 
   return (
     <div>
@@ -2108,13 +2118,13 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
           <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800}}>Pipeline de Tareas</div>
           <div style={{fontSize:12,color:"var(--gr2)",marginTop:2}}>{tareasFilt.length} tarea{tareasFilt.length!==1?"s":""} · {tareasFilt.filter(t=>t.estado==="Completada").length} completadas</div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",width:isMobile?"100%":"auto"}}>
           <div style={{display:"flex",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden"}}>
             {[["mis","Mis Tareas"],["todas","Todas"]].map(([v,l])=>(
               <button key={v} onClick={()=>setFiltro(v)} style={{padding:"7px 14px",border:"none",background:filtro===v?"var(--cy)":"transparent",color:filtro===v?"var(--bg)":"var(--gr2)",cursor:"pointer",fontSize:12,fontWeight:600,transition:".15s"}}>{l}</button>
             ))}
           </div>
-          <select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} style={{padding:"7px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,color:"var(--gr3)",fontSize:12,cursor:"pointer"}}>
+          <select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} style={{padding:"7px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,color:"var(--gr3)",fontSize:12,cursor:"pointer",minWidth:isMobile?0:200,flex:isMobile?1:"initial"}}>
             <option value="">Todos los vínculos</option>
             <optgroup label="Proyectos">{(producciones||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pro:${p.id}`}>{p.nom}</option>)}</optgroup>
             <optgroup label="Producciones">{(programas||[]).filter(p=>p.empId===empId).map(p=><option key={p.id} value={`pg:${p.id}`}>{p.nom}</option>)}</optgroup>
@@ -2125,7 +2135,31 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {isMobile ? <>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:16}}>
+          {COLS_TAREAS.map(col=>{
+            const count=porColumna(col).length;
+            const active=mobileCol===col;
+            return <button key={col} onClick={()=>setMobileCol(col)} style={{textAlign:"left",padding:"12px 12px",borderRadius:12,border:`1px solid ${active?colColors[col]:"var(--bdr2)"}`,background:active?"color-mix(in srgb, var(--cy) 8%, transparent)":"var(--sur)",cursor:"pointer"}}>
+              <div style={{fontSize:11,color:"var(--gr2)",marginBottom:5}}>{col}</div>
+              <div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:active?colColors[col]:"var(--wh)"}}>{count}</div>
+            </button>;
+          })}
+        </div>
+        <Card title={mobileCol} sub={`${mobileItems.length} tarea${mobileItems.length!==1?"s":""}`} action={{label:"+ Tarea",fn:()=>openM("tarea",{estado:mobileCol})}}>
+          {mobileItems.length===0
+            ? <Empty text="Sin tareas en este estado" sub="Cambia de estado o crea una tarea nueva."/>
+            : mobileItems.map(t=>(
+              <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} piezas={piezas} crew={crew}
+                onEdit={t=>openM("tarea",t)}
+                onDelete={deleteTarea}
+                onChangeEstado={changeEstado}
+                onOpen={t=>openM("tarea",t)}
+              />
+            ))
+          }
+        </Card>
+      </> :
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,alignItems:"start"}}>
         {COLS_TAREAS.map(col => {
           const items = porColumna(col);
@@ -2170,7 +2204,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -5210,6 +5244,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
 function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodios,programas,piezas,producciones,eventos,facturas,contratos,openM,canDo:_cd,cSave,cDel,setEventos,ntf}){
   const empId=empresa?.id;
   const tasksEnabled=hasAddon(empresa,"tareas");
+  const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined" ? window.innerWidth<=768 : false);
   const [mes,setMes]=useState(()=>{const h=new Date();return{y:h.getFullYear(),m:h.getMonth()};});
   const [filtro,setFiltro]=useState("todos");
   const [diaSelec,setDiaSelec]=useState(null);
@@ -5219,6 +5254,12 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
   const [filtroResponsable,setFiltroResponsable]=useState("");
   const [filtroEstado,setFiltroEstado]=useState("");
   const [filtroCliente,setFiltroCliente]=useState("");
+  useEffect(()=>{
+    const onResize=()=>setIsMobile(typeof window!=="undefined" ? window.innerWidth<=768 : false);
+    onResize();
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
   const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const addMes=delta=>setMes(prev=>{let m=prev.m+delta,y=prev.y;if(m>11){m=0;y++;}if(m<0){m=11;y--; }return{y,m};});
   const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},...(tasksEnabled?[{v:"tarea",ico:"✅",lbl:"Tarea",c:"#7c5cff"}]:[]),{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"cobranza",ico:"💸",lbl:"Cobranza",c:"#ff5566"},{v:"estreno",ico:"🌟",lbl:"Publicado",c:"#22c55e"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
@@ -5348,6 +5389,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
   const contratosPorVencer=contratosEmp.filter(ct=>ct.vig && ct.vig>=hoyStr).sort((a,b)=>(a.vig||"").localeCompare(b.vig||"")).slice(0,6);
   const estadoOptions = Array.from(new Set(todosEvs.map(ev=>ev.estado).filter(Boolean)));
   const delEvento=async evId=>{ await cDel(eventos,setEventos,evId,null,"Evento eliminado"); };
+  const showListCalendar = isMobile ? true : vistaLista;
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:18}}>
       <div>
@@ -5361,7 +5403,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
 
     <Tabs tabs={["Agenda","Calendario","Programación","Cobranza"]} active={subTab} onChange={setSubTab}/>
     <Card title="Filtros operativos" sub="Afina la lectura por tipo, módulo, responsable, estado o cliente." style={{marginBottom:16}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(5,minmax(0,1fr))",gap:10}}>
         <FilterSel value={filtroModulo} onChange={setFiltroModulo} placeholder="Todos los módulos" options={[
           {value:"pro",label:"Proyectos"},
           {value:"pg",label:"Producciones"},
@@ -5380,10 +5422,10 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
     </Card>
 
     {subTab===0&&<>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,1fr)",gap:12,marginBottom:16}}>
         {[["Hoy",agendaHoy.length,"var(--cy)"],["Próx. 7 días",agendaSemana.length,"#00e08a"],["Equipo",agendaEquipo.length,"#7c5cff"],["Críticos",hitosCriticos.length,"#ff5566"]].map(([l,v,c])=><Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]}/>)}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr",gap:16}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr .8fr",gap:16}}>
         <Card title="Próximos eventos">
           {agendaSemana.length?agendaSemana.map(ev=><div key={ev.id} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)",alignItems:"flex-start"}}>
             <div style={{width:44,height:44,borderRadius:10,background:ev.color+"20",border:`1px solid ${ev.color}35`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -5437,17 +5479,17 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
           <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,minWidth:190,textAlign:"center"}}>{MESES[mes.m]} {mes.y}</div>
           <button onClick={()=>addMes(1)}  style={{width:36,height:36,borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:18}}>›</button>
           <button onClick={()=>setMes({y:hoy.getFullYear(),m:hoy.getMonth()})} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>Hoy</button>
-          <button onClick={()=>setVistaLista(!vistaLista)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:vistaLista?"var(--cg)":"transparent",color:vistaLista?"var(--cy)":"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>{vistaLista?"📅 Grilla":"☰ Lista"}</button>
+          {!isMobile&&<button onClick={()=>setVistaLista(!vistaLista)} style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--bdr2)",background:vistaLista?"var(--cg)":"transparent",color:vistaLista?"var(--cy)":"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:600}}>{vistaLista?"📅 Grilla":"☰ Lista"}</button>}
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           {["todos",...TIPOS.map(t=>t.v)].map(v=><button key={v} onClick={()=>setFiltro(v)} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${filtro===v?tc(v):"var(--bdr2)"}`,background:filtro===v?tc(v)+"22":"transparent",color:filtro===v?tc(v):"var(--gr3)",cursor:"pointer",fontSize:10,fontWeight:600}}>{v==="todos"?"Todos":ti(v)+" "+TIPOS.find(t=>t.v===v)?.lbl}</button>)}
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,1fr)",gap:12,marginBottom:16}}>
         {[["Total",evFiltrados.length,"var(--cy)"],["Grabaciones",evFiltrados.filter(e=>e.tipo==="grabacion").length,"var(--cy)"],["Emisiones",evFiltrados.filter(e=>e.tipo==="emision").length,"#00e08a"],["Reuniones+",evFiltrados.filter(e=>!["grabacion","emision"].includes(e.tipo)).length,"#ffcc44"]].map(([l,v,c])=><Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]}/>)}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
-        {!vistaLista?<div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,overflow:"hidden"}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 300px",gap:16,alignItems:"start"}}>
+        {!showListCalendar?<div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,overflow:"hidden"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:"1px solid var(--bdr)"}}>{DIAS.map(d=><div key={d} style={{padding:"10px 0",textAlign:"center",fontSize:11,fontWeight:600,color:"var(--gr2)",letterSpacing:1}}>{d}</div>)}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
             {celdas.map((d,i)=>{const evs=d?evsDelDia(d):[];const isTod=d&&esHoy(d);const isSel=d&&diaSelec===d;return(
@@ -5500,7 +5542,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
       </div>
     </>}
 
-    {subTab===2&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    {subTab===2&&<div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16}}>
       <Card title="Grabaciones y emisiones" sub="Vista operativa para producción y post.">
         {programacion.length?programacion.map(ev=><div key={ev.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
           <div>
@@ -5520,7 +5562,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
         </div>):<Empty text="Sin tareas con fecha límite"/>}
       </Card>
       <Card title="Resumen por tipo">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
           {TIPOS.filter(t=>["grabacion","emision","entrega","estreno","tarea","cobranza"].includes(t.v)).map(t=><div key={t.v} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:14}}>
             <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{t.lbl}</div>
             <div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:t.c}}>{evFiltrados.filter(ev=>ev.tipo===t.v).length}</div>
@@ -5530,7 +5572,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
       </Card>
     </div>}
 
-    {subTab===3&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+    {subTab===3&&<div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16}}>
       <Card title="Documentos por cobrar" sub="Estado comercial y próximos vencimientos.">
         {cobranzaItems.length?cobranzaItems.map(doc=>{
           const late = doc.estadoCobranza==="Retrasado de pago";

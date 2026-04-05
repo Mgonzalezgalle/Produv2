@@ -6827,12 +6827,40 @@ function drawPdfTextBlock(page, text, x, y, maxWidth, font, size, color, lineGap
   return currentY;
 }
 
-function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2) {
-  page.drawRectangle({
-    x,
-    y,
-    width,
-    height,
+function fitPdfFontSize(text, font, startSize, maxWidth, minSize = 7.4) {
+  const safe = String(text || "");
+  let size = startSize;
+  while (size > minSize && font.widthOfTextAtSize(safe, size) > maxWidth) size -= 0.2;
+  return Math.max(minSize, size);
+}
+
+function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2, radius = 12) {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  if (!r) {
+    page.drawRectangle({
+      x,
+      y,
+      width,
+      height,
+      color: fillColor,
+      borderColor: borderColor || fillColor,
+      borderWidth,
+    });
+    return;
+  }
+  const path = [
+    `M ${x + r} ${y}`,
+    `H ${x + width - r}`,
+    `Q ${x + width} ${y} ${x + width} ${y + r}`,
+    `V ${y + height - r}`,
+    `Q ${x + width} ${y + height} ${x + width - r} ${y + height}`,
+    `H ${x + r}`,
+    `Q ${x} ${y + height} ${x} ${y + height - r}`,
+    `V ${y + r}`,
+    `Q ${x} ${y} ${x + r} ${y}`,
+    "Z",
+  ].join(" ");
+  page.drawSvgPath(path, {
     color: fillColor,
     borderColor: borderColor || fillColor,
     borderWidth,
@@ -6840,13 +6868,14 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {
-  drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1);
+  drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1, 10);
   const safe = String(text || "");
-  const textWidth = bold.widthOfTextAtSize(safe, size);
+  const fittedSize = fitPdfFontSize(safe, bold, size, width - 16, 7.8);
+  const textWidth = bold.widthOfTextAtSize(safe, fittedSize);
   page.drawText(safe, {
     x: x + Math.max(8, (width - textWidth) / 2),
-    y: y + 10,
-    size,
+    y: y + (32 - fittedSize) / 2 - 1,
+    size: fittedSize,
     font: bold,
     color: white,
     maxWidth: Math.max(0, width - 16),
@@ -6855,16 +6884,18 @@ function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, 
 
 function drawCommercialValue(page, text, x, y, maxWidth, font, color, size = 12) {
   const safe = String(text || "—");
-  page.drawText(safe, { x, y, size, font, color, maxWidth });
+  const fittedSize = fitPdfFontSize(safe, font, size, maxWidth, 7.8);
+  page.drawText(safe, { x, y, size:fittedSize, font, color, maxWidth });
 }
 
 function drawRightAlignedPdfText(page, text, x, y, width, font, size, color) {
   const safe = String(text || "—");
-  const textWidth = font.widthOfTextAtSize(safe, size);
+  const fittedSize = fitPdfFontSize(safe, font, size, width, 7.8);
+  const textWidth = font.widthOfTextAtSize(safe, fittedSize);
   page.drawText(safe, {
     x: x + Math.max(0, width - textWidth),
     y,
-    size,
+    size: fittedSize,
     font,
     color,
     maxWidth: width,
@@ -6876,16 +6907,17 @@ function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, 
   const centerText = (text, size, yy, color, useBold = false) => {
     const safe = String(text || "");
     const targetFont = useBold ? bold : font;
-    const textWidth = targetFont.widthOfTextAtSize(safe, size);
+    const fittedSize = fitPdfFontSize(safe, targetFont, size, width - 20, 8);
+    const textWidth = targetFont.widthOfTextAtSize(safe, fittedSize);
     page.drawText(safe, {
       x: x + Math.max(10, (width - textWidth) / 2),
       y: yy,
-      size,
+      size: fittedSize,
       font: targetFont,
       color,
     });
   };
-  drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
+  drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6, 12);
   centerText(rut || "RUT —", 10, y + height - 18, legalRed, true);
   centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalRed, true);
   centerText(`N° ${docNumber || "S/C"}`, 12, y + height - 60, legalRed, true);
@@ -7306,12 +7338,12 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   });
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
-  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:20, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:18, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
-    page.drawText(line, { x:margin, y:issuerY, size:10, font, color:muted });
-    issuerY -= 13;
+    page.drawText(line, { x:margin, y:issuerY, size:9.5, font, color:muted });
+    issuerY -= 12;
   });
   drawLegalDocStamp(page, {
     x: width - 208,
@@ -7325,32 +7357,32 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     docType,
     docNumber: fact.correlativo || "",
   });
-  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:width-208, y:height-120, size:10, font, color:textColor });
-  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:width-208, y:height-133, size:10, font, color:textColor });
+  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:width-208, y:height-120, size:9.5, font, color:textColor });
+  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:width-208, y:height-133, size:9.5, font, color:textColor });
   if (fact.recurring) {
-    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:width-208, y:height-146, size:10, font, color:textColor });
+    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:width-208, y:height-146, size:9.5, font, color:textColor });
   }
 
   let y = height - 170;
-  drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, panel, border);
-  page.drawText(fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente", { x:margin+14, y:y-20, size:11, font:bold, color:accentColor });
-  page.drawText(entidad?.nom || "—", { x:margin+14, y:y-40, size:14, font:bold, color:textColor });
+  drawRoundedPdfBox(page, margin, y-70, contentWidth, 70, panel, border);
+  page.drawText(fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente", { x:margin+14, y:y-20, size:10.5, font:bold, color:accentColor });
+  page.drawText(entidad?.nom || "—", { x:margin+14, y:y-39, size:13, font:bold, color:textColor });
   const entityLines = [
     entidad?.rut ? `RUT: ${entidad.rut}` : "",
     entidad?.dir || "",
     entidad?.con ? `Contacto: ${entidad.con}` : "",
     [entidad?.ema, entidad?.tel].filter(Boolean).join(" · "),
   ].filter(Boolean);
-  let entityY = y - 57;
+  let entityY = y - 54;
   entityLines.forEach(line => {
-    page.drawText(line, { x:margin+14, y:entityY, size:9.5, font, color:muted });
-    entityY -= 11;
+    page.drawText(line, { x:margin+14, y:entityY, size:8.8, font, color:muted, maxWidth:contentWidth-28 });
+    entityY -= 10;
   });
   y -= 92;
 
-  const detailHeight = 116;
+  const detailHeight = 108;
   drawRoundedPdfBox(page, margin, y-detailHeight, contentWidth, detailHeight, white, border);
-  page.drawText("Detalle del documento", { x:margin+14, y:y-18, size:11, font:bold, color:accentColor });
+  page.drawText("Detalle del documento", { x:margin+14, y:y-18, size:10, font:bold, color:accentColor });
   const detailRows = [
     ["Tipo de documento", docType],
     ["Estado", fact.estado || "Emitida"],
@@ -7359,9 +7391,9 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   ];
   let detailY = y - 42;
   detailRows.forEach(([label, value]) => {
-    page.drawText(`${label}:`, { x:margin+14, y:detailY, size:10, font:bold, color:textColor });
-    page.drawText(String(value || "—"), { x:margin+130, y:detailY, size:10, font, color:textColor });
-    detailY -= 18;
+    page.drawText(`${label}:`, { x:margin+14, y:detailY, size:9.2, font:bold, color:textColor });
+    page.drawText(String(value || "—"), { x:margin+124, y:detailY, size:9.2, font, color:textColor, maxWidth:contentWidth-150 });
+    detailY -= 16;
   });
   y -= detailHeight + 18;
 
@@ -7371,39 +7403,39 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const factLeftLabelWidth = 150;
   const factLeftValueX = margin + 16 + factLeftLabelWidth + 16;
   const factLeftValueWidth = cardWidth - factLeftLabelWidth - 34;
-  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+64, factLeftLabelWidth, accentColor, bold, white, 9.8);
-  drawRightAlignedPdfText(page, fmtM(mn), factLeftValueX, leftCardY+75, factLeftValueWidth, bold, 14, textColor);
-  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+24, factLeftLabelWidth, accentColor, bold, white, 10);
-  drawRightAlignedPdfText(page, fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), factLeftValueX, leftCardY+35, factLeftValueWidth, bold, 11.5, textColor);
+  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+64, factLeftLabelWidth, accentColor, bold, white, 9.5);
+  drawRightAlignedPdfText(page, fmtM(mn), factLeftValueX, leftCardY+75, factLeftValueWidth, bold, 12.8, textColor);
+  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+24, factLeftLabelWidth, accentColor, bold, white, 9.5);
+  drawRightAlignedPdfText(page, fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), factLeftValueX, leftCardY+35, factLeftValueWidth, bold, 10.8, textColor);
 
   drawRoundedPdfBox(page, margin+cardWidth+22, leftCardY, cardWidth, 112, panel, border);
   const factRightCardX = margin + cardWidth + 22;
   const factRightLabelWidth = 112;
   const factRightValueX = factRightCardX + 16 + factRightLabelWidth + 16;
   const factRightValueWidth = cardWidth - factRightLabelWidth - 34;
-  drawCommercialLabel(page, "SubTotal", factRightCardX+16, leftCardY+64, factRightLabelWidth, accentColor, bold, white, 10);
-  drawRightAlignedPdfText(page, fmtM(mn), factRightValueX, leftCardY+75, factRightValueWidth, bold, 14, textColor);
-  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", factRightCardX+16, leftCardY+24, factRightLabelWidth, accentColor, bold, white, 10);
-  drawRightAlignedPdfText(page, docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), factRightValueX, leftCardY+35, factRightValueWidth, bold, 12, textColor);
-  drawCommercialLabel(page, "Total", factRightCardX+16, leftCardY-16, factRightLabelWidth, accentColor, bold, white, 10);
-  drawRightAlignedPdfText(page, fmtM(total), factRightValueX, leftCardY-5, factRightValueWidth, bold, 14, textColor);
+  drawCommercialLabel(page, "SubTotal", factRightCardX+16, leftCardY+64, factRightLabelWidth, accentColor, bold, white, 9.5);
+  drawRightAlignedPdfText(page, fmtM(mn), factRightValueX, leftCardY+75, factRightValueWidth, bold, 12.8, textColor);
+  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", factRightCardX+16, leftCardY+24, factRightLabelWidth, accentColor, bold, white, 9.5);
+  drawRightAlignedPdfText(page, docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), factRightValueX, leftCardY+35, factRightValueWidth, bold, 10.8, textColor);
+  drawCommercialLabel(page, "Total", factRightCardX+16, leftCardY-16, factRightLabelWidth, accentColor, bold, white, 9.5);
+  drawRightAlignedPdfText(page, fmtM(total), factRightValueX, leftCardY-5, factRightValueWidth, bold, 12.8, textColor);
 
   let sectionY = leftCardY - 54;
   if (paymentInfo) {
-    const paymentHeight = Math.max(96, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 11, 4) + 24);
+    const paymentHeight = Math.max(92, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 10, 3) + 22);
     drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, accentColor, 1.2);
-    drawPdfTextBlock(page, paymentInfo, margin+14, sectionY-20, contentWidth-28, bold, 11, textColor, 4);
+    drawPdfTextBlock(page, paymentInfo, margin+14, sectionY-18, contentWidth-28, bold, 10, textColor, 3);
     sectionY -= paymentHeight + 14;
   }
   const trailingNotes = [fact.obs2 || "", docType === "Invoice" ? "Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." : ""].filter(Boolean).join("\n\n");
   if (trailingNotes) {
-    const notesHeight = Math.max(82, measurePdfTextBlock(trailingNotes, contentWidth-28, font, 10, 4) + 34);
+    const notesHeight = Math.max(78, measurePdfTextBlock(trailingNotes, contentWidth-28, font, 9.2, 3) + 30);
     drawRoundedPdfBox(page, margin, sectionY-notesHeight, contentWidth, notesHeight, panel, border);
-    page.drawText("Observaciones", { x:margin+14, y:sectionY-18, size:11, font:bold, color:accentColor });
-    drawPdfTextBlock(page, trailingNotes, margin+14, sectionY-36, contentWidth-28, font, 10, textColor, 4);
+    page.drawText("Observaciones", { x:margin+14, y:sectionY-18, size:10, font:bold, color:accentColor });
+    drawPdfTextBlock(page, trailingNotes, margin+14, sectionY-34, contentWidth-28, font, 9.2, textColor, 3);
   }
 
-  page.drawText("Documento generado desde Produ", { x:margin, y:24, size:9, font, color:muted });
+  page.drawText("Documento generado desde Produ", { x:margin, y:24, size:8.5, font, color:muted });
   const bytes = await pdf.save();
   return new File([bytes], facturaPdfFileName(fact), { type:"application/pdf" });
 }

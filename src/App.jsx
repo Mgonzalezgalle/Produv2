@@ -3762,18 +3762,33 @@ function ViewClientes({empresa,clientes,producciones,movimientos,navTo,openM,can
   </div>;
 }
 
-function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navTo,openM,canDo:_cd,cSave,cDel,setClientes,setContratos}){
+function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos,movimientos,navTo,openM,canDo:_cd,cSave,cDel,setClientes,setContratos}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const c=(clientes||[]).find(x=>x.id===id);if(!c) return <Empty text="No encontrado"/>;
   const prs=(producciones||[]).filter(p=>p.cliId===id);
+  const pgs=(programas||[]).filter(p=>p.cliId===id);
+  const ctn=(piezas||[]).filter(p=>p.cliId===id);
   const cts=(contratos||[]).filter(x=>x.cliId===id);
   let ti=0,tg=0;prs.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
+  pgs.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
+  ctn.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
+  const associationBlocks = [
+    { key:"pro", title:"Proyectos", count:prs.length, action:_cd&&_cd("producciones")?{label:"+ Nuevo",fn:()=>openM("pro",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
+      {prs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD><TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    </tbody></table>},
+    { key:"pg", title:"Producciones", count:pgs.length, action:_cd&&_cd("programas")?{label:"+ Nuevo",fn:()=>openM("pg",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Canal</TH><TH>Frecuencia</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
+      {pgs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pg-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip||"Producción"} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD>{p.can||"—"}</TD><TD>{p.fre||"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pg-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    </tbody></table>},
+    { key:"pz", title:"Contenidos", count:ctn.length, action:_cd&&_cd("contenidos")?{label:"+ Nuevo",fn:()=>openM("contenido",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Campaña</TH><TH>Plataforma</TH><TH>Mes</TH><TH>Estado</TH><TH>Piezas</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
+      {ctn.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("contenido-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.plataforma||"Contenidos"} color="gray" sm/></TD><TD>{[p.mes,p.ano].filter(Boolean).join(" ")||"—"}</TD><TD><Badge label={p.est||"Planificada"}/></TD><TD mono style={{fontSize:11}}>{countCampaignPieces(p)}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("contenido-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    </tbody></table>},
+  ].filter(block=>block.count>0);
   return <div>
     <DetHeader title={c.nom} tag={c.ind} meta={[c.rut&&`RUT: ${c.rut}`,c.dir].filter(Boolean)}
       actions={_cd&&_cd("clientes")&&<><GBtn onClick={()=>openM("cli",c)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(clientes,setClientes,id,()=>navTo("clientes"),"Cliente eliminado");}}>🗑 Eliminar</DBtn></>}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <Stat label="Proyectos" value={prs.length} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label="Asociaciones" value={prs.length+pgs.length+ctn.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Contratos"    value={cts.length}/>
       <Stat label="Ingresos"     value={fmtM(ti)}     accent="#00e08a" vc="#00e08a"/>
       <Stat label="Balance"      value={fmtM(ti-tg)}  accent={ti-tg>=0?"#00e08a":"#ff5566"} vc={ti-tg>=0?"#00e08a":"#ff5566"}/>
@@ -3798,11 +3813,9 @@ function ViewCliDet({id,empresa,clientes,producciones,contratos,movimientos,navT
         {c.not&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)"}}>{c.not}</div></>}
       </Card>
     </div>
-    <Card title={`Proyectos (${prs.length})`} action={_cd&&_cd("producciones")?{label:"+ Nuevo",fn:()=>openM("pro",{cliId:id})}:null} style={{marginBottom:16}}>
-      {prs.length?<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
-        {prs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD><TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
-      </tbody></table>:<Empty text="Sin proyectos"/>}
-    </Card>
+    {associationBlocks.map(block=><Card key={block.key} title={`${block.title} (${block.count})`} action={block.action} style={{marginBottom:16}}>
+      {block.render()}
+    </Card>)}
     <Card title={`Contratos (${cts.length})`} action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:id})}:null}>
       {cts.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18,flexShrink:0}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!cts.length&&<Empty text="Sin contratos"/>}

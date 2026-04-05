@@ -7158,23 +7158,16 @@ function drawPdfTextBlock(page, text, x, y, maxWidth, font, size, color, lineGap
 }
 
 function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2, radius = 8) {
-  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
   const edge = borderColor || fillColor;
-  page.drawRectangle({ x:x + r, y, width:Math.max(0, width - r * 2), height, color:fillColor });
-  page.drawRectangle({ x, y:y + r, width, height:Math.max(0, height - r * 2), color:fillColor });
-  if (r) {
-    page.drawCircle({ x:x + r, y:y + r, size:r, color:fillColor });
-    page.drawCircle({ x:x + width - r, y:y + r, size:r, color:fillColor });
-    page.drawCircle({ x:x + r, y:y + height - r, size:r, color:fillColor });
-    page.drawCircle({ x:x + width - r, y:y + height - r, size:r, color:fillColor });
-  } else {
-    page.drawRectangle({ x, y, width, height, color:fillColor });
-  }
-  if (!borderWidth) return;
-  page.drawLine({ start:{x:x + r, y:y + height}, end:{x:x + width - r, y:y + height}, thickness:borderWidth, color:edge });
-  page.drawLine({ start:{x:x + r, y}, end:{x:x + width - r, y}, thickness:borderWidth, color:edge });
-  page.drawLine({ start:{x, y:y + r}, end:{x, y:y + height - r}, thickness:borderWidth, color:edge });
-  page.drawLine({ start:{x:x + width, y:y + r}, end:{x:x + width, y:y + height - r}, thickness:borderWidth, color:edge });
+  page.drawRectangle({
+    x,
+    y,
+    width,
+    height,
+    color: fillColor,
+    borderColor: edge,
+    borderWidth: borderWidth || 0,
+  });
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {

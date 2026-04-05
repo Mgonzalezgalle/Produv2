@@ -286,9 +286,24 @@ function companyBillingDiscountPct(empresa = {}) {
   return Math.max(0, Math.min(100, pct));
 }
 
-function companyBillingNet(empresa = {}) {
+function companyReferralDiscountMonthsPending(empresa = {}) {
+  const months = Number(empresa?.referralDiscountMonthsPending || 0);
+  if (!Number.isFinite(months)) return 0;
+  return Math.max(0, Math.floor(months));
+}
+
+function companyReferralDiscountHistory(empresa = {}) {
+  return Array.isArray(empresa?.referralDiscountHistory) ? empresa.referralDiscountHistory : [];
+}
+
+function companyBillingBaseNet(empresa = {}) {
   const gross = Number(empresa?.billingMonthly || 0);
   return Math.max(0, Math.round(gross * (1 - companyBillingDiscountPct(empresa) / 100)));
+}
+
+function companyBillingNet(empresa = {}) {
+  if (companyReferralDiscountMonthsPending(empresa) > 0) return 0;
+  return companyBillingBaseNet(empresa);
 }
 
 function companyBillingStatus(empresa = {}) {
@@ -302,6 +317,14 @@ function companyPaymentDayLabel(empresa = {}) {
 
 function companyIsUpToDate(empresa = {}) {
   return ["Al día","Pagado"].includes(companyBillingStatus(empresa));
+}
+
+function shouldConsumeReferralDiscountMonth(prevEmpresa = {}, patch = {}) {
+  if (!Object.prototype.hasOwnProperty.call(patch, "billingLastPaidAt")) return false;
+  const prevDate = String(prevEmpresa?.billingLastPaidAt || "");
+  const nextDate = String(patch?.billingLastPaidAt || "");
+  if (!nextDate || nextDate === prevDate) return false;
+  return companyReferralDiscountMonthsPending(prevEmpresa) > 0;
 }
 
 function tenantOrdinal(tenantCode = "") {
@@ -356,6 +379,8 @@ function normalizeEmpresasModel(empresas = []) {
     ...emp,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
+    referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),
+    referralDiscountHistory: Array.isArray(emp?.referralDiscountHistory) ? emp.referralDiscountHistory : [],
   }));
 }
 
@@ -550,6 +575,61 @@ function exportComentariosPDF(items, nombre="comentarios", empresa=null) {
   w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+function exportActiveClientsCSV(items = []) {
+  const headers = ["Empresa","Tenant ID","RUT","Email","Telefono","Plan","Estado","Estado de pago","Moneda","Valor mensual base","Valor mensual neto","Meses gratis pendientes","Contratado por","Ultimo pago"];
+  const rows = (items || []).map(it => [
+    String(it?.nombre || "—").replace(/,/g, " "),
+    String(it?.tenantCode || "—").replace(/,/g, " "),
+    String(it?.rut || "—").replace(/,/g, " "),
+    String(it?.ema || "—").replace(/,/g, " "),
+    String(it?.tel || "—").replace(/,/g, " "),
+    String(it?.plan || "starter").replace(/,/g, " "),
+    it?.active !== false ? "Activa" : "Inactiva",
+    String(companyBillingStatus(it) || "Pendiente").replace(/,/g, " "),
+    String(it?.billingCurrency || "UF"),
+    String(companyBillingBaseNet(it) || 0),
+    String(companyBillingNet(it) || 0),
+    String(companyReferralDiscountMonthsPending(it) || 0),
+    String(it?.contractOwner || "—").replace(/,/g, " "),
+    String(it?.billingLastPaidAt || "—"),
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `produ_clientes_activos_${today()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportActiveClientsPDF(items = []) {
+  const activeItems = Array.isArray(items) ? items : [];
+  const lines = [
+    { text:"PRODU", size:18, bold:true, color:"#00d4e8", gap:20 },
+    { text:"Clientes activos - cartera", size:16, bold:true, color:"#e5e7eb", gap:18 },
+    { text:`Generado: ${fmtD(today())}`, size:10, color:"#94a3b8", gap:22 },
+  ];
+  if (!activeItems.length) {
+    lines.push({ text:"No hay clientes activos para exportar.", size:12, color:"#cbd5e1", gap:18 });
+  } else {
+    activeItems.forEach((it, index) => {
+      lines.push({ text:`${index + 1}. ${it?.nombre || "Empresa sin nombre"}`, size:12, bold:true, color:"#f8fafc", gap:16 });
+      lines.push({ text:`Tenant: ${it?.tenantCode || "—"}  |  Plan: ${String(it?.plan || "starter").toUpperCase()}  |  Estado: ${it?.active !== false ? "Activa" : "Inactiva"}`, size:10, color:"#cbd5e1", gap:14 });
+      lines.push({ text:`Contacto: ${it?.ema || "—"}  |  Tel: ${it?.tel || "—"}  |  RUT: ${it?.rut || "—"}`, size:10, color:"#cbd5e1", gap:14 });
+      lines.push({ text:`Pago: ${companyBillingStatus(it)}  |  Base: ${fmtMoney(companyBillingBaseNet(it), it?.billingCurrency || "UF")}  |  Neto: ${fmtMoney(companyBillingNet(it), it?.billingCurrency || "UF")}`, size:10, color:"#cbd5e1", gap:14 });
+      lines.push({ text:`Referidos pendientes: ${companyReferralDiscountMonthsPending(it)}  |  Último pago: ${it?.billingLastPaidAt ? fmtD(it.billingLastPaidAt) : "Sin registro"}  |  Contratado por: ${it?.contractOwner || "—"}`, size:10, color:"#94a3b8", gap:18 });
+    });
+  }
+  const blob = buildSimplePdfBlob(lines, "#00d4e8");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `produ_clientes_activos_${today()}.pdf`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1200);
 }
 
 // ── ROLES ────────────────────────────────────────────────────
@@ -2352,6 +2432,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     userCount:(users||[]).filter(u=>u.role!=="superadmin"&&u.empId===emp.id).length,
     grossMonthly:Number(emp.billingMonthly||0),
     discountPct:companyBillingDiscountPct(emp),
+    referralDiscountMonthsPending:companyReferralDiscountMonthsPending(emp),
     netMonthly:companyBillingNet(emp),
     payStatus:companyBillingStatus(emp),
   }));
@@ -2359,6 +2440,7 @@ function SuperAdminPanel({empresas,users,onSave}){
   const netMRR=carteraEmp.reduce((s,emp)=>s+emp.netMonthly,0);
   const totalDiscountMRR=Math.max(0,grossMRR-netMRR);
   const overdueEmp=carteraEmp.filter(emp=>["Vencido","Mora","Suspendido"].includes(emp.payStatus)).length;
+  const activePortfolioClients=carteraEmp.filter(emp=>emp.active!==false);
   const filteredEmp=(empresas||[]).filter(emp=>(!q||emp.nombre?.toLowerCase().includes(q.toLowerCase())||emp.rut?.toLowerCase().includes(q.toLowerCase()))&&(!planF||emp.plan===planF)&&(!stateF||(stateF==="Activa"?emp.active!==false:emp.active===false)));
   const filteredPortfolio=carteraEmp.filter(emp=>
     (!portfolioQ || emp.nombre?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.contractOwner?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.rut?.toLowerCase().includes(portfolioQ.toLowerCase())) &&
@@ -2380,19 +2462,39 @@ function SuperAdminPanel({empresas,users,onSave}){
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
   const savePortfolio=(empId, patch={})=>{
-    onSave("empresas",(empresas||[]).map(e=>e.id===empId?{
-      ...e,
-      ...patch,
-      billingCurrency:patch.billingCurrency ?? e.billingCurrency ?? "UF",
-      billingMonthly:Number(patch.billingMonthly ?? e.billingMonthly ?? 0),
-      billingDiscountPct:companyBillingDiscountPct({billingDiscountPct:patch.billingDiscountPct ?? e.billingDiscountPct ?? 0}),
-      billingDueDay:Number(patch.billingDueDay ?? e.billingDueDay ?? 0),
-    }:e));
+    onSave("empresas",(empresas||[]).map(e=>{
+      if(e.id!==empId) return e;
+      const consumeReferralMonth = shouldConsumeReferralDiscountMonth(e, patch);
+      const nextHistory = consumeReferralMonth
+        ? [
+            {
+              id: uid(),
+              type: "applied",
+              date: patch.billingLastPaidAt || today(),
+              note: "Se aplicó 1 mes gratis por referido al registrar un nuevo pago.",
+            },
+            ...companyReferralDiscountHistory(e),
+          ]
+        : companyReferralDiscountHistory(e);
+      return {
+        ...e,
+        ...patch,
+        billingCurrency:patch.billingCurrency ?? e.billingCurrency ?? "UF",
+        billingMonthly:Number(patch.billingMonthly ?? e.billingMonthly ?? 0),
+        billingDiscountPct:companyBillingDiscountPct({billingDiscountPct:patch.billingDiscountPct ?? e.billingDiscountPct ?? 0}),
+        billingDueDay:Number(patch.billingDueDay ?? e.billingDueDay ?? 0),
+        referralDiscountMonthsPending:Math.max(0, Number(
+          patch.referralDiscountMonthsPending
+          ?? (consumeReferralMonth ? companyReferralDiscountMonthsPending(e) - 1 : companyReferralDiscountMonthsPending(e))
+        ) || 0),
+        referralDiscountHistory: Array.isArray(patch.referralDiscountHistory) ? patch.referralDiscountHistory : nextHistory,
+      };
+    }));
   };
   const publishSystemMessage=()=>{
     if(!selectedCommEmp || !sysMsg.title?.trim() || !sysMsg.body?.trim()) return;
@@ -2470,6 +2572,8 @@ function SuperAdminPanel({empresas,users,onSave}){
         <SearchBar value={portfolioQ} onChange={setPortfolioQ} placeholder="Buscar por empresa, RUT o contratado por..."/>
         <FilterSel value={portfolioPlan} onChange={setPortfolioPlan} options={["starter","pro","enterprise"]} placeholder="Todos los planes"/>
         <FilterSel value={portfolioStatus} onChange={setPortfolioStatus} options={["Al día","Pendiente","Vencido","Mora","Suspendido"]} placeholder="Todos los pagos"/>
+        <GBtn sm onClick={()=>exportActiveClientsCSV(activePortfolioClients)}>⬇ CSV activos</GBtn>
+        <GBtn sm onClick={()=>exportActiveClientsPDF(activePortfolioClients)}>⬇ PDF activos</GBtn>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"360px 1fr",gap:16,alignItems:"start"}}>
         <Card title="Empresas en cartera" sub={`${filteredPortfolio.length} tenant${filteredPortfolio.length===1?"":"s"} visibles`} style={{padding:14}}>
@@ -2486,7 +2590,7 @@ function SuperAdminPanel({empresas,users,onSave}){
                   </div>
                   <Badge label={status} color={payColor} sm/>
                 </div>
-                <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.userCount} usuario{emp.userCount===1?"":"s"} · {fmtMoney(companyBillingNet(emp), emp.billingCurrency||"UF")}/mes</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.userCount} usuario{emp.userCount===1?"":"s"} · {fmtMoney(companyBillingNet(emp), emp.billingCurrency||"UF")}/mes{emp.referralDiscountMonthsPending>0?` · ${emp.referralDiscountMonthsPending} mes${emp.referralDiscountMonthsPending===1?"":"es"} gratis pendiente${emp.referralDiscountMonthsPending===1?"":"s"}`:""}</div>
               </button>;
             })}
             {!filteredPortfolio.length&&<Empty text="Sin empresas en cartera para este filtro" sub="Ajusta plan, estado de pago o búsqueda."/>}
@@ -2494,6 +2598,8 @@ function SuperAdminPanel({empresas,users,onSave}){
         </Card>
         {selectedPortfolioEmp ? (()=>{const emp=selectedPortfolioEmp;
           const net=companyBillingNet(emp);
+          const baseNet=companyBillingBaseNet(emp);
+          const pendingReferralMonths=companyReferralDiscountMonthsPending(emp);
           const status=companyBillingStatus(emp);
           const payColor=status==="Al día"?"green":status==="Pendiente"?"yellow":status==="Suspendido"?"red":"orange";
           return <Card key={emp.id} title={emp.nombre} sub={`${emp.tenantCode||"Sin Tenant ID"} · Plan ${emp.plan} · ${emp.userCount} usuario${emp.userCount===1?"":"s"} · ${emp.active!==false?"Tenant activo":"Tenant inactivo"}`} style={{padding:18}}>
@@ -2530,8 +2636,12 @@ function SuperAdminPanel({empresas,users,onSave}){
                   <KV label="Último pago" value={emp.billingLastPaidAt?fmtD(emp.billingLastPaidAt):"Sin registro"}/>
                   <KV label="Frecuencia" value={companyPaymentDayLabel(emp)}/>
                   <KV label="Descuento activo" value={`${companyBillingDiscountPct(emp)}%`}/>
+                  <KV label="Meses gratis por referidos" value={pendingReferralMonths ? `${pendingReferralMonths} pendiente${pendingReferralMonths===1?"":"s"}` : "Sin pendientes"}/>
+                  <KV label="Descuento referido aplicado" value={pendingReferralMonths>0 ? `${Math.min(1,pendingReferralMonths)} mes` : "No aplicado"}/>
                   <KV label="Moneda cartera" value={emp.billingCurrency||"UF"}/>
+                  <KV label="Valor mensual base" value={fmtMoney(baseNet, emp.billingCurrency||"UF")}/>
                   <KV label="Valor mensual Produ" value={fmtMoney(net, emp.billingCurrency||"UF")}/>
+                  <KV label="Próximo cobro Produ" value={pendingReferralMonths>0 ? fmtMoney(0, emp.billingCurrency||"UF") : fmtMoney(net, emp.billingCurrency||"UF")}/>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
                   <FG label="Estado de pago">
@@ -2551,8 +2661,34 @@ function SuperAdminPanel({empresas,users,onSave}){
                   <FG label="Último pago"><FI type="date" value={emp.billingLastPaidAt||""} onChange={e=>savePortfolio(emp.id,{billingLastPaidAt:e.target.value})}/></FG>
                   <FG label="Estado tenant"><FSl value={emp.active===false?"false":"true"} onChange={e=>savePortfolio(emp.id,{active:e.target.value==="true"})}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG>
                 </R2>
-                <div style={{padding:12,borderRadius:14,border:"1px solid var(--bdr2)",background:companyIsUpToDate(emp)?"#00e08a14":"#ffcc4412",color:companyIsUpToDate(emp)?"#00e08a":"#ffcc44",fontSize:12,fontWeight:700}}>
-                  {companyIsUpToDate(emp) ? "Tenant al día con Produ." : "Este tenant requiere seguimiento comercial o cobranza."}
+                <div style={{padding:12,borderRadius:14,border:"1px solid var(--bdr2)",background:pendingReferralMonths>0?"#60a5fa12":companyIsUpToDate(emp)?"#00e08a14":"#ffcc4412",color:pendingReferralMonths>0?"#60a5fa":companyIsUpToDate(emp)?"#00e08a":"#ffcc44",fontSize:12,fontWeight:700}}>
+                  {pendingReferralMonths>0
+                    ? `Tiene ${pendingReferralMonths} mes${pendingReferralMonths===1?"":"es"} gratis pendiente${pendingReferralMonths===1?"":"s"} por referidos. Al registrar el siguiente pago se consumirá ${pendingReferralMonths===1?"ese beneficio":"uno"}.`
+                    : companyIsUpToDate(emp)
+                      ? "Tenant al día con Produ."
+                      : "Este tenant requiere seguimiento comercial o cobranza."}
+                </div>
+                <div style={{padding:14,border:"1px solid var(--bdr2)",borderRadius:16,background:"var(--sur)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Historial de referidos</div>
+                    <Badge label={`${companyReferralDiscountHistory(emp).length}`} color="cyan" sm/>
+                  </div>
+                  <div style={{display:"grid",gap:8}}>
+                    {companyReferralDiscountHistory(emp).slice(0,4).map(item=>{
+                      const earned=item.type==="earned";
+                      return <div key={item.id||`${item.type}-${item.date}-${item.sourceEmpId||""}`} style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--card)"}}>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{earned?"Mes acreditado":"Mes aplicado"}</div>
+                          <div style={{fontSize:11,color:"var(--gr2)",marginTop:4,lineHeight:1.5}}>{item.note || (earned ? "Beneficio acreditado por referido." : "Beneficio consumido al pago mensual.")}</div>
+                        </div>
+                        <div style={{display:"grid",justifyItems:"end",gap:6,flexShrink:0}}>
+                          <Badge label={earned?"Acreditado":"Aplicado"} color={earned?"cyan":"green"} sm/>
+                          <div style={{fontSize:10,color:"var(--gr2)"}}>{item.date?fmtD(item.date):"Sin fecha"}</div>
+                        </div>
+                      </div>;
+                    })}
+                    {!companyReferralDiscountHistory(emp).length&&<div style={{fontSize:11,color:"var(--gr2)"}}>Sin movimientos de referidos registrados.</div>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2677,7 +2813,23 @@ function SuperAdminPanel({empresas,users,onSave}){
           onSave("users",nextUsers);
           const nextEmpresas=liveEmpresas.map(e=>{
             if(e.id===targetEmpId) return {...e,active:true,pendingActivation:false,requestType:"demo"};
-            if(sol.referred && e.id===sol.referredByEmpId) return {...e,referralCredits:Number(e.referralCredits||0)+1};
+            if(sol.referred && e.id===sol.referredByEmpId) return {
+              ...e,
+              referralCredits:Number(e.referralCredits||0)+1,
+              referralDiscountMonthsPending:companyReferralDiscountMonthsPending(e)+1,
+              billingDiscountNote:e.billingDiscountNote || "1 mes pendiente por referido activado",
+              referralDiscountHistory:[
+                {
+                  id:uid(),
+                  type:"earned",
+                  date:today(),
+                  sourceEmpId:targetEmpId,
+                  sourceEmpName:sol.emp || sol.referredCompanyName || "Empresa referida",
+                  note:`Se acreditó 1 mes gratis por activar a ${sol.emp || sol.referredCompanyName || "una empresa referida"}.`,
+                },
+                ...companyReferralDiscountHistory(e),
+              ],
+            };
             return e;
           });
           onSave("empresas",nextEmpresas);
@@ -3048,6 +3200,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const activeUsers=empUsers.filter(u=>u.active!==false).length;
   const inactiveUsers=empUsers.filter(u=>u.active===false).length;
   const referredSols=(refSols||[]).filter(s=>s.referredByEmpId===empresa?.id&&s.tipo==="empresa");
+  const referralHistory=companyReferralDiscountHistory(empresa);
   const referralStatus=(sol)=>{
     const targetEmp=(empresas||[]).find(e=>e.id===sol.empresaId);
     const hasActiveUser=(users||[]).some(u=>u.empId===sol.empresaId&&u.active!==false);
@@ -3203,8 +3356,9 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
             </div>
             <div style={{fontSize:12,color:"var(--gr2)",marginTop:8,lineHeight:1.6}}>Cada empresa activada con tu código suma 1 mes de descuento potencial para tu mensualidad en Produ.</div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
             <Stat label="Créditos" value={Number(empresa?.referralCredits||0)} sub="Meses acumulados" accent="var(--cy)"/>
+            <Stat label="Pendientes" value={companyReferralDiscountMonthsPending(empresa)} sub="Meses por aplicar" accent="#60a5fa" vc="#60a5fa"/>
             <Stat label="Referidos" value={referredSols.length} sub="Solicitudes asociadas" accent="#a855f7" vc="#a855f7"/>
             <Stat label="Activados" value={referredSols.filter(sol=>referralStatus(sol)==="Activado").length} sub="Ya operativos" accent="#00e08a" vc="#00e08a"/>
           </div>
@@ -3235,6 +3389,29 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
             </div>;
           })}
           {!referredSols.length&&<Empty text="Todavía no tienes referidos registrados" sub="Comparte tu código desde esta vista para comenzar a generar descuentos."/>}
+        </div>
+      </Card>
+      <Card title="Historial de descuentos" sub="Trazabilidad de meses acreditados y aplicados" style={{marginTop:16}}>
+        <div style={{display:"grid",gap:8}}>
+          {referralHistory.map(item=>{
+            const earned=item.type==="earned";
+            return <div key={item.id||`${item.type}-${item.date}-${item.sourceEmpId||""}`} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--wh)"}}>
+                  {earned ? "Mes gratis acreditado" : "Mes gratis aplicado"}
+                </div>
+                <div style={{fontSize:11,color:"var(--gr2)",marginTop:4,lineHeight:1.6}}>
+                  {item.note || (earned ? "Se acreditó un beneficio por referido." : "Se aplicó un beneficio de referido al cobro mensual.")}
+                </div>
+                {earned && item.sourceEmpName && <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Referido: {item.sourceEmpName}</div>}
+              </div>
+              <div style={{display:"grid",justifyItems:"end",gap:6,flexShrink:0}}>
+                <Badge label={earned ? "Acreditado" : "Aplicado"} color={earned ? "cyan" : "green"} sm/>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{item.date?fmtD(item.date):"Sin fecha"}</div>
+              </div>
+            </div>;
+          })}
+          {!referralHistory.length&&<Empty text="Todavía no hay movimientos de descuento" sub="Aquí verás cuándo se acredita y cuándo se consume cada mes gratis por referidos."/>}
         </div>
       </Card>
     </div>}

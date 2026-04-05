@@ -1735,11 +1735,12 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
 
 
 // ── CONTACT BUTTONS — WhatsApp y Email ───────────────────────
-function ContactBtns({ tel, ema, nombre, mensaje }) {
-  const waMsg = mensaje || `Hola ${nombre||""}, te contactamos desde Produ.`;
+function ContactBtns({ tel, ema, nombre, mensaje, origen }) {
+  const originLabel = origen || "tu empresa";
+  const waMsg = mensaje || `Hola ${nombre||""}, te contactamos desde ${originLabel}.`;
   const waNum = (tel||"").replace(/[^0-9]/g,"");
   const waUrl = `https://wa.me/${waNum.startsWith("56")?waNum:"56"+waNum}?text=${encodeURIComponent(waMsg)}`;
-  const mailUrl = `mailto:${ema||""}?subject=Contacto desde Produ&body=${encodeURIComponent(waMsg)}`;
+  const mailUrl = `mailto:${ema||""}?subject=${encodeURIComponent(`Contacto desde ${originLabel}`)}&body=${encodeURIComponent(waMsg)}`;
   if (!tel && !ema) return null;
   return (
     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -4750,7 +4751,7 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
           </div>
           <div style={{fontSize:11,color:"var(--gr3)",paddingLeft:38,marginBottom:8}}>✉ {co.ema||"—"} &nbsp;·&nbsp; ☎ {co.tel||"—"}</div>
           {co.not&&<div style={{fontSize:11,color:"var(--gr2)",paddingLeft:38,marginBottom:8}}>{co.not}</div>}
-          <div style={{paddingLeft:38}}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos desde Produ.`}/></div>
+          <div style={{paddingLeft:38}}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}/></div>
         </div>):<Empty text="Sin contactos registrados"/>}
       </Card>
       <Card title="Financiero">
@@ -5077,7 +5078,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
             {(detail.telefono || detail.email) && <>
               <Sep/>
               <div style={{fontSize:11,color:"var(--gr2)",marginBottom:8}}>Contacto rápido</div>
-              <ContactBtns tel={detail.telefono} ema={detail.email} nombre={detail.contacto || detail.empresaMarca || detail.nombre} mensaje={`Hola ${detail.contacto || detail.empresaMarca || ""}, te escribimos desde ${empresa?.nombre || "Produ"} sobre la oportunidad "${detail.nombre}".`}/>
+              <ContactBtns tel={detail.telefono} ema={detail.email} nombre={detail.contacto || detail.empresaMarca || detail.nombre} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${detail.contacto || detail.empresaMarca || ""}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}/>
             </>}
             {crmCanPassToClient(detail, scopedStages) && <div style={{marginTop:14}}><Btn onClick={()=>passToEntity(detail)}>{detail.tipo_negocio==="auspiciador"?"Pasar a Auspiciadores":"Pasar a Clientes"}</Btn></div>}
             {!!detail.linkedClientId && <div style={{marginTop:12,fontSize:12,color:"#00e08a"}}>✓ Vinculada al cliente existente/creado en Clientes</div>}
@@ -5226,7 +5227,7 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
       actions={_cd&&_cd("producciones")&&<><GBtn onClick={()=>openM("pro",p)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(producciones,setProducciones,id,()=>navTo("producciones"),"Proyecto eliminado");}}>🗑</DBtn></>}/>
     {cContacto&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:14,flexWrap:"wrap",gap:8}}>
       <span style={{fontSize:12,color:"var(--gr2)"}}>Contacto: <b style={{color:"var(--wh)"}}>{cContacto.nom}</b> {cContacto.car?`· ${cContacto.car}`:""}</span>
-      <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} mensaje={`Hola ${cContacto.nom}, te escribimos sobre el proyecto "${p.nom}".`}/>
+      <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${cContacto.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}/>
     </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m=>m.tipo==="ingreso").length} reg.`} accent="#00e08a" vc="#00e08a"/>
@@ -5440,7 +5441,7 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
     </div>
     {pg_.conductor&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:14,flexWrap:"wrap",gap:8}}>
       <span style={{fontSize:12,color:"var(--gr2)"}}>Conductor: <b style={{color:"var(--wh)"}}>{pg_.conductor}</b>{pg_.prodEjec?` · Prod: ${pg_.prodEjec}`:""}</span>
-      {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} mensaje={`Hola ${co.nom}, te contactamos sobre el programa "${pg_.nom}".`}/>)}
+      {cliAsoc&&(cliAsoc.contactos||[]).slice(0,1).map(co=><ContactBtns key={co.id} tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}/>)}
     </div>}
     <Tabs tabs={["Comentarios","Episodios","Ingresos","Gastos","Auspiciadores","Crew","Fechas","Info",...(tasksEnabled?["Tareas"]:[])]} active={tab} onChange={setTab}/>
     {(tab===2||tab===3)&&<div style={{display:"flex",gap:8,margin:"10px 0"}}>

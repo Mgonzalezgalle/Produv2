@@ -354,7 +354,7 @@ function normalizeEmpresasAddons(empresas = []) {
 function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
-    referralCode: emp?.referralCode || buildReferralCode(emp),
+    referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
   }));
 }
@@ -1052,7 +1052,7 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent,empresas=[]}){
               <option value="comercial">Comercial</option>
             </select></div>
             <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Código de referido</div>
-            <input value={solF.referralCode||""} onChange={e=>setSolF(p=>({...p,referralCode:e.target.value.toUpperCase()}))} placeholder="PRODU-ABC123" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+            <input value={solF.referralCode||""} onChange={e=>setSolF(p=>({...p,referralCode:e.target.value.toUpperCase()}))} placeholder="PLAYMEDIASPA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
           </div>
           <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Mensaje (opcional)</div>
           <textarea value={solF.msg||""} onChange={e=>setSolF(p=>({...p,msg:e.target.value}))} placeholder="Cuéntanos brevemente qué necesitas operar con Produ..." rows={3} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>

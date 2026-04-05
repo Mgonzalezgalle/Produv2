@@ -4507,7 +4507,9 @@ function MCt({open,data,empresa,clientes,producciones,programas,piezas,presupues
 
 function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
   const [f,setF]=useState({});
+  const stageList=normalizeCrmStages(crmStages);
   useEffect(()=>{
+    if(!open) return;
     const empty={
       nombre:"",
       empresaMarca:"",
@@ -4515,7 +4517,7 @@ function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
       email:"",
       telefono:"",
       tipo_negocio:"cliente",
-      stageId:crmDefaultStageId(crmStages),
+      stageId:crmDefaultStageId(stageList),
       status:"Activa",
       monto_estimado:"",
       fecha_cierre_estimada:"",
@@ -4524,10 +4526,9 @@ function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
       nextAction:"",
       nextActionDate:"",
     };
-    setF(data?.id ? crmNormalizeOpportunity(data, crmStages) : empty);
-  },[data,open,crmStages]);
+    setF(data?.id ? crmNormalizeOpportunity(data, stageList) : empty);
+  },[open,data?.id]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  const stageList=normalizeCrmStages(crmStages);
   const onStageChange=value=>{
     const stage=crmStageMeta(value, stageList);
     setF(prev=>({

@@ -6827,15 +6827,9 @@ function drawPdfTextBlock(page, text, x, y, maxWidth, font, size, color, lineGap
   return currentY;
 }
 
-function fitPdfFontSize(text, font, startSize, maxWidth, minSize = 7.4) {
-  const safe = String(text || "");
-  let size = startSize;
-  while (size > minSize && font.widthOfTextAtSize(safe, size) > maxWidth) size -= 0.2;
-  return Math.max(minSize, size);
-}
-
-function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2, radius = 12) {
+function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2, radius = 8) {
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  const stroke = borderColor || fillColor;
   if (!r) {
     page.drawRectangle({
       x,
@@ -6843,39 +6837,33 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
       width,
       height,
       color: fillColor,
-      borderColor: borderColor || fillColor,
+      borderColor: stroke,
       borderWidth,
     });
     return;
   }
-  const path = [
-    `M ${x + r} ${y}`,
-    `H ${x + width - r}`,
-    `Q ${x + width} ${y} ${x + width} ${y + r}`,
-    `V ${y + height - r}`,
-    `Q ${x + width} ${y + height} ${x + width - r} ${y + height}`,
-    `H ${x + r}`,
-    `Q ${x} ${y + height} ${x} ${y + height - r}`,
-    `V ${y + r}`,
-    `Q ${x} ${y} ${x + r} ${y}`,
-    "Z",
-  ].join(" ");
-  page.drawSvgPath(path, {
-    color: fillColor,
-    borderColor: borderColor || fillColor,
-    borderWidth,
-  });
+  page.drawRectangle({ x:x+r, y, width:width-(r*2), height, color:fillColor });
+  page.drawRectangle({ x, y:y+r, width, height:height-(r*2), color:fillColor });
+  page.drawCircle({ x:x+r, y:y+r, size:r, color:fillColor });
+  page.drawCircle({ x:x+width-r, y:y+r, size:r, color:fillColor });
+  page.drawCircle({ x:x+r, y:y+height-r, size:r, color:fillColor });
+  page.drawCircle({ x:x+width-r, y:y+height-r, size:r, color:fillColor });
+  page.drawRectangle({ x:x+r, y, width:width-(r*2), height, borderColor:stroke, borderWidth, opacity:0 });
+  page.drawRectangle({ x, y:y+r, width, height:height-(r*2), borderColor:stroke, borderWidth, opacity:0 });
+  page.drawCircle({ x:x+r, y:y+r, size:r, borderColor:stroke, borderWidth, opacity:0 });
+  page.drawCircle({ x:x+width-r, y:y+r, size:r, borderColor:stroke, borderWidth, opacity:0 });
+  page.drawCircle({ x:x+r, y:y+height-r, size:r, borderColor:stroke, borderWidth, opacity:0 });
+  page.drawCircle({ x:x+width-r, y:y+height-r, size:r, borderColor:stroke, borderWidth, opacity:0 });
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {
-  drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1, 10);
+  drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1);
   const safe = String(text || "");
-  const fittedSize = fitPdfFontSize(safe, bold, size, width - 16, 7.8);
-  const textWidth = bold.widthOfTextAtSize(safe, fittedSize);
+  const textWidth = bold.widthOfTextAtSize(safe, size);
   page.drawText(safe, {
     x: x + Math.max(8, (width - textWidth) / 2),
-    y: y + (32 - fittedSize) / 2 - 1,
-    size: fittedSize,
+    y: y + 10,
+    size,
     font: bold,
     color: white,
     maxWidth: Math.max(0, width - 16),
@@ -6884,18 +6872,16 @@ function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, 
 
 function drawCommercialValue(page, text, x, y, maxWidth, font, color, size = 12) {
   const safe = String(text || "—");
-  const fittedSize = fitPdfFontSize(safe, font, size, maxWidth, 7.8);
-  page.drawText(safe, { x, y, size:fittedSize, font, color, maxWidth });
+  page.drawText(safe, { x, y, size, font, color, maxWidth });
 }
 
 function drawRightAlignedPdfText(page, text, x, y, width, font, size, color) {
   const safe = String(text || "—");
-  const fittedSize = fitPdfFontSize(safe, font, size, width, 7.8);
-  const textWidth = font.widthOfTextAtSize(safe, fittedSize);
+  const textWidth = font.widthOfTextAtSize(safe, size);
   page.drawText(safe, {
     x: x + Math.max(0, width - textWidth),
     y,
-    size: fittedSize,
+    size,
     font,
     color,
     maxWidth: width,
@@ -6907,17 +6893,16 @@ function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, 
   const centerText = (text, size, yy, color, useBold = false) => {
     const safe = String(text || "");
     const targetFont = useBold ? bold : font;
-    const fittedSize = fitPdfFontSize(safe, targetFont, size, width - 20, 8);
-    const textWidth = targetFont.widthOfTextAtSize(safe, fittedSize);
+    const textWidth = targetFont.widthOfTextAtSize(safe, size);
     page.drawText(safe, {
       x: x + Math.max(10, (width - textWidth) / 2),
       y: yy,
-      size: fittedSize,
+      size,
       font: targetFont,
       color,
     });
   };
-  drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6, 12);
+  drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
   centerText(rut || "RUT —", 10, y + height - 18, legalRed, true);
   centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalRed, true);
   centerText(`N° ${docNumber || "S/C"}`, 12, y + height - 60, legalRed, true);
@@ -7196,11 +7181,11 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
 
   const tableTop = y;
   const descX = margin + 10;
-  const recurX = margin + 290;
-  const qtyX = margin + 372;
-  const priceX = margin + 430;
-  const totalX = margin + 510;
-  drawRoundedPdfBox(page, margin, tableTop-32, contentWidth, 32, accentColor, accentColor);
+  const recurX = margin + 300;
+  const qtyX = margin + 390;
+  const priceX = margin + 452;
+  const totalX = margin + 530;
+  drawRoundedPdfBox(page, margin, tableTop-32, contentWidth, 32, accentColor, accentColor, 1, 8);
   page.drawText("Detalle", { x:descX, y:tableTop-20, size:9.4, font:bold, color:white });
   page.drawText("Recurrencia", { x:recurX, y:tableTop-20, size:9.4, font:bold, color:white });
   page.drawText("Cant.", { x:qtyX, y:tableTop-20, size:9.4, font:bold, color:white });
@@ -7209,9 +7194,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   y = tableTop - 42;
 
   items.forEach((item, idx) => {
-    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", 248, font, 9.2);
+    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", 238, font, 9.2);
     const rowHeight = Math.max(24, detailLines.length * 12 + 10);
-    drawRoundedPdfBox(page, margin, y-rowHeight+6, contentWidth, rowHeight, idx % 2 === 0 ? white : panel, border, 0.8);
+    drawRoundedPdfBox(page, margin, y-rowHeight+6, contentWidth, rowHeight, idx % 2 === 0 ? white : panel, border, 0.8, 6);
     let lineY = y - 8;
     detailLines.forEach(line => {
       page.drawText(line || " ", { x:descX, y:lineY, size:9.2, font, color:textColor });

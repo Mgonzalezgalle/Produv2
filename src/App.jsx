@@ -6846,12 +6846,12 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {
-  drawRoundedPdfBox(page, x, y, width, 28, accentColor, accentColor, 1);
+  drawRoundedPdfBox(page, x, y, width, 22, accentColor, accentColor, 1);
   const safe = String(text || "");
   const textWidth = bold.widthOfTextAtSize(safe, size);
   page.drawText(safe, {
     x: x + Math.max(8, (width - textWidth) / 2),
-    y: y + 8,
+    y: y + 6,
     size,
     font: bold,
     color: white,
@@ -6878,11 +6878,11 @@ function drawRightAlignedPdfText(page, text, x, y, width, font, size, color) {
 }
 
 function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, accentColor, bold, font, white, textColor, fillColor, borderColor }) {
-  const paddingX = 16;
-  const paddingTop = 16;
-  const labelHeight = 28;
-  const rowGap = 10;
-  const valueOffset = 16;
+  const paddingX = 14;
+  const paddingTop = 14;
+  const labelHeight = 22;
+  const rowGap = 8;
+  const valueOffset = 14;
   const rowBlock = labelHeight + rowGap;
   const height = paddingTop * 2 + rows.length * rowBlock - rowGap;
   drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
@@ -6890,8 +6890,8 @@ function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, acce
   const valueWidth = width - (paddingX * 2) - labelWidth - valueOffset;
   let rowY = y + height - paddingTop - labelHeight;
   rows.forEach((row) => {
-    drawCommercialLabel(page, row.label, x + paddingX, rowY, labelWidth, accentColor, bold, white, row.labelSize || 8.2);
-    drawRightAlignedPdfText(page, row.value, valueX, rowY + 8, valueWidth, row.bold ? bold : font, row.valueSize || 10.8, row.color || textColor);
+    drawCommercialLabel(page, row.label, x + paddingX, rowY, labelWidth, accentColor, bold, white, row.labelSize || 7.5);
+    drawRightAlignedPdfText(page, row.value, valueX, rowY + 6, valueWidth, row.bold ? bold : font, row.valueSize || 10, row.color || textColor);
     rowY -= rowBlock;
   });
   return height;
@@ -6943,7 +6943,7 @@ function drawDocumentItemsTable(page, {
   textColor,
   moneyFormatter,
 }) {
-  const clampLines = (lines = [], maxLines = 2, maxWidth = 0, targetFont = font, size = 8) => {
+  const clampLines = (lines = [], maxLines = 2, maxWidth = 0, targetFont = font, size = 7.2) => {
     const safe = Array.isArray(lines) ? [...lines] : [String(lines || "")];
     if (safe.length <= maxLines) return safe;
     const trimmed = safe.slice(0, maxLines);
@@ -6955,30 +6955,30 @@ function drawDocumentItemsTable(page, {
     return trimmed;
   };
   const columns = {
-    detail: { label: "Detalle", x: x + 14, width: 300 },
-    recurrence: { label: "Recurrencia", x: x + 322, width: 64 },
-    qty: { label: "Cant.", x: x + 392, width: 26 },
-    unit: { label: "Valor Unit.", x: x + 424, width: 68 },
-    total: { label: "Total", x: x + 498, width: 64 },
+    detail: { label: "Detalle", x: x + 12, width: 340 },
+    recurrence: { label: "Recurr.", x: x + 360, width: 46 },
+    qty: { label: "Cant.", x: x + 412, width: 22 },
+    unit: { label: "V. Unit.", x: x + 440, width: 54 },
+    total: { label: "Total", x: x + 500, width: 62 },
   };
   page.drawText(title, {
     x: x,
     y: y + 6,
-    size: 9.4,
+    size: 9,
     font: bold,
     color: accentColor,
   });
   drawRoundedPdfBox(page, x, y - 30, width, 30, accentColor, accentColor, 1);
-  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.4, font: bold, color: white });
-  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.4, font: bold, color: white });
-  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 8.4, font: bold, color: white });
-  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 8.4, font: bold, color: white });
-  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 8.4, font: bold, color: white });
+  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 7.7, font: bold, color: white });
+  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 7.7, font: bold, color: white });
+  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 7.7, font: bold, color: white });
+  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 7.7, font: bold, color: white });
+  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 7.7, font: bold, color: white });
 
   let cursorY = y - 36;
   const tableRows = (items || []).map(item => {
-    const detailLines = clampLines(wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 7.7), 2, columns.detail.width, font, 7.7);
-    const rowHeight = Math.max(24, detailLines.length * 9 + 12);
+    const detailLines = clampLines(wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 7.1), 2, columns.detail.width, font, 7.1);
+    const rowHeight = Math.max(22, detailLines.length * 8 + 10);
     return { item, detailLines, rowHeight };
   });
   const tableHeight = 30 + tableRows.reduce((sum, row) => sum + row.rowHeight + 4, 0) + 10;
@@ -6997,31 +6997,31 @@ function drawDocumentItemsTable(page, {
       borderWidth: 0.6,
     });
 
-    let lineY = rowY + rowHeight - 10;
+    let lineY = rowY + rowHeight - 9;
     detailLines.forEach(line => {
       page.drawText(line || " ", {
         x: columns.detail.x,
         y: lineY,
-        size: 7.7,
+        size: 7.1,
         font,
         color: textColor,
         maxWidth: columns.detail.width,
       });
-      lineY -= 9;
+      lineY -= 8;
     });
 
-    const valueY = rowY + Math.max(7, (rowHeight - 7.9) / 2);
+    const valueY = rowY + Math.max(6, (rowHeight - 7.2) / 2);
     page.drawText(item.recurrence === "monthly" ? "Mensual" : "Única vez", {
       x: columns.recurrence.x,
       y: valueY,
-      size: 7.7,
+      size: 7.1,
       font,
       color: textColor,
       maxWidth: columns.recurrence.width,
     });
-    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 7.7, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 7.7, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 7.9, textColor);
+    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 7.1, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 7.1, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 7.3, textColor);
     cursorY -= rowHeight + 4;
   });
 
@@ -7043,9 +7043,9 @@ function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, 
     });
   };
   drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
-  centerText(rut || "RUT —", 10, y + height - 18, legalRed, true);
-  centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalRed, true);
-  centerText(`N° ${docNumber || "S/C"}`, 12, y + height - 60, legalRed, true);
+  centerText(rut || "RUT —", 8.8, y + height - 18, legalRed, true);
+  centerText(String(docType || "DOCUMENTO").toUpperCase(), 11.8, y + height - 42, legalRed, true);
+  centerText(`N° ${docNumber || "S/C"}`, 10.6, y + height - 64, legalRed, true);
 }
 
 async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[], summaryPlacement="inline" }) {
@@ -7288,9 +7288,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   });
   drawLegalDocStamp(page, {
     x: width - 208,
-    y: height - 126,
-    width: 170,
-    height: 96,
+    y: height - 118,
+    width: 158,
+    height: 84,
     white,
     bold,
     font,

@@ -6840,12 +6840,12 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {
-  drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1);
+  drawRoundedPdfBox(page, x, y, width, 28, accentColor, accentColor, 1);
   const safe = String(text || "");
   const textWidth = bold.widthOfTextAtSize(safe, size);
   page.drawText(safe, {
     x: x + Math.max(8, (width - textWidth) / 2),
-    y: y + 10,
+    y: y + 8,
     size,
     font: bold,
     color: white,
@@ -7193,30 +7193,31 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     y -= rowHeight + 4;
   });
 
-  const paymentCardY = y - 122;
+  const summaryCardHeight = 120;
+  const paymentCardY = y - 130;
   const cardWidth = (contentWidth - 22) / 2;
-  drawRoundedPdfBox(page, margin, paymentCardY, cardWidth, 112, surface, border, 1.1);
+  drawRoundedPdfBox(page, margin, paymentCardY, cardWidth, summaryCardHeight, surface, border, 1.1);
   const leftLabelWidth = 148;
   const leftValueX = margin + 16 + leftLabelWidth + 16;
   const leftValueWidth = cardWidth-leftLabelWidth-36;
-  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+64, leftLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), leftValueX, paymentCardY+74, leftValueWidth, bold, 11.7, textColor);
-  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+24, leftLabelWidth, accentColor, bold, white, 8.5);
-  drawRightAlignedPdfText(page, pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", leftValueX, paymentCardY+34, leftValueWidth, bold, 10, textColor);
+  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+72, leftLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), leftValueX, paymentCardY+81, leftValueWidth, bold, 11.2, textColor);
+  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+32, leftLabelWidth, accentColor, bold, white, 8.1);
+  drawRightAlignedPdfText(page, pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", leftValueX, paymentCardY+41, leftValueWidth, bold, 9.6, textColor);
 
-  drawRoundedPdfBox(page, margin+cardWidth+22, paymentCardY, cardWidth, 112, surface, border, 1.1);
+  drawRoundedPdfBox(page, margin+cardWidth+22, paymentCardY, cardWidth, summaryCardHeight, surface, border, 1.1);
   const rightCardX = margin + cardWidth + 22;
   const rightLabelWidth = 112;
   const rightValueX = rightCardX + 16 + rightLabelWidth + 16;
   const rightValueWidth = cardWidth-rightLabelWidth-34;
-  drawCommercialLabel(page, "SubTotal", rightCardX+16, paymentCardY+64, rightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtMoney(subtotal, pres.moneda || "CLP"), rightValueX, paymentCardY+74, rightValueWidth, bold, 11.7, textColor);
-  drawCommercialLabel(page, "Impuestos", rightCardX+16, paymentCardY+24, rightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, (pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", rightValueX, paymentCardY+34, rightValueWidth, bold, 10, textColor);
-  drawCommercialLabel(page, "Total", rightCardX+16, paymentCardY-16, rightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), rightValueX, paymentCardY-6, rightValueWidth, bold, 11.7, textColor);
+  drawCommercialLabel(page, "SubTotal", rightCardX+16, paymentCardY+76, rightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, fmtMoney(subtotal, pres.moneda || "CLP"), rightValueX, paymentCardY+84, rightValueWidth, bold, 11.2, textColor);
+  drawCommercialLabel(page, "Impuestos", rightCardX+16, paymentCardY+42, rightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, (pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", rightValueX, paymentCardY+50, rightValueWidth, bold, 9.6, textColor);
+  drawCommercialLabel(page, "Total", rightCardX+16, paymentCardY+8, rightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), rightValueX, paymentCardY+16, rightValueWidth, bold, 11.2, textColor);
 
-  let sectionY = paymentCardY - 54;
+  let sectionY = paymentCardY - 50;
   if (paymentInfo) {
     const paymentHeight = Math.max(94, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 9, 2.5) + 24);
     drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, border, 1.15);
@@ -7367,30 +7368,31 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   });
   y -= detailHeight + 18;
 
-  const leftCardY = y - 108;
+  const factSummaryCardHeight = 120;
+  const leftCardY = y - 130;
   const cardWidth = (contentWidth - 22) / 2;
-  drawRoundedPdfBox(page, margin, leftCardY, cardWidth, 112, surface, border, 1.1);
+  drawRoundedPdfBox(page, margin, leftCardY, cardWidth, factSummaryCardHeight, surface, border, 1.1);
   const factLeftLabelWidth = 150;
   const factLeftValueX = margin + 16 + factLeftLabelWidth + 16;
   const factLeftValueWidth = cardWidth - factLeftLabelWidth - 34;
-  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+64, factLeftLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtM(mn), factLeftValueX, leftCardY+74, factLeftValueWidth, bold, 11.7, textColor);
-  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+24, factLeftLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), factLeftValueX, leftCardY+34, factLeftValueWidth, bold, 10, textColor);
+  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+72, factLeftLabelWidth, accentColor, bold, white, 8.2);
+  drawRightAlignedPdfText(page, fmtM(mn), factLeftValueX, leftCardY+81, factLeftValueWidth, bold, 11.2, textColor);
+  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+32, factLeftLabelWidth, accentColor, bold, white, 8.2);
+  drawRightAlignedPdfText(page, fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), factLeftValueX, leftCardY+41, factLeftValueWidth, bold, 9.6, textColor);
 
-  drawRoundedPdfBox(page, margin+cardWidth+22, leftCardY, cardWidth, 112, surface, border, 1.1);
+  drawRoundedPdfBox(page, margin+cardWidth+22, leftCardY, cardWidth, factSummaryCardHeight, surface, border, 1.1);
   const factRightCardX = margin + cardWidth + 22;
   const factRightLabelWidth = 112;
   const factRightValueX = factRightCardX + 16 + factRightLabelWidth + 16;
   const factRightValueWidth = cardWidth - factRightLabelWidth - 34;
-  drawCommercialLabel(page, "SubTotal", factRightCardX+16, leftCardY+64, factRightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtM(mn), factRightValueX, leftCardY+74, factRightValueWidth, bold, 11.7, textColor);
-  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", factRightCardX+16, leftCardY+24, factRightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), factRightValueX, leftCardY+34, factRightValueWidth, bold, 10, textColor);
-  drawCommercialLabel(page, "Total", factRightCardX+16, leftCardY-16, factRightLabelWidth, accentColor, bold, white, 8.8);
-  drawRightAlignedPdfText(page, fmtM(total), factRightValueX, leftCardY-6, factRightValueWidth, bold, 11.7, textColor);
+  drawCommercialLabel(page, "SubTotal", factRightCardX+16, leftCardY+76, factRightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, fmtM(mn), factRightValueX, leftCardY+84, factRightValueWidth, bold, 11.2, textColor);
+  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", factRightCardX+16, leftCardY+42, factRightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), factRightValueX, leftCardY+50, factRightValueWidth, bold, 9.6, textColor);
+  drawCommercialLabel(page, "Total", factRightCardX+16, leftCardY+8, factRightLabelWidth, accentColor, bold, white, 8.4);
+  drawRightAlignedPdfText(page, fmtM(total), factRightValueX, leftCardY+16, factRightValueWidth, bold, 11.2, textColor);
 
-  let sectionY = leftCardY - 54;
+  let sectionY = leftCardY - 50;
   if (paymentInfo) {
     const paymentHeight = Math.max(94, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 9, 2.5) + 24);
     drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, border, 1.15);

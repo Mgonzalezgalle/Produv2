@@ -6569,6 +6569,14 @@ async function loadPdfImage(doc, logoUrl="") {
   }
 }
 
+function fitPdfImageDimensions(image, maxWidth, maxHeight) {
+  if (!image) return null;
+  const width = image.width || maxWidth;
+  const height = image.height || maxHeight;
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+  return { width: width * scale, height: height * scale };
+}
+
 function drawWrappedText(page, text, x, y, maxWidth, font, size, color, lineGap=4) {
   const words = String(text || "").split(/\s+/).filter(Boolean);
   if (!words.length) return y;
@@ -6673,11 +6681,25 @@ function drawCommercialValue(page, text, x, y, maxWidth, font, color, size = 12)
   page.drawText(safe, { x, y, size, font, color, maxWidth });
 }
 
-function drawLegalDocStamp(page, { x, y, width = 160, height = 78, accentColor, white, textColor, muted, bold, font, rut = "", docType = "", docNumber = "" }) {
-  drawRoundedPdfBox(page, x, y, width, height, white, accentColor, 1.6);
-  page.drawText(rut || "RUT —", { x:x+12, y:y+height-18, size:10, font:bold, color:accentColor });
-  page.drawText(String(docType || "DOCUMENTO").toUpperCase(), { x:x+12, y:y+height-39, size:14, font:bold, color:textColor });
-  page.drawText(`N° ${docNumber || "S/C"}`, { x:x+12, y:y+height-59, size:12, font:bold, color:muted });
+function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, font, rut = "", docType = "", docNumber = "" }) {
+  const legalRed = hexToRgb("#c1121f");
+  const legalText = hexToRgb("#1f2937");
+  const centerText = (text, size, yy, color, useBold = false) => {
+    const safe = String(text || "");
+    const targetFont = useBold ? bold : font;
+    const textWidth = targetFont.widthOfTextAtSize(safe, size);
+    page.drawText(safe, {
+      x: x + Math.max(10, (width - textWidth) / 2),
+      y: yy,
+      size,
+      font: targetFont,
+      color,
+    });
+  };
+  drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
+  centerText(rut || "RUT —", 10, y + height - 18, legalText, true);
+  centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalText, true);
+  centerText(`N° ${docNumber || "S/C"}`, 12, y + height - 60, legalRed, true);
 }
 
 async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[], summaryPlacement="inline" }) {
@@ -6912,15 +6934,17 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
 
+  let issuerTextX = margin;
   if (logo) {
-    const dims = logo.scale(0.22);
-    page.drawImage(logo, { x:margin, y:height-90, width:dims.width, height:dims.height });
+    const dims = fitPdfImageDimensions(logo, 34, 34);
+    page.drawImage(logo, { x:margin, y:height-70, width:dims.width, height:dims.height });
+    issuerTextX = margin + dims.width + 10;
   }
-  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:24, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:issuerTextX, y:height-58, size:20, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
-    page.drawText(line, { x:margin, y:issuerY, size:10, font, color:muted });
+    page.drawText(line, { x:issuerTextX, y:issuerY, size:10, font, color:muted });
     issuerY -= 13;
   });
   drawLegalDocStamp(page, {
@@ -6945,7 +6969,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   let y = height - 170;
   drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, panel, border);
   page.drawText("Cliente", { x:margin+14, y:y-20, size:11, font:bold, color:accentColor });
-  page.drawText(cliente?.nom || "—", { x:margin+14, y:y-40, size:16, font:bold, color:textColor });
+  page.drawText(cliente?.nom || "—", { x:margin+14, y:y-40, size:14, font:bold, color:textColor });
   const clientLines = [
     cliente?.rut ? `RUT: ${cliente.rut}` : "",
     cliente?.dir || "",
@@ -6992,18 +7016,23 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const paymentCardY = y - 118;
   const cardWidth = (contentWidth - 22) / 2;
   drawRoundedPdfBox(page, margin, paymentCardY, cardWidth, 104, panel, border);
-  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+58, 150, accentColor, bold, white);
-  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:margin+cardWidth-110, y:paymentCardY+69, size:14, font:bold, color:textColor });
-  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+18, 150, accentColor, bold, white);
-  page.drawText(pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", { x:margin+cardWidth-110, y:paymentCardY+29, size:12, font:bold, color:textColor });
+  const leftLabelWidth = 124;
+  const leftValueX = margin + 16 + leftLabelWidth + 16;
+  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+58, leftLabelWidth, accentColor, bold, white);
+  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:leftValueX, y:paymentCardY+69, size:14, font:bold, color:textColor, maxWidth:cardWidth-leftLabelWidth-36 });
+  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+18, leftLabelWidth, accentColor, bold, white);
+  page.drawText(pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", { x:leftValueX, y:paymentCardY+29, size:12, font:bold, color:textColor, maxWidth:cardWidth-leftLabelWidth-36 });
 
   drawRoundedPdfBox(page, margin+cardWidth+22, paymentCardY, cardWidth, 104, panel, border);
-  drawCommercialLabel(page, "SubTotal", margin+cardWidth+38, paymentCardY+58, 112, accentColor, bold, white);
-  page.drawText(fmtMoney(subtotal, pres.moneda || "CLP"), { x:margin+contentWidth-110, y:paymentCardY+69, size:14, font:bold, color:textColor });
-  drawCommercialLabel(page, pres.honorarios ? "Honorarios" : "Impuestos", margin+cardWidth+38, paymentCardY+18, 112, accentColor, bold, white);
-  page.drawText((pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", { x:margin+contentWidth-110, y:paymentCardY+29, size:12, font:bold, color:textColor });
-  drawCommercialLabel(page, "Total", margin+cardWidth+38, paymentCardY-22, 112, accentColor, bold, white);
-  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:margin+contentWidth-110, y:paymentCardY-11, size:14, font:bold, color:textColor });
+  const rightCardX = margin + cardWidth + 22;
+  const rightLabelWidth = 104;
+  const rightValueX = rightCardX + 16 + rightLabelWidth + 16;
+  drawCommercialLabel(page, "SubTotal", rightCardX+16, paymentCardY+58, rightLabelWidth, accentColor, bold, white);
+  page.drawText(fmtMoney(subtotal, pres.moneda || "CLP"), { x:rightValueX, y:paymentCardY+69, size:14, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
+  drawCommercialLabel(page, pres.honorarios ? "Impuestos" : "Impuestos", rightCardX+16, paymentCardY+18, rightLabelWidth, accentColor, bold, white);
+  page.drawText((pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", { x:rightValueX, y:paymentCardY+29, size:12, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
+  drawCommercialLabel(page, "Total", rightCardX+16, paymentCardY-22, rightLabelWidth, accentColor, bold, white);
+  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:rightValueX, y:paymentCardY-11, size:14, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
 
   let sectionY = paymentCardY - 48;
   if (paymentInfo) {
@@ -7102,7 +7131,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     const dims = logo.scale(0.22);
     page.drawImage(logo, { x:margin, y:height-90, width:dims.width, height:dims.height });
   }
-  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:24, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:20, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
@@ -7133,7 +7162,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   let y = height - 170;
   drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, panel, border);
   page.drawText(fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente", { x:margin+14, y:y-20, size:11, font:bold, color:accentColor });
-  page.drawText(entidad?.nom || "—", { x:margin+14, y:y-40, size:16, font:bold, color:textColor });
+  page.drawText(entidad?.nom || "—", { x:margin+14, y:y-40, size:14, font:bold, color:textColor });
   const entityLines = [
     entidad?.rut ? `RUT: ${entidad.rut}` : "",
     entidad?.dir || "",

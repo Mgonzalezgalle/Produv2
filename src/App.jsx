@@ -145,8 +145,19 @@ function fileToDataUrl(file) {
   });
 }
 
-async function commentPhotoFromFile(file) {
-  if (!file || !String(file.type || "").startsWith("image/")) return null;
+async function commentAttachmentFromFile(file) {
+  if (!file) return null;
+  const fileType = String(file.type || "");
+  if (fileType === "application/pdf" || String(file.name || "").toLowerCase().endsWith(".pdf")) {
+    const dataUrl = await fileToDataUrl(file);
+    return {
+      id: uid(),
+      type: "pdf",
+      src: dataUrl,
+      name: file.name || "documento.pdf",
+    };
+  }
+  if (!fileType.startsWith("image/")) return null;
   const dataUrl = await fileToDataUrl(file);
   const img = await new Promise((resolve, reject) => {
     const node = new Image();
@@ -157,7 +168,7 @@ async function commentPhotoFromFile(file) {
   const maxSide = 1600;
   const scale = Math.min(1, maxSide / Math.max(img.width || maxSide, img.height || maxSide));
   if (scale === 1 && file.size <= 900000) {
-    return { id: uid(), src: dataUrl, name: file.name || "imagen" };
+    return { id: uid(), type: "image", src: dataUrl, name: file.name || "imagen" };
   }
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round((img.width || maxSide) * scale));
@@ -166,9 +177,34 @@ async function commentPhotoFromFile(file) {
   ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
   return {
     id: uid(),
+    type: "image",
     src: canvas.toDataURL("image/jpeg", 0.84),
     name: file.name || "imagen",
   };
+}
+
+function normalizeCommentAttachments(item = {}) {
+  const base = Array.isArray(item.attachments) ? item.attachments : [];
+  const legacyPhotos = Array.isArray(item.photos) ? item.photos : [];
+  const normalizedBase = base
+    .filter(Boolean)
+    .map(att => ({
+      id: att.id || uid(),
+      type: att.type || (String(att.src || "").startsWith("data:application/pdf") ? "pdf" : "image"),
+      src: att.src || "",
+      name: att.name || (att.type === "pdf" ? "documento.pdf" : "imagen"),
+    }))
+    .filter(att => att.src);
+  const normalizedLegacy = legacyPhotos
+    .filter(Boolean)
+    .map(att => ({
+      id: att.id || uid(),
+      type: "image",
+      src: att.src || "",
+      name: att.name || "imagen",
+    }))
+    .filter(att => att.src);
+  return [...normalizedBase, ...normalizedLegacy].slice(0, 6);
 }
 
 function sessionPayload(user, emp) {
@@ -279,8 +315,16 @@ function nextTenantCode(empresas = []) {
 }
 
 function buildReferralCode(emp = {}) {
-  const base = String(emp?.tenantCode || emp?.id || uid()).replace(/[^a-z0-9]/gi, "").toUpperCase();
-  return `PRODU-${base.slice(-6)}`;
+  const normalizedName = String(emp?.nombre || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .trim();
+  if (normalizedName) return normalizedName;
+  return String(emp?.tenantCode || emp?.id || uid())
+    .replace(/[^a-z0-9]/gi, "")
+    .toUpperCase();
 }
 
 function normalizeEmpresasTenantCodes(empresas = []) {
@@ -1781,12 +1825,12 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
   const [editingId,setEditingId]=useState(null);
   const [pasarATarea,setPasarATarea]=useState(false);
   const [assignedIds,setAssignedIds]=useState([]);
-  const [photos,setPhotos]=useState([]);
+  const [attachments,setAttachments]=useState([]);
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
-  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAssignedIds([]);setPhotos([]);};
-  const loadPhotos=async files=>{
-    const nextPhotos = await Promise.all(Array.from(files||[]).slice(0,4).map(commentPhotoFromFile));
-    setPhotos(prev=>[...prev,...nextPhotos.filter(Boolean)].slice(0,4));
+  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAssignedIds([]);setAttachments([]);};
+  const loadAttachments=async files=>{
+    const nextAttachments = await Promise.all(Array.from(files||[]).slice(0,6).map(commentAttachmentFromFile));
+    setAttachments(prev=>[...prev,...nextAttachments.filter(Boolean)].slice(0,6));
   };
   const toggleAssigned = id => setAssignedIds(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
   const submit=async()=>{
@@ -1794,9 +1838,10 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
     if(!val) return;
     const prevItem=editingId?items.find(it=>it.id===editingId):null;
     const normalizedAssigned = [...new Set(assignedIds.filter(Boolean))];
+    const normalizedAttachments = normalizeCommentAttachments({ attachments });
     const commentItem=editingId
-      ? {...prevItem,text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",photos:[...photos],upd:today()}
-      : {id:uid(),text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",photos:[...photos],cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
+      ? {...prevItem,text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),upd:today()}
+      : {id:uid(),text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
     const next=editingId
       ? items.map(it=>it.id===editingId?commentItem:it)
       : [commentItem,...items];
@@ -1804,7 +1849,7 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
     if(pasarATarea && onCreateTask && !prevItem?.pasarATarea) await onCreateTask(commentItem);
     resetForm();
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setPhotos(Array.isArray(it.photos)?it.photos:[]);};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setAttachments(normalizeCommentAttachments(it));};
   const delItem=async id=>{
     if(!confirm("¿Eliminar comentario?")) return;
     await onSave(items.filter(it=>it.id!==id));
@@ -1830,16 +1875,21 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
         </FG>
       </div>
       <div style={{marginTop:10}}>
-        <FG label="Fotos del comentario">
-          <input type="file" accept="image/*" multiple onChange={async e=>{await loadPhotos(e.target.files);e.target.value="";}}/>
+        <FG label="Adjuntos del comentario">
+          <input type="file" accept="image/*,application/pdf" multiple onChange={async e=>{await loadAttachments(e.target.files);e.target.value="";}}/>
         </FG>
-        {!!photos.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:8,marginTop:10}}>
-          {photos.map(photo=><div key={photo.id} style={{position:"relative",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)"}}>
-            <img src={photo.src} alt={photo.name||"Foto comentario"} style={{display:"block",width:"100%",height:100,objectFit:"cover"}}/>
-            <button onClick={()=>setPhotos(prev=>prev.filter(p=>p.id!==photo.id))} style={{position:"absolute",top:6,right:6,width:24,height:24,borderRadius:"50%",border:"none",background:"rgba(15,23,42,.84)",color:"#fff",cursor:"pointer"}}>×</button>
+        {!!attachments.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:8,marginTop:10}}>
+          {attachments.map(att=><div key={att.id} style={{position:"relative",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)",background:"var(--sur)"}}>
+            {att.type==="pdf"
+              ? <div style={{display:"grid",placeItems:"center",height:100,padding:10,textAlign:"center"}}>
+                  <div style={{fontSize:28,marginBottom:6}}>📄</div>
+                  <div style={{fontSize:10,color:"var(--gr3)",lineHeight:1.4,wordBreak:"break-word"}}>{att.name||"PDF"}</div>
+                </div>
+              : <img src={att.src} alt={att.name||"Foto comentario"} style={{display:"block",width:"100%",height:100,objectFit:"cover"}}/>}
+            <button onClick={()=>setAttachments(prev=>prev.filter(p=>p.id!==att.id))} style={{position:"absolute",top:6,right:6,width:24,height:24,borderRadius:"50%",border:"none",background:"rgba(15,23,42,.84)",color:"#fff",cursor:"pointer"}}>×</button>
           </div>)}
         </div>}
-        <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>Puedes adjuntar hasta 4 imágenes como respaldo visual del comentario.</div>
+        <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>Puedes adjuntar hasta 6 archivos entre imágenes y PDF. Al hacer click en un adjunto guardado se abrirá o descargará.</div>
       </div>
       {!!onCreateTask&&<label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,cursor:"pointer"}}>
         <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
@@ -1859,9 +1909,18 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
             <span style={{fontSize:10,color:"var(--gr2)"}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</span>
           </div>
           <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
-          {!!it.photos?.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginTop:10}}>
-            {it.photos.map(photo=><a key={photo.id||photo.src} href={photo.src} target="_blank" rel="noreferrer" style={{display:"block",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)"}}>
-              <img src={photo.src} alt={photo.name||"Foto comentario"} style={{display:"block",width:"100%",height:110,objectFit:"cover"}}/>
+          {!!normalizeCommentAttachments(it).length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginTop:10}}>
+            {normalizeCommentAttachments(it).map(att=><a key={att.id||att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name||true} style={{display:"block",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)",textDecoration:"none",background:"var(--sur)"}}>
+              {att.type==="pdf"
+                ? <div style={{display:"grid",placeItems:"center",height:110,padding:10,textAlign:"center"}}>
+                    <div style={{fontSize:30,marginBottom:8}}>📄</div>
+                    <div style={{fontSize:10,color:"var(--gr3)",lineHeight:1.4,wordBreak:"break-word"}}>{att.name||"Documento PDF"}</div>
+                    <div style={{fontSize:10,color:"var(--cy)",marginTop:6,fontWeight:700}}>Abrir / Descargar</div>
+                  </div>
+                : <div style={{position:"relative"}}>
+                    <img src={att.src} alt={att.name||"Foto comentario"} style={{display:"block",width:"100%",height:110,objectFit:"cover"}}/>
+                    <div style={{position:"absolute",left:8,bottom:8,padding:"4px 8px",borderRadius:999,background:"rgba(15,23,42,.72)",color:"#fff",fontSize:10,fontWeight:700}}>Abrir</div>
+                  </div>}
             </a>)}
           </div>}
           {!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>

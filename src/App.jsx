@@ -824,6 +824,7 @@ function crmNormalizeOpportunity(item={}, stages=[]){
     nextAction:item.nextAction || item.proximaAccion || "",
     nextActionDate:item.nextActionDate || item.proximaAccionFecha || "",
     linkedClientId:item.linkedClientId || "",
+    linkedSponsorId:item.linkedSponsorId || "",
     convertedAt:item.convertedAt || "",
     convertedBy:item.convertedBy || "",
     source:item.source || "manual",
@@ -845,7 +846,7 @@ function crmEntityLabel(opp){
 }
 function crmCanPassToClient(opp, stages=[]){
   const stage = crmStageMeta(opp?.stageId, stages);
-  return !!opp && !opp.linkedClientId && (stage.convertToClient || stage.closedWon || opp.status==="Ganada");
+  return !!opp && !opp.linkedClientId && !opp.linkedSponsorId && (stage.convertToClient || stage.closedWon || opp.status==="Ganada");
 }
 function crmFindClientDuplicate(clientes=[], opp={}){
   const targetName=String(opp.empresaMarca||opp.nombre||"").trim().toLowerCase();
@@ -853,6 +854,15 @@ function crmFindClientDuplicate(clientes=[], opp={}){
   return (clientes||[]).find(c=>{
     const sameName=String(c.nom||"").trim().toLowerCase()===targetName;
     const sameEmail=targetEmail && (c.contactos||[]).some(co=>String(co.ema||"").trim().toLowerCase()===targetEmail);
+    return sameName || sameEmail;
+  }) || null;
+}
+function crmFindSponsorDuplicate(auspiciadores=[], opp={}){
+  const targetName=String(opp.empresaMarca||opp.nombre||"").trim().toLowerCase();
+  const targetEmail=String(opp.email||"").trim().toLowerCase();
+  return (auspiciadores||[]).find(a=>{
+    const sameName=String(a.nom||"").trim().toLowerCase()===targetName;
+    const sameEmail=targetEmail && String(a.ema||"").trim().toLowerCase()===targetEmail;
     return sameName || sameEmail;
   }) || null;
 }
@@ -4179,7 +4189,7 @@ export default function App(){
       case"contenidos":   return <ViewContenidos    {...VP} setPiezas={setPiezas}/>;
       case"contenido-det":return <ViewContenidoDet  {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
-      case"crm":          return <ViewCRM           {...VP} setClientes={setClientes} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} setTareas={setTareas}/>;
+      case"crm":          return <ViewCRM           {...VP} setClientes={setClientes} setAuspiciadores={setAuspiciadores} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} setTareas={setTareas}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
       case"auspiciadores":return <ViewAus           {...VP} setAuspiciadores={setAuspiciadores}/>;
@@ -4760,7 +4770,7 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
   </div>;
 }
 
-function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,users,openM,ntf,setClientes,setCrmOpps,setCrmActivities,setCrmStages,setTareas}){
+function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspiciadores,tareas,users,openM,ntf,setClientes,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setTareas}){
   const empId=empresa?.id;
   const [tab,setTab]=useState(0);
   const [q,setQ]=useState("");
@@ -4821,7 +4831,34 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
   const updateQuickField=async (opp, key, value, label)=>{
     await saveOpp({...opp,[key]:value}, `${label} actualizado.`, "update");
   };
-  const passToClientes=async opp=>{
+  const passToEntity=async opp=>{
+    const stageWon=scopedStages.find(stage=>stage.closedWon) || scopedStages.find(stage=>stage.convertToClient) || scopedStages[0];
+    if(opp.tipo_negocio==="auspiciador"){
+      const existing=crmFindSponsorDuplicate((auspiciadores||[]).filter(a=>a.empId===empId), opp);
+      const sponsorId=existing?.id || uid();
+      if(!existing){
+        const newSponsor={
+          id:sponsorId,
+          empId,
+          nom:opp.empresaMarca || opp.nombre,
+          tip:"Auspiciador Principal",
+          con:opp.contacto || "",
+          ema:opp.email || "",
+          tel:opp.telefono || "",
+          pids:[],
+          mon:String(Number(opp.monto_estimado||0) || ""),
+          vig:opp.fecha_cierre_estimada || "",
+          est:"Negociación",
+          frecPago:"Mensual",
+          not:`Creado desde CRM el ${fmtD(today())} a partir de la oportunidad ${opp.nombre}.`,
+          crmOpportunityId:opp.id,
+        };
+        await setAuspiciadores([...(auspiciadores||[]), newSponsor]);
+      }
+      await saveOpp({...opp, linkedSponsorId:sponsorId, convertedAt:today(), convertedBy:user?.name||"", status:"Ganada", stageId:stageWon?.id || opp.stageId}, `Oportunidad vinculada al módulo de Auspiciadores${existing?" (auspiciador existente).":"."}`, "conversion");
+      ntf?.(existing?"Vinculado a auspiciador existente ✓":"Auspiciador creado desde CRM ✓");
+      return;
+    }
     const existing=crmFindClientDuplicate((clientes||[]).filter(c=>c.empId===empId), opp);
     const clientId=existing?.id || uid();
     if(!existing){
@@ -4830,7 +4867,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
         empId,
         nom:opp.empresaMarca || opp.nombre,
         rut:"",
-        ind:opp.tipo_negocio==="auspiciador"?"Auspiciador":"Prospecto comercial",
+        ind:"Prospecto comercial",
         dir:"",
         not:`Creado desde CRM el ${fmtD(today())} a partir de la oportunidad ${opp.nombre}.`,
         crmOpportunityId:opp.id,
@@ -4845,7 +4882,6 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
       };
       await setClientes([...(clientes||[]), newClient]);
     }
-    const stageWon=scopedStages.find(stage=>stage.closedWon) || scopedStages.find(stage=>stage.convertToClient) || scopedStages[0];
     await saveOpp({...opp, linkedClientId:clientId, convertedAt:today(), convertedBy:user?.name||"", status:"Ganada", stageId:stageWon?.id || opp.stageId}, `Oportunidad vinculada al módulo de Clientes${existing?" (cliente existente).":"."}`, "conversion");
     ntf?.(existing?"Vinculado a cliente existente ✓":"Cliente creado desde CRM ✓");
   };
@@ -4982,15 +5018,15 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
       <Paginator page={pg} total={sorted.length} perPage={PP} onChange={setPg}/>
     </Card>}
 
-    <Modal open={!!detail} onClose={()=>{setDetailId(""); setActivityForm({type:"note",text:""});}} title={detail?.nombre||"Detalle CRM"} sub={detail?`${detail.empresaMarca} · ${crmEntityLabel(detail)}`:""}>
+    <Modal open={!!detail} onClose={()=>{setDetailId(""); setActivityForm({type:"note",text:""});}} title={detail?.nombre||"Detalle CRM"} sub={detail?`${detail.empresaMarca} · ${crmEntityLabel(detail)}`:""} extraWide>
       {detail && <>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,180px),1fr))",gap:12,marginBottom:16}}>
           <Stat label="Etapa" value={stagesById[detail.stageId]?.name || "—"} accent="var(--cy)" vc="var(--cy)"/>
           <Stat label="Estado" value={detail.status || "—"} accent={detail.status==="Ganada"?"#00e08a":detail.status==="Perdida"?"#ff5566":"#fbbf24"} vc={detail.status==="Ganada"?"#00e08a":detail.status==="Perdida"?"#ff5566":"#fbbf24"}/>
           <Stat label="Monto estimado" value={fmtM(detail.monto_estimado||0)} accent="#a855f7" vc="#a855f7"/>
           <Stat label="Próxima acción" value={detail.nextActionDate?fmtD(detail.nextActionDate):"Sin fecha"} sub={detail.nextAction||"Sin definir"}/>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr",gap:16,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,320px),1fr))",gap:16,marginBottom:16}}>
           <Card title="Datos generales">
             <KV label="Empresa o marca" value={detail.empresaMarca||"—"}/>
             <KV label="Contacto" value={detail.contacto||"—"}/>
@@ -4998,8 +5034,14 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
             <KV label="Teléfono" value={detail.telefono||"—"}/>
             <KV label="Responsable" value={(tenantUsers.find(item=>item.id===detail.responsable)?.name)||"—"}/>
             <KV label="Fecha cierre estimada" value={detail.fecha_cierre_estimada?fmtD(detail.fecha_cierre_estimada):"—"}/>
-            {crmCanPassToClient(detail, scopedStages) && <div style={{marginTop:14}}><Btn onClick={()=>passToClientes(detail)}>Pasar a Clientes</Btn></div>}
+            {(detail.telefono || detail.email) && <>
+              <Sep/>
+              <div style={{fontSize:11,color:"var(--gr2)",marginBottom:8}}>Contacto rápido</div>
+              <ContactBtns tel={detail.telefono} ema={detail.email} nombre={detail.contacto || detail.empresaMarca || detail.nombre} mensaje={`Hola ${detail.contacto || detail.empresaMarca || ""}, te escribimos desde ${empresa?.nombre || "Produ"} sobre la oportunidad "${detail.nombre}".`}/>
+            </>}
+            {crmCanPassToClient(detail, scopedStages) && <div style={{marginTop:14}}><Btn onClick={()=>passToEntity(detail)}>{detail.tipo_negocio==="auspiciador"?"Pasar a Auspiciadores":"Pasar a Clientes"}</Btn></div>}
             {!!detail.linkedClientId && <div style={{marginTop:12,fontSize:12,color:"#00e08a"}}>✓ Vinculada al cliente existente/creado en Clientes</div>}
+            {!!detail.linkedSponsorId && <div style={{marginTop:12,fontSize:12,color:"#00e08a"}}>✓ Vinculada al auspiciador existente/creado en Auspiciadores</div>}
           </Card>
           <Card title="Próxima acción">
             <FG label="Qué sigue"><FI value={detail.nextAction||""} onChange={e=>setDetailId(detail.id) || saveOpp({...detail,nextAction:e.target.value})} placeholder="Define el siguiente movimiento comercial"/></FG>
@@ -5007,7 +5049,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
             <div style={{fontSize:11,color:"var(--gr2)"}}>Este bloque te ayuda a mantener foco comercial sin abrir otra herramienta.</div>
           </Card>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,320px),1fr))",gap:16}}>
           <Card title="Notas">
             <FTA value={detail.notas||""} onChange={e=>setDetailId(detail.id) || saveOpp({...detail,notas:e.target.value})} placeholder="Notas estratégicas, objeciones, acuerdos, contexto del lead..."/>
             <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><GBtn sm onClick={saveNotes}>Guardar notas</GBtn></div>

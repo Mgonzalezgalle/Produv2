@@ -6842,18 +6842,24 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
     });
     return;
   }
-  page.drawRectangle({ x:x+r, y, width:width-(r*2), height, color:fillColor });
-  page.drawRectangle({ x, y:y+r, width, height:height-(r*2), color:fillColor });
-  page.drawCircle({ x:x+r, y:y+r, size:r, color:fillColor });
-  page.drawCircle({ x:x+width-r, y:y+r, size:r, color:fillColor });
-  page.drawCircle({ x:x+r, y:y+height-r, size:r, color:fillColor });
-  page.drawCircle({ x:x+width-r, y:y+height-r, size:r, color:fillColor });
-  page.drawRectangle({ x:x+r, y, width:width-(r*2), height, borderColor:stroke, borderWidth, opacity:0 });
-  page.drawRectangle({ x, y:y+r, width, height:height-(r*2), borderColor:stroke, borderWidth, opacity:0 });
-  page.drawCircle({ x:x+r, y:y+r, size:r, borderColor:stroke, borderWidth, opacity:0 });
-  page.drawCircle({ x:x+width-r, y:y+r, size:r, borderColor:stroke, borderWidth, opacity:0 });
-  page.drawCircle({ x:x+r, y:y+height-r, size:r, borderColor:stroke, borderWidth, opacity:0 });
-  page.drawCircle({ x:x+width-r, y:y+height-r, size:r, borderColor:stroke, borderWidth, opacity:0 });
+  const c = 0.5522847498 * r;
+  const path = [
+    `M ${x + r} ${y}`,
+    `L ${x + width - r} ${y}`,
+    `C ${x + width - r + c} ${y} ${x + width} ${y + r - c} ${x + width} ${y + r}`,
+    `L ${x + width} ${y + height - r}`,
+    `C ${x + width} ${y + height - r + c} ${x + width - r + c} ${y + height} ${x + width - r} ${y + height}`,
+    `L ${x + r} ${y + height}`,
+    `C ${x + r - c} ${y + height} ${x} ${y + height - r + c} ${x} ${y + height - r}`,
+    `L ${x} ${y + r}`,
+    `C ${x} ${y + r - c} ${x + r - c} ${y} ${x + r} ${y}`,
+    "Z",
+  ].join(" ");
+  page.drawSvgPath(path, {
+    color: fillColor,
+    borderColor: stroke,
+    borderWidth,
+  });
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {

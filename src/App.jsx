@@ -844,6 +844,25 @@ body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow
   .modal-box{border-radius:16px 16px 0 0!important;width:100%!important;max-width:100%!important;max-height:92vh!important}
   input,select,textarea{font-size:16px!important}
 }
+@media(max-width:1024px){
+  .login-card{grid-template-columns:1fr!important;gap:14px!important}
+  .login-form{order:-1;padding:30px 24px!important}
+  .login-promo{min-height:auto!important;padding:26px!important}
+  .login-promo-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .login-promo-footer{grid-template-columns:1fr!important}
+  .login-title{font-size:34px!important;max-width:none!important}
+}
+@media(max-width:640px){
+  .login-shell{padding:12px!important;align-items:flex-start!important}
+  .login-card{gap:12px!important}
+  .login-form,.login-promo{border-radius:18px!important;box-shadow:0 12px 36px rgba(0,0,0,.24)!important}
+  .login-form{padding:22px 16px!important}
+  .login-promo{padding:20px 16px!important}
+  .login-promo-grid{grid-template-columns:1fr!important}
+  .login-title{font-size:28px!important;line-height:1.05!important}
+  .login-subcopy{font-size:13px!important}
+  .login-promo-copy{font-size:13px!important}
+}
 @media(min-width:769px){
   .mob-overlay{display:none!important}
   .ham-btn{display:none!important}
@@ -1133,16 +1152,16 @@ function Login({users,onLogin,empresas=[]}){
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
     <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
     <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
-      <div style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
+      <div className="login-promo" style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
         <div>
           <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Demo gratis</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Opera tu productora con una demo real de Produ</div>
-          <div style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:22}}>Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido.</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Opera tu productora con una demo real de Produ</div>
+          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:22}}>Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido.</div>
+          <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {[["Módulos","Activa solo lo que necesitas"],["Equipo","Invita usuarios y crew"],["Comercial","Presupuestos e invoices"]].map(([title,sub])=><div key={title} style={{padding:"14px 14px",borderRadius:16,background:"rgba(8,8,9,.28)",border:"1px solid var(--bdr2)"}}><div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>{sub}</div></div>)}
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
+        <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
           <div style={{padding:18,borderRadius:18,background:"rgba(6,10,18,.5)",border:"1px solid var(--bdr2)"}}>
             <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
             <div style={{display:"grid",gap:8,fontSize:12,color:"var(--gr3)"}}>
@@ -1154,8 +1173,8 @@ function Login({users,onLogin,empresas=[]}){
           <button onClick={()=>setSolOpen(true)} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)"}}>Crear demo gratis</button>
         </div>
       </div>
-      <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
-      <div style={{textAlign:"center",marginBottom:32}}>
+      <div className="login-form" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
+      <div className="login-logo" style={{textAlign:"center",marginBottom:32}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
           <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
             <svg viewBox="0 0 24 24" fill="var(--bg)" width="22" height="22"><polygon points="5,3 20,12 5,21"/></svg>
@@ -1167,7 +1186,7 @@ function Login({users,onLogin,empresas=[]}){
         </div>
       </div>
       <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--fh)",marginBottom:4,textAlign:"center"}}>Bienvenido de vuelta</div>
-      <div style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
+      <div className="login-subcopy" style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
       <FG label="Email"><FI type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.cl" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
       <FG label="Contraseña">
         <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"center"}}>

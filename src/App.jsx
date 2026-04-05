@@ -179,6 +179,29 @@ function hasAddon(empresa, addon) {
   return Array.isArray(empresa?.addons) && empresa.addons.includes(addon);
 }
 
+function budgetDraftKey(empresaId="", userId="") {
+  return `produ:budgetDraft:${empresaId || "global"}:${userId || "anon"}`;
+}
+
+function loadBudgetDraft(empresaId="", userId="") {
+  try {
+    const raw = localStorage.getItem(budgetDraftKey(empresaId, userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBudgetDraft(empresaId="", userId="", draft=null) {
+  try {
+    if (!draft) {
+      localStorage.removeItem(budgetDraftKey(empresaId, userId));
+      return;
+    }
+    localStorage.setItem(budgetDraftKey(empresaId, userId), JSON.stringify(draft));
+  } catch {}
+}
+
 function daysUntil(date) {
   if (!date) return null;
   const target = new Date(date + "T12:00:00");
@@ -3677,7 +3700,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
-    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa}/>
+    <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa} currentUser={VP.user}/>
     <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>saveFacturaDoc(withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
     <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
@@ -4941,15 +4964,32 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
 
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
-function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa}){
+function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa,currentUser}){
   const pieceLine = () => ({id:uid(),desc:"Piezas mensuales",qty:1,precio:0,und:"pieza"});
   const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",detallePiezas:"Piezas mensuales",pieceLines:[pieceLine()],recurring:false,recMonths:"6",recStart:today()};
   const [f,setF]=useState({});
+  const [draftRestored,setDraftRestored]=useState(false);
+  const draftKeyArgs=[empresa?.id||"",currentUser?.id||""];
   useEffect(()=>{
-    setF(data?.id
-      ? {...data,items:data.items||[],pieceLines:(data.pieceLines||data.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]}
-      : {...empty});
-  },[data,open]);
+    if (!open) return;
+    if (data?.id) {
+      setDraftRestored(false);
+      setF({...data,items:data.items||[],pieceLines:(data.pieceLines||data.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]});
+      return;
+    }
+    const draft=loadBudgetDraft(...draftKeyArgs);
+    if (draft) {
+      setDraftRestored(true);
+      setF({...empty,...draft,items:draft.items||[],pieceLines:(draft.pieceLines||draft.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]});
+      return;
+    }
+    setDraftRestored(false);
+    setF({...empty});
+  },[data,open,empresa?.id,currentUser?.id]);
+  useEffect(()=>{
+    if (!open || data?.id || !Object.keys(f||{}).length) return;
+    saveBudgetDraft(...draftKeyArgs, f);
+  },[f,open,data?.id,empresa?.id,currentUser?.id]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const canPrograms = hasAddon(empresa, "television");
   const canSocial = hasAddon(empresa, "social");
@@ -4979,6 +5019,12 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
   const projectedTotal=f.recurring?total*recurringMonths:total;
   const contratosCli = contractsForReference(contratos||[], f.cliId, f.tipo, f.refId);
   return <Modal open={open} onClose={onClose} title={data?.id?"Editar Presupuesto":"Nuevo Presupuesto"} sub="Cotización comercial" extraWide>
+    {!data?.id&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:12,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+      <div style={{fontSize:11,color:"var(--gr2)"}}>
+        {draftRestored?"Restauramos tu borrador automáticamente.":"Este formulario guarda un borrador automático para evitar pérdida de avance."}
+      </div>
+      <GBtn sm onClick={()=>{saveBudgetDraft(...draftKeyArgs,null);setDraftRestored(false);setF({...empty});}}>Descartar borrador</GBtn>
+    </div>}
     <R2>
       <FG label="Título / Descripción *"><FI value={f.titulo||""} onChange={e=>u("titulo",e.target.value)} placeholder="Proyecto / Producción Q2 2025"/></FG>
       <FG label="N° Correlativo"><FI value={f.correlativo||""} onChange={e=>u("correlativo",e.target.value)} placeholder="PRES-2025-001"/></FG>
@@ -5134,6 +5180,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       const normalizedItems = canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas"
         ? pieceItems
         : (f.items||[]);
+      saveBudgetDraft(...draftKeyArgs,null);
       onSave({...f,items:normalizedItems,pieceLines:canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas" ? pieceItems : (f.pieceLines||[]),subtotal,ivaVal,total,projectedTotal});
     }}/>
   </Modal>;

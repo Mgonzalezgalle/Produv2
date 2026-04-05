@@ -974,11 +974,11 @@ function BrandLockup({
 }){
   const textAlign=align==="center"?"center":"left";
   const presets={
-    sm:{ icon:34, iconRadius:8, iconGlyph:16, gap:10, title:17, subtitle:6.2, subtitleOffset:2, subtitleWeight:500 },
-    md:{ icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:8.9, subtitleOffset:4, subtitleWeight:500 },
-    lg:{ icon:56, iconRadius:14, iconGlyph:24, gap:16, title:36, subtitle:9.8, subtitleOffset:4, subtitleWeight:500 },
+    sm:{ icon:34, iconRadius:8, iconGlyph:16, gap:10, title:17, subtitle:6.7, subtitleOffset:2, subtitleWeight:500 },
+    md:{ icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:9.4, subtitleOffset:4, subtitleWeight:500 },
+    lg:{ icon:56, iconRadius:14, iconGlyph:24, gap:16, title:36, subtitle:10.3, subtitleOffset:4, subtitleWeight:500 },
   }[size] || {
-    icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:8.9, subtitleOffset:4, subtitleWeight:500,
+    icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:9.4, subtitleOffset:4, subtitleWeight:500,
   };
   return <div style={{display:"flex",alignItems:"center",justifyContent:align==="center"?"center":"flex-start",gap:presets.gap}}>
     <div style={{width:presets.icon,height:presets.icon,borderRadius:presets.iconRadius,background:"linear-gradient(180deg,#1fd4ee 0%, #13b8dd 100%)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:glow?"0 0 24px var(--cm)":"none",flexShrink:0}}>

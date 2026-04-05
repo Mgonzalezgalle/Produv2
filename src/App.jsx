@@ -4865,6 +4865,26 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
     await setCrmStages(next.map(stage=>({...stage,empId})));
     ntf?.("Etapas CRM actualizadas ✓");
   };
+  const removeStage=async stageId=>{
+    const stage=scopedStages.find(item=>item.id===stageId);
+    if(!stage) return;
+    if(scopedStages.length<=2){
+      alert("Debes mantener al menos dos etapas en el pipeline.");
+      return;
+    }
+    const fallback=scopedStages.find(item=>item.id!==stageId && !item.closedLost) || scopedStages.find(item=>item.id!==stageId);
+    if(!fallback) return;
+    const linked=scopedOpps.filter(opp=>opp.stageId===stageId);
+    const nextStages=scopedStages.filter(item=>item.id!==stageId).map((item,idx)=>({...item,order:idx+1}));
+    if(linked.length){
+      const nextOpps=(crmOpps||[]).map(opp=>opp.empId===empId && opp.stageId===stageId
+        ? crmNormalizeOpportunity({...opp,stageId:fallback.id,status:fallback.closedWon?"Ganada":fallback.closedLost?"Perdida":"Activa"}, nextStages)
+        : opp);
+      await setCrmOpps(nextOpps);
+    }
+    await saveStageConfig(nextStages);
+    ntf?.(`Etapa eliminada${linked.length?` y ${linked.length} oportunidad${linked.length===1?"":"es"} reasignada${linked.length===1?"":"s"}`:""} ✓`);
+  };
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
@@ -5025,11 +5045,12 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,u
 
     <Modal open={stagesOpen} onClose={()=>setStagesOpen(false)} title="Etapas del pipeline" sub="Edita el flujo comercial del CRM">
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {scopedStages.map((stage,idx)=><div key={stage.id} style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:8,alignItems:"center",padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+        {scopedStages.map((stage,idx)=><div key={stage.id} style={{display:"grid",gridTemplateColumns:"1fr auto auto auto auto",gap:8,alignItems:"center",padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
           <FI value={stage.name} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,name:e.target.value}:item))}/>
           <label style={{fontSize:11,color:"var(--gr3)",display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={!!stage.convertToClient} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,convertToClient:e.target.checked}:item))}/>Cliente</label>
           <GBtn sm onClick={()=>idx>0 && saveStageConfig(scopedStages.map((item,i)=>i===idx-1?{...stage,order:i+1}:i===idx?{...scopedStages[idx-1],order:i+1}:{...item,order:i+1}))}>↑</GBtn>
           <GBtn sm onClick={()=>idx<scopedStages.length-1 && saveStageConfig(scopedStages.map((item,i)=>i===idx+1?{...stage,order:i+1}:i===idx?{...scopedStages[idx+1],order:i+1}:{...item,order:i+1}))}>↓</GBtn>
+          <DBtn sm onClick={()=>removeStage(stage.id)}>Eliminar</DBtn>
         </div>)}
       </div>
       <div style={{marginTop:12,display:"flex",justifyContent:"space-between",gap:8}}>

@@ -357,6 +357,45 @@ function companyPaymentInfoText(empresa = {}, extra = {}) {
   return blocks.filter(Boolean).join("\n\n");
 }
 
+const DEFAULT_PRINT_LAYOUTS = {
+  budget: {
+    accent: "#1f2f5f",
+    stampWidth: 158,
+    stampHeight: 84,
+    companyTitleSize: 18,
+    metaSize: 9,
+    sectionTitleSize: 9.4,
+    sectionBodySize: 8.6,
+    detailTitleSize: 9,
+    detailHeaderSize: 7.7,
+    detailBodySize: 7.1,
+    detailColWidth: 300,
+    recurrenceColWidth: 78,
+    qtyColWidth: 34,
+    unitColWidth: 74,
+    totalColWidth: 42,
+    summaryLabelSize: 7.5,
+    summaryValueSize: 10,
+  },
+  billing: {
+    accent: "#1f2f5f",
+    stampWidth: 170,
+    stampHeight: 82,
+    companyTitleSize: 17,
+    metaSize: 8.7,
+    sectionTitleSize: 9.2,
+    sectionBodySize: 8.8,
+    summaryLabelSize: 7.5,
+    summaryValueSize: 10,
+  },
+};
+
+function normalizePrintLayouts(raw = {}) {
+  const budget = { ...DEFAULT_PRINT_LAYOUTS.budget, ...(raw?.budget || {}) };
+  const billing = { ...DEFAULT_PRINT_LAYOUTS.billing, ...(raw?.billing || {}) };
+  return { budget, billing };
+}
+
 function companyBillingDiscountPct(empresa = {}) {
   const pct = Number(empresa?.billingDiscountPct || 0);
   if (!Number.isFinite(pct)) return 0;
@@ -2727,7 +2766,7 @@ const THEME_PRESETS={
   },
 };
 
-function SuperAdminPanel({empresas,users,onSave}){
+function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
   const [sysUf,setSysUf]=useState({active:true,role:"admin",empId:"",password:""});
@@ -2746,6 +2785,7 @@ function SuperAdminPanel({empresas,users,onSave}){
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
   const [uEmp,setUEmp]=useState("");
+  const [printForm,setPrintForm]=useState(()=>normalizePrintLayouts(printLayouts));
   const totalEmp=(empresas||[]).length;
   const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
   const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
@@ -2780,6 +2820,7 @@ function SuperAdminPanel({empresas,users,onSave}){
   );
   const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
   const selectedCommEmp = (empresas||[]).find(e=>e.id===commEmpId) || (empresas||[])[0] || null;
+  useEffect(()=>{ setPrintForm(normalizePrintLayouts(printLayouts)); },[printLayouts]);
   const saveSystemUser=async()=>{
     if(!sysUf.name?.trim() || !sysUf.email?.trim() || !sysUf.password?.trim()) return;
     const normalizedEmail = normalizeEmailValue(sysUf.email);
@@ -2802,7 +2843,16 @@ function SuperAdminPanel({empresas,users,onSave}){
     setSysUf({active:true,role:"admin",empId:"",password:""});
   };
   const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
-  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"];
+  const updatePrint=(doc,key,value)=>setPrintForm(prev=>({
+    ...prev,
+    [doc]:{
+      ...prev?.[doc],
+      [key]: key==="accent" ? value : Number(value || 0),
+    },
+  }));
+  const resetPrintLayouts=()=>setPrintForm(normalizePrintLayouts(DEFAULT_PRINT_LAYOUTS));
+  const persistPrintLayouts=()=>savePrintLayouts(normalizePrintLayouts(printForm));
+  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos"];
   const SUPER_TAB_META={
     "Empresas":{eyebrow:"Estructura",desc:"Administra tenants, planes, addons y configuración base de cada instancia."},
     "Cartera":{eyebrow:"Control comercial",desc:"Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants."},
@@ -2810,6 +2860,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     "Integraciones":{eyebrow:"Base técnica",desc:"Activa o desactiva integraciones preparadas por tenant sin exponer funciones incompletas."},
     "Comunicaciones":{eyebrow:"Mensajería",desc:"Envía mensajes sistémicos y banners visibles para cada empresa usuaria."},
     "Solicitudes":{eyebrow:"Pipeline",desc:"Aprueba accesos, demos y referidos desde una sola bandeja de control."},
+    "Impresos":{eyebrow:"Diseño documental",desc:"Ajusta tamaños, pesos visuales y estructura base de los PDFs de Presupuestos y Facturación desde una consola central."},
   };
   const activeSuperTab=SUPER_TABS[tab];
   const saveEmp=()=>{
@@ -3253,6 +3304,62 @@ function SuperAdminPanel({empresas,users,onSave}){
         }
         await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
       }}/>
+    </div>}
+    {tab===6&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
+        {[
+          {key:"budget",title:"Presupuestos",sub:"Controla jerarquía, caja roja, tabla de detalle y bloques de resumen."},
+          {key:"billing",title:"Facturación",sub:"Ajusta composición general, sello legal y paneles de resumen."},
+        ].map(section=>{
+          const cfg=printForm?.[section.key] || DEFAULT_PRINT_LAYOUTS[section.key];
+          return <Card key={section.key} title={section.title} sub={section.sub}>
+            <div style={{display:"grid",gap:12}}>
+              <R2>
+                <FG label="Color acento"><FI type="color" value={cfg.accent||"#1f2f5f"} onChange={e=>updatePrint(section.key,"accent",e.target.value)}/></FG>
+                <FG label="Título empresa"><FI type="number" min="12" max="28" step="0.1" value={cfg.companyTitleSize||0} onChange={e=>updatePrint(section.key,"companyTitleSize",e.target.value)}/></FG>
+              </R2>
+              <R2>
+                <FG label="Meta header"><FI type="number" min="7" max="14" step="0.1" value={cfg.metaSize||0} onChange={e=>updatePrint(section.key,"metaSize",e.target.value)}/></FG>
+                <FG label="Título sección"><FI type="number" min="7" max="14" step="0.1" value={cfg.sectionTitleSize||0} onChange={e=>updatePrint(section.key,"sectionTitleSize",e.target.value)}/></FG>
+              </R2>
+              <R2>
+                <FG label="Texto sección"><FI type="number" min="7" max="13" step="0.1" value={cfg.sectionBodySize||0} onChange={e=>updatePrint(section.key,"sectionBodySize",e.target.value)}/></FG>
+                <FG label="Etiqueta resumen"><FI type="number" min="6.5" max="12" step="0.1" value={cfg.summaryLabelSize||0} onChange={e=>updatePrint(section.key,"summaryLabelSize",e.target.value)}/></FG>
+              </R2>
+              <R2>
+                <FG label="Valor resumen"><FI type="number" min="8" max="16" step="0.1" value={cfg.summaryValueSize||0} onChange={e=>updatePrint(section.key,"summaryValueSize",e.target.value)}/></FG>
+                <FG label="Ancho sello rojo"><FI type="number" min="130" max="220" step="1" value={cfg.stampWidth||0} onChange={e=>updatePrint(section.key,"stampWidth",e.target.value)}/></FG>
+              </R2>
+              <FG label="Altura sello rojo"><FI type="number" min="68" max="120" step="1" value={cfg.stampHeight||0} onChange={e=>updatePrint(section.key,"stampHeight",e.target.value)}/></FG>
+              {section.key==="budget"&&<>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)",fontSize:11,color:"var(--gr2)"}}>
+                  Estructura del detalle de servicios
+                </div>
+                <R2>
+                  <FG label="Título detalle"><FI type="number" min="7" max="13" step="0.1" value={cfg.detailTitleSize||0} onChange={e=>updatePrint(section.key,"detailTitleSize",e.target.value)}/></FG>
+                  <FG label="Header tabla"><FI type="number" min="6.5" max="11" step="0.1" value={cfg.detailHeaderSize||0} onChange={e=>updatePrint(section.key,"detailHeaderSize",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Texto ítems"><FI type="number" min="6.2" max="10" step="0.1" value={cfg.detailBodySize||0} onChange={e=>updatePrint(section.key,"detailBodySize",e.target.value)}/></FG>
+                  <FG label="Ancho detalle"><FI type="number" min="240" max="360" step="1" value={cfg.detailColWidth||280} onChange={e=>updatePrint(section.key,"detailColWidth",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Ancho recurrencia"><FI type="number" min="56" max="110" step="1" value={cfg.recurrenceColWidth||78} onChange={e=>updatePrint(section.key,"recurrenceColWidth",e.target.value)}/></FG>
+                  <FG label="Ancho cantidad"><FI type="number" min="28" max="64" step="1" value={cfg.qtyColWidth||34} onChange={e=>updatePrint(section.key,"qtyColWidth",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Ancho valor unitario"><FI type="number" min="56" max="110" step="1" value={cfg.unitColWidth||74} onChange={e=>updatePrint(section.key,"unitColWidth",e.target.value)}/></FG>
+                  <FG label="Ancho total"><FI type="number" min="32" max="80" step="1" value={cfg.totalColWidth||48} onChange={e=>updatePrint(section.key,"totalColWidth",e.target.value)}/></FG>
+                </R2>
+              </>}
+            </div>
+          </Card>;
+        })}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
+        <Btn onClick={persistPrintLayouts}>Guardar composición</Btn>
+        <GBtn onClick={resetPrintLayouts}>Restablecer defaults</GBtn>
+      </div>
     </div>}
   </div>;
 }
@@ -3942,6 +4049,7 @@ export default function App(){
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
   const [users,setUsersRaw,savUsrRef]=useDB("produ:users");
+  const [printLayouts,setPrintLayoutsRaw]=useDB("produ:printLayouts");
   const [,setThemeDB]=useDB("produ:theme");
 
   // Per-empresa data
@@ -4009,6 +4117,11 @@ export default function App(){
       setUsersRaw(normalizedUsers);
       if(!v || JSON.stringify(normalizedUsers)!==JSON.stringify(baseUsers)) dbSet("produ:users",normalizedUsers);
     });
+    dbGet("produ:printLayouts").then(v=>{
+      const normalized = normalizePrintLayouts(v || DEFAULT_PRINT_LAYOUTS);
+      setPrintLayoutsRaw(normalized);
+      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:printLayouts",normalized);
+    });
     applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
   },[]);
@@ -4058,6 +4171,15 @@ export default function App(){
       dbSet("produ:empresas",normalized);
     }
   },[empresas]);
+
+  useEffect(()=>{
+    if(!printLayouts) return;
+    const normalized = normalizePrintLayouts(printLayouts);
+    if(JSON.stringify(normalized)!==JSON.stringify(printLayouts)){
+      setPrintLayoutsRaw(normalized);
+      dbSet("produ:printLayouts",normalized);
+    }
+  },[printLayouts]);
 
   // Seed per-empresa data
   useEffect(()=>{
@@ -4282,6 +4404,7 @@ export default function App(){
     }
   };
   const saveEmpresas=e=>{const normalized=normalizeEmpresasModel(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
+  const savePrintLayouts=layouts=>{const normalized=normalizePrintLayouts(layouts);setPrintLayoutsRaw(normalized);dbSet("produ:printLayouts",normalized);};
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
@@ -4305,7 +4428,7 @@ export default function App(){
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
-    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
+    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts}/></>;
     if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
@@ -6877,7 +7000,7 @@ function drawRightAlignedPdfText(page, text, x, y, width, font, size, color) {
   });
 }
 
-function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, accentColor, bold, font, white, textColor, fillColor, borderColor }) {
+function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, accentColor, bold, font, white, textColor, fillColor, borderColor, labelSize = 7.5, valueSize = 10 }) {
   const paddingX = 14;
   const paddingTop = 14;
   const labelHeight = 22;
@@ -6890,8 +7013,8 @@ function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, acce
   const valueWidth = width - (paddingX * 2) - labelWidth - valueOffset;
   let rowY = y + height - paddingTop - labelHeight;
   rows.forEach((row) => {
-    drawCommercialLabel(page, row.label, x + paddingX, rowY, labelWidth, accentColor, bold, white, row.labelSize || 7.5);
-    drawRightAlignedPdfText(page, row.value, valueX, rowY + 6, valueWidth, row.bold ? bold : font, row.valueSize || 10, row.color || textColor);
+    drawCommercialLabel(page, row.label, x + paddingX, rowY, labelWidth, accentColor, bold, white, row.labelSize || labelSize);
+    drawRightAlignedPdfText(page, row.value, valueX, rowY + 6, valueWidth, row.bold ? bold : font, row.valueSize || valueSize, row.color || textColor);
     rowY -= rowBlock;
   });
   return height;
@@ -7258,7 +7381,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const { width, height } = page.getSize();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const accentColor = hexToRgb("#1f2f5f");
+  const printLayouts = normalizePrintLayouts((await dbGet("produ:printLayouts")) || DEFAULT_PRINT_LAYOUTS);
+  const layout = printLayouts.budget;
+  const accentColor = hexToRgb(layout.accent || "#1f2f5f");
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#5b6474");
   const white = hexToRgb("#ffffff");
@@ -7279,18 +7404,18 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   page.drawRectangle({ x:0, y:0, width, height, color:white });
 
   const issuerTextX = margin;
-  page.drawText(empresa?.nombre || "", { x:issuerTextX, y:height-58, size:18, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:issuerTextX, y:height-58, size:layout.companyTitleSize || 18, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
-    page.drawText(line, { x:issuerTextX, y:issuerY, size:9, font, color:muted, maxWidth: 255 });
+    page.drawText(line, { x:issuerTextX, y:issuerY, size:layout.metaSize || 9, font, color:muted, maxWidth: 255 });
     issuerY -= 13;
   });
   drawLegalDocStamp(page, {
-    x: width - 208,
-    y: height - 118,
-    width: 158,
-    height: 84,
+    x: width - margin - (layout.stampWidth || 158),
+    y: height - 34 - (layout.stampHeight || 84),
+    width: layout.stampWidth || 158,
+    height: layout.stampHeight || 84,
     white,
     bold,
     font,
@@ -7298,9 +7423,10 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     docType: "Presupuesto",
     docNumber: pres.correlativo || "",
   });
-  page.drawText(`Fecha: ${fmtD(today())}`, { x:width-208, y:height-146, size:9, font, color:textColor });
-  page.drawText(`Validez: ${pres.validez || 30} días`, { x:width-208, y:height-160, size:9, font, color:textColor });
-  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:width-208, y:height-174, size:9, font, color:textColor });
+  const stampX = width - margin - (layout.stampWidth || 158);
+  page.drawText(`Fecha: ${fmtD(today())}`, { x:stampX, y:height-146, size:layout.metaSize || 9, font, color:textColor });
+  page.drawText(`Validez: ${pres.validez || 30} días`, { x:stampX, y:height-160, size:layout.metaSize || 9, font, color:textColor });
+  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:stampX, y:height-174, size:layout.metaSize || 9, font, color:textColor });
 
   let y = height - 196;
   const clientText = [
@@ -7323,55 +7449,55 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     bold,
     textColor,
     muted,
-    titleSize: 9.4,
-    bodySize: 8.6,
+    titleSize: layout.sectionTitleSize || 9.4,
+    bodySize: layout.sectionBodySize || 8.6,
     bodyGap: 2.2,
   });
   y -= clientHeight + 20;
 
   const columns = {
-    detail: { label: "Detalle", x: margin + 14, width: 300 },
-    recurrence: { label: "Recurrencia", x: margin + 328, width: 78 },
-    qty: { label: "Cant.", x: margin + 414, width: 34 },
-    unit: { label: "Valor Unit.", x: margin + 454, width: 74 },
-    total: { label: "Total", x: margin + 532, width: 32 },
+    detail: { label: "Detalle", x: margin + 14, width: layout.detailColWidth || 300 },
+    recurrence: { label: "Recurrencia", x: margin + 28 + (layout.detailColWidth || 300), width: layout.recurrenceColWidth || 78 },
+    qty: { label: "Cant.", x: margin + 36 + (layout.detailColWidth || 300) + (layout.recurrenceColWidth || 78), width: layout.qtyColWidth || 34 },
+    unit: { label: "Valor Unit.", x: margin + 42 + (layout.detailColWidth || 300) + (layout.recurrenceColWidth || 78) + (layout.qtyColWidth || 34), width: layout.unitColWidth || 74 },
+    total: { label: "Total", x: width - margin - (layout.totalColWidth || 42), width: layout.totalColWidth || 42 },
   };
   drawRoundedPdfBox(page, margin, y - 30, contentWidth, 30, accentColor, accentColor, 1);
-  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.9, font: bold, color: white });
-  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.9, font: bold, color: white });
-  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 8.9, font: bold, color: white });
-  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 8.9, font: bold, color: white });
-  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 8.9, font: bold, color: white });
+  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
+  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
+  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
+  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
+  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
   y -= 42;
 
   items.forEach((item, idx) => {
-    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 8.2);
-    const rowHeight = Math.max(24, detailLines.length * 10 + 12);
+    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, layout.detailBodySize || 7.1);
+    const rowHeight = Math.max(24, detailLines.length * 9 + 12);
     drawRoundedPdfBox(page, margin, y - rowHeight + 6, contentWidth, rowHeight, idx % 2 === 0 ? white : surface, border, 0.8);
     let lineY = y - 8;
     detailLines.forEach(line => {
       page.drawText(line || " ", {
         x: columns.detail.x,
         y: lineY,
-        size: 8.2,
+        size: layout.detailBodySize || 7.1,
         font,
         color: textColor,
         maxWidth: columns.detail.width,
       });
-      lineY -= 10;
+      lineY -= 9;
     });
     const valueY = y - 11;
     page.drawText(item.recurrence === "monthly" ? "Mensual" : "Única vez", {
       x: columns.recurrence.x,
       y: valueY,
-      size: 8.2,
+      size: layout.detailBodySize || 7.1,
       font,
       color: textColor,
       maxWidth: columns.recurrence.width,
     });
-    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 8.2, textColor);
-    drawRightAlignedPdfText(page, fmtMoney(item.precio || 0, pres.moneda || "CLP"), columns.unit.x, valueY, columns.unit.width, font, 8.2, textColor);
-    drawRightAlignedPdfText(page, fmtMoney(Number(item.qty || 0) * Number(item.precio || 0), pres.moneda || "CLP"), columns.total.x - 10, valueY, 42, bold, 8.4, textColor);
+    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, layout.detailBodySize || 7.1, textColor);
+    drawRightAlignedPdfText(page, fmtMoney(item.precio || 0, pres.moneda || "CLP"), columns.unit.x, valueY, columns.unit.width, font, layout.detailBodySize || 7.1, textColor);
+    drawRightAlignedPdfText(page, fmtMoney(Number(item.qty || 0) * Number(item.precio || 0), pres.moneda || "CLP"), columns.total.x, valueY, columns.total.width, bold, Math.max((layout.detailBodySize || 7.1) + 0.2, 7.3), textColor);
     y -= rowHeight + 4;
   });
 
@@ -7393,6 +7519,8 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     textColor,
     fillColor: white,
     borderColor: border,
+    labelSize: layout.summaryLabelSize || 7.5,
+    valueSize: layout.summaryValueSize || 10,
   });
   const rightCardX = margin + cardWidth + 22;
   drawSummaryPanel(page, {
@@ -7412,6 +7540,8 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     textColor,
     fillColor: white,
     borderColor: border,
+    labelSize: layout.summaryLabelSize || 7.5,
+    valueSize: layout.summaryValueSize || 10,
   });
 
   let sectionY = paymentCardY - 22;
@@ -7429,8 +7559,8 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
       bold,
       textColor,
       muted,
-      titleSize: 9.2,
-      bodySize: 8.8,
+      titleSize: layout.sectionTitleSize || 9.2,
+      bodySize: layout.sectionBodySize || 8.8,
       bodyGap: 2.2,
     });
     sectionY -= paymentHeight + 14;
@@ -7449,8 +7579,8 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
       bold,
       textColor,
       muted,
-      titleSize: 9.2,
-      bodySize: 8.6,
+      titleSize: layout.sectionTitleSize || 9.2,
+      bodySize: layout.sectionBodySize || 8.6,
       bodyGap: 2.2,
     });
   }
@@ -7514,7 +7644,9 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const { width, height } = page.getSize();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const accent = companyPrintColor(empresa);
+  const printLayouts = normalizePrintLayouts((await dbGet("produ:printLayouts")) || DEFAULT_PRINT_LAYOUTS);
+  const layout = printLayouts.billing;
+  const accent = layout.accent || companyPrintColor(empresa);
   const accentColor = hexToRgb(accent);
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#667085");
@@ -7532,18 +7664,18 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   });
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
-  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:17, font:bold, color:textColor });
+  page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:layout.companyTitleSize || 17, font:bold, color:textColor });
   const issuerLines = [empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
-    page.drawText(line, { x:margin, y:issuerY, size:8.7, font, color:muted });
+    page.drawText(line, { x:margin, y:issuerY, size:layout.metaSize || 8.7, font, color:muted });
     issuerY -= 11;
   });
   drawLegalDocStamp(page, {
-    x: width - 208,
-    y: height - 106,
-    width: 170,
-    height: 82,
+    x: width - margin - (layout.stampWidth || 170),
+    y: height - 24 - (layout.stampHeight || 82),
+    width: layout.stampWidth || 170,
+    height: layout.stampHeight || 82,
     white,
     bold,
     font,
@@ -7551,10 +7683,11 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     docType,
     docNumber: fact.correlativo || "",
   });
-  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:width-208, y:height-120, size:8.7, font, color:textColor });
-  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:width-208, y:height-132, size:8.7, font, color:textColor });
+  const stampX = width - margin - (layout.stampWidth || 170);
+  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:stampX, y:height-120, size:layout.metaSize || 8.7, font, color:textColor });
+  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:stampX, y:height-132, size:layout.metaSize || 8.7, font, color:textColor });
   if (fact.recurring) {
-    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:width-208, y:height-144, size:8.7, font, color:textColor });
+    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:stampX, y:height-144, size:layout.metaSize || 8.7, font, color:textColor });
   }
 
   let y = height - 170;
@@ -7578,15 +7711,15 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     bold,
     textColor,
     muted,
-    titleSize: 9.3,
-    bodySize: 8.2,
+    titleSize: layout.sectionTitleSize || 9.2,
+    bodySize: layout.sectionBodySize || 8.8,
     bodyGap: 1.8,
   });
   y -= entityHeight + 18;
 
   const detailHeight = 108;
   drawRoundedPdfBox(page, margin, y-detailHeight, contentWidth, detailHeight, white, border, 1.1);
-  page.drawText("Detalle del documento", { x:margin+14, y:y-18, size:9.2, font:bold, color:accentColor });
+  page.drawText("Detalle del documento", { x:margin+14, y:y-18, size:layout.sectionTitleSize || 9.2, font:bold, color:accentColor });
   const detailRows = [
     ["Tipo de documento", docType],
     ["Estado", fact.estado || "Emitida"],
@@ -7595,8 +7728,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   ];
   let detailY = y - 42;
   detailRows.forEach(([label, value]) => {
-    page.drawText(`${label}:`, { x:margin+14, y:detailY, size:8.5, font:bold, color:textColor });
-    page.drawText(String(value || "—"), { x:margin+118, y:detailY, size:8.5, font, color:textColor, maxWidth:contentWidth-144 });
+    page.drawText(`${label}:`, { x:margin+14, y:detailY, size:layout.sectionBodySize || 8.8, font:bold, color:textColor });
+    page.drawText(String(value || "—"), { x:margin+118, y:detailY, size:layout.sectionBodySize || 8.8, font, color:textColor, maxWidth:contentWidth-144 });
     detailY -= 16;
   });
   y -= detailHeight + 18;
@@ -7619,6 +7752,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     textColor,
     fillColor: surface,
     borderColor: border,
+    labelSize: layout.summaryLabelSize || 7.5,
+    valueSize: layout.summaryValueSize || 10,
   });
   const factRightCardX = margin + cardWidth + 22;
   drawSummaryPanel(page, {
@@ -7638,6 +7773,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     textColor,
     fillColor: surface,
     borderColor: border,
+    labelSize: layout.summaryLabelSize || 7.5,
+    valueSize: layout.summaryValueSize || 10,
   });
 
   let sectionY = leftCardY - 18;
@@ -7655,8 +7792,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
       bold,
       textColor,
       muted,
-      titleSize: 9.2,
-      bodySize: 8.8,
+      titleSize: layout.sectionTitleSize || 9.2,
+      bodySize: layout.sectionBodySize || 8.8,
       bodyGap: 2.2,
     });
     sectionY -= paymentHeight + 14;
@@ -7676,8 +7813,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
       bold,
       textColor,
       muted,
-      titleSize: 9.2,
-      bodySize: 8.6,
+      titleSize: layout.sectionTitleSize || 9.2,
+      bodySize: layout.sectionBodySize || 8.8,
       bodyGap: 2.2,
     });
   }

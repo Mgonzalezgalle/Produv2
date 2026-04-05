@@ -677,12 +677,12 @@ const ROLES = {
 const ROLE_COLOR_MAP={superadmin:"red",admin:"cyan",productor:"green",comercial:"yellow",viewer:"gray"};
 const PERMS = {
   productor:["clientes","producciones","programas","piezas","contenidos","crew","calendario","movimientos","eventos"],
-  comercial:["clientes","auspiciadores","contratos"],
+  comercial:["clientes","auspiciadores","contratos","crm"],
 };
 const ROLE_PERMISSION_GROUPS=[
   { label:"General", items:[["calendario","Calendario"],["tareas","Tareas"]] },
   { label:"Operación", items:[["clientes","Clientes"],["producciones","Proyectos"],["programas","Producciones"],["contenidos","Contenidos"],["crew","Crew"],["movimientos","Movimientos"]] },
-  { label:"Comercial", items:[["auspiciadores","Auspiciadores"],["contratos","Contratos"],["presupuestos","Presupuestos"],["facturacion","Facturación"]] },
+  { label:"Comercial", items:[["crm","CRM"],["auspiciadores","Auspiciadores"],["contratos","Contratos"],["presupuestos","Presupuestos"],["facturacion","Facturación"]] },
   { label:"Recursos", items:[["activos","Activos"]] },
 ];
 function getCustomRoles(empresa={}) {
@@ -713,6 +713,7 @@ function canDo(user, action, empresa) {
 function canAccessModule(user, view, empresa) {
   const gated = {
     tareas: "tareas",
+    crm: "crm",
     presupuestos: "presupuestos",
     "pres-det": "presupuestos",
     facturacion: "facturacion",
@@ -720,12 +721,14 @@ function canAccessModule(user, view, empresa) {
   const action = gated[view];
   if (!action) return true;
   if (action==="tareas") return hasAddon(empresa,"tareas") && user?.role!=="viewer";
+  if (action==="crm" && !hasAddon(empresa,"crm")) return false;
   if (action==="presupuestos" && !hasAddon(empresa,"presupuestos")) return false;
   if (action==="facturacion" && !hasAddon(empresa,"facturacion")) return false;
   return canDo(user, action, empresa);
 }
 
 const ADDONS = {
+  crm:         { label:"CRM",            icon:"🧲" },
   tareas:      { label:"Tareas",         icon:"✅" },
   television:  { label:"Televisión",     icon:"📺" },
   social:      { label:"Contenidos RRSS",icon:"📱" },
@@ -769,6 +772,125 @@ const DEFAULT_LISTAS = {
   prioridadesTarea:["Alta","Media","Baja"],
   estadosTarea:["Pendiente","En Progreso","En Revisión","Completada"],
 };
+
+const CRM_STATUS_OPTIONS = ["Activa","En seguimiento","Ganada","Perdida","Pausada"];
+const CRM_STAGE_SEED = [
+  { id:"crm-st-1", name:"Lead nuevo", order:1, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-2", name:"Contactado", order:2, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-3", name:"Reunión agendada", order:3, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-4", name:"Propuesta enviada", order:4, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-5", name:"Negociación", order:5, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-6", name:"Ganado", order:6, convertToClient:true, closedWon:true, closedLost:false },
+  { id:"crm-st-7", name:"Perdido", order:7, convertToClient:false, closedWon:false, closedLost:true },
+];
+function normalizeCrmStages(stages=[]){
+  const arr=(Array.isArray(stages)&&stages.length?stages:CRM_STAGE_SEED)
+    .map((s,idx)=>({
+      id:s.id||uid(),
+      name:s.name||`Etapa ${idx+1}`,
+      order:Number(s.order||idx+1),
+      convertToClient:!!s.convertToClient,
+      closedWon:!!s.closedWon || (s.name||"").toLowerCase()==="ganado",
+      closedLost:!!s.closedLost || (s.name||"").toLowerCase()==="perdido",
+    }))
+    .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+  return arr.map((s,idx)=>({...s,order:idx+1}));
+}
+function crmDefaultStageId(stages=[]){
+  return normalizeCrmStages(stages)[0]?.id || CRM_STAGE_SEED[0].id;
+}
+function crmStageMeta(stageId, stages=[]){
+  return normalizeCrmStages(stages).find(s=>s.id===stageId) || normalizeCrmStages(stages)[0] || CRM_STAGE_SEED[0];
+}
+function crmNormalizeOpportunity(item={}, stages=[]){
+  const stage = crmStageMeta(item.stageId || item.etapaId || crmDefaultStageId(stages), stages);
+  const status = item.status || item.estado || (stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : "Activa");
+  return {
+    id:item.id || uid(),
+    empId:item.empId || "",
+    createdAt:item.createdAt || item.cr || today(),
+    nombre:item.nombre || item.nom || "",
+    empresaMarca:item.empresaMarca || item.empresa || item.marca || "",
+    contacto:item.contacto || item.con || "",
+    email:item.email || item.ema || "",
+    telefono:item.telefono || item.tel || "",
+    tipo_negocio:item.tipo_negocio || item.tipoNegocio || "cliente",
+    stageId:stage.id,
+    status,
+    monto_estimado:Number(item.monto_estimado ?? item.monto ?? 0),
+    fecha_cierre_estimada:item.fecha_cierre_estimada || item.fechaCierreEstimada || "",
+    notas:item.notas || item.notes || "",
+    responsable:item.responsable || item.responsableId || "",
+    nextAction:item.nextAction || item.proximaAccion || "",
+    nextActionDate:item.nextActionDate || item.proximaAccionFecha || "",
+    linkedClientId:item.linkedClientId || "",
+    convertedAt:item.convertedAt || "",
+    convertedBy:item.convertedBy || "",
+    source:item.source || "manual",
+  };
+}
+function crmNormalizeActivities(items=[]){
+  return (Array.isArray(items)?items:[]).map(it=>({
+    id:it.id||uid(),
+    empId:it.empId||"",
+    opportunityId:it.opportunityId||it.oppId||"",
+    type:it.type||"note",
+    text:it.text||"",
+    createdAt:it.createdAt||it.fecha||today(),
+    byName:it.byName||it.autor||"",
+  }));
+}
+function crmEntityLabel(opp){
+  return opp?.tipo_negocio==="auspiciador" ? "Auspiciador" : "Cliente";
+}
+function crmCanPassToClient(opp, stages=[]){
+  const stage = crmStageMeta(opp?.stageId, stages);
+  return !!opp && !opp.linkedClientId && (stage.convertToClient || stage.closedWon || opp.status==="Ganada");
+}
+function crmFindClientDuplicate(clientes=[], opp={}){
+  const targetName=String(opp.empresaMarca||opp.nombre||"").trim().toLowerCase();
+  const targetEmail=String(opp.email||"").trim().toLowerCase();
+  return (clientes||[]).find(c=>{
+    const sameName=String(c.nom||"").trim().toLowerCase()===targetName;
+    const sameEmail=targetEmail && (c.contactos||[]).some(co=>String(co.ema||"").trim().toLowerCase()===targetEmail);
+    return sameName || sameEmail;
+  }) || null;
+}
+function crmOpportunityCsvRows(items=[], stages=[], users=[]){
+  return items.map(opp=>{
+    const stage=crmStageMeta(opp.stageId, stages);
+    const owner=(users||[]).find(u=>u.id===opp.responsable);
+    return {
+      Nombre:opp.nombre||"",
+      "Empresa o marca":opp.empresaMarca||"",
+      Contacto:opp.contacto||"",
+      Email:opp.email||"",
+      Telefono:opp.telefono||"",
+      "Tipo negocio":crmEntityLabel(opp),
+      Etapa:stage.name||"",
+      Estado:opp.status||"",
+      "Monto estimado":Number(opp.monto_estimado||0),
+      "Fecha cierre estimada":opp.fecha_cierre_estimada||"",
+      Responsable:owner?.name||"—",
+      "Proxima accion":opp.nextAction||"",
+    };
+  });
+}
+function exportCrmCsv(items=[], stages=[], users=[]){
+  const rows=crmOpportunityCsvRows(items, stages, users);
+  if(!rows.length){ alert("No hay oportunidades para exportar."); return; }
+  const headers=Object.keys(rows[0]);
+  const csv=[headers.join(","),...rows.map(row=>headers.map(h=>`"${String(row[h]??"").replace(/"/g,'""')}"`).join(","))].join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`crm_oportunidades_${today()}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1200);
+}
+function crmActivityEntry(opportunityId, text, type, user, empId){
+  return { id:uid(), empId, opportunityId, text, type, createdAt:today(), byName:user?.name || "Sistema" };
+}
 
 // ── SEED ─────────────────────────────────────────────────────
 const SEED_EMPRESAS = [
@@ -824,6 +946,16 @@ const SEED_DATA = (empId) => ({
   auspiciadores: empId==="emp1"?[
     {id:"a1",empId,nom:"Banco Estado",tip:"Auspiciador Principal",  con:"Pablo Muñoz",  ema:"pmunoz@bce.cl",   tel:"",pids:["pg1"],       mon:"2500000",vig:"2025-12-31",est:"Activo",frecPago:"Mensual",   not:"Logo + menciones"},
     {id:"a2",empId,nom:"Entel",       tip:"Auspiciador Secundario", con:"Lucía Torres", ema:"ltorres@entel.cl",tel:"",pids:["pg1","pg2"],mon:"1200000",vig:"2025-06-30",est:"Activo",frecPago:"Semestral", not:"Banner + mención"},
+  ]:[],
+  crmStages: normalizeCrmStages(CRM_STAGE_SEED),
+  crmOpps: empId==="emp1"?[
+    crmNormalizeOpportunity({id:"crm1",empId,nombre:"Campaña Invierno BancoSeguro",empresaMarca:"BancoSeguro S.A.",contacto:"Andrea Morales",email:"amorales@bancoseguro.cl",telefono:"+56 9 8765 4321",tipo_negocio:"cliente",stageId:"crm-st-4",status:"Activa",monto_estimado:4200000,fecha_cierre_estimada:"2026-04-28",notas:"Campaña always-on con foco en educación financiera.",responsable:"u3",nextAction:"Enviar ajuste final de propuesta",nextActionDate:"2026-04-08"},CRM_STAGE_SEED),
+    crmNormalizeOpportunity({id:"crm2",empId,nombre:"Patrocinio Chile Emprende T2",empresaMarca:"Entel",contacto:"Lucía Torres",email:"ltorres@entel.cl",telefono:"+56 9 7654 1234",tipo_negocio:"auspiciador",stageId:"crm-st-5",status:"En seguimiento",monto_estimado:1800000,fecha_cierre_estimada:"2026-05-10",notas:"Interés en branded content y presencia editorial.",responsable:"u3",nextAction:"Confirmar reunión comercial",nextActionDate:"2026-04-09"},CRM_STAGE_SEED),
+  ]:[],
+  crmActivities: empId==="emp1"?[
+    {id:"crma1",empId,opportunityId:"crm1",type:"created",text:"Oportunidad creada en CRM.",createdAt:"2026-04-01",byName:"Carlos Comercial"},
+    {id:"crma2",empId,opportunityId:"crm1",type:"stage",text:"Etapa actualizada a Propuesta enviada.",createdAt:"2026-04-03",byName:"Carlos Comercial"},
+    {id:"crma3",empId,opportunityId:"crm2",type:"created",text:"Lead ingresado desde gestión comercial.",createdAt:"2026-04-02",byName:"Carlos Comercial"},
   ]:[],
   contratos: empId==="emp1"?[
     {id:"ct1",empId,nom:"Podcast BancoSeguro 2025",cliId:"c1",tip:"Producción",est:"Firmado",mon:"9000000", vig:"2025-06-30",arc:"",not:"8 episodios, 2 cuotas"},
@@ -1534,6 +1666,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
       ...(empresa?.addons?.includes("social")?[{id:"contenidos",icon:"📱",label:"Contenidos",need:"contenidos",cnt:counts.pz}]:[]),
     ]},
     {group:"Comercial",items:[
+      ...(empresa?.addons?.includes("crm")?[{id:"crm",icon:"🧲",label:"CRM",need:"crm",cnt:counts.crm}]:[]),
       ...(empresa?.addons?.includes("television")?[{id:"auspiciadores",icon:"⭐",label:"Auspiciadores",need:"auspiciadores",cnt:counts.aus}]:[]),
       ...(empresa?.addons?.includes("presupuestos")?[{id:"presupuestos",icon:"📋",label:"Presupuestos",need:"presupuestos",cnt:counts.pres}]:[]),
       ...(empresa?.addons?.includes("facturacion")?[{id:"facturacion",icon:"🧾",label:"Facturación",need:"facturacion",cnt:counts.fact}]:[]),
@@ -1803,7 +1936,7 @@ const assignedNameList = (item, crew = [], user = null) => {
   }).filter(Boolean);
 };
 
-function MTarea({ open, data, producciones, programas, piezas, crew, listas, onClose, onSave }) {
+function MTarea({ open, data, producciones, programas, piezas, oportunidades, crew, listas, onClose, onSave }) {
   const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[] };
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? normalizeTaskAssignees({ ...data }) : { ...empty }); }, [data, open]);
@@ -1854,6 +1987,7 @@ function MTarea({ open, data, producciones, programas, piezas, crew, listas, onC
           <option value="pro">Proyecto</option>
           <option value="pg">Producción</option>
           <option value="pz">Campaña de Contenidos</option>
+          <option value="crm">Oportunidad CRM</option>
           <option value="crew">Crew</option>
         </FSl></FG>
         {f.refTipo==="pro"&&<FG label="Proyecto"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
@@ -1868,6 +2002,10 @@ function MTarea({ open, data, producciones, programas, piezas, crew, listas, onC
           <option value="">— Seleccionar —</option>
           {(piezas||[]).map(p=><option key={p.id} value={p.id}>{p.nom}</option>)}
         </FSl></FG>}
+        {f.refTipo==="crm"&&<FG label="Oportunidad"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
+          <option value="">— Seleccionar —</option>
+          {(oportunidades||[]).map(o=><option key={o.id} value={o.id}>{o.nombre} · {o.empresaMarca}</option>)}
+        </FSl></FG>}
         {f.refTipo==="crew"&&<FG label="Miembro Crew"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}>
           <option value="">— Seleccionar —</option>
           {(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}
@@ -1878,13 +2016,15 @@ function MTarea({ open, data, producciones, programas, piezas, crew, listas, onC
   );
 }
 
-function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
+function TareaCard({ tarea, producciones, programas, piezas, oportunidades, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
   const ref = tarea.refTipo==="pro"
     ? (producciones||[]).find(x=>x.id===tarea.refId)
     : tarea.refTipo==="pg"
       ? (programas||[]).find(x=>x.id===tarea.refId)
       : tarea.refTipo==="pz"
         ? (piezas||[]).find(x=>x.id===tarea.refId)
+        : tarea.refTipo==="crm"
+          ? (oportunidades||[]).find(x=>x.id===tarea.refId)
         : tarea.refTipo==="crew"
           ? (crew||[]).find(x=>x.id===tarea.refId)
           : null;
@@ -1917,7 +2057,7 @@ function TareaCard({ tarea, producciones, programas, piezas, crew, onEdit, onDel
       {tarea.desc&&<div style={{fontSize:11,color:"var(--gr2)",marginBottom:8,lineHeight:1.5}}>{tarea.desc}</div>}
       {/* Ref */}
       {ref&&<div style={{fontSize:11,color:"var(--cy)",marginBottom:6}}>
-        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":tarea.refTipo==="pz"?"📱":"🎬"} {refLabel}
+        {tarea.refTipo==="pro"?"📽":tarea.refTipo==="pg"?"📺":tarea.refTipo==="pz"?"📱":tarea.refTipo==="crm"?"🧲":"🎬"} {refLabel}
       </div>}
       {/* Footer */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,paddingTop:8,borderTop:"1px solid var(--bdr)"}}>
@@ -2062,7 +2202,7 @@ function ComentariosBlock({ items = [], onSave, canEdit, title = "Comentarios", 
   </Card>;
 }
 
-function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, piezas, crew, openM, setTareas, canEdit }) {
+function TareasContexto({ title, refTipo, refId, tareas, producciones, programas, piezas, oportunidades, crew, openM, setTareas, canEdit }) {
   try{
     const safeTareas=Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[];
     const items=safeTareas
@@ -2079,7 +2219,7 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
     };
     return <TaskErrorBoundary title={title}>
       <Card title={title} action={canEdit?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo,refId})}:null}>
-        {items.length?items.map(t=><TareaCard key={t.id||uid()} tarea={t} producciones={producciones||[]} programas={programas||[]} piezas={piezas||[]} crew={crew||[]} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
+        {items.length?items.map(t=><TareaCard key={t.id||uid()} tarea={t} producciones={producciones||[]} programas={programas||[]} piezas={piezas||[]} oportunidades={oportunidades||[]} crew={crew||[]} onEdit={canEdit?x=>openM("tarea",x):()=>{}} onDelete={canEdit?deleteTarea:()=>{}} onChangeEstado={canEdit?changeEstado:()=>{}} onOpen={canEdit?x=>openM("tarea",x):undefined} canEdit={canEdit}/>):<Empty text="Sin tareas asociadas" sub={canEdit?"Crea una tarea para darle seguimiento a este registro":""}/>}
       </Card>
     </TaskErrorBoundary>;
   }catch{
@@ -2089,7 +2229,7 @@ function TareasContexto({ title, refTipo, refId, tareas, producciones, programas
   }
 }
 
-function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, crew, openM, canDo, cDel, setTareas, saveTareas }) {
+function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, crmOpps, crew, openM, canDo, cDel, setTareas, saveTareas }) {
   const empId = empresa?.id;
   const [filtro, setFiltro] = useState("mis"); // "mis" | "todas"
   const [filtroRef, setFiltroRef] = useState("");
@@ -2180,7 +2320,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
           {mobileItems.length===0
             ? <Empty text="Sin tareas en este estado" sub="Cambia de estado o crea una tarea nueva."/>
             : mobileItems.map(t=>(
-              <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} piezas={piezas} crew={crew}
+              <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
                 onEdit={t=>openM("tarea",t)}
                 onDelete={deleteTarea}
                 onChangeEstado={changeEstado}
@@ -2218,7 +2358,7 @@ function ViewTareas({ empresa, user, tareas, producciones, programas, piezas, cr
                   ? <div style={{padding:16,textAlign:"center",color:"var(--gr)",fontSize:12,fontStyle:"italic",border:"1px dashed var(--bdr)",borderRadius:10}}>Sin tareas</div>
                   : items.map(t=>(
                     <div key={t.id} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";if(dropCol!==col) setDropCol(col);}} onDrop={async e=>{e.preventDefault();e.stopPropagation();await handleDrop(e,col);}}>
-                      <TareaCard tarea={t} producciones={producciones} programas={programas} piezas={piezas} crew={crew}
+                      <TareaCard tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
                         onEdit={t=>openM("tarea",t)}
                         onDelete={deleteTarea}
                         onChangeEstado={changeEstado}
@@ -3681,6 +3821,9 @@ export default function App(){
   const [piezas,setPiezas,savPiezas,ldPiezas]=useDB(`produ:${eId}:piezas`);
   const [episodios,setEpisodios,savEp,ldEp]=useDB(`produ:${eId}:episodios`);
   const [auspiciadores,setAuspiciadores,savAus,ldAus]=useDB(`produ:${eId}:auspiciadores`);
+  const [crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps]=useDB(`produ:${eId}:crmOpps`);
+  const [crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities]=useDB(`produ:${eId}:crmActivities`);
+  const [crmStages,setCrmStages,savCrmStages,ldCrmStages]=useDB(`produ:${eId}:crmStages`);
   const [contratos,setContratos,savCt,ldCt]=useDB(`produ:${eId}:contratos`);
   const [movimientos,setMovimientos,savMov,ldMov]=useDB(`produ:${eId}:movimientos`);
   const [crew,setCrew,savCrew,ldCrew]=useDB(`produ:${eId}:crew`);
@@ -3689,7 +3832,7 @@ export default function App(){
   const [facturas,setFacturas,savFact,ldFact]=useDB(`produ:${eId}:facturas`);
   const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
-  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
+  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCrmOpps,ldCrmActivities,ldCrmStages,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
   const tasksEnabled = hasAddon(curEmp,"tareas");
   const alertas = useAlertas(episodios, programas, eventos||[], tasksEnabled?(tareas||[]):[], facturas||[], contratos||[], empId);
 
@@ -3700,6 +3843,9 @@ export default function App(){
   usePoll(`produ:${eId}:piezas`,setPiezas,savPiezas);
   usePoll(`produ:${eId}:episodios`,setEpisodios,savEp);
   usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,savAus);
+  usePoll(`produ:${eId}:crmOpps`,setCrmOpps,savCrmOpps);
+  usePoll(`produ:${eId}:crmActivities`,setCrmActivities,savCrmActivities);
+  usePoll(`produ:${eId}:crmStages`,setCrmStages,savCrmStages);
   usePoll(`produ:${eId}:contratos`,setContratos,savCt);
   usePoll(`produ:${eId}:movimientos`,setMovimientos,savMov);
   usePoll(`produ:${eId}:eventos`,setEventos,savEv);
@@ -3777,8 +3923,8 @@ export default function App(){
   useEffect(()=>{
     if(!curEmp) return;
     const id=curEmp.id;
-    const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
-    const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
+    const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
+    const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
     keys.forEach(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
@@ -3791,6 +3937,24 @@ export default function App(){
     const changed = JSON.stringify(normalized) !== JSON.stringify(piezas);
     if(changed) setPiezas(normalized);
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
+
+  useEffect(()=>{
+    if(!curEmp?.id || ldCrmStages) return;
+    const normalized = normalizeCrmStages(crmStages);
+    if(JSON.stringify(normalized)!==JSON.stringify(crmStages||[])) setCrmStages(normalized);
+  },[curEmp?.id,ldCrmStages,crmStages,setCrmStages]);
+
+  useEffect(()=>{
+    if(!curEmp?.id || ldCrmOpps) return;
+    const normalized = (Array.isArray(crmOpps)?crmOpps:[]).map(opp=>crmNormalizeOpportunity(opp, crmStages));
+    if(JSON.stringify(normalized)!==JSON.stringify(crmOpps||[])) setCrmOpps(normalized);
+  },[curEmp?.id,ldCrmOpps,crmOpps,crmStages,setCrmOpps]);
+
+  useEffect(()=>{
+    if(!curEmp?.id || ldCrmActivities) return;
+    const normalized = crmNormalizeActivities(crmActivities);
+    if(JSON.stringify(normalized)!==JSON.stringify(crmActivities||[])) setCrmActivities(normalized);
+  },[curEmp?.id,ldCrmActivities,crmActivities,setCrmActivities]);
 
   useEffect(()=>{
     if(!curEmp?.id || ldCrew) return;
@@ -3982,7 +4146,7 @@ export default function App(){
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&t.estado!=="Completada").length:0};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,crm:ef(crmOpps).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&t.estado!=="Completada").length:0};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -3993,11 +4157,12 @@ export default function App(){
     if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
     if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
+    if(view==="crm"){return [{l:"CRM"}];}
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a,curEmp)};
-  const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:users||SEED_USERS,empresas:empresas||SEED_EMPRESAS,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,canDo:(a)=>canDo(curUser,a,curEmp)};
+  const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData}/></>;
@@ -4014,6 +4179,7 @@ export default function App(){
       case"contenidos":   return <ViewContenidos    {...VP} setPiezas={setPiezas}/>;
       case"contenido-det":return <ViewContenidoDet  {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
+      case"crm":          return <ViewCRM           {...VP} setClientes={setClientes} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} setTareas={setTareas}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
       case"auspiciadores":return <ViewAus           {...VP} setAuspiciadores={setAuspiciadores}/>;
@@ -4329,6 +4495,66 @@ function MCt({open,data,empresa,clientes,producciones,programas,piezas,presupues
   </Modal>;
 }
 
+function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
+  const [f,setF]=useState({});
+  useEffect(()=>{
+    const empty={
+      nombre:"",
+      empresaMarca:"",
+      contacto:"",
+      email:"",
+      telefono:"",
+      tipo_negocio:"cliente",
+      stageId:crmDefaultStageId(crmStages),
+      status:"Activa",
+      monto_estimado:"",
+      fecha_cierre_estimada:"",
+      notas:"",
+      responsable:"",
+      nextAction:"",
+      nextActionDate:"",
+    };
+    setF(data?.id ? crmNormalizeOpportunity(data, crmStages) : empty);
+  },[data,open,crmStages]);
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  const stageList=normalizeCrmStages(crmStages);
+  const onStageChange=value=>{
+    const stage=crmStageMeta(value, stageList);
+    setF(prev=>({
+      ...prev,
+      stageId:value,
+      status:stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : (prev.status==="Ganada"||prev.status==="Perdida" ? "Activa" : prev.status || "Activa"),
+    }));
+  };
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar oportunidad":"Nueva oportunidad"} sub="Lead u oportunidad comercial" wide>
+    <R2>
+      <FG label="Nombre *"><FI value={f.nombre||""} onChange={e=>u("nombre",e.target.value)} placeholder="Nombre de la oportunidad"/></FG>
+      <FG label="Empresa o marca *"><FI value={f.empresaMarca||""} onChange={e=>u("empresaMarca",e.target.value)} placeholder="Empresa o marca"/></FG>
+    </R2>
+    <R3>
+      <FG label="Contacto"><FI value={f.contacto||""} onChange={e=>u("contacto",e.target.value)} placeholder="Nombre del contacto"/></FG>
+      <FG label="Email"><FI type="email" value={f.email||""} onChange={e=>u("email",e.target.value)} placeholder="contacto@empresa.cl"/></FG>
+      <FG label="Teléfono"><FI value={f.telefono||""} onChange={e=>u("telefono",e.target.value)} placeholder="+56 9 1234 5678"/></FG>
+    </R3>
+    <R3>
+      <FG label="Tipo de negocio"><FSl value={f.tipo_negocio||"cliente"} onChange={e=>u("tipo_negocio",e.target.value)}><option value="cliente">Cliente</option><option value="auspiciador">Auspiciador</option></FSl></FG>
+      <FG label="Etapa"><FSl value={f.stageId||crmDefaultStageId(stageList)} onChange={e=>onStageChange(e.target.value)}>{stageList.map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}</FSl></FG>
+      <FG label="Estado"><FSl value={f.status||"Activa"} onChange={e=>u("status",e.target.value)}>{CRM_STATUS_OPTIONS.map(opt=><option key={opt}>{opt}</option>)}</FSl></FG>
+    </R3>
+    <R3>
+      <FG label="Monto estimado"><FI type="number" min="0" value={f.monto_estimado||""} onChange={e=>u("monto_estimado",e.target.value)} placeholder="0"/></FG>
+      <FG label="Fecha cierre estimada"><FI type="date" value={f.fecha_cierre_estimada||""} onChange={e=>u("fecha_cierre_estimada",e.target.value)}/></FG>
+      <FG label="Responsable"><FSl value={f.responsable||""} onChange={e=>u("responsable",e.target.value)}><option value="">— Sin responsable —</option>{(users||[]).map(user=><option key={user.id} value={user.id}>{user.name}</option>)}</FSl></FG>
+    </R3>
+    <R2>
+      <FG label="Próxima acción"><FI value={f.nextAction||""} onChange={e=>u("nextAction",e.target.value)} placeholder="Llamar, enviar propuesta, reagendar reunión..."/></FG>
+      <FG label="Fecha próxima acción"><FI type="date" value={f.nextActionDate||""} onChange={e=>u("nextActionDate",e.target.value)}/></FG>
+    </R2>
+    <FG label="Notas"><FTA value={f.notas||""} onChange={e=>u("notas",e.target.value)} placeholder="Contexto comercial, objeciones, próximos pasos..."/></FG>
+    <MFoot onClose={onClose} onSave={()=>{if(!f.nombre?.trim()||!f.empresaMarca?.trim()) return; onSave(crmNormalizeOpportunity(f, stageList));}}/>
+  </Modal>;
+}
+
 function MMov({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
   useEffect(()=>{setF({tipo:data?.tipo||"ingreso",mon:"",des:"",cat:"General",fec:today(),not:"",eid:data?.eid||"",et:data?.et||""});},[data,open]);
@@ -4383,7 +4609,7 @@ function MEvento({open,data,producciones,programas,piezas,onClose,onSave}){
 // ── MODAL ROUTER ──────────────────────────────────────────────
 function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpresas,ntf,cSave,saveMov,saveFacturaDoc}){
   const {empresa,clientes,producciones,programas,piezas,auspiciadores,contratos,crew,eventos}=VP;
-  const {setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
+  const {setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}=setters;
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});
@@ -4396,6 +4622,17 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPiezaContenido open={mOpen==="pieza"} data={mData} listas={VP.listas} crewOptions={(VP.crew||[]).filter(c=>c.empId===empresa?.id&&c.active!==false)} onClose={closeM} onSave={async d=>{const campId=mData?.campId; if(!campId) return; const next=(piezas||[]).map(c=>c.id!==campId?c:{...c,piezas:(c.piezas||[]).some(p=>p.id===d.id)?(c.piezas||[]).map(p=>p.id===d.id?normalizeSocialPiece(d,c):p):[...(c.piezas||[]),normalizeSocialPiece(d,c)]}); await setPiezas(next); closeM(); ntf("Pieza guardada ✓"); }}/>
     <MEp     open={mOpen==="ep"}     data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.episodios,setEpisodios,withEmp(d))}/>
     <MAus    open={mOpen==="aus"}    data={mData} programas={programas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(auspiciadores,setAuspiciadores,withEmp(d))}/>
+    <MCrmOpp open={mOpen==="crm-opp"} data={mData} crmStages={VP.crmStages} users={(VP.users||[]).filter(u=>u.empId===empresa?.id && u.active!==false)} onClose={closeM} onSave={async d=>{
+      const item=crmNormalizeOpportunity(withEmp(d), VP.crmStages);
+      const arr=Array.isArray(VP.crmOpps)?VP.crmOpps:[];
+      const exists=arr.some(x=>x.id===item.id);
+      const next=exists?arr.map(x=>x.id===item.id?item:x):[...arr,item];
+      await setCrmOpps(next);
+      const activity=crmActivityEntry(item.id, exists?"Oportunidad actualizada.":"Oportunidad creada en CRM.", exists?"update":"created", VP.user, empId);
+      await setCrmActivities([...(Array.isArray(VP.crmActivities)?VP.crmActivities:[]),activity]);
+      closeM();
+      ntf(exists?"Oportunidad actualizada ✓":"Oportunidad creada ✓");
+    }}/>
     <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
@@ -4403,7 +4640,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa} currentUser={VP.user}/>
     <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>saveFacturaDoc(withEmp(d))}/>
     <MActivo open={mOpen==="activo"} data={mData} producciones={producciones} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.activos,setActivos,withEmp(d))}/>
-    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
+    <MTarea  open={mOpen==="tarea"}  data={mData} producciones={producciones} programas={programas} piezas={piezas} oportunidades={VP.crmOpps} crew={crew} listas={VP.listas} onClose={closeM} onSave={async d=>{const item={...withEmp(d),id:d.id||uid(),cr:d.cr||today()};const arr=Array.isArray(VP.tareas)?VP.tareas.filter(x=>x&&typeof x==="object"):[];const next=arr.find(x=>x.id===item.id)?arr.map(x=>x.id===item.id?item:x):[...arr,item];await setTareas(next);closeM();ntf("Tarea guardada ✓");}}/>
   </>;
 }
 
@@ -4520,6 +4757,286 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
       {cts.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18,flexShrink:0}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
       {!cts.length&&<Empty text="Sin contratos"/>}
     </Card>
+  </div>;
+}
+
+function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,tareas,users,openM,ntf,setClientes,setCrmOpps,setCrmActivities,setCrmStages,setTareas}){
+  const empId=empresa?.id;
+  const [tab,setTab]=useState(0);
+  const [q,setQ]=useState("");
+  const [tipo,setTipo]=useState("");
+  const [estado,setEstado]=useState("");
+  const [stageFilter,setStageFilter]=useState("");
+  const [sortKey,setSortKey]=useState("updated");
+  const [pg,setPg]=useState(1);
+  const [selectedIds,setSelectedIds]=useState([]);
+  const [detailId,setDetailId]=useState("");
+  const [stagesOpen,setStagesOpen]=useState(false);
+  const [activityForm,setActivityForm]=useState({type:"note",text:""});
+  const PP=10;
+  const tasksEnabled=hasAddon(empresa,"tareas");
+  const scopedStages=normalizeCrmStages((crmStages||[]).filter?.(s=>!s.empId || s.empId===empId) || crmStages || []);
+  const scopedOpps=(crmOpps||[]).filter(opp=>opp.empId===empId).map(opp=>crmNormalizeOpportunity(opp, scopedStages));
+  const scopedActivities=crmNormalizeActivities((crmActivities||[]).filter(act=>act.empId===empId));
+  const tenantUsers=(users||[]).filter(u=>u.empId===empId && u.active!==false);
+  const filtered=scopedOpps.filter(opp=>{
+    const haystack=[opp.nombre, opp.empresaMarca, opp.contacto, opp.email, opp.telefono].join(" ").toLowerCase();
+    return (!q || haystack.includes(q.toLowerCase()))
+      && (!tipo || opp.tipo_negocio===tipo)
+      && (!estado || opp.status===estado)
+      && (!stageFilter || opp.stageId===stageFilter);
+  });
+  const sorted=[...filtered].sort((a,b)=>{
+    if(sortKey==="amount") return Number(b.monto_estimado||0)-Number(a.monto_estimado||0);
+    if(sortKey==="close") return String(a.fecha_cierre_estimada||"9999-12-31").localeCompare(String(b.fecha_cierre_estimada||"9999-12-31"));
+    if(sortKey==="name") return String(a.nombre||"").localeCompare(String(b.nombre||""));
+    return String(b.convertedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.convertedAt || a.updatedAt || a.createdAt || ""));
+  });
+  const paged=sorted.slice((pg-1)*PP, pg*PP);
+  const selectedItems=scopedOpps.filter(opp=>selectedIds.includes(opp.id));
+  const detail=scopedOpps.find(opp=>opp.id===detailId) || null;
+  const detailActivities=scopedActivities.filter(act=>act.opportunityId===detailId).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
+  const detailTasks=tasksEnabled ? (Array.isArray(tareas)?tareas:[]).filter(t=>t?.empId===empId && t.refTipo==="crm" && t.refId===detailId) : [];
+  const stagesById=Object.fromEntries(scopedStages.map(stage=>[stage.id,stage]));
+
+  const persistOpps=async next=>setCrmOpps(next.map(opp=>crmNormalizeOpportunity(opp, scopedStages)));
+  const addActivity=async (oppId,text,type="note")=>{
+    if(!text?.trim()) return;
+    await setCrmActivities([...(crmActivities||[]), crmActivityEntry(oppId, text.trim(), type, user, empId)]);
+  };
+  const saveOpp=async (opp, activityText="", activityType="update")=>{
+    const nextOpp=crmNormalizeOpportunity({...opp, empId}, scopedStages);
+    const exists=scopedOpps.some(item=>item.id===nextOpp.id);
+    const nextList=exists ? (crmOpps||[]).map(item=>item.id===nextOpp.id?nextOpp:item) : [...(crmOpps||[]),nextOpp];
+    await persistOpps(nextList);
+    if(activityText) await addActivity(nextOpp.id, activityText, activityType);
+    return nextOpp;
+  };
+  const updateStage=async (opp, stageId)=>{
+    const stage=crmStageMeta(stageId, scopedStages);
+    const nextStatus=stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : (opp.status==="Ganada"||opp.status==="Perdida" ? "Activa" : opp.status || "Activa");
+    await saveOpp({...opp, stageId, status:nextStatus}, `Etapa actualizada a ${stage.name}.`, "stage");
+    ntf?.("Etapa actualizada ✓");
+  };
+  const updateQuickField=async (opp, key, value, label)=>{
+    await saveOpp({...opp,[key]:value}, `${label} actualizado.`, "update");
+  };
+  const passToClientes=async opp=>{
+    const existing=crmFindClientDuplicate((clientes||[]).filter(c=>c.empId===empId), opp);
+    const clientId=existing?.id || uid();
+    if(!existing){
+      const newClient={
+        id:clientId,
+        empId,
+        nom:opp.empresaMarca || opp.nombre,
+        rut:"",
+        ind:opp.tipo_negocio==="auspiciador"?"Auspiciador":"Prospecto comercial",
+        dir:"",
+        not:`Creado desde CRM el ${fmtD(today())} a partir de la oportunidad ${opp.nombre}.`,
+        crmOpportunityId:opp.id,
+        contactos:[{
+          id:uid(),
+          nom:opp.contacto || opp.empresaMarca || opp.nombre,
+          car:"",
+          ema:opp.email || "",
+          tel:opp.telefono || "",
+          not:"Contacto originado desde CRM",
+        }],
+      };
+      await setClientes([...(clientes||[]), newClient]);
+    }
+    const stageWon=scopedStages.find(stage=>stage.closedWon) || scopedStages.find(stage=>stage.convertToClient) || scopedStages[0];
+    await saveOpp({...opp, linkedClientId:clientId, convertedAt:today(), convertedBy:user?.name||"", status:"Ganada", stageId:stageWon?.id || opp.stageId}, `Oportunidad vinculada al módulo de Clientes${existing?" (cliente existente).":"."}`, "conversion");
+    ntf?.(existing?"Vinculado a cliente existente ✓":"Cliente creado desde CRM ✓");
+  };
+  const saveNotes=async ()=>{
+    if(!detail) return;
+    await saveOpp(detail, "Notas actualizadas.", "note");
+    ntf?.("Notas guardadas ✓");
+  };
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAllVisible=()=>setSelectedIds(prev=>{
+    const pageIds=paged.map(item=>item.id);
+    const allSelected=pageIds.every(id=>prev.includes(id));
+    return allSelected ? prev.filter(id=>!pageIds.includes(id)) : [...new Set([...prev,...pageIds])];
+  });
+  const exportTarget=selectedItems.length?selectedItems:sorted;
+  const saveStageConfig=async next=>{
+    await setCrmStages(next.map(stage=>({...stage,empId})));
+    ntf?.("Etapas CRM actualizadas ✓");
+  };
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+      <Stat label="Oportunidades" value={scopedOpps.length} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label="Pipeline activo" value={scopedOpps.filter(opp=>!crmStageMeta(opp.stageId,scopedStages).closedWon && !crmStageMeta(opp.stageId,scopedStages).closedLost).length}/>
+      <Stat label="Ganadas" value={scopedOpps.filter(opp=>crmStageMeta(opp.stageId,scopedStages).closedWon || opp.status==="Ganada").length} accent="#00e08a" vc="#00e08a"/>
+      <Stat label="Monto estimado" value={fmtM(scopedOpps.reduce((sum,opp)=>sum+Number(opp.monto_estimado||0),0))} accent="#a855f7" vc="#a855f7"/>
+    </div>
+    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+      <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar oportunidad, empresa o contacto..."/>
+      <FilterSel value={tipo} onChange={v=>{setTipo(v);setPg(1);}} options={[{value:"cliente",label:"Cliente"},{value:"auspiciador",label:"Auspiciador"}]} placeholder="Todo tipo"/>
+      <FilterSel value={estado} onChange={v=>{setEstado(v);setPg(1);}} options={CRM_STATUS_OPTIONS} placeholder="Todo estado"/>
+      <FilterSel value={stageFilter} onChange={v=>{setStageFilter(v);setPg(1);}} options={scopedStages.map(stage=>({value:stage.id,label:stage.name}))} placeholder="Todas etapas"/>
+      <FilterSel value={sortKey} onChange={setSortKey} options={[{value:"updated",label:"Más recientes"},{value:"close",label:"Cierre estimado"},{value:"amount",label:"Monto estimado"},{value:"name",label:"Nombre"}]} placeholder="Ordenar"/>
+      <Btn onClick={()=>openM("crm-opp",{})}>+ Nueva oportunidad</Btn>
+      <GBtn onClick={()=>setStagesOpen(true)}>Etapas</GBtn>
+      <GBtn onClick={()=>exportCrmCsv(exportTarget, scopedStages, tenantUsers)}>{selectedItems.length?`⬇ ${selectedItems.length} seleccionadas`:"⬇ CSV / Excel"}</GBtn>
+    </div>
+    <Tabs tabs={["Pipeline","Lista"]} active={tab} onChange={idx=>{setTab(idx);setPg(1);}}/>
+
+    {tab===0 ? <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.max(1,scopedStages.length)}, minmax(220px, 1fr))`,gap:14,overflowX:"auto",paddingBottom:8}}>
+      {scopedStages.map(stage=>{
+        const stageItems=sorted.filter(opp=>opp.stageId===stage.id);
+        const totalStage=stageItems.reduce((sum,opp)=>sum+Number(opp.monto_estimado||0),0);
+        return <Card key={stage.id} title={stage.name} sub={`${stageItems.length} oportunidad${stageItems.length===1?"":"es"} · ${fmtM(totalStage)}`} style={{padding:14,minWidth:240}}
+          action={{label:"+ Nuevo",fn:()=>openM("crm-opp",{stageId:stage.id,status:stage.closedWon?"Ganada":stage.closedLost?"Perdida":"Activa"})}}>
+          <div onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault(); const oppId=e.dataTransfer.getData("text/plain"); const opp=scopedOpps.find(item=>item.id===oppId); if(opp && opp.stageId!==stage.id) await updateStage(opp, stage.id);}} style={{display:"flex",flexDirection:"column",gap:10,minHeight:220}}>
+            {stageItems.map(opp=>{
+              const owner=tenantUsers.find(u=>u.id===opp.responsable);
+              return <div key={opp.id} draggable onDragStart={e=>e.dataTransfer.setData("text/plain", opp.id)} onClick={()=>setDetailId(opp.id)} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:12,cursor:"pointer",display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                  <div style={{fontSize:13,fontWeight:700,lineHeight:1.3}}>{opp.nombre}</div>
+                  <Badge label={crmEntityLabel(opp)} color={opp.tipo_negocio==="auspiciador"?"yellow":"cyan"} sm/>
+                </div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{opp.empresaMarca}</div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--gr3)"}}>
+                  <span>{owner?.name||"Sin responsable"}</span>
+                  <span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(opp.monto_estimado||0)}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--gr2)"}}>
+                  <span>{opp.nextAction || "Sin próxima acción"}</span>
+                  <span>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</span>
+                </div>
+              </div>;
+            })}
+            {!stageItems.length && <Empty text="Sin oportunidades" sub="Arrastra aquí o crea una nueva."/>}
+          </div>
+        </Card>;
+      })}
+    </div> : <Card title="Oportunidades" sub={`${sorted.length} registro${sorted.length===1?"":"s"} según filtros`}>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr>
+              <TH><input type="checkbox" checked={paged.length>0 && paged.every(item=>selectedIds.includes(item.id))} onChange={toggleAllVisible}/></TH>
+              <TH>Oportunidad</TH>
+              <TH>Empresa / Marca</TH>
+              <TH>Tipo</TH>
+              <TH>Etapa</TH>
+              <TH>Estado</TH>
+              <TH>Responsable</TH>
+              <TH>Monto</TH>
+              <TH>Cierre</TH>
+              <TH></TH>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map(opp=>{
+              const owner=tenantUsers.find(u=>u.id===opp.responsable);
+              return <tr key={opp.id}>
+                <TD><input type="checkbox" checked={selectedIds.includes(opp.id)} onChange={()=>toggleSelected(opp.id)}/></TD>
+                <TD bold>
+                  <div>{opp.nombre}</div>
+                  <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{opp.contacto || "Sin contacto"}</div>
+                </TD>
+                <TD>{opp.empresaMarca}</TD>
+                <TD><Badge label={crmEntityLabel(opp)} color={opp.tipo_negocio==="auspiciador"?"yellow":"cyan"} sm/></TD>
+                <TD><FSl value={opp.stageId} onChange={e=>updateStage(opp,e.target.value)}>{scopedStages.map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}</FSl></TD>
+                <TD><FSl value={opp.status} onChange={e=>updateQuickField(opp,"status",e.target.value,"Estado")}>{CRM_STATUS_OPTIONS.map(opt=><option key={opt}>{opt}</option>)}</FSl></TD>
+                <TD><FSl value={opp.responsable||""} onChange={e=>updateQuickField(opp,"responsable",e.target.value,"Responsable")}><option value="">—</option>{tenantUsers.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</FSl></TD>
+                <TD style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(opp.monto_estimado||0)}</TD>
+                <TD>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</TD>
+                <TD>
+                  <div style={{display:"flex",gap:4}}>
+                    <GBtn sm onClick={()=>setDetailId(opp.id)}>Ver</GBtn>
+                    <GBtn sm onClick={()=>openM("crm-opp",opp)}>✏</GBtn>
+                  </div>
+                </TD>
+              </tr>;
+            })}
+            {!paged.length && <tr><td colSpan={10}><Empty text="Sin oportunidades" sub="Ajusta filtros o crea la primera desde el botón superior."/></td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <Paginator page={pg} total={sorted.length} perPage={PP} onChange={setPg}/>
+    </Card>}
+
+    <Modal open={!!detail} onClose={()=>{setDetailId(""); setActivityForm({type:"note",text:""});}} title={detail?.nombre||"Detalle CRM"} sub={detail?`${detail.empresaMarca} · ${crmEntityLabel(detail)}`:""}>
+      {detail && <>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+          <Stat label="Etapa" value={stagesById[detail.stageId]?.name || "—"} accent="var(--cy)" vc="var(--cy)"/>
+          <Stat label="Estado" value={detail.status || "—"} accent={detail.status==="Ganada"?"#00e08a":detail.status==="Perdida"?"#ff5566":"#fbbf24"} vc={detail.status==="Ganada"?"#00e08a":detail.status==="Perdida"?"#ff5566":"#fbbf24"}/>
+          <Stat label="Monto estimado" value={fmtM(detail.monto_estimado||0)} accent="#a855f7" vc="#a855f7"/>
+          <Stat label="Próxima acción" value={detail.nextActionDate?fmtD(detail.nextActionDate):"Sin fecha"} sub={detail.nextAction||"Sin definir"}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr",gap:16,marginBottom:16}}>
+          <Card title="Datos generales">
+            <KV label="Empresa o marca" value={detail.empresaMarca||"—"}/>
+            <KV label="Contacto" value={detail.contacto||"—"}/>
+            <KV label="Email" value={detail.email||"—"}/>
+            <KV label="Teléfono" value={detail.telefono||"—"}/>
+            <KV label="Responsable" value={(tenantUsers.find(item=>item.id===detail.responsable)?.name)||"—"}/>
+            <KV label="Fecha cierre estimada" value={detail.fecha_cierre_estimada?fmtD(detail.fecha_cierre_estimada):"—"}/>
+            {crmCanPassToClient(detail, scopedStages) && <div style={{marginTop:14}}><Btn onClick={()=>passToClientes(detail)}>Pasar a Clientes</Btn></div>}
+            {!!detail.linkedClientId && <div style={{marginTop:12,fontSize:12,color:"#00e08a"}}>✓ Vinculada al cliente existente/creado en Clientes</div>}
+          </Card>
+          <Card title="Próxima acción">
+            <FG label="Qué sigue"><FI value={detail.nextAction||""} onChange={e=>setDetailId(detail.id) || saveOpp({...detail,nextAction:e.target.value})} placeholder="Define el siguiente movimiento comercial"/></FG>
+            <FG label="Fecha"><FI type="date" value={detail.nextActionDate||""} onChange={e=>saveOpp({...detail,nextActionDate:e.target.value})}/></FG>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Este bloque te ayuda a mantener foco comercial sin abrir otra herramienta.</div>
+          </Card>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card title="Notas">
+            <FTA value={detail.notas||""} onChange={e=>setDetailId(detail.id) || saveOpp({...detail,notas:e.target.value})} placeholder="Notas estratégicas, objeciones, acuerdos, contexto del lead..."/>
+            <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><GBtn sm onClick={saveNotes}>Guardar notas</GBtn></div>
+          </Card>
+          <Card title="Historial de actividades" sub={`${detailActivities.length} registro${detailActivities.length===1?"":"s"}`}>
+            <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+              <FSl value={activityForm.type} onChange={e=>setActivityForm(prev=>({...prev,type:e.target.value}))}>
+                <option value="note">Nota</option>
+                <option value="call">Llamada</option>
+                <option value="meeting">Reunión</option>
+                <option value="email">Email</option>
+              </FSl>
+              <FI value={activityForm.text} onChange={e=>setActivityForm(prev=>({...prev,text:e.target.value}))} placeholder="Registrar actividad comercial..."/>
+              <Btn onClick={async()=>{if(!activityForm.text.trim()) return; await addActivity(detail.id,activityForm.text,activityForm.type); setActivityForm({type:"note",text:""}); ntf?.("Actividad registrada ✓");}} sm>+ Registrar</Btn>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:280,overflowY:"auto"}}>
+              {detailActivities.map(act=><div key={act.id} style={{padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                  <Badge label={act.type||"note"} color="gray" sm/>
+                  <span style={{fontSize:10,color:"var(--gr2)"}}>{act.createdAt?fmtD(act.createdAt):"—"} · {act.byName||"Sistema"}</span>
+                </div>
+                <div style={{fontSize:12,color:"var(--gr3)"}}>{act.text}</div>
+              </div>)}
+              {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas."/>}
+            </div>
+          </Card>
+        </div>
+        <div style={{marginTop:16}}>
+          <Card title="Tareas" sub={tasksEnabled?"Seguimiento operativo vinculado a esta oportunidad.":"El addon de Tareas está desactivado."} action={tasksEnabled?{label:"+ Tarea",fn:()=>openM("tarea",{estado:"Pendiente",refTipo:"crm",refId:detail.id,titulo:`Seguimiento ${detail.nombre}`})}:null}>
+            {tasksEnabled ? (detailTasks.length ? detailTasks.map(task=><TareaCard key={task.id} tarea={task} producciones={[]} programas={[]} piezas={[]} oportunidades={scopedOpps} crew={tenantUsers.map(u=>({id:u.id,nom:u.name,rol:getRoleConfig(u.role,empresa).label}))} onEdit={item=>openM("tarea",item)} onDelete={()=>{}} onChangeEstado={()=>{}} canEdit={false}/>) : <Empty text="Sin tareas vinculadas" sub="Crea una tarea para convertir este lead en siguiente acción real."/>) : null}
+          </Card>
+        </div>
+      </>}
+    </Modal>
+
+    <Modal open={stagesOpen} onClose={()=>setStagesOpen(false)} title="Etapas del pipeline" sub="Edita el flujo comercial del CRM">
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {scopedStages.map((stage,idx)=><div key={stage.id} style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:8,alignItems:"center",padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+          <FI value={stage.name} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,name:e.target.value}:item))}/>
+          <label style={{fontSize:11,color:"var(--gr3)",display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={!!stage.convertToClient} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,convertToClient:e.target.checked}:item))}/>Cliente</label>
+          <GBtn sm onClick={()=>idx>0 && saveStageConfig(scopedStages.map((item,i)=>i===idx-1?{...stage,order:i+1}:i===idx?{...scopedStages[idx-1],order:i+1}:{...item,order:i+1}))}>↑</GBtn>
+          <GBtn sm onClick={()=>idx<scopedStages.length-1 && saveStageConfig(scopedStages.map((item,i)=>i===idx+1?{...stage,order:i+1}:i===idx?{...scopedStages[idx+1],order:i+1}:{...item,order:i+1}))}>↓</GBtn>
+        </div>)}
+      </div>
+      <div style={{marginTop:12,display:"flex",justifyContent:"space-between",gap:8}}>
+        <GBtn onClick={()=>saveStageConfig([...scopedStages,{id:uid(),name:"Nueva etapa",order:scopedStages.length+1,convertToClient:false,closedWon:false,closedLost:false}])}>+ Agregar etapa</GBtn>
+        <Btn onClick={()=>setStagesOpen(false)}>Cerrar</Btn>
+      </div>
+    </Modal>
   </div>;
 }
 

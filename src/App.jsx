@@ -5559,6 +5559,30 @@ function drawWrappedText(page, text, x, y, maxWidth, font, size, color, lineGap=
   return cursorY - size - lineGap;
 }
 
+function countWrappedTextLines(text, maxWidth, font, size) {
+  const paragraphs = String(text || "").split("\n");
+  let total = 0;
+  paragraphs.forEach(paragraph => {
+    const words = String(paragraph || "").split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      total += 1;
+      return;
+    }
+    let line = "";
+    words.forEach(word => {
+      const next = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(next, size) > maxWidth && line) {
+        total += 1;
+        line = word;
+      } else {
+        line = next;
+      }
+    });
+    if (line) total += 1;
+  });
+  return Math.max(total, 1);
+}
+
 async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[] }) {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
@@ -5625,7 +5649,8 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
   let sectionY = height-352;
   bodySections.forEach(section => {
     const sectionRows = section.rows || [];
-    const textExtra = section.text ? 42 : 0;
+    const textLines = section.text ? countWrappedTextLines(section.text, 500, font, 10) : 0;
+    const textExtra = section.text ? 18 + textLines * 15 : 0;
     const sectionHeight = Math.max(70, 44 + sectionRows.length * 28 + textExtra);
     drawCard(36, sectionY-sectionHeight, 540, sectionHeight, section.title, white, accentColor);
     let innerY = sectionY - 46;

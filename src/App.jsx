@@ -7043,37 +7043,25 @@ function drawPdfTextBlock(page, text, x, y, maxWidth, font, size, color, lineGap
 
 function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = null, borderWidth = 1.2, radius = 8) {
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));
-  if (!r) {
-    page.drawRectangle({
-      x,
-      y,
-      width,
-      height,
-      color: fillColor,
-      borderColor: borderColor || fillColor,
-      borderWidth,
-    });
-    return;
-  }
-  const k = 0.5522847498;
-  const c = r * k;
-  const path = [
-    `M ${x + r} ${y}`,
-    `L ${x + width - r} ${y}`,
-    `C ${x + width - r + c} ${y} ${x + width} ${y + r - c} ${x + width} ${y + r}`,
-    `L ${x + width} ${y + height - r}`,
-    `C ${x + width} ${y + height - r + c} ${x + width - r + c} ${y + height} ${x + width - r} ${y + height}`,
-    `L ${x + r} ${y + height}`,
-    `C ${x + r - c} ${y + height} ${x} ${y + height - r + c} ${x} ${y + height - r}`,
-    `L ${x} ${y + r}`,
-    `C ${x} ${y + r - c} ${x + r - c} ${y} ${x + r} ${y}`,
-    "Z",
-  ].join(" ");
-  page.drawSvgPath(path, {
+  page.drawRectangle({
+    x,
+    y,
+    width,
+    height,
     color: fillColor,
     borderColor: borderColor || fillColor,
     borderWidth,
   });
+  if (!r) return;
+  const cover = fillColor;
+  page.drawRectangle({ x:x, y:y, width:r, height:r, color:cover });
+  page.drawRectangle({ x:x + width - r, y:y, width:r, height:r, color:cover });
+  page.drawRectangle({ x:x, y:y + height - r, width:r, height:r, color:cover });
+  page.drawRectangle({ x:x + width - r, y:y + height - r, width:r, height:r, color:cover });
+  page.drawCircle({ x:x + r, y:y + r, size:r, color:cover, borderColor:borderColor || cover, borderWidth });
+  page.drawCircle({ x:x + width - r, y:y + r, size:r, color:cover, borderColor:borderColor || cover, borderWidth });
+  page.drawCircle({ x:x + r, y:y + height - r, size:r, color:cover, borderColor:borderColor || cover, borderWidth });
+  page.drawCircle({ x:x + width - r, y:y + height - r, size:r, color:cover, borderColor:borderColor || cover, borderWidth });
 }
 
 function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {

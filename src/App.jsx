@@ -6943,63 +6943,89 @@ function drawDocumentItemsTable(page, {
   textColor,
   moneyFormatter,
 }) {
+  const clampLines = (lines = [], maxLines = 2, maxWidth = 0, targetFont = font, size = 8) => {
+    const safe = Array.isArray(lines) ? [...lines] : [String(lines || "")];
+    if (safe.length <= maxLines) return safe;
+    const trimmed = safe.slice(0, maxLines);
+    let last = trimmed[maxLines - 1] || "";
+    while (last && targetFont.widthOfTextAtSize(`${last}...`, size) > maxWidth) {
+      last = last.slice(0, -1).trimEnd();
+    }
+    trimmed[maxLines - 1] = last ? `${last}...` : "...";
+    return trimmed;
+  };
   const columns = {
-    detail: { label: "Detalle", x: x + 14, width: 312 },
-    recurrence: { label: "Recurrencia", x: x + 336, width: 70 },
-    qty: { label: "Cant.", x: x + 412, width: 28 },
-    unit: { label: "Valor Unit.", x: x + 446, width: 64 },
-    total: { label: "Total", x: x + 516, width: 58 },
+    detail: { label: "Detalle", x: x + 14, width: 300 },
+    recurrence: { label: "Recurrencia", x: x + 322, width: 64 },
+    qty: { label: "Cant.", x: x + 392, width: 26 },
+    unit: { label: "Valor Unit.", x: x + 424, width: 68 },
+    total: { label: "Total", x: x + 498, width: 64 },
   };
   page.drawText(title, {
     x: x,
     y: y + 6,
-    size: 9.8,
+    size: 9.4,
     font: bold,
     color: accentColor,
   });
   drawRoundedPdfBox(page, x, y - 30, width, 30, accentColor, accentColor, 1);
-  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.8, font: bold, color: white });
-  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.8, font: bold, color: white });
-  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 8.8, font: bold, color: white });
-  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 8.8, font: bold, color: white });
-  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 8.8, font: bold, color: white });
+  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.4, font: bold, color: white });
+  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.4, font: bold, color: white });
+  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 8.4, font: bold, color: white });
+  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 8.4, font: bold, color: white });
+  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 8.4, font: bold, color: white });
 
-  let cursorY = y - 42;
-  items.forEach((item, idx) => {
-    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 8);
-    const rowHeight = Math.max(26, detailLines.length * 10 + 14);
+  let cursorY = y - 36;
+  const tableRows = (items || []).map(item => {
+    const detailLines = clampLines(wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 7.7), 2, columns.detail.width, font, 7.7);
+    const rowHeight = Math.max(24, detailLines.length * 9 + 12);
+    return { item, detailLines, rowHeight };
+  });
+  const tableHeight = 30 + tableRows.reduce((sum, row) => sum + row.rowHeight + 4, 0) + 10;
+  drawRoundedPdfBox(page, x, y - tableHeight + 6, width, tableHeight, white, border, 1.05);
+
+  cursorY = y - 40;
+  tableRows.forEach(({ item, detailLines, rowHeight }, idx) => {
     const rowY = cursorY - rowHeight + 6;
-    drawRoundedPdfBox(page, x, rowY, width, rowHeight, idx % 2 === 0 ? white : surface, border, 0.95);
+    page.drawRectangle({
+      x,
+      y: rowY,
+      width,
+      height: rowHeight,
+      color: idx % 2 === 0 ? white : surface,
+      borderColor: border,
+      borderWidth: 0.6,
+    });
 
-    let lineY = rowY + rowHeight - 12;
+    let lineY = rowY + rowHeight - 10;
     detailLines.forEach(line => {
       page.drawText(line || " ", {
         x: columns.detail.x,
         y: lineY,
-        size: 8,
+        size: 7.7,
         font,
         color: textColor,
         maxWidth: columns.detail.width,
       });
-      lineY -= 10;
+      lineY -= 9;
     });
 
-    const valueY = rowY + Math.max(7, (rowHeight - 8.2) / 2);
+    const valueY = rowY + Math.max(7, (rowHeight - 7.9) / 2);
     page.drawText(item.recurrence === "monthly" ? "Mensual" : "Única vez", {
       x: columns.recurrence.x,
       y: valueY,
-      size: 8,
+      size: 7.7,
       font,
       color: textColor,
       maxWidth: columns.recurrence.width,
     });
-    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 8, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 8, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 8.2, textColor);
+    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 7.7, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 7.7, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 7.9, textColor);
     cursorY -= rowHeight + 4;
   });
 
-  return cursorY;
+  return cursorY - 2;
 }
 
 function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, font, rut = "", docType = "", docNumber = "" }) {

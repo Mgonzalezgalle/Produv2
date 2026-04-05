@@ -972,7 +972,6 @@ function BrandLockup({
   align="left",
   glow=true,
 }){
-  const textAlign=align==="center"?"center":"left";
   const presets={
     sm:{ icon:34, iconRadius:8, iconGlyph:16, gap:10, title:17, subtitle:7.4, subtitleOffset:2, subtitleWeight:500 },
     md:{ icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:10.6, subtitleOffset:4, subtitleWeight:500 },
@@ -984,7 +983,7 @@ function BrandLockup({
     <div style={{width:presets.icon,height:presets.icon,borderRadius:presets.iconRadius,background:"linear-gradient(180deg,#1fd4ee 0%, #13b8dd 100%)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:glow?"0 0 24px var(--cm)":"none",flexShrink:0}}>
       <svg viewBox="0 0 24 24" fill="var(--bg)" width={presets.iconGlyph} height={presets.iconGlyph}><polygon points="5,3 20,12 5,21"/></svg>
     </div>
-    <div style={{display:"flex",flexDirection:"column",alignItems:align==="center"?"center":"flex-start",justifyContent:"center",width:"fit-content",textAlign}}>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"center",width:"fit-content",textAlign:"left"}}>
       <div style={{fontFamily:"var(--fh)",fontSize:presets.title,fontWeight:800,color:wordColor,letterSpacing:-1.2,lineHeight:.92}}>Produ</div>
       <div style={{fontSize:presets.subtitle,color:subtitleColor,letterSpacing:0,fontWeight:presets.subtitleWeight,lineHeight:1,marginTop:presets.subtitleOffset,whiteSpace:"nowrap"}}>Gestión de Productoras</div>
     </div>

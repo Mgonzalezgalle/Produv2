@@ -2762,7 +2762,17 @@ function SolicitudesAdmin({ users, onSaveUsers }) {
 
 // ── LISTAS EDITOR — administración de desplegables ───────────
 function ListasEditor({ listas, saveListas }) {
-  const L = listas || DEFAULT_LISTAS;
+  const mergeListValues = (base = {}, overrides = {}) => {
+    const keys = new Set([...Object.keys(base || {}), ...Object.keys(overrides || {})]);
+    const next = {};
+    keys.forEach(key => {
+      const baseArr = Array.isArray(base?.[key]) ? base[key] : [];
+      const overrideArr = Array.isArray(overrides?.[key]) ? overrides[key] : [];
+      next[key] = [...new Set([...baseArr, ...overrideArr].filter(v => String(v || "").trim()))];
+    });
+    return next;
+  };
+  const L = mergeListValues(DEFAULT_LISTAS, listas || {});
   const [active, setActive] = useState("tiposPro");
   const [newVal, setNewVal] = useState("");
 
@@ -2799,15 +2809,16 @@ function ListasEditor({ listas, saveListas }) {
   ];
 
   const items = L[active] || [];
+  const persistLists = next => saveListas(mergeListValues(DEFAULT_LISTAS, next || {}));
 
   const addItem = () => {
     if (!newVal.trim() || items.includes(newVal.trim())) return;
-    saveListas({ ...L, [active]: [...items, newVal.trim()] });
+    persistLists({ ...L, [active]: [...items, newVal.trim()] });
     setNewVal("");
   };
 
   const delItem = val => {
-    saveListas({ ...L, [active]: items.filter(x => x !== val) });
+    persistLists({ ...L, [active]: items.filter(x => x !== val) });
   };
 
   const moveItem = (val, dir) => {
@@ -2816,12 +2827,12 @@ function ListasEditor({ listas, saveListas }) {
     if (dir === -1 && i === 0) return;
     if (dir === 1 && i === arr.length - 1) return;
     [arr[i], arr[i + dir]] = [arr[i + dir], arr[i]];
-    saveListas({ ...L, [active]: arr });
+    persistLists({ ...L, [active]: arr });
   };
 
   const resetGroup = () => {
     if (!confirm("¿Restaurar valores por defecto para esta lista?")) return;
-    saveListas({ ...L, [active]: DEFAULT_LISTAS[active] });
+    persistLists({ ...L, [active]: DEFAULT_LISTAS[active] });
   };
 
   return (

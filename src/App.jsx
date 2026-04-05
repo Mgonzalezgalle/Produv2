@@ -3263,29 +3263,32 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} wide>
-    <div style={{padding:"16px 18px",border:"1px solid var(--bdr2)",borderRadius:18,background:"linear-gradient(180deg,var(--cg),transparent 70%)",marginBottom:16}}>
+    <div style={{padding:"18px 20px",border:"1px solid var(--bdr2)",borderRadius:20,background:"linear-gradient(180deg,var(--cg),transparent 68%)",marginBottom:16,boxShadow:"0 14px 40px rgba(0,0,0,.08)"}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap",marginBottom:14}}>
         <div>
-          <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Tenant admin</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{empresa?.nombre || "Empresa"}</div>
+          <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.6,marginBottom:6}}>Control interno</div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800,color:"var(--wh)"}}>{empresa?.nombre || "Empresa"}</div>
+            <Badge label={empresa?.tenantCode||"Sin tenant"} color="purple" sm/>
+          </div>
           <div style={{fontSize:12,color:"var(--gr2)",maxWidth:720,lineHeight:1.6}}>{ADMIN_TAB_META[activeAdminTab]}</div>
         </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"flex-end",maxWidth:360}}>
-          <Badge label={`Plan ${empresa?.plan||"—"}`} color="cyan" sm/>
-          <Badge label={`${(empresa?.addons||[]).length} addons`} color="gray" sm/>
-          <Badge label={`${activeUsers} usuarios activos`} color="green" sm/>
-          <Badge label={`Tenant ${empresa?.tenantCode||"—"}`} color="purple" sm/>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,minWidth:280,flex:"1 1 320px"}}>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios activos</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"var(--cy)"}}>{activeUsers}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{String(empresa?.plan||"—").toUpperCase()}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Referidos</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"#a855f7"}}>{referredSols.length}</div></div>
         </div>
       </div>
-      <div style={{padding:10,borderRadius:16,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+      <div style={{padding:10,borderRadius:18,border:"1px solid var(--bdr2)",background:"var(--sur)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>
         <Tabs tabs={ADMIN_TABS} active={tab} onChange={setTab}/>
       </div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{activeUsers}</div></div>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios inactivos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#ffcc44"}}>{inactiveUsers}</div></div>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:14,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{activeUsers}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:14,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios inactivos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#ffcc44"}}>{inactiveUsers}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:14,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
+      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:14,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
     </div>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Selecciona un preset visual curado para tu instancia. Conserva la identidad de Produ y evita combinaciones de color poco legibles.</div>

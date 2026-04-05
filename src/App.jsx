@@ -2646,15 +2646,17 @@ function SuperAdminPanel({empresas,users,onSave}){
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
         const cur=await dbGet("produ:solicitudes")||[];
         if(sol.tipo==="empresa"){
+          const liveEmpresas = normalizeEmpresasModel((await dbGet("produ:empresas")) || empresas || []);
+          const liveUsers = (await dbGet("produ:users")) || users || [];
           const targetEmpId=sol.empresaId||empId||"";
           if(!targetEmpId){ alert("No se encontró la empresa pendiente para activar."); return; }
           const tempPassword=uid().slice(1,9);
-          const alreadyExists=(users||[]).find(u=>u.email?.toLowerCase()===sol.ema?.toLowerCase()&&u.empId===targetEmpId);
+          const alreadyExists=(liveUsers||[]).find(u=>u.email?.toLowerCase()===sol.ema?.toLowerCase()&&u.empId===targetEmpId);
           const nextUsers=alreadyExists
-            ? (users||[]).map(u=>u.id===alreadyExists.id?{...u,name:sol.nom,role:sol.rol||u.role||"admin",active:true,empId:targetEmpId}:u)
-            : [...(users||[]),{id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"admin",empId:targetEmpId,active:true,isCrew:false,crewRole:""}];
+            ? (liveUsers||[]).map(u=>u.id===alreadyExists.id?{...u,name:sol.nom,role:sol.rol||u.role||"admin",active:true,empId:targetEmpId}:u)
+            : [...(liveUsers||[]),{id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"admin",empId:targetEmpId,active:true,isCrew:false,crewRole:""}];
           onSave("users",nextUsers);
-          const nextEmpresas=(empresas||[]).map(e=>{
+          const nextEmpresas=liveEmpresas.map(e=>{
             if(e.id===targetEmpId) return {...e,active:true,pendingActivation:false,requestType:"demo"};
             if(sol.referred && e.id===sol.referredByEmpId) return {...e,referralCredits:Number(e.referralCredits||0)+1};
             return e;

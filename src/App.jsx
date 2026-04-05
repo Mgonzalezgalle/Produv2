@@ -278,6 +278,11 @@ function nextTenantCode(empresas = []) {
   return `T-${String(max + 1).padStart(4, "0")}`;
 }
 
+function buildReferralCode(emp = {}) {
+  const base = String(emp?.tenantCode || emp?.id || uid()).replace(/[^a-z0-9]/gi, "").toUpperCase();
+  return `PRODU-${base.slice(-6)}`;
+}
+
 function normalizeEmpresasTenantCodes(empresas = []) {
   let current = (Array.isArray(empresas) ? empresas : []).reduce((acc, emp) => Math.max(acc, tenantOrdinal(emp?.tenantCode)), 0);
   return (Array.isArray(empresas) ? empresas : []).map(emp => {
@@ -303,7 +308,11 @@ function normalizeEmpresasAddons(empresas = []) {
 }
 
 function normalizeEmpresasModel(empresas = []) {
-  return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas));
+  return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
+    ...emp,
+    referralCode: emp?.referralCode || buildReferralCode(emp),
+    referralCredits: Number(emp?.referralCredits || 0),
+  }));
 }
 
 function contractRefPrefix(refType = "") {
@@ -926,18 +935,18 @@ class TaskErrorBoundary extends Component {
 // ── LOGIN ────────────────────────────────────────────────────
 
 // ── SOLICITUD MODAL ───────────────────────────────────────────
-function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
+function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent,empresas=[]}){
   return <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:480,maxWidth:"100%",padding:28,animation:"modalIn .2s ease"}}>
+    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:720,maxWidth:"100%",padding:28,animation:"modalIn .2s ease"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicitar Acceso a Produ</div>
+        <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicita tu demo de Produ</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
       </div>
       {solSent
         ?<div style={{textAlign:"center",padding:20}}>
           <div style={{fontSize:40,marginBottom:12}}>✅</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>Solicitud enviada</div>
-          <div style={{fontSize:13,color:"var(--gr2)",marginBottom:16}}>El administrador revisará tu solicitud y se pondrá en contacto contigo.</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>Demo solicitada</div>
+          <div style={{fontSize:13,color:"var(--gr2)",marginBottom:16}}>Tu empresa quedó creada en estado pendiente de activación. El equipo de Produ revisará la solicitud y te contactará.</div>
           <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
         </div>
         :<div>
@@ -950,18 +959,102 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
             <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Empresa / Productora *</div>
             <input value={solF.emp||""} onChange={e=>setSolF(p=>({...p,emp:e.target.value}))} placeholder="Play Media SpA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Rol solicitado</div>
-            <select value={solF.rol||"productor"} onChange={e=>setSolF(p=>({...p,rol:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
-              <option value="productor">Productor</option>
-              <option value="comercial">Comercial</option>
-              <option value="admin">Admin</option>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Teléfono *</div>
+            <input value={solF.tel||""} onChange={e=>setSolF(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Tipo de cliente</div>
+            <select value={solF.customerType||"productora"} onChange={e=>setSolF(p=>({...p,customerType:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
+              <option value="productora">Productora</option>
+              <option value="creador">Creador independiente</option>
+              <option value="agencia">Agencia</option>
+              <option value="estudio">Estudio</option>
+            </select></div>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Tamaño de equipo</div>
+            <select value={solF.teamSize||"1-3"} onChange={e=>setSolF(p=>({...p,teamSize:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
+              <option value="1-3">1-3 personas</option>
+              <option value="4-10">4-10 personas</option>
+              <option value="11-25">11-25 personas</option>
+              <option value="25+">25+ personas</option>
             </select></div>
           </div>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:8}}>Módulos de interés</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+              {[
+                ["producciones","Proyectos"],
+                ["programas","Producciones"],
+                ["contenidos","Contenidos"],
+                ["presupuestos","Presupuestos"],
+                ["facturacion","Facturación"],
+                ["crew","Crew"],
+                ["contratos","Contratos"],
+                ["tareas","Tareas"],
+              ].map(([key,label])=>{
+                const arr=Array.isArray(solF.modules)?solF.modules:[];
+                const active=arr.includes(key);
+                return <label key={key} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--sur)",border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,cursor:"pointer"}}>
+                  <input type="checkbox" checked={active} onChange={e=>setSolF(p=>({...p,modules:e.target.checked?[...(Array.isArray(p.modules)?p.modules:[]),key]:(Array.isArray(p.modules)?p.modules:[]).filter(x=>x!==key)}))}/>
+                  <span style={{fontSize:12,color:"var(--wh)"}}>{label}</span>
+                </label>;
+              })}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Rol inicial</div>
+            <select value={solF.rol||"admin"} onChange={e=>setSolF(p=>({...p,rol:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
+              <option value="admin">Administrador</option>
+              <option value="productor">Productor</option>
+              <option value="comercial">Comercial</option>
+            </select></div>
+            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Código de referido</div>
+            <input value={solF.referralCode||""} onChange={e=>setSolF(p=>({...p,referralCode:e.target.value.toUpperCase()}))} placeholder="PRODU-ABC123" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
+          </div>
           <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Mensaje (opcional)</div>
-          <textarea value={solF.msg||""} onChange={e=>setSolF(p=>({...p,msg:e.target.value}))} placeholder="Cuéntanos brevemente para qué necesitas acceso..." rows={3} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>
+          <textarea value={solF.msg||""} onChange={e=>setSolF(p=>({...p,msg:e.target.value}))} placeholder="Cuéntanos brevemente qué necesitas operar con Produ..." rows={3} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>
           <button onClick={async()=>{
-            if(!solF.nom||!solF.ema||!solF.emp){alert("Completa nombre, email y empresa.");return;}
-            const sol={id:uid(),nom:solF.nom,ema:solF.ema,emp:solF.emp,rol:solF.rol||"productor",msg:solF.msg||"",fecha:today(),estado:"pendiente"};
+            if(!solF.nom||!solF.ema||!solF.emp||!solF.tel){alert("Completa nombre, email, teléfono y empresa.");return;}
+            const referral=(empresas||[]).find(e=>String(e.referralCode||"").toUpperCase()===String(solF.referralCode||"").toUpperCase()&&e.active!==false);
+            const companyId=`emp_${uid().slice(1,7)}`;
+            const allEmp=normalizeEmpresasModel((await dbGet("produ:empresas"))||SEED_EMPRESAS);
+            const pendingCompany=normalizeEmpresasModel([{
+              id:companyId,
+              tenantCode:nextTenantCode(allEmp),
+              nombre:solF.emp,
+              rut:solF.rut||"",
+              dir:solF.dir||"",
+              tel:solF.tel||"",
+              ema:solF.ema||"",
+              logo:"",
+              color:"#00d4e8",
+              addons:[],
+              active:false,
+              pendingActivation:true,
+              requestType:"demo",
+              customerType:solF.customerType||"productora",
+              teamSize:solF.teamSize||"1-3",
+              requestedModules:Array.isArray(solF.modules)?solF.modules:[],
+              referredByEmpId:referral?.id||"",
+              referredByName:referral?.nombre||"",
+              referred:true===!!referral,
+              plan:"starter",
+              googleCalendarEnabled:false,
+              migratedTasksAddon:true,
+              systemMessages:[],
+              systemBanner:{active:false,tone:"info",text:""},
+              billingCurrency:"UF",
+              billingMonthly:0,
+              billingDiscountPct:0,
+              billingDiscountNote:"",
+              billingStatus:"Pendiente",
+              billingDueDay:0,
+              billingLastPaidAt:"",
+              contractOwner:solF.nom,
+              clientPortalUrl:"",
+              cr:today()
+            }])[0];
+            await dbSet("produ:empresas",[...allEmp,pendingCompany]);
+            const sol={id:uid(),tipo:"empresa",nom:solF.nom,ema:solF.ema,tel:solF.tel,emp:solF.emp,rol:solF.rol||"admin",msg:solF.msg||"",fecha:today(),estado:"pendiente",empresaId:companyId,customerType:solF.customerType||"productora",teamSize:solF.teamSize||"1-3",requestedModules:Array.isArray(solF.modules)?solF.modules:[],referred:!!referral,referredByEmpId:referral?.id||"",referredByName:referral?.nombre||"",referralCode:solF.referralCode||""};
             const cur=await dbGet("produ:solicitudes")||[];
             await dbSet("produ:solicitudes",[...cur,sol]);
             setSolSent(true);
@@ -974,7 +1067,7 @@ function SolicitudModal({onClose,solF,setSolF,solSent,setSolSent}){
 
 // ── SOLICITUD MODAL — formulario de acceso desde login ───────
 
-function Login({users,onLogin}){
+function Login({users,onLogin,empresas=[]}){
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
   const [showPass,setShowPass]=useState(false);
   const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
@@ -995,7 +1088,29 @@ function Login({users,onLogin}){
   return <><div className="login-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
     <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
-    <div className="login-card" style={{position:"relative",width:"min(440px,100%)",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:16,padding:40,boxShadow:"0 24px 80px #0009"}}>
+    <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
+      <div style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
+        <div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Demo gratis</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Opera tu productora con una demo real de Produ</div>
+          <div style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:22}}>Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido.</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+            {[["Módulos","Activa solo lo que necesitas"],["Equipo","Invita usuarios y crew"],["Comercial","Presupuestos e invoices"]].map(([title,sub])=><div key={title} style={{padding:"14px 14px",borderRadius:16,background:"rgba(8,8,9,.28)",border:"1px solid var(--bdr2)"}}><div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>{sub}</div></div>)}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
+          <div style={{padding:18,borderRadius:18,background:"rgba(6,10,18,.5)",border:"1px solid var(--bdr2)"}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
+            <div style={{display:"grid",gap:8,fontSize:12,color:"var(--gr3)"}}>
+              <div>• Calendario, clientes y operación editorial</div>
+              <div>• Configuración modular según tu tipo de negocio</div>
+              <div>• Activación supervisada por el equipo de Produ</div>
+            </div>
+          </div>
+          <button onClick={()=>setSolOpen(true)} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)"}}>Crear demo gratis</button>
+        </div>
+      </div>
+      <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
       <div style={{textAlign:"center",marginBottom:32}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
           <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
@@ -1024,9 +1139,10 @@ function Login({users,onLogin}){
         <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
         <button onClick={()=>setSolOpen(true)} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
       </div>
+      </div>
     </div>
   </div>
-  {solOpen&&<SolicitudModal onClose={()=>{setSolOpen(false);setSolF({});setSolSent(false);}} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent}/>}
+  {solOpen&&<SolicitudModal onClose={()=>{setSolOpen(false);setSolF({});setSolSent(false);}} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas}/>}
   </>;
 }
 
@@ -2067,24 +2183,37 @@ function SolicitudesPanel({onAceptar, onRechazar, empresas}){
           <div>
             <div style={{fontWeight:700,fontSize:14}}>{sol.nom}</div>
             <div style={{fontSize:12,color:"var(--gr2)"}}>{sol.ema} · {sol.emp}</div>
-            <div style={{fontSize:11,color:"var(--gr)",marginTop:4}}>Rol: {sol.rol} · {fmtD(sol.fecha)}</div>
+            <div style={{fontSize:11,color:"var(--gr)",marginTop:4}}>
+              {sol.tipo==="empresa"
+                ? `Empresa demo · ${sol.customerType||"productora"} · ${fmtD(sol.fecha)}`
+                : `Rol: ${sol.rol} · ${fmtD(sol.fecha)}`}
+            </div>
+            {sol.tel && <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Teléfono: {sol.tel}</div>}
+            {sol.teamSize && <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Equipo: {sol.teamSize}</div>}
+            {!!(sol.requestedModules||[]).length&&<div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
+              {(sol.requestedModules||[]).map(mod=><Badge key={mod} label={ADDONS[mod]?.label||mod} color="gray" sm/>)}
+            </div>}
             {sol.msg&&<div style={{fontSize:12,color:"var(--gr3)",marginTop:6,fontStyle:"italic"}}>"{sol.msg}"</div>}
           </div>
-          <Badge label="Pendiente" color="yellow" sm/>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <Badge label="Pendiente" color="yellow" sm/>
+            {sol.tipo==="empresa"&&<Badge label="Empresa demo" color="cyan" sm/>}
+            {sol.referred&&<Badge label="Referido" color="purple" sm/>}
+          </div>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <div style={{flex:1,minWidth:120}}>
+          {sol.tipo!=="empresa" && <div style={{flex:1,minWidth:120}}>
             <select defaultValue="" style={{width:"100%",padding:"7px 10px",background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:12}} id={"emp-"+sol.id}>
               <option value="">Asignar a empresa...</option>
               {(empresas||[]).map(e=><option key={e.id} value={e.id}>{e.nombre}</option>)}
             </select>
-          </div>
+          </div>}
           <button onClick={()=>{
             const empId=document.getElementById("emp-"+sol.id)?.value||"";
             onAceptar(sol,empId);
-            setSols(p=>p.filter(s=>s.id!==sol.id));
+            setSols(p=>p.map(s=>s.id===sol.id?{...s,estado:"aprobada"}:s));
           }} style={{padding:"7px 16px",borderRadius:6,border:"none",background:"#4ade80",color:"#ffffff",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aceptar</button>
-          <button onClick={()=>{onRechazar(sol);setSols(p=>p.filter(s=>s.id!==sol.id));}} style={{padding:"7px 16px",borderRadius:6,border:"1px solid #ff556640",background:"transparent",color:"var(--red)",cursor:"pointer",fontSize:12,fontWeight:700}}>✕ Rechazar</button>
+          <button onClick={()=>{onRechazar(sol);setSols(p=>p.map(s=>s.id===sol.id?{...s,estado:"rechazada"}:s));}} style={{padding:"7px 16px",borderRadius:6,border:"1px solid #ff556640",background:"transparent",color:"var(--red)",cursor:"pointer",fontSize:12,fontWeight:700}}>✕ Rechazar</button>
         </div>
       </div>
     ))}
@@ -2456,14 +2585,39 @@ function SuperAdminPanel({empresas,users,onSave}){
     </div>}
     {tab===5&&<div>
       <SolicitudesPanel empresas={empresas} onAceptar={async(sol,empId)=>{
+        const cur=await dbGet("produ:solicitudes")||[];
+        if(sol.tipo==="empresa"){
+          const targetEmpId=sol.empresaId||empId||"";
+          if(!targetEmpId){ alert("No se encontró la empresa pendiente para activar."); return; }
+          const tempPassword=uid().slice(1,9);
+          const alreadyExists=(users||[]).find(u=>u.email?.toLowerCase()===sol.ema?.toLowerCase()&&u.empId===targetEmpId);
+          const nextUsers=alreadyExists
+            ? (users||[]).map(u=>u.id===alreadyExists.id?{...u,name:sol.nom,role:sol.rol||u.role||"admin",active:true,empId:targetEmpId}:u)
+            : [...(users||[]),{id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"admin",empId:targetEmpId,active:true,isCrew:false,crewRole:""}];
+          onSave("users",nextUsers);
+          const nextEmpresas=(empresas||[]).map(e=>{
+            if(e.id===targetEmpId) return {...e,active:true,pendingActivation:false,requestType:"demo"};
+            if(sol.referred && e.id===sol.referredByEmpId) return {...e,referralCredits:Number(e.referralCredits||0)+1};
+            return e;
+          });
+          onSave("empresas",nextEmpresas);
+          const nextSols=cur.map(s=>s.id===sol.id?{...s,estado:"aprobada",approvedAt:today()}:s);
+          await dbSet("produ:solicitudes",nextSols);
+          alert("Empresa activada. Email: "+sol.ema+(alreadyExists?"":" / Contrasena temporal: "+tempPassword)+(sol.referred?" / Se acreditó 1 mes de descuento al referido.":""));
+          return;
+        }
         const tempPassword=uid().slice(1,9);
         const newUser={id:uid(),name:sol.nom,email:sol.ema,passwordHash:await sha256Hex(tempPassword),role:sol.rol||"productor",empId:empId||"",active:true};
         onSave("users",[...(users||[]),newUser]);
-        const cur=await dbGet("produ:solicitudes")||[];
         await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
         alert("Usuario creado. Email: "+sol.ema+" / Contrasena temporal: "+tempPassword);
       }} onRechazar={async(sol)=>{
         const cur=await dbGet("produ:solicitudes")||[];
+        if(sol.tipo==="empresa"){
+          onSave("empresas",(empresas||[]).filter(e=>e.id!==sol.empresaId));
+          await dbSet("produ:solicitudes",cur.map(s=>s.id===sol.id?{...s,estado:"rechazada",rejectedAt:today()}:s));
+          return;
+        }
         await dbSet("produ:solicitudes",cur.filter(s=>s.id!==sol.id));
       }}/>
     </div>}
@@ -2795,11 +2949,21 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const [uq,setUq]=useState("");
   const [uRole,setURole]=useState("");
   const [uState,setUState]=useState("");
+  const [refSols,setRefSols]=useState([]);
   useEffect(()=>setLt(theme||{}),[theme]);
+  useEffect(()=>{ dbGet("produ:solicitudes").then(v=>setRefSols(v||[])); },[]);
   const empUsers=(users||[]).filter(u=>u.empId===empresa?.id||user?.role==="superadmin");
   const filteredUsers=empUsers.filter(u=>(!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase()))&&(!uRole||u.role===uRole)&&(!uState||(uState==="active"?u.active:u.active===false)));
   const activeUsers=empUsers.filter(u=>u.active!==false).length;
   const inactiveUsers=empUsers.filter(u=>u.active===false).length;
+  const referredSols=(refSols||[]).filter(s=>s.referredByEmpId===empresa?.id&&s.tipo==="empresa");
+  const referralStatus=(sol)=>{
+    const targetEmp=(empresas||[]).find(e=>e.id===sol.empresaId);
+    const hasActiveUser=(users||[]).some(u=>u.empId===sol.empresaId&&u.active!==false);
+    if(hasActiveUser || targetEmp?.pendingActivation===false) return "Activado";
+    if(targetEmp) return "Tenant creado";
+    return "Pendiente";
+  };
   const resetAccess=async target=>{
     const temp=uid().slice(1,9);
     await saveUsers((users||[]).map(u=>u.id===target.id?{...u,passwordHash:"",password:temp}:u));
@@ -2824,7 +2988,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
     </div>
-    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Roles y Permisos","Datos"]} active={tab} onChange={setTab}/>
+    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Roles y Permisos","Referidos","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Selecciona un preset visual curado para tu instancia. Conserva la identidad de Produ y evita combinaciones de color poco legibles.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
@@ -2936,6 +3100,54 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     {tab===3&&<ListasEditor listas={listas} saveListas={saveListas}/>}
     {tab===4&&<RolesEditor empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf}/>}
     {tab===5&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16}}>
+        <Card title="Programa de referidos" sub="Comparte tu código y acumula meses de descuento">
+          <div style={{padding:14,borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:14}}>
+            <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Tu código</div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:800,color:"var(--cy)"}}>{empresa?.referralCode||"—"}</div>
+              <GBtn sm onClick={()=>{
+                try{navigator.clipboard?.writeText(empresa?.referralCode||""); ntf("Código copiado ✓");}catch{}
+              }}>Copiar</GBtn>
+            </div>
+            <div style={{fontSize:12,color:"var(--gr2)",marginTop:8,lineHeight:1.6}}>Cada empresa activada con tu código suma 1 mes de descuento potencial para tu mensualidad en Produ.</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
+            <Stat label="Créditos" value={Number(empresa?.referralCredits||0)} sub="Meses acumulados" accent="var(--cy)"/>
+            <Stat label="Referidos" value={referredSols.length} sub="Solicitudes asociadas" accent="#a855f7" vc="#a855f7"/>
+            <Stat label="Activados" value={referredSols.filter(sol=>referralStatus(sol)==="Activado").length} sub="Ya operativos" accent="#00e08a" vc="#00e08a"/>
+          </div>
+        </Card>
+        <Card title="Cómo funciona" sub="Simple y visible para tu equipo admin">
+          <div style={{display:"grid",gap:10,fontSize:12,color:"var(--gr3)",lineHeight:1.7}}>
+            <div>1. Comparte tu código de referido con otra empresa interesada.</div>
+            <div>2. Esa empresa solicita su demo desde el login de Produ.</div>
+            <div>3. Cuando el Super Admin la activa, se acredita 1 mes de descuento en tu cuenta.</div>
+          </div>
+        </Card>
+      </div>
+      <Card title="Seguimiento de referidos" sub="Estado de cada empresa referida" style={{marginTop:16}}>
+        <div style={{display:"grid",gap:8}}>
+          {referredSols.map(sol=>{
+            const status=referralStatus(sol);
+            const tone=status==="Activado"?"green":status==="Tenant creado"?"cyan":"yellow";
+            return <div key={sol.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700}}>{sol.emp}</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{sol.nom} · {sol.ema}</div>
+                <div style={{fontSize:11,color:"var(--gr3)",marginTop:4}}>{fmtD(sol.fecha)} · {sol.customerType||"productora"} · {sol.teamSize||"—"}</div>
+              </div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                <Badge label="Referido" color="purple" sm/>
+                <Badge label={status} color={tone} sm/>
+              </div>
+            </div>;
+          })}
+          {!referredSols.length&&<Empty text="Todavía no tienes referidos registrados" sub="Comparte tu código desde esta vista para comenzar a generar descuentos."/>}
+        </div>
+      </Card>
+    </div>}
+    {tab===6&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Acciones sobre la base de datos de esta empresa.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         <GBtn onClick={()=>{ if(!confirm("¿Restaurar datos demo?")) return; const sd=SEED_DATA(empresa?.id||"emp1"); Object.entries(sd).forEach(([k,v])=>dbSet(`produ:${empresa?.id}:${k}`,v)); ntf("Datos demo restaurados"); onClose(); }}>🔄 Restaurar Demo</GBtn>
@@ -3328,7 +3540,7 @@ export default function App(){
 
   // Screens
   if(!empresas||!users) return <div style={{background:"#080809",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#00d4e8",fontFamily:"monospace"}}><StyleTag/>Iniciando Produ...</div>;
-  if(!curUser) return <><StyleTag/><Login users={users||SEED_USERS} onLogin={login}/></>;
+  if(!curUser) return <><StyleTag/><Login users={users||SEED_USERS} empresas={empresas||SEED_EMPRESAS} onLogin={login}/></>;
   if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag/><EmpresaSelector empresas={empresas||SEED_EMPRESAS} onSelect={selectEmp}/></>;
 
   const closeMobileSidebar=()=>{

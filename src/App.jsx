@@ -965,17 +965,34 @@ function SkeletonCard(){
     <Skeleton h={12} w="80%"/>
   </div>;
 }
+function BrandLockup({
+  size="md",
+  subtitleColor="rgba(255,255,255,.88)",
+  wordColor="var(--wh)",
+  align="left",
+  glow=true,
+}){
+  const presets={
+    sm:{ icon:34, iconRadius:8, iconGlyph:16, gap:10, title:17, subtitle:7.2, subtitleOffset:1, subtitleScale:.84, subtitleWeight:500 },
+    md:{ icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:10.5, subtitleOffset:3, subtitleScale:.84, subtitleWeight:500 },
+    lg:{ icon:56, iconRadius:14, iconGlyph:24, gap:16, title:36, subtitle:11.5, subtitleOffset:4, subtitleScale:.84, subtitleWeight:500 },
+  }[size] || {
+    icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:10.5, subtitleOffset:3, subtitleScale:.84, subtitleWeight:500,
+  };
+  const subtitleWidth=`${Math.round(presets.subtitleScale * 100)}%`;
+  return <div style={{display:"flex",alignItems:"center",justifyContent:align==="center"?"center":"flex-start",gap:presets.gap}}>
+    <div style={{width:presets.icon,height:presets.icon,borderRadius:presets.iconRadius,background:"linear-gradient(180deg,#1fd4ee 0%, #13b8dd 100%)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:glow?"0 0 24px var(--cm)":"none",flexShrink:0}}>
+      <svg viewBox="0 0 24 24" fill="var(--bg)" width={presets.iconGlyph} height={presets.iconGlyph}><polygon points="5,3 20,12 5,21"/></svg>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"center"}}>
+      <div style={{fontFamily:"var(--fh)",fontSize:presets.title,fontWeight:800,color:wordColor,letterSpacing:-1.2,lineHeight:.92}}>Produ</div>
+      <div style={{fontSize:presets.subtitle,color:subtitleColor,letterSpacing:0,fontWeight:presets.subtitleWeight,lineHeight:1.02,marginTop:presets.subtitleOffset,width:subtitleWidth,whiteSpace:"nowrap"}}>Gestión de Productoras</div>
+    </div>
+  </div>;
+}
 function LoadingScreen({ title="Cargando datos...", sub="En los proximos segundos estaremos al aire" }){
   return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:18,textAlign:"center",padding:"24px 16px"}}>
-    <div style={{display:"flex",alignItems:"center",gap:12}}>
-      <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
-        <svg viewBox="0 0 24 24" fill="var(--bg)" width="22" height="22"><polygon points="5,3 20,12 5,21"/></svg>
-      </div>
-      <div style={{textAlign:"left"}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:28,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
-        <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestion de Productoras</div>
-      </div>
-    </div>
+    <BrandLockup size="md" subtitleColor="var(--gr2)" />
     <div style={{width:54,height:54,border:"3px solid var(--bdr2)",borderTop:"3px solid var(--cy)",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
     <div>
       <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,color:"var(--wh)",marginBottom:6}}>{title}</div>
@@ -1255,15 +1272,7 @@ function Login({users,onLogin,empresas=[]}){
       </div>
       <div className="login-form" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
       <div className="login-logo" style={{textAlign:"center",marginBottom:32}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
-          <div style={{width:48,height:48,borderRadius:12,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px var(--cm)"}}>
-            <svg viewBox="0 0 24 24" fill="var(--bg)" width="22" height="22"><polygon points="5,3 20,12 5,21"/></svg>
-          </div>
-          <div style={{textAlign:"left"}}>
-            <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
-            <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
-          </div>
-        </div>
+        <BrandLockup size="md" align="center" />
       </div>
       <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--fh)",marginBottom:4,textAlign:"center"}}>Bienvenido de vuelta</div>
       <div className="login-subcopy" style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
@@ -1294,14 +1303,8 @@ function EmpresaSelector({empresas,onSelect}){
   const [q,setQ]=useState("");
   const fd=(empresas||[]).filter(e=>e.nombre.toLowerCase().includes(q.toLowerCase()));
   return <div className="company-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6,justifyContent:"center"}}>
-      <div style={{width:44,height:44,borderRadius:10,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 20px var(--cm)"}}>
-        <svg viewBox="0 0 24 24" fill="var(--bg)" width="20" height="20"><polygon points="5,3 20,12 5,21"/></svg>
-      </div>
-      <div>
-        <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:800,color:"var(--cy)",letterSpacing:-1,lineHeight:1}}>produ</div>
-        <div style={{fontSize:10,color:"var(--gr2)",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
-      </div>
+    <div style={{marginBottom:6}}>
+      <BrandLockup size="md" align="center" subtitleColor="rgba(255,255,255,.82)" />
     </div>
     <div style={{fontSize:12,color:"var(--gr2)",letterSpacing:1,textTransform:"uppercase",marginBottom:28,textAlign:"center"}}>Super Admin · Seleccionar empresa</div>
     <div className="company-card" style={{width:"min(460px,100%)"}}>
@@ -1514,13 +1517,7 @@ function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,co
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 16px var(--cm)",flexShrink:0}}>
-            <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
-          </div>
-          <div>
-            <div style={{fontFamily:"var(--fh)",fontSize:17,fontWeight:800,letterSpacing:-.5,lineHeight:1,color:"var(--cy)"}}>produ</div>
-            <div style={{fontSize:8,color:sbMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Gestión de Productoras</div>
-          </div>
+          <BrandLockup size="sm" subtitleColor={sbMuted} wordColor="var(--wh)" glow={false} />
         </div>
         <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>{isMobile?"✕":"‹"}</button>
       </>:

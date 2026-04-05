@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/favicon.png">
 <title>Produ — Gestión de Productoras</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -41,25 +42,27 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.95);backdrop-
 .hero h1 em{font-style:normal;color:#555}
 .hero p{font-size:18px;color:#666;max-width:580px;margin:0 auto 40px;line-height:1.6}
 .hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:64px}
-.hero-img{background:#f8f8fc;border-radius:20px;border:1px solid #eee;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.08);max-width:900px;margin:0 auto;overflow:hidden}
+.hero-img{background:radial-gradient(circle at top left,#ffffff 0%,#f3f5fb 45%,#eef1f8 100%);border-radius:24px;border:1px solid #e7eaf2;padding:22px;box-shadow:0 30px 90px rgba(15,23,42,.12);max-width:960px;margin:0 auto;overflow:hidden;position:relative}
+.hero-img::before{content:"";position:absolute;inset:-20% auto auto -10%;width:260px;height:260px;background:radial-gradient(circle,rgba(96,165,250,.18) 0%,transparent 70%)}
+.hero-img::after{content:"";position:absolute;inset:auto -8% -24% auto;width:280px;height:280px;background:radial-gradient(circle,rgba(74,222,128,.14) 0%,transparent 70%)}
 .hero-mockup{background:#1a1a2e;border-radius:12px;padding:0;overflow:hidden}
-.mockup-bar{background:#141428;padding:12px 16px;display:flex;align-items:center;gap:8px}
+.mockup-bar{background:linear-gradient(180deg,#16162d,#111124);padding:12px 16px;display:flex;align-items:center;gap:8px;position:relative;z-index:1}
 .mockup-dot{width:10px;height:10px;border-radius:50%}
-.mockup-body{display:grid;grid-template-columns:200px 1fr;min-height:400px}
-.mockup-sidebar{background:#0f0f1f;padding:20px 12px}
+.mockup-body{display:grid;grid-template-columns:210px 1fr;min-height:430px;position:relative;z-index:1}
+.mockup-sidebar{background:linear-gradient(180deg,#111124,#0c0c1a);padding:20px 12px;border-right:1px solid #ffffff08}
 .mockup-sidebar-logo{display:flex;align-items:center;gap:8px;margin-bottom:24px;padding:0 4px}
 .mockup-sidebar-logo-icon{width:28px;height:28px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center}
 .mockup-sidebar-logo-text{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:#fff}
 .mockup-nav-group{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:6px;margin-top:16px;padding:0 8px}
-.mockup-nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:12px;color:#888;margin-bottom:2px;cursor:pointer}
-.mockup-nav-item.active{background:#ffffff15;color:#fff}
+.mockup-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:12px;color:#8f96ab;margin-bottom:4px;cursor:pointer;transition:.15s}
+.mockup-nav-item.active{background:linear-gradient(90deg,#ffffff18,#ffffff08);color:#fff;box-shadow:inset 0 0 0 1px #ffffff10}
 .mockup-nav-item span:first-child{font-size:14px}
-.mockup-content{background:#0a0a18;padding:20px}
+.mockup-content{background:linear-gradient(180deg,#0c0c1a,#080814);padding:20px}
 .mockup-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .mockup-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase}
 .mockup-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-.mockup-stat{background:#141428;border-radius:8px;padding:12px;border-top:2px solid #ffffff20}
-.mockup-stat-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#666;margin-bottom:6px}
+.mockup-stat{background:linear-gradient(180deg,#15152b,#101022);border-radius:10px;padding:12px;border:1px solid #ffffff08;border-top:2px solid #ffffff20;box-shadow:0 10px 24px rgba(0,0,0,.15)}
+.mockup-stat-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#707b8f;margin-bottom:6px}
 .mockup-stat-val{font-size:18px;font-weight:700;color:#fff;font-family:monospace}
 .mockup-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mockup-card{background:#141428;border-radius:8px;padding:14px}
@@ -67,10 +70,29 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.95);backdrop-
 .mockup-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #ffffff08}
 .mockup-row span:first-child{font-size:10px;color:#666}
 .mockup-row span:last-child{font-size:10px;color:#4ade80;font-family:monospace}
-.mockup-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:#ffffff15;color:#aaa}
+.mockup-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;background:#ffffff15;color:#cbd5e1}
 .mockup-badge.green{background:#4ade8020;color:#4ade80}
 .mockup-badge.yellow{background:#fbbf2420;color:#fbbf24}
 .mockup-badge.blue{background:#60a5fa20;color:#60a5fa}
+.mockup-board{display:grid;grid-template-columns:1.24fr .76fr;gap:12px}
+.mockup-panel{background:linear-gradient(180deg,#15152b,#101022);border-radius:12px;padding:14px;border:1px solid #ffffff08;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.mockup-panel-title{font-size:10px;font-weight:700;color:#fff;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px}
+.mockup-kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.mockup-kpi{background:linear-gradient(180deg,#111124,#0d0d1c);border:1px solid #ffffff08;border-radius:10px;padding:10px}
+.mockup-kpi strong{display:block;font-size:15px;color:#fff;font-family:monospace;margin-top:4px}
+.mockup-chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.mockup-chip{padding:4px 8px;border-radius:999px;background:linear-gradient(180deg,#ffffff16,#ffffff0a);color:#c7d2fe;font-size:9px;font-weight:700;letter-spacing:.4px;border:1px solid #ffffff08}
+.mockup-timeline{display:flex;flex-direction:column;gap:8px}
+.mockup-timeline-item{display:grid;grid-template-columns:74px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ffffff08}
+.mockup-timeline-item:last-child{border-bottom:none}
+.mockup-timeline-date{font-size:9px;color:#7c8aa5;letter-spacing:.8px;text-transform:uppercase}
+.mockup-timeline-text{font-size:10px;color:#d1d5db}
+.mockup-side-stack{display:flex;flex-direction:column;gap:10px}
+.mockup-mini-list{display:flex;flex-direction:column;gap:8px}
+.mockup-mini-item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #ffffff08}
+.mockup-mini-item:last-child{border-bottom:none}
+.mockup-mini-main{font-size:10px;color:#fff}
+.mockup-mini-sub{font-size:9px;color:#707b8f;margin-top:2px}
 
 /* LOGOS */
 .logos{padding:48px 5%;border-top:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
@@ -174,6 +196,9 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 @media(max-width:768px){
   .nav-links,.nav-cta .btn-outline{display:none}
   .hero h1{letter-spacing:-1px}
+  .mockup-body{grid-template-columns:1fr}
+  .mockup-sidebar{display:none}
+  .mockup-board{grid-template-columns:1fr}
   .features-grid{grid-template-columns:1fr}
   .split-section{grid-template-columns:1fr;gap:40px}
   .split-section.reverse{direction:ltr}
@@ -204,11 +229,11 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
       <a href="#modulos">Módulos</a>
       <a href="#funciones">Funcionalidades</a>
       <a href="#testimonios">Clientes</a>
-      <a href="#precios">Precios</a>
+      <a href="precios.html">Precios</a>
     </div>
     <div class="nav-cta">
       <a href="https://portal.produ.cl" target="_blank" class="btn-outline">Iniciar sesión</a>
-      <a href="javascript:void(0)" onclick="abrirModal()" class="btn-primary">Solicitar demo</a>
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-primary">Solicitar demo</a>
     </div>
   </div>
 </nav>
@@ -217,9 +242,9 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 <section class="hero">
   <div class="hero-badge"><span></span>Software para productoras audiovisuales</div>
   <h1>Gestiona tu productora<br><em>desde un solo lugar</em></h1>
-  <p>Produ centraliza clientes, producciones, programas de TV, equipo, finanzas y más. Todo sincronizado en tiempo real para tu equipo.</p>
+  <p>Produ centraliza clientes, proyectos, programas, contenidos, equipo, contratos, finanzas y facturación. Todo sincronizado en tiempo real para tu productora.</p>
   <div class="hero-btns">
-    <a href="javascript:void(0)" onclick="abrirModal()" class="btn-primary-lg">Empezar ahora →</a>
+    <a href="https://portal.produ.cl/" target="_blank" class="btn-primary-lg">Empezar ahora →</a>
     <a href="#funciones" class="btn-ghost-lg">Ver funcionalidades</a>
   </div>
 
@@ -243,11 +268,12 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
         <div class="mockup-nav-item"><span>📅</span><span>Calendario</span></div>
         <div class="mockup-nav-group">Negocio</div>
         <div class="mockup-nav-item"><span>👥</span><span>Clientes</span></div>
-        <div class="mockup-nav-item"><span>▶</span><span>Producciones</span></div>
+        <div class="mockup-nav-item"><span>▶</span><span>Proyectos</span></div>
         <div class="mockup-nav-group">Comercial</div>
         <div class="mockup-nav-item"><span>📋</span><span>Presupuestos</span></div>
         <div class="mockup-nav-group">Addons</div>
-        <div class="mockup-nav-item"><span>📺</span><span>Televisión</span></div>
+        <div class="mockup-nav-item"><span>📺</span><span>Producciones</span></div>
+        <div class="mockup-nav-item"><span>📱</span><span>Contenidos</span></div>
         <div class="mockup-nav-item"><span>🧾</span><span>Facturación</span></div>
       </div>
       <div class="mockup-content">
@@ -272,22 +298,84 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
             <div class="mockup-stat-val" style="color:#4ade80;font-size:13px">$31.5M</div>
           </div>
           <div class="mockup-stat" style="border-top-color:#fbbf24">
-            <div class="mockup-stat-label">Producciones</div>
+            <div class="mockup-stat-label">Proyectos</div>
             <div class="mockup-stat-val" style="color:#fbbf24">7</div>
           </div>
         </div>
-        <div class="mockup-cards">
-          <div class="mockup-card">
-            <div class="mockup-card-title">Producciones recientes</div>
-            <div class="mockup-row"><span>Podcast BancoSeguro</span><span class="mockup-badge green">En Curso</span></div>
-            <div class="mockup-row"><span>Spots FoodTech Q2</span><span class="mockup-badge yellow">Post-Prod.</span></div>
-            <div class="mockup-row"><span>Pack EduFutura</span><span class="mockup-badge green">En Curso</span></div>
+        <div class="mockup-board">
+          <div class="mockup-panel">
+            <div class="mockup-panel-title">Proyecto activo</div>
+            <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px">Podcast BancoSeguro</div>
+            <div style="font-size:10px;color:#7c8aa5;margin-bottom:10px">Cliente: BancoSeguro S.A. · Abril a Junio 2026</div>
+            <div class="mockup-kpi-grid">
+              <div class="mockup-kpi"><span style="font-size:9px;color:#7c8aa5">Ingresos</span><strong style="color:#4ade80">$9.0M</strong></div>
+              <div class="mockup-kpi"><span style="font-size:9px;color:#7c8aa5">Gastos</span><strong style="color:#f87171">$0.8M</strong></div>
+              <div class="mockup-kpi"><span style="font-size:9px;color:#7c8aa5">Balance</span><strong style="color:#60a5fa">$8.2M</strong></div>
+              <div class="mockup-kpi"><span style="font-size:9px;color:#7c8aa5">Crew</span><strong style="color:#fbbf24">6 pers.</strong></div>
+            </div>
+            <div class="mockup-chip-row">
+              <span class="mockup-chip">Cliente activo</span>
+              <span class="mockup-chip">3 entregas</span>
+              <span class="mockup-chip">2 cobros pendientes</span>
+            </div>
+            <div class="mockup-panel-title" style="margin-top:14px">Linea de tiempo</div>
+            <div class="mockup-timeline">
+              <div class="mockup-timeline-item">
+                <div class="mockup-timeline-date">08 Abril</div>
+                <div class="mockup-timeline-text">Grabacion principal estudio A</div>
+                <span class="mockup-badge yellow">Hoy</span>
+              </div>
+              <div class="mockup-timeline-item">
+                <div class="mockup-timeline-date">12 Abril</div>
+                <div class="mockup-timeline-text">Entrega corte cliente</div>
+                <span class="mockup-badge blue">Hito</span>
+              </div>
+              <div class="mockup-timeline-item">
+                <div class="mockup-timeline-date">15 Abril</div>
+                <div class="mockup-timeline-text">Cobro cuota 2 contrato</div>
+                <span class="mockup-badge green">Cobranza</span>
+              </div>
+            </div>
           </div>
-          <div class="mockup-card">
-            <div class="mockup-card-title">Próximas grabaciones 🔔</div>
-            <div class="mockup-row"><span>Cap.11 Siguiendo Huellas</span><span style="color:#f87171;font-size:10px">Mañana</span></div>
-            <div class="mockup-row"><span>Ep.5 Chile Emprende</span><span style="color:#fbbf24;font-size:10px">3 días</span></div>
-            <div class="mockup-row"><span>Ep.8 El Ágora</span><span style="color:#60a5fa;font-size:10px">12 días</span></div>
+          <div class="mockup-side-stack">
+            <div class="mockup-panel">
+              <div class="mockup-panel-title">Producciones</div>
+              <div class="mockup-mini-list">
+                <div class="mockup-mini-item">
+                  <div>
+                    <div class="mockup-mini-main">Chile Emprende</div>
+                    <div class="mockup-mini-sub">Ep.13 en edicion</div>
+                  </div>
+                  <span class="mockup-badge blue">TV</span>
+                </div>
+                <div class="mockup-mini-item">
+                  <div>
+                    <div class="mockup-mini-main">El Agora</div>
+                    <div class="mockup-mini-sub">Grabacion viernes</div>
+                  </div>
+                  <span class="mockup-badge yellow">Podcast</span>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-panel">
+              <div class="mockup-panel-title">Contenidos</div>
+              <div class="mockup-mini-list">
+                <div class="mockup-mini-item">
+                  <div>
+                    <div class="mockup-mini-main">Campaña BancoSeguro</div>
+                    <div class="mockup-mini-sub">4 piezas esta semana</div>
+                  </div>
+                  <span class="mockup-badge green">Activa</span>
+                </div>
+                <div class="mockup-mini-item">
+                  <div>
+                    <div class="mockup-mini-main">FoodTech Abril</div>
+                    <div class="mockup-mini-sub">2 aprobaciones pendientes</div>
+                  </div>
+                  <span class="mockup-badge yellow">Review</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -298,7 +386,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 <!-- LOGOS -->
 <div class="logos">
   <div class="logos-inner">
-    <p class="logos-title">Productoras que confían en Produ</p>
+    <p class="logos-title">Operación real para productoras reales</p>
     <div class="logos-grid">
       <div class="logo-pill">Play Media SpA</div>
       <div class="logo-pill">Productora Norte</div>
@@ -311,61 +399,61 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 <!-- FEATURES -->
 <section class="section" id="funciones">
   <p class="section-tag">Funcionalidades</p>
-  <h2 class="section-title">Todo lo que tu productora necesita</h2>
-  <p class="section-desc">Desde la gestión de clientes hasta la facturación, Produ centraliza toda la operación de tu productora en una sola plataforma.</p>
+  <h2 class="section-title">Toda la operación de tu productora, en una sola plataforma</h2>
+  <p class="section-desc">Desde clientes y proyectos hasta contenidos, contratos, presupuestos y cobranza. Produ ordena el trabajo diario sin depender de planillas sueltas.</p>
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">📅</div>
-      <h3>Calendario de Grabaciones</h3>
-      <p>Visualiza todas las fechas de grabación y emisión en un calendario interactivo. Recibe alertas automáticas de grabaciones próximas.</p>
+      <h3>Calendario y Alertas</h3>
+      <p>Visualiza grabaciones, emisiones, entregas, vencimientos y tareas en un solo calendario. Recibe alertas para que nada se pase.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">💰</div>
       <h3>Control Financiero</h3>
-      <p>Registra ingresos, gastos y movimientos de caja por producción. Visualiza el balance en tiempo real sin necesidad de Excel.</p>
+      <p>Registra ingresos, gastos y movimientos por proyecto, programa o documento. Visualiza balance y cobranza sin depender de Excel.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📋</div>
       <h3>Presupuestos con PDF</h3>
-      <p>Genera presupuestos profesionales con tu logo y datos. Descarga PDFs listos para enviar al cliente con un clic.</p>
+      <p>Genera propuestas con logo, firma, ítems, IVA y correlativo. Descarga PDFs listos para enviar a clientes desde la misma plataforma.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">👥</div>
       <h3>Gestión de Clientes</h3>
-      <p>Administra múltiples contactos por cliente. Accede directo a WhatsApp o Email desde cada ficha de cliente.</p>
+      <p>Administra empresas, múltiples contactos, contratos y relación comercial. Accede directo a WhatsApp o correo desde cada ficha.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🎬</div>
       <h3>Equipo / Crew</h3>
-      <p>Registra tu equipo completo con roles, tarifas y disponibilidad. Asigna miembros a producciones y episodios.</p>
+      <p>Registra crew interno y externo con roles, tarifas y disponibilidad. Asigna personas a proyectos, episodios y contenidos.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">🔔</div>
-      <h3>Alertas Inteligentes</h3>
-      <p>Recibe notificaciones de grabaciones próximas directamente en la plataforma. Nunca más olvides una fecha importante.</p>
+      <div class="feature-icon">📱</div>
+      <h3>Contenidos</h3>
+      <p>Planifica campañas y piezas para Instagram, TikTok, LinkedIn y más. Controla estados, fechas y responsables desde el mismo flujo.</p>
     </div>
   </div>
 </section>
 
-<!-- SPLIT: Producciones -->
+<!-- SPLIT: Proyectos -->
 <div class="split-section" id="modulos">
   <div class="split-content">
-    <p class="tag">Producciones</p>
+    <p class="tag">Proyectos</p>
     <h2>Controla cada proyecto de principio a fin</h2>
-    <p>Gestiona el ciclo completo de tus producciones: desde la cotización hasta la entrega final, con seguimiento financiero en tiempo real.</p>
+    <p>Gestiona el ciclo completo de tus proyectos: desde la cotización hasta la entrega final, con seguimiento financiero en tiempo real.</p>
     <div class="split-items">
       <div class="split-item">
         <div class="split-item-icon">📊</div>
         <div>
-          <h4>Balance por producción</h4>
-          <p>Ingresos, gastos y balance disponibles en cada producción sin necesidad de planillas externas.</p>
+          <h4>Balance por proyecto</h4>
+          <p>Ingresos, gastos y balance disponibles en cada proyecto sin necesidad de planillas externas.</p>
         </div>
       </div>
       <div class="split-item">
         <div class="split-item-icon">👥</div>
         <div>
           <h4>Crew asignado</h4>
-          <p>Asigna miembros del equipo a cada producción y lleva el control de quién participa en cada proyecto.</p>
+          <p>Asigna miembros del equipo a cada proyecto y lleva el control de quién participa en cada trabajo.</p>
         </div>
       </div>
       <div class="split-item">
@@ -379,28 +467,30 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
   </div>
   <div class="split-visual">
     <div style="background:#1a1a2e;border-radius:10px;padding:20px">
-      <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px">Podcast BancoSeguro</div>
+      <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proyecto · Podcast BancoSeguro</div>
+      <div style="font-size:11px;color:#7c8aa5;margin-bottom:16px">Cliente: BancoSeguro S.A. · Productor ejecutivo: Maria Gonzalez</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
         <div style="background:#141428;border-radius:8px;padding:12px;border-top:2px solid #4ade80"><div style="font-size:9px;color:#666;margin-bottom:4px;letter-spacing:1px">INGRESOS</div><div style="font-size:16px;font-weight:700;color:#4ade80;font-family:monospace">$9M</div></div>
         <div style="background:#141428;border-radius:8px;padding:12px;border-top:2px solid #f87171"><div style="font-size:9px;color:#666;margin-bottom:4px;letter-spacing:1px">GASTOS</div><div style="font-size:16px;font-weight:700;color:#f87171;font-family:monospace">$800K</div></div>
-        <div style="background:#141428;border-radius:8px;padding:12px;border-top:2px solid #60a5fa"><div style="font-size:9px;color:#666;margin-bottom:4px;letter-spacing:1px">BALANCE</div><div style="font-size:16px;font-weight:700;color:#4ade80;font-family:monospace">$8.2M</div></div>
+        <div style="background:#141428;border-radius:8px;padding:12px;border-top:2px solid #60a5fa"><div style="font-size:9px;color:#666;margin-bottom:4px;letter-spacing:1px">ENTREGAS</div><div style="font-size:16px;font-weight:700;color:#60a5fa;font-family:monospace">3/5</div></div>
       </div>
       <div style="background:#141428;border-radius:8px;padding:14px">
-        <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:10px">Movimientos recientes</div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px"><span style="color:#666">Pago cuota 1</span><span style="color:#4ade80;font-family:monospace">+$4.5M</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px"><span style="color:#666">Pago cuota 2</span><span style="color:#4ade80;font-family:monospace">+$4.5M</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:11px"><span style="color:#666">Arriendo estudio</span><span style="color:#f87171;font-family:monospace">-$800K</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:10px">Estado operativo</div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px"><span style="color:#666">Crew asignado</span><span style="color:#fff">6 personas</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px"><span style="color:#666">Contrato vigente</span><span class="mockup-badge green">Firmado</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px"><span style="color:#666">Cobranza</span><span style="color:#fbbf24;font-family:monospace">1 pendiente</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:11px"><span style="color:#666">Próximo hito</span><span style="color:#60a5fa">Entrega corte</span></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- SPLIT: Televisión (reverse) -->
+<!-- SPLIT: Producciones (reverse) -->
 <div class="split-section reverse">
   <div class="split-content">
-    <p class="tag">Addon Televisión</p>
-    <h2>Programa tu parrilla de contenido</h2>
-    <p>Gestiona programas de TV, podcast y web series con control de episodios, auspiciadores y facturación comercial.</p>
+    <p class="tag">Producciones</p>
+    <h2>Programa tu parrilla y tu operación comercial</h2>
+    <p>Gestiona programas de TV, podcast y web series con control de episodios, auspiciadores, contratos y facturación vinculada.</p>
     <div class="split-items">
       <div class="split-item">
         <div class="split-item-icon">🎬</div>
@@ -413,32 +503,33 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
         <div class="split-item-icon">⭐</div>
         <div>
           <h4>Auspiciadores</h4>
-          <p>Registra auspicios principales y secundarios con montos, frecuencia de pago y vigencia por programa.</p>
+          <p>Registra auspicios principales y secundarios con montos, frecuencia de pago, vigencia y estado por programa.</p>
         </div>
       </div>
       <div class="split-item">
         <div class="split-item-icon">🧾</div>
         <div>
           <h4>Facturación comercial</h4>
-          <p>Genera órdenes de factura vinculadas a auspiciadores. Solo incluye auspicios válidos, nunca canjes ni colaboradores.</p>
+          <p>Genera órdenes de factura vinculadas a auspiciadores y documentos comerciales. Solo incluye referencias válidas para cobro.</p>
         </div>
       </div>
     </div>
   </div>
   <div class="split-visual">
     <div style="background:#1a1a2e;border-radius:10px;padding:20px">
-      <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Chile Emprende</div>
-      <div style="font-size:11px;color:#555;margin-bottom:16px">Programa de TV · Canal 24H · Semanal</div>
+      <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Produccion · Chile Emprende</div>
+      <div style="font-size:11px;color:#7c8aa5;margin-bottom:16px">Programa de TV · Canal 24H · Semanal · 2 auspiciadores activos</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
         <div style="text-align:center;background:#141428;border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:700;color:#fff;font-family:monospace">24</div><div style="font-size:9px;color:#666">Total Ep.</div></div>
         <div style="text-align:center;background:#141428;border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:700;color:#4ade80;font-family:monospace">12</div><div style="font-size:9px;color:#666">Publicados</div></div>
         <div style="text-align:center;background:#141428;border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:700;color:#60a5fa;font-family:monospace">2</div><div style="font-size:9px;color:#666">Auspicios</div></div>
       </div>
       <div style="background:#141428;border-radius:8px;padding:14px">
-        <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:10px">Episodios</div>
+        <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:10px">Programacion y comercial</div>
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px;align-items:center"><span style="color:#fff">Ep.12 — Startups 2025</span><span style="background:#4ade8020;color:#4ade80;padding:2px 8px;border-radius:10px;font-size:9px">Publicado</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px;align-items:center"><span style="color:#fff">Ep.13 — Fintech</span><span style="background:#60a5fa20;color:#60a5fa;padding:2px 8px;border-radius:10px;font-size:9px">En Edición</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:11px;align-items:center"><span style="color:#fff">Ep.14 — E-commerce</span><span style="background:#fbbf2420;color:#fbbf24;padding:2px 8px;border-radius:10px;font-size:9px">Planificado</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px;align-items:center"><span style="color:#fff">Ep.13 — Fintech</span><span style="background:#60a5fa20;color:#60a5fa;padding:2px 8px;border-radius:10px;font-size:9px">En Edicion</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #ffffff08;font-size:11px;align-items:center"><span style="color:#fff">Banco Estado</span><span style="color:#4ade80;font-family:monospace">+$2.5M</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:11px;align-items:center"><span style="color:#fff">Entel</span><span style="color:#fbbf24;font-family:monospace">Factura pendiente</span></div>
       </div>
     </div>
   </div>
@@ -448,23 +539,23 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 <div class="stats-section">
   <div class="stats-inner">
     <h2 class="stats-title">Diseñado para productoras reales</h2>
-    <p class="stats-sub">Números que respaldan por qué Produ es la mejor opción para tu equipo</p>
+    <p class="stats-sub">Un sistema pensado para operación, comercial, administración y crecimiento multiempresa</p>
     <div class="stats-grid">
       <div class="stat-item">
         <div class="stat-num">100<span>%</span></div>
-        <div class="stat-label">Responsiva. Tu información disponible en cualquier dispositivo.</div>
+        <div class="stat-label">Web responsiva. Tu información disponible en cualquier dispositivo.</div>
       </div>
       <div class="stat-item">
         <div class="stat-num">0</div>
         <div class="stat-label">Instalaciones requeridas. Funciona directo desde el navegador en cualquier dispositivo.</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num">5</div>
-        <div class="stat-label">Roles de usuario. SuperAdmin, Admin, Productor, Comercial y Visualizador.</div>
+        <div class="stat-num">5<span>+</span></div>
+        <div class="stat-label">Roles base y personalizados por empresa. SuperAdmin, Admin, Productor, Comercial y Visualizador.</div>
       </div>
       <div class="stat-item">
         <div class="stat-num">∞</div>
-        <div class="stat-label">Sincronización en tiempo real entre todos los dispositivos de tu equipo.</div>
+        <div class="stat-label">Escalable por empresa, módulo y equipo. Produ crece contigo sin rehacer tu operación.</div>
       </div>
     </div>
   </div>
@@ -475,55 +566,61 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
   <div class="modules-header">
     <p class="section-tag" style="text-align:center">Módulos</p>
     <h2 class="section-title" style="text-align:center">Activa solo lo que necesitas</h2>
-    <p style="text-align:center;color:#666;font-size:17px;max-width:540px;margin:0 auto">Los módulos base están siempre disponibles. Activa los addons según el tipo de productora.</p>
+    <p style="text-align:center;color:#666;font-size:17px;max-width:540px;margin:0 auto">Parte con lo esencial y activa addons según tu tipo de productora, clientes y flujo comercial.</p>
   </div>
   <div class="modules-grid">
     <div class="module-card">
       <div class="module-icon">⊞</div>
       <h3>Dashboard</h3>
-      <p>Resumen financiero, producciones recientes y próximas grabaciones.</p>
+      <p>Resumen operativo, financiero y comercial con alertas, vencimientos y actividad reciente.</p>
       <div class="module-tag">Base</div>
     </div>
     <div class="module-card">
       <div class="module-icon">👥</div>
       <h3>Clientes</h3>
-      <p>Empresas y contactos con historial de producciones y contratos.</p>
+      <p>Empresas, contactos, historial comercial, contratos y acceso directo a canales de contacto.</p>
       <div class="module-tag">Base</div>
     </div>
     <div class="module-card">
       <div class="module-icon">▶</div>
-      <h3>Producciones</h3>
-      <p>Proyectos audiovisuales con control financiero integrado.</p>
+      <h3>Proyectos</h3>
+      <p>Proyectos audiovisuales con balance, crew, eventos, tareas y documentos relacionados.</p>
       <div class="module-tag">Base</div>
     </div>
     <div class="module-card">
       <div class="module-icon">📅</div>
       <h3>Calendario</h3>
-      <p>Grabaciones, emisiones y eventos en vista mensual y lista.</p>
+      <p>Grabaciones, emisiones, vencimientos, entregas y eventos en vista mensual y lista.</p>
       <div class="module-tag">Base</div>
     </div>
     <div class="module-card">
       <div class="module-icon">📺</div>
-      <h3>Televisión</h3>
-      <p>Programas de TV, episodios y auspiciadores comerciales.</p>
+      <h3>Producciones</h3>
+      <p>Programas, episodios, auspiciadores y facturación comercial asociada.</p>
       <div class="module-tag addon">Addon</div>
     </div>
     <div class="module-card">
       <div class="module-icon">📋</div>
       <h3>Presupuestos</h3>
-      <p>Cotizaciones con PDF descargable y conversión a proyecto.</p>
+      <p>Cotizaciones con PDF descargable, correlativo y conversión natural al flujo comercial.</p>
+      <div class="module-tag addon">Addon</div>
+    </div>
+    <div class="module-card">
+      <div class="module-icon">📱</div>
+      <h3>Contenidos</h3>
+      <p>Campañas, piezas, plataformas, responsables y seguimiento por cliente en un solo flujo.</p>
       <div class="module-tag addon">Addon</div>
     </div>
     <div class="module-card">
       <div class="module-icon">🧾</div>
       <h3>Facturación</h3>
-      <p>Órdenes de cobro vinculadas a producciones y auspiciadores.</p>
+      <p>Documentos de cobro vinculados a clientes, auspiciadores, proyectos y contenidos.</p>
       <div class="module-tag addon">Addon</div>
     </div>
     <div class="module-card">
       <div class="module-icon">📦</div>
       <h3>Activos</h3>
-      <p>Equipamiento de la productora con categorías y asignación.</p>
+      <p>Inventario de equipos y recursos con estado, valorización y asignación por proyecto.</p>
       <div class="module-tag addon">Addon</div>
     </div>
   </div>
@@ -548,7 +645,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
         </div>
       </div>
       <div class="testimonial-card">
-        <p class="testimonial-text">"El módulo de televisión nos cambió la vida. <strong>Los auspiciadores, episodios y facturación conectados</strong> nos ahorra horas de trabajo administrativo cada semana."</p>
+        <p class="testimonial-text">"El módulo de producciones nos cambió la vida. <strong>Los auspiciadores, episodios y facturación conectados</strong> nos ahorra horas de trabajo administrativo cada semana."</p>
         <div class="testimonial-author">
           <div class="testimonial-avatar">CA</div>
           <div>
@@ -558,7 +655,7 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
         </div>
       </div>
       <div class="testimonial-card">
-        <p class="testimonial-text">"La alerta de grabaciones próximas es <strong>exactamente lo que necesitábamos</strong>. Ya no se nos pasa ninguna fecha y el equipo siempre está preparado."</p>
+        <p class="testimonial-text">"Pasamos de planillas separadas a una sola operación. <strong>Clientes, proyectos, cobros y equipo</strong> ahora viven en el mismo lugar."</p>
         <div class="testimonial-author">
           <div class="testimonial-avatar">VP</div>
           <div>
@@ -574,11 +671,11 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
 <!-- CTA -->
 <section class="cta-section" id="contacto">
   <div class="cta-box">
-    <h2>¿Listo para ordenar tu productora?</h2>
-    <p>Comienza hoy. Sin instalaciones, sin complicaciones. Tu equipo conectado desde el primer día.</p>
+    <h2>¿Listo para ordenar toda tu operación?</h2>
+    <p>Implementa Produ en tu productora sin instalaciones ni fricción. Clientes, proyectos, contenidos, contratos y cobranza conectados desde el primer día.</p>
     <div class="cta-btns">
-      <a href="javascript:void(0)" onclick="abrirModal()" class="btn-cta-primary">Solicitar demo gratuita</a>
-      <a href="#" class="btn-cta-outline">Ver precios →</a>
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-cta-primary">Solicitar demo gratuita</a>
+      <a href="precios.html" class="btn-cta-outline">Ver precios →</a>
     </div>
   </div>
 </section>
@@ -594,27 +691,27 @@ footer{background:#1a1a2e;padding:64px 5% 40px;margin:0;border-top:1px solid #ff
           </div>
           <span class="footer-logo-text">produ</span>
         </div>
-        <p class="footer-desc">Plataforma de gestión para productoras audiovisuales. Centraliza tu operación y crece sin límites.</p>
+        <p class="footer-desc">Plataforma de gestión para productoras audiovisuales. Centraliza operación, comercial, finanzas y crecimiento multiempresa.</p>
       </div>
       <div class="footer-col">
         <h4>Módulos</h4>
-        <a href="#">Dashboard</a>
-        <a href="#">Producciones</a>
-        <a href="#">Televisión</a>
-        <a href="#">Presupuestos</a>
-        <a href="#">Facturación</a>
+        <a href="#funciones">Dashboard</a>
+        <a href="#modulos">Proyectos</a>
+        <a href="#modulos">Producciones</a>
+        <a href="precios.html">Presupuestos</a>
+        <a href="precios.html">Facturación</a>
       </div>
       <div class="footer-col">
         <h4>Empresa</h4>
-        <a href="#">Nosotros</a>
-        <a href="#">Precios</a>
-        <a href="#">Contacto</a>
+        <a href="#funciones">Funcionalidades</a>
+        <a href="precios.html">Precios</a>
+        <a href="#contacto">Contacto</a>
       </div>
       <div class="footer-col">
         <h4>Soporte</h4>
-        <a href="#">Centro de ayuda</a>
-        <a href="#">contacto@produ.cl</a>
-        <a href="#">+56 229380010</a>
+        <a href="#contacto">Solicitar demo</a>
+        <a href="mailto:playmedia@grupogonzalez.co">playmedia@grupogonzalez.co</a>
+        <a href="tel:+56229380010">+56 2 2938 0010</a>
       </div>
     </div>
     <div class="footer-bottom">

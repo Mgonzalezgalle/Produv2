@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/favicon.png">
 <title>Precios — Produ</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -168,7 +169,7 @@ input:focus{border-color:#1a1a2e}
 <!-- NAV -->
 <nav>
   <div class="nav-inner">
-    <a href="produ-landing.html" class="nav-logo">
+    <a href="index.html" class="nav-logo">
       <div class="nav-logo-icon">
         <svg viewBox="0 0 24 24" fill="#fff" width="14" height="14"><polygon points="5,3 20,12 5,21"/></svg>
       </div>
@@ -178,14 +179,14 @@ input:focus{border-color:#1a1a2e}
       </div>
     </a>
     <div class="nav-links">
-      <a href="produ-landing.html#modulos">Módulos</a>
-      <a href="produ-landing.html#funciones">Funcionalidades</a>
-      <a href="produ-landing.html#testimonios">Clientes</a>
+      <a href="index.html#modulos">Módulos</a>
+      <a href="index.html#funciones">Funcionalidades</a>
+      <a href="index.html#testimonios">Clientes</a>
       <a href="#" class="active">Precios</a>
     </div>
     <div style="display:flex;gap:12px">
       <a href="https://portal.produ.cl" target="_blank" class="btn-outline">Iniciar sesión</a>
-      <button onclick="abrirModal()" class="btn-primary">Solicitar demo</button>
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-primary">Solicitar demo</a>
     </div>
   </div>
 </nav>
@@ -194,7 +195,7 @@ input:focus{border-color:#1a1a2e}
 <section class="hero">
   <div class="hero-badge">💰 Precios simples y transparentes</div>
   <h1>Produ crece<br>con tu productora</h1>
-  <p>Planes flexibles con módulos activables según el tipo y tamaño de tu productora. Sin sorpresas.</p>
+  <p>Planes flexibles con módulos activables según el tipo y tamaño de tu productora. Operación, comercial y administración en un solo lugar.</p>
 </section>
 
 <!-- PLANS -->
@@ -204,14 +205,14 @@ input:focus{border-color:#1a1a2e}
     <!-- STARTER -->
     <div class="plan-card">
       <div class="plan-name">Starter</div>
-      <div class="plan-desc">Para productoras que están comenzando a ordenar su operación.</div>
+      <div class="plan-desc">Para productoras que están comenzando a ordenar su operación comercial y de proyectos.</div>
       <div class="plan-price">
         <span class="plan-price-currency"></span>
         <span class="plan-price-num">1</span>
         <span class="plan-price-period">UF/mes</span>
       </div>
       <div class="plan-price-sub">Facturado mensualmente · 1 empresa</div>
-      <button onclick="abrirModal()" class="plan-btn plan-btn-outline">Empezar gratis 14 días</button>
+      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-outline" style="display:block;text-align:center;text-decoration:none">Empezar gratis 14 días</a>
       <div class="plan-divider"></div>
       <div class="plan-features-title">Incluye</div>
       <div class="plan-feature">
@@ -220,7 +221,7 @@ input:focus{border-color:#1a1a2e}
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Clientes y Producciones<span class="plan-feature-sub">Hasta 10 producciones activas</span></span>
+        <span>Clientes y Proyectos<span class="plan-feature-sub">Hasta 10 proyectos activos</span></span>
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
@@ -232,7 +233,7 @@ input:focus{border-color:#1a1a2e}
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Alertas de grabación</span>
+        <span>Alertas y seguimiento operativo</span>
       </div>
     </div>
 
@@ -240,19 +241,19 @@ input:focus{border-color:#1a1a2e}
     <div class="plan-card featured">
       <div class="plan-badge">Más popular</div>
       <div class="plan-name">Pro</div>
-      <div class="plan-desc">Para productoras con operación activa que necesitan control total.</div>
+      <div class="plan-desc">Para productoras con operación activa que necesitan control total sobre ejecución, documentos y equipo.</div>
       <div class="plan-price">
         <span class="plan-price-currency"></span>
         <span class="plan-price-num">1,5</span>
         <span class="plan-price-period">UF</span>
       </div>
       <div class="plan-price-sub">Facturado mensualmente · 1 empresa</div>
-      <button onclick="abrirModal()" class="plan-btn plan-btn-light">Solicitar demo →</button>
+      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-light" style="display:block;text-align:center;text-decoration:none">Solicitar demo →</a>
       <div class="plan-divider"></div>
       <div class="plan-features-title">Todo en Starter, más:</div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Producciones ilimitadas</span>
+        <span>Proyectos ilimitados</span>
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
@@ -260,7 +261,7 @@ input:focus{border-color:#1a1a2e}
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Addon Televisión<span class="plan-feature-sub">Programas, episodios y auspiciadores</span></span>
+        <span>Producciones<span class="plan-feature-sub">Programas, episodios y auspiciadores</span></span>
       </div>
       <div class="plan-feature">
         <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
@@ -283,12 +284,12 @@ input:focus{border-color:#1a1a2e}
     <!-- ENTERPRISE -->
     <div class="plan-card">
       <div class="plan-name">Enterprise</div>
-      <div class="plan-desc">Para grupos de productoras o empresas con múltiples marcas o canales.</div>
+      <div class="plan-desc">Para grupos de productoras o empresas con múltiples marcas, canales o unidades de negocio.</div>
       <div class="plan-price">
         <span class="plan-price-num" style="font-size:36px">A consultar</span>
       </div>
       <div class="plan-price-sub">Precio según número de empresas y usuarios</div>
-      <button onclick="abrirModal()" class="plan-btn plan-btn-dark">Hablar con ventas</button>
+      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-dark" style="display:block;text-align:center;text-decoration:none">Hablar con ventas</a>
       <div class="plan-divider"></div>
       <div class="plan-features-title">Todo en Pro, más:</div>
       <div class="plan-feature">
@@ -326,18 +327,29 @@ input:focus{border-color:#1a1a2e}
     <div class="addons-header">
       <p class="section-tag">Addons</p>
       <h2 class="section-title">Activa solo lo que necesitas</h2>
-      <p style="color:#666;font-size:16px;max-width:500px;margin:0 auto">Los addons se activan por empresa desde el Panel SuperAdmin. Paga solo por lo que usas.</p>
+      <p style="color:#666;font-size:16px;max-width:500px;margin:0 auto">Los addons se activan por empresa desde el Panel SuperAdmin. Paga solo por los módulos que realmente usas.</p>
     </div>
     <div class="addons-grid">
       <div class="addon-card">
         <div class="addon-icon">📺</div>
-        <h3>Televisión</h3>
+        <h3>Producciones</h3>
         <p>Programas de TV, podcast y web series. Gestión de episodios, auspiciadores comerciales y facturación vinculada.</p>
         <div class="addon-features">
           <div class="addon-feature">Programas y episodios ilimitados</div>
           <div class="addon-feature">Auspiciadores con montos y vigencia</div>
-          <div class="addon-feature">Alertas de grabación integradas</div>
+          <div class="addon-feature">Alertas de grabacion integradas</div>
           <div class="addon-feature">Calendario de emisiones</div>
+        </div>
+      </div>
+      <div class="addon-card">
+        <div class="addon-icon">📱</div>
+        <h3>Contenidos</h3>
+        <p>Campañas y piezas para redes sociales con estados, fechas, plataformas, responsables y seguimiento por cliente.</p>
+        <div class="addon-features">
+          <div class="addon-feature">Campañas mensuales por cliente</div>
+          <div class="addon-feature">Piezas para Instagram, TikTok y más</div>
+          <div class="addon-feature">Estados y responsables por pieza</div>
+          <div class="addon-feature">Relación con presupuestos y operación</div>
         </div>
       </div>
       <div class="addon-card">
@@ -354,9 +366,9 @@ input:focus{border-color:#1a1a2e}
       <div class="addon-card">
         <div class="addon-icon">🧾</div>
         <h3>Facturación</h3>
-        <p>Órdenes de cobro vinculadas a clientes, auspiciadores y producciones. PDF descargable con datos bancarios.</p>
+        <p>Órdenes de cobro vinculadas a clientes, auspiciadores y proyectos. PDF descargable con datos bancarios.</p>
         <div class="addon-features">
-          <div class="addon-feature">Vinculada a producciones</div>
+          <div class="addon-feature">Vinculada a proyectos</div>
           <div class="addon-feature">PDF con datos de pago</div>
           <div class="addon-feature">Estados de pago</div>
           <div class="addon-feature">Control de vencimientos</div>
@@ -365,19 +377,19 @@ input:focus{border-color:#1a1a2e}
       <div class="addon-card">
         <div class="addon-icon">🎬</div>
         <h3>Equipo / Crew</h3>
-        <p>Registro del equipo técnico y creativo. Asigna miembros a producciones y lleva control de roles y tarifas.</p>
+        <p>Registro del equipo técnico y creativo. Asigna miembros a proyectos, producciones y contenidos.</p>
         <div class="addon-features">
           <div class="addon-feature">Roles y áreas por persona</div>
-          <div class="addon-feature">Asignación a producciones</div>
+          <div class="addon-feature">Asignación a proyectos y producciones</div>
           <div class="addon-feature">Tarifas y datos de contacto</div>
         </div>
       </div>
       <div class="addon-card">
         <div class="addon-icon">📄</div>
         <h3>Contratos</h3>
-        <p>Registra contratos con clientes y proveedores. Vincula a producciones y lleva control de vencimientos.</p>
+        <p>Registra contratos con clientes y proveedores. Vincula a proyectos y lleva control de vencimientos.</p>
         <div class="addon-features">
-          <div class="addon-feature">Contratos por producción</div>
+          <div class="addon-feature">Contratos por proyecto</div>
           <div class="addon-feature">Fechas de inicio y término</div>
           <div class="addon-feature">Estados y montos</div>
         </div>
@@ -385,7 +397,7 @@ input:focus{border-color:#1a1a2e}
       <div class="addon-card">
         <div class="addon-icon">📦</div>
         <h3>Activos</h3>
-        <p>Inventario del equipamiento de tu productora. Categorías, estado, valor y asignación a producciones.</p>
+        <p>Inventario del equipamiento de tu productora. Categorías, estado, valor y asignación a proyectos.</p>
         <div class="addon-features">
           <div class="addon-feature">Cámaras, lentes, sonido y más</div>
           <div class="addon-feature">Estado y valorización</div>
@@ -417,12 +429,13 @@ input:focus{border-color:#1a1a2e}
       <tr><td><span class="feature-name">Dashboard</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Calendario</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Clientes</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Producciones</span><span class="feature-sub">Número de producciones activas</span></td><td><span class="check-partial">Hasta 10</span></td><td><span class="check-yes">✓ Ilimitadas</span></td><td><span class="check-yes">✓ Ilimitadas</span></td></tr>
+      <tr><td><span class="feature-name">Proyectos</span><span class="feature-sub">Número de proyectos activos</span></td><td><span class="check-partial">Hasta 10</span></td><td><span class="check-yes">✓ Ilimitados</span></td><td><span class="check-yes">✓ Ilimitados</span></td></tr>
       <tr><td><span class="feature-name">Control financiero</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Alertas de grabación</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">WhatsApp y Email</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td colspan="4" style="padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;background:#fafafa">Addons</td></tr>
-      <tr><td><span class="feature-name">Televisión</span><span class="feature-sub">Programas, episodios, auspiciadores</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
+      <tr><td><span class="feature-name">Producciones</span><span class="feature-sub">Programas, episodios, auspiciadores</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
+      <tr><td><span class="feature-name">Contenidos</span><span class="feature-sub">Campañas, piezas y plataformas</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Presupuestos con PDF</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Facturación</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
       <tr><td><span class="feature-name">Equipo / Crew</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
@@ -455,7 +468,7 @@ input:focus{border-color:#1a1a2e}
     </div>
     <div class="faq-item">
       <div class="faq-question" onclick="toggleFaq(this)">¿Necesito instalar algo? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">No. Produ funciona 100% desde el navegador, en cualquier dispositivo — computador, tablet o celular. Sin instalaciones, sin actualizaciones manuales.</div>
+      <div class="faq-answer">No. Produ funciona 100% desde el navegador, en cualquier dispositivo: computador, tablet o celular. Sin instalaciones ni actualizaciones manuales.</div>
     </div>
     <div class="faq-item">
       <div class="faq-question" onclick="toggleFaq(this)">¿Qué pasa con mis datos si cancelo? <span class="faq-arrow">▾</span></div>
@@ -467,7 +480,7 @@ input:focus{border-color:#1a1a2e}
     </div>
     <div class="faq-item">
       <div class="faq-question" onclick="toggleFaq(this)">¿Puedo tener varias productoras en la misma cuenta? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Sí, con el plan Enterprise. Incluye un Panel SuperAdmin desde donde puedes administrar múltiples empresas con datos completamente separados y addons independientes por empresa.</div>
+      <div class="faq-answer">Sí, con el plan Enterprise. Incluye un Panel SuperAdmin desde donde puedes administrar múltiples empresas con datos completamente separados, branding independiente y addons por empresa.</div>
     </div>
   </div>
 </div>
@@ -478,7 +491,7 @@ input:focus{border-color:#1a1a2e}
     <h2>¿Listo para empezar?</h2>
     <p>14 días gratis, sin tarjeta de crédito. Cancela cuando quieras.</p>
     <div class="cta-btns">
-      <button onclick="abrirModal()" class="btn-cta-primary">Solicitar demo gratuita</button>
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-cta-primary" style="display:inline-block;text-decoration:none">Solicitar demo gratuita</a>
       <a href="https://portal.produ.cl" target="_blank" class="btn-cta-outline">Iniciar sesión →</a>
     </div>
   </div>
@@ -494,10 +507,10 @@ input:focus{border-color:#1a1a2e}
       <span class="footer-logo-text">produ</span>
     </div>
     <div class="footer-links">
-      <a href="produ-landing.html">Inicio</a>
-      <a href="produ-landing.html#modulos">Módulos</a>
+      <a href="index.html">Inicio</a>
+      <a href="index.html#modulos">Módulos</a>
       <a href="#">Precios</a>
-      <a href="produ-landing.html#contacto">Contacto</a>
+      <a href="index.html#contacto">Contacto</a>
       <a href="https://portal.produ.cl" target="_blank">Portal</a>
     </div>
     <p class="footer-copy">© 2026 Produ. Todos los derechos reservados.</p>

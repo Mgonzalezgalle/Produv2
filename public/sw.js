@@ -2,7 +2,7 @@ const CACHE_NAME = "produ-pwa-v1";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/favicon.svg",
+  "/favicon.png",
   "/icons/apple-touch-icon.png",
   "/icons/pwa-192.png",
   "/icons/pwa-512.png"

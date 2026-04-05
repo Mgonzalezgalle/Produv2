@@ -59,6 +59,18 @@ const PIEZA_FORMATOS = ["Reel","Carrusel","Historia","TikTok","Post","Video","St
 const PIEZA_PLATAFORMAS = ["Instagram","TikTok","Facebook","LinkedIn","YouTube","X","Multi-plataforma"];
 const HASH_RE = /^[a-f0-9]{64}$/i;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const REQUIRED_SYSTEM_USERS = [
+  {
+    email: "mgonzalezgalle@gmail.com",
+    name: "Matías González Galle",
+    passwordHash: "0e7dd2c74bc95f8332e2351e63750de2d993d1fa27a15f7ccd9e68654b296e30",
+    role: "superadmin",
+    empId: null,
+    active: true,
+    isCrew: false,
+    crewRole: "",
+  },
+];
 
 async function sha256Hex(text="") {
   const data = new TextEncoder().encode(String(text));
@@ -85,6 +97,37 @@ async function normalizeUserAuth(user={}) {
 
 async function normalizeUsersAuth(users=[]) {
   return Promise.all((Array.isArray(users)?users:[]).filter(Boolean).map(normalizeUserAuth));
+}
+
+function normalizeEmailValue(v="") {
+  return String(v||"").trim().toLowerCase();
+}
+
+function ensureRequiredSystemUsers(users=[]) {
+  const base = Array.isArray(users) ? [...users] : [];
+  const byEmail = new Map(base.filter(Boolean).map(u=>[normalizeEmailValue(u.email),u]));
+  REQUIRED_SYSTEM_USERS.forEach(req=>{
+    const key = normalizeEmailValue(req.email);
+    const existing = byEmail.get(key);
+    const nextUser = existing
+      ? {
+          ...existing,
+          name: existing.name || req.name,
+          email: req.email,
+          passwordHash: req.passwordHash,
+          role: req.role,
+          empId: req.empId,
+          active: req.active,
+          isCrew: req.isCrew,
+          crewRole: req.crewRole,
+        }
+      : {
+          id: uid(),
+          ...req,
+        };
+    byEmail.set(key,nextUser);
+  });
+  return Array.from(byEmail.values());
 }
 
 function crewUserId(userId="") {
@@ -700,6 +743,15 @@ function roleOptions(empresa, includeSuperadmin=false) {
     .map(([k,v])=>({value:k,label:v.label}));
   const custom=getCustomRoles(empresa).map(r=>({value:r.key,label:r.label}));
   return [...base,...custom];
+}
+function assignableRoleOptions(empresa, actor, includeSuperadmin=false) {
+  const options = roleOptions(empresa, includeSuperadmin);
+  if (actor?.role === "superadmin") return options;
+  return options.filter(o=>!["admin","superadmin"].includes(o.value));
+}
+function sanitizeAssignableRole(role, empresa, actor, fallback="viewer") {
+  const allowed = assignableRoleOptions(empresa, actor, true).map(o=>o.value);
+  return allowed.includes(role) ? role : fallback;
 }
 function canDo(user, action, empresa) {
   if (!user) return false;
@@ -2672,6 +2724,7 @@ const THEME_PRESETS={
 function SuperAdminPanel({empresas,users,onSave}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
+  const [sysUf,setSysUf]=useState({active:true,role:"admin",empId:"",password:""});
   const [integrationEmpId,setIntegrationEmpId]=useState("");
   const [commEmpId,setCommEmpId]=useState("");
   const [sysMsg,setSysMsg]=useState({title:"",body:""});
@@ -2712,7 +2765,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     (!portfolioStatus || emp.payStatus===portfolioStatus)
   );
   const selectedPortfolioEmp = filteredPortfolio.find(emp=>emp.id===portfolioEmpId) || filteredPortfolio[0] || null;
-  const sysUsers=(users||[]).filter(u=>u.role!=="superadmin");
+  const sysUsers=Array.isArray(users)?users:[];
   const filteredUsers=sysUsers.filter(u=>
     (!uq||u.name?.toLowerCase().includes(uq.toLowerCase())||u.email?.toLowerCase().includes(uq.toLowerCase())) &&
     (!uRole||u.role===uRole) &&
@@ -2721,6 +2774,27 @@ function SuperAdminPanel({empresas,users,onSave}){
   );
   const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
   const selectedCommEmp = (empresas||[]).find(e=>e.id===commEmpId) || (empresas||[])[0] || null;
+  const saveSystemUser=async()=>{
+    if(!sysUf.name?.trim() || !sysUf.email?.trim() || !sysUf.password?.trim()) return;
+    const normalizedEmail = normalizeEmailValue(sysUf.email);
+    const existing=(users||[]).find(u=>normalizeEmailValue(u.email)===normalizedEmail);
+    const payload={
+      id: existing?.id || uid(),
+      name: sysUf.name.trim(),
+      email: normalizedEmail,
+      passwordHash: await sha256Hex(sysUf.password),
+      role: sanitizeAssignableRole(sysUf.role, null, {role:"superadmin"}, "admin"),
+      empId: sysUf.role==="superadmin" ? null : (sysUf.empId || null),
+      active: sysUf.active!==false,
+      isCrew: false,
+      crewRole: "",
+    };
+    const next = existing
+      ? (users||[]).map(u=>u.id===existing.id?{...u,...payload}:u)
+      : [...(users||[]),payload];
+    onSave("users",next);
+    setSysUf({active:true,role:"admin",empId:"",password:""});
+  };
   const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
   const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"];
   const SUPER_TAB_META={
@@ -2988,9 +3062,40 @@ function SuperAdminPanel({empresas,users,onSave}){
     </div>}
     {tab===2&&<div>
       <div style={{fontSize:12,color:"var(--gr3)",marginBottom:12}}>Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde el Panel Admin.</div>
+      <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:12,padding:16,marginBottom:16}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:12}}>Crear usuario sistema</div>
+        <R2>
+          <FG label="Nombre"><FI value={sysUf.name||""} onChange={e=>setSysUf(p=>({...p,name:e.target.value}))} placeholder="Nombre completo"/></FG>
+          <FG label="Email"><FI type="email" value={sysUf.email||""} onChange={e=>setSysUf(p=>({...p,email:e.target.value}))} placeholder="correo@empresa.cl"/></FG>
+        </R2>
+        <R3>
+          <FG label="Contraseña inicial"><FI type="password" value={sysUf.password||""} onChange={e=>setSysUf(p=>({...p,password:e.target.value}))} placeholder="Contraseña temporal o final"/></FG>
+          <FG label="Rol">
+            <FSl value={sysUf.role||"admin"} onChange={e=>setSysUf(p=>({...p,role:e.target.value,empId:e.target.value==="superadmin"?"":p.empId}))}>
+              {assignableRoleOptions(null, {role:"superadmin"}, true).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+            </FSl>
+          </FG>
+          <FG label="Estado">
+            <FSl value={sysUf.active===false?"false":"true"} onChange={e=>setSysUf(p=>({...p,active:e.target.value==="true"}))}>
+              <option value="true">Activo</option>
+              <option value="false">Inactivo</option>
+            </FSl>
+          </FG>
+        </R3>
+        {sysUf.role!=="superadmin"&&<FG label="Empresa">
+          <FSl value={sysUf.empId||""} onChange={e=>setSysUf(p=>({...p,empId:e.target.value}))}>
+            <option value="">Sin empresa</option>
+            {(empresas||[]).map(e=><option key={e.id} value={e.id}>{e.nombre}</option>)}
+          </FSl>
+        </FG>}
+        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Solo desde Super Admin se pueden crear o promover cuentas administrativas del sistema.</div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={saveSystemUser}>Guardar usuario sistema</Btn>
+        </div>
+      </div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={uq} onChange={setUQ} placeholder="Buscar usuario por nombre o email..."/>
-        <FilterSel value={uRole} onChange={setURole} options={roleOptions(null, false)} placeholder="Todos los roles"/>
+        <FilterSel value={uRole} onChange={setURole} options={roleOptions(null, true)} placeholder="Todos los roles"/>
         <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}]} placeholder="Todos los estados"/>
         <FilterSel value={uEmp} onChange={setUEmp} options={(empresas||[]).map(e=>({value:e.id,label:e.nombre}))} placeholder="Todas las empresas"/>
       </div>
@@ -3552,6 +3657,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     "Datos":"Acciones críticas sobre la data del tenant y restauración controlada.",
   };
   const activeAdminTab=ADMIN_TABS[tab];
+  const editableRoleOptions = assignableRoleOptions(empresa, user);
   const referralStatus=(sol)=>{
     const targetEmp=(empresas||[]).find(e=>e.id===sol.empresaId);
     const hasActiveUser=(users||[]).some(u=>u.empId===sol.empresaId&&u.active!==false);
@@ -3569,10 +3675,16 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     if(!uf.name||!uf.email) return;
     const id=uid2||uid();
     const prev=(users||[]).find(x=>x.id===id);
+    const nextRole = sanitizeAssignableRole(
+      uf.role || prev?.role || "viewer",
+      empresa,
+      user,
+      prev?.role && ["admin","superadmin"].includes(prev.role) ? prev.role : "viewer"
+    );
     const passwordHash = uf.password
       ? await sha256Hex(uf.password)
       : prev?.passwordHash || (prev?.password ? await sha256Hex(prev.password) : "");
-    const obj={id,name:uf.name,email:uf.email,passwordHash,role:uf.role||"viewer",empId:empresa?.id||null,active:uf.active!==false,isCrew:uf.isCrew===true,crewRole:uf.isCrew===true?(uf.crewRole||"Crew interno"):""};
+    const obj={id,name:uf.name,email:uf.email,passwordHash,role:nextRole,empId:empresa?.id||null,active:uf.active!==false,isCrew:uf.isCrew===true,crewRole:uf.isCrew===true?(uf.crewRole||"Crew interno"):""};
     saveUsers(uid2?(users||[]).map(u=>u.id===uid2?obj:u):[...(users||[]),obj]);
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
@@ -3646,24 +3758,29 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
         <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}].map(o=>o.label)} placeholder="Todos los estados"/>
       </div>
       <div style={{marginBottom:14}}>
-        {filteredUsers.map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
+        {filteredUsers.map(u=>{
+          const restrictedBySuper = user?.role!=="superadmin" && ["admin","superadmin"].includes(u.role);
+          return <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
           <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
           <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
           <Badge label={getRoleConfig(u.role, empresa).label} color={getRoleConfig(u.role, empresa).badge} sm/>
           {u.isCrew&&<Badge label={u.crewRole||"Crew"} color="cyan" sm/>}
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
           <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
-          <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
-          <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
-          <GBtn sm onClick={()=>saveUsers((users||[]).map(x=>x.id===u.id?{...x,active:!x.active}:x))}>{u.active?"Desactivar":"Activar"}</GBtn>
-          {u.role!=="superadmin"&&<XBtn onClick={()=>{ if(!confirm("¿Eliminar usuario?")) return; saveUsers((users||[]).filter(x=>x.id!==u.id)); }}/>}
-        </div>)}
+          {restrictedBySuper ? <Badge label="Gestiona Super Admin" color="purple" sm/> : <>
+            <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
+            <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
+            <GBtn sm onClick={()=>saveUsers((users||[]).map(x=>x.id===u.id?{...x,active:!x.active}:x))}>{u.active?"Desactivar":"Activar"}</GBtn>
+            {u.role!=="superadmin"&&<XBtn onClick={()=>{ if(!confirm("¿Eliminar usuario?")) return; saveUsers((users||[]).filter(x=>x.id!==u.id)); }}/>}
+          </>}
+        </div>;
+        })}
         {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
       </div>
         <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
         <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{uid2?"Editar":"Agregar"} Usuario</div>
         <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
-        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={uf.role||"viewer"} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{roleOptions(empresa).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
+        <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={editableRoleOptions.some(o=>o.value===(uf.role||"viewer"))?(uf.role||"viewer"):(editableRoleOptions[0]?.value||"viewer")} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{editableRoleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
           <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:10}}>
             <input type="checkbox" checked={uf.isCrew===true} onChange={e=>setUf(p=>({...p,isCrew:e.target.checked,crewRole:e.target.checked?(p.crewRole||"Crew interno"):""}))}/>
@@ -3671,7 +3788,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
           </label>
           {uf.isCrew===true&&<FG label="Cargo en crew"><FI value={uf.crewRole||""} onChange={e=>setUf(p=>({...p,crewRole:e.target.value}))} placeholder="Ej: Productor Ejecutivo, Editor, Community Manager"/></FG>}
         </div>
-        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso.</div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso. Las cuentas `Admin` y `Super Admin` solo se crean o gestionan desde `Super Admin &gt; Usuarios del sistema`.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveUser}>Guardar Usuario</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar</GBtn>}</div>
       </div>
     </div>}
@@ -3880,7 +3997,12 @@ export default function App(){
         if(JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:empresas",normalized);
       }
     });
-    dbGet("produ:users").then(v=>{ if(!v){setUsersRaw(SEED_USERS);dbSet("produ:users",SEED_USERS);}else setUsersRaw(v); });
+    dbGet("produ:users").then(v=>{
+      const baseUsers = v && Array.isArray(v) ? v : SEED_USERS;
+      const normalizedUsers = ensureRequiredSystemUsers(baseUsers);
+      setUsersRaw(normalizedUsers);
+      if(!v || JSON.stringify(normalizedUsers)!==JSON.stringify(baseUsers)) dbSet("produ:users",normalizedUsers);
+    });
     applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
   },[]);
@@ -3888,10 +4010,11 @@ export default function App(){
   useEffect(()=>{
     if(!Array.isArray(users) || !users.length) return;
     normalizeUsersAuth(users).then(next=>{
-      const changed = JSON.stringify(next) !== JSON.stringify(users);
+      const merged = ensureRequiredSystemUsers(next);
+      const changed = JSON.stringify(merged) !== JSON.stringify(users);
       if(changed){
-        setUsersRaw(next);
-        dbSet("produ:users",next);
+        setUsersRaw(merged);
+        dbSet("produ:users",merged);
       }
     });
   },[users]);
@@ -4142,7 +4265,7 @@ export default function App(){
   };
 
   const saveUsers=async u=>{
-    const normalized = await normalizeUsersAuth(u);
+    const normalized = ensureRequiredSystemUsers(await normalizeUsersAuth(u));
     setUsersRaw(normalized);
     dbSet("produ:users",normalized);
     if(curEmp?.id){

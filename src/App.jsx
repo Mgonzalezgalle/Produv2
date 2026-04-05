@@ -2201,120 +2201,169 @@ function ViewDashboard({empresa,user,clientes,producciones,programas,episodios,a
   const acceptedBudgets = pres.filter(p=>p.estado==="Aceptado");
   const recurringBudgets = pres.filter(p=>p.recurring);
   const activeCampaigns = campaigns.filter(c=>c.est==="Activa" || c.est==="Planificada");
+  const pendingEpisodes = eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado));
+  const activeProductions = pgs.filter(p=>p.est==="Activo");
+  const urgentAlerts = (alertas||[]).slice(0,4);
+  const totalAccepted = acceptedBudgets.reduce((s,p)=>s+Number(p.total||0),0);
+  const dashboardStatus = overdueFacts.length
+    ? `${overdueFacts.length} documento${overdueFacts.length!==1?"s":""} vencido${overdueFacts.length!==1?"s":""}`
+    : urgentAlerts.length
+      ? `${urgentAlerts.length} alerta${urgentAlerts.length!==1?"s":""} prioritaria${urgentAlerts.length!==1?"s":""}`
+      : activeProductions.length
+        ? `${activeProductions.length} producci${activeProductions.length!==1?"ones":"ón"} activa${activeProductions.length!==1?"s":""}`
+        : "Operación estable";
+  const commercialPulse = [
+    canBudgets ? `${acceptedBudgets.length} presupuestos aceptados` : null,
+    canInvoices ? `${overdueFacts.length} facturas vencidas` : null,
+    canContracts ? `${contractsExpiring.length} contratos por vencer` : null,
+  ].filter(Boolean);
+  const overviewStats = [
+    {label:"Proyectos",value:pros.length,sub:`${pros.filter(p=>p.est==="En Curso").length} en curso`,accent:"var(--cy)",vc:"var(--cy)"},
+    {label:"Producciones",value:pgs.length,sub:`${pendingEpisodes.length} episodios pendientes`,accent:"#60a5fa",vc:"#60a5fa"},
+    canSocial
+      ? {label:"Campañas",value:activeCampaigns.length,sub:`${campaigns.length} piezas registradas`,accent:"#00e08a",vc:"#00e08a"}
+      : {label:"Clientes",value:clis.length,sub:"cartera activa",accent:"#00e08a",vc:"#00e08a"},
+    canInvoices
+      ? {label:"Cobranza",value:overdueFacts.length,sub:overdueFacts.length?`${fmtM(overdueFacts.reduce((s,f)=>s+Number(f.total||0),0))} vencido`:"Sin vencidos",accent:overdueFacts.length?"#ff5566":"#ffcc44",vc:overdueFacts.length?"#ff5566":"#ffcc44"}
+      : {label:"Balance",value:fmtM(ti-tg),sub:ti-tg>=0?"resultado positivo":"requiere atención",accent:ti-tg>=0?"#00e08a":"#ff5566",vc:ti-tg>=0?"#00e08a":"#ff5566"},
+  ];
+  const focusItems = [
+    ...urgentAlerts.map(a=>({
+      id:`alert-${a.id}`,
+      title:a.titulo.replace(/^[^:]+:\s/,""),
+      sub:`${a.sub} · ${fmtD(a.fecha)}`,
+      badge:a.diff===0?"Hoy":a.diff===1?"Mañana":`${a.diff} días`,
+      tone:a.tipo==="urgente"?"red":a.tipo==="pronto"?"yellow":"cyan",
+    })),
+    ...payableSoon.slice(0,2).map(f=>({
+      id:`fact-${f.id}`,
+      title:`Cobranza próxima · ${f.correlativo || "Sin correlativo"}`,
+      sub:`${invoiceEntityName(f, clientes, auspiciadores)} · vence ${fmtD(f.fechaVencimiento)}`,
+      badge:fmtM(f.total||0),
+      tone:"yellow",
+    })),
+  ].slice(0,5);
+  const operationItems = [
+    ...activeProductions.slice(0,2).map(pg=>({
+      id:`pg-${pg.id}`,
+      title:pg.nom,
+      sub:`${pg.tip} · ${eps.filter(e=>e.pgId===pg.id&&e.estado==="Publicado").length}/${eps.filter(e=>e.pgId===pg.id).length} ep. publicados`,
+      badge:pg.est||"Activo",
+      target:["pg-det",pg.id],
+    })),
+    ...pendingEpisodes.slice(0,3).map(ep=>({
+      id:`ep-${ep.id}`,
+      title:`Ep. ${ep.num}: ${ep.titulo}`,
+      sub:`${pgs.find(x=>x.id===ep.pgId)?.nom || "Producción"}${ep.fechaGrab?` · ${fmtD(ep.fechaGrab)}`:""}`,
+      badge:ep.estado,
+      target:["ep-det",ep.id],
+    })),
+    ...activeCampaigns.slice(0,2).map(c=>({
+      id:`camp-${c.id}`,
+      title:c.nom,
+      sub:`${clis.find(cli=>cli.id===c.cliId)?.nom || "Sin cliente"} · ${c.mes} ${c.anio}`,
+      badge:c.est || "Activa",
+      target:["cnt-det",c.id],
+    })),
+  ].slice(0,5);
+  const radarItems = [
+    {label:"Ingresos",value:fmtM(ti),sub:"registrados"},
+    {label:"Gastos",value:fmtM(tg),sub:"egresos"},
+    canBudgets ? {label:"Aceptado",value:fmtM(totalAccepted),sub:"en presupuestos"} : null,
+    canSocial ? {label:"Campañas activas",value:String(activeCampaigns.length),sub:"en contenidos"} : null,
+    empresa.addons?.includes("activos") ? {label:"Activos",value:String((activos||[]).filter(a=>a.empId===empId).length),sub:"registrados"} : null,
+  ].filter(Boolean).slice(0,4);
+  const quickActions = [
+    { show:true, label:"Clientes", sub:`${clis.length} activos`, fn:()=>navTo("clientes") },
+    { show:true, label:"Proyectos", sub:`${pros.filter(p=>p.est==="En Curso").length} en curso`, fn:()=>navTo("producciones") },
+    { show:true, label:"Producciones", sub:`${activeProductions.length} activas`, fn:()=>navTo("programas") },
+    { show:canSocial, label:"Contenidos", sub:`${activeCampaigns.length} campañas`, fn:()=>navTo("contenidos") },
+    { show:canBudgets, label:"Presupuestos", sub:`${acceptedBudgets.length} aceptados`, fn:()=>navTo("presupuestos") },
+    { show:canInvoices, label:"Facturación", sub:`${overdueFacts.length} vencidas`, fn:()=>navTo("facturacion") },
+  ].filter(x=>x.show);
   return <div className="va">
-    <div style={{marginBottom:12}}><span style={{fontSize:12,color:"var(--gr2)"}}>Bienvenido, <b style={{color:"var(--wh)"}}>{user?.name}</b> · <span style={{color:"var(--cy)"}}>{empresa?.nombre}</span></span></div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <Stat label="Clientes"     value={clis.length}  sub="registrados"      accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Proyectos" value={pros.length}   sub={`${pros.filter(p=>p.est==="En Curso").length} en curso`}/>
-      <Stat label="Ingresos"     value={fmtM(ti)}      sub="todos proyectos"  accent="#00e08a"   vc="#00e08a"/>
-      <Stat label="Balance"      value={fmtM(ti-tg)}   sub={`gastos: ${fmtM(tg)}`} accent={ti-tg>=0?"#00e08a":"#ff5566"} vc={ti-tg>=0?"#00e08a":"#ff5566"}/>
+    <div style={{padding:"18px 20px",border:"1px solid var(--bdr2)",borderRadius:20,background:"linear-gradient(180deg,var(--cg),transparent 68%)",marginBottom:18}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Resumen operativo</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800,color:"var(--wh)",marginBottom:6}}>Hola, {user?.name}</div>
+          <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.6,maxWidth:720}}>Aquí tienes una vista corta de lo importante en {empresa?.nombre}: qué está activo, qué requiere atención y a dónde conviene entrar primero.</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,minWidth:280,flex:"1 1 320px"}}>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Estado</div><div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--wh)"}}>{dashboardStatus}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Balance</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:ti-tg>=0?"#00e08a":"#ff5566"}}>{fmtM(ti-tg)}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Clientes</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"var(--cy)"}}>{clis.length}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Comercial</div><div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--wh)"}}>{commercialPulse[0] || "Sin alertas comerciales"}</div></div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
+        {quickActions.map(action=><button key={action.label} onClick={action.fn} style={{textAlign:"left",padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",cursor:"pointer"}}>
+          <div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:4}}>{action.label}</div>
+          <div style={{fontSize:11,color:"var(--gr2)"}}>{action.sub}</div>
+        </button>)}
+      </div>
     </div>
-    {(canBudgets || canInvoices || canContracts || canSocial) && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      {canBudgets
-        ? <Stat label="Presupuestos Aceptados" value={acceptedBudgets.length} sub={acceptedBudgets.length?fmtM(acceptedBudgets.reduce((s,p)=>s+Number(p.total||0),0)):"Sin aprobados"} accent="var(--cy)" vc="var(--cy)"/>
-        : <Stat label="Producciones" value={pgs.length} sub={`${eps.filter(e=>e.estado==="Publicado").length} episodios publicados`}/>}
-      {canInvoices
-        ? <Stat label="Proyección Recurrente" value={fmtM(projectedRecurring)} sub={`${facts.filter(f=>f.recurring).length} documentos recurrentes`} accent="#7c5cff" vc="#7c5cff"/>
-        : <Stat label="Auspiciadores" value={(auspiciadores||[]).filter(a=>a.empId===empId).length} sub="registros activos" accent="#ffcc44" vc="#ffcc44"/>}
-      {canContracts
-        ? <Stat label="Contratos por Vencer" value={contractsExpiring.length} sub={contractsExpiring[0]?fmtD(contractsExpiring[0].vig):"sin alertas"} accent="#ffcc44" vc="#ffcc44"/>
-        : <Stat label="Activos" value={(activos||[]).filter(a=>a.empId===empId).length} sub="inventario" accent="#00e08a" vc="#00e08a"/>}
-      {canSocial
-        ? <Stat label="Campañas Activas" value={activeCampaigns.length} sub={activeCampaigns[0]?`${activeCampaigns[0].mes || ""} ${activeCampaigns[0].ano || ""}`:"sin campañas"} accent="#00e08a" vc="#00e08a"/>
-        : <Stat label="Facturas Vencidas" value={overdueFacts.length} sub={overdueFacts.length?fmtM(overdueFacts.reduce((s,f)=>s+Number(f.total||0),0)):"sin deuda"} accent="#ff5566" vc="#ff5566"/>}
-    </div>}
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      <Card title="Proyectos Recientes" action={{label:"Ver todos →",fn:()=>navTo("producciones")}}>
-        {pros.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Estado</TH><TH>Balance</TH></tr></thead><tbody>
-          {[...pros].reverse().slice(0,5).map(p=>{const b=bal(p.id);return<tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.est}/></TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD></tr>;})}
-        </tbody></table>:<Empty text="Sin proyectos"/>}
-      </Card>
-      <Card title="Episodios Pendientes" action={{label:"Ver producciones →",fn:()=>navTo("programas")}}>
-        {eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).slice(0,5).map(ep=>{const pg=pgs.find(x=>x.id===ep.pgId);return<div key={ep.id} onClick={()=>navTo("ep-det",ep.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>Ep.{ep.num}: {ep.titulo}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg?.nom}{ep.fechaGrab?` · ${fmtD(ep.fechaGrab)}`:""}</div></div><Badge label={ep.estado}/></div>;})}
-        {!eps.filter(e=>["Planificado","En Edición","Programado"].includes(e.estado)).length&&<Empty text="Sin episodios pendientes"/>}
-      </Card>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:18}}>
+      {overviewStats.map(stat=><Stat key={stat.label} {...stat} />)}
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      <Card title="Producciones Activas" action={{label:"Ver todas →",fn:()=>navTo("programas")}}>
-        {pgs.filter(p=>p.est==="Activo").map(pg=>{const pe=eps.filter(e=>e.pgId===pg.id);const pub=pe.filter(e=>e.estado==="Publicado").length;return<div key={pg.id} onClick={()=>navTo("pg-det",pg.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}><div><div style={{fontSize:13,fontWeight:600}}>{pg.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{pg.tip} · {pub}/{pe.length} ep.</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:"var(--gr2)"}}>Balance</div><div style={{color:bal(pg.id).b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(bal(pg.id).b)}</div></div></div>;})}
-        {!pgs.filter(p=>p.est==="Activo").length&&<Empty text="Sin producciones activas"/>}
-      </Card>
-      <Card title="Auspiciadores Activos">
-        {(auspiciadores||[]).filter(a=>a.empId===empId&&a.est==="Activo").slice(0,4).map(a=>{const progs=(a.pids||[]).map(pid=>pgs.find(x=>x.id===pid)).filter(Boolean);return<div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}><div><div style={{fontSize:13,fontWeight:600}}>{a.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{progs.map(p=>p.nom).join(", ")||"Sin programa"}</div></div><div style={{textAlign:"right"}}><Badge label={a.tip} sm/>{a.mon&&<div style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:11,marginTop:3}}>{fmtM(a.mon)}</div>}</div></div>;})}
-        {!(auspiciadores||[]).filter(a=>a.empId===empId&&a.est==="Activo").length&&<Empty text="Sin auspiciadores activos"/>}
-      </Card>
-    </div>
-    {(canInvoices || canContracts || canBudgets) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-      {canInvoices && <Card title="Cobranza y Vencimientos" action={{label:"Ver facturación →",fn:()=>navTo("facturacion")}}>
-        {overdueFacts.length || payableSoon.length ? [...overdueFacts.slice(0,3), ...payableSoon.filter(f=>!overdueFacts.some(o=>o.id===f.id)).slice(0,3)].map(f=>{
-          const ent = invoiceEntityName(f, clientes, auspiciadores);
-          const late = f.fechaVencimiento && String(f.fechaVencimiento) < today();
-          return <div key={f.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:600}}>{f.correlativo || f.tipoDoc || "Documento"}</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>{ent} · {f.fechaVencimiento ? `vence ${fmtD(f.fechaVencimiento)}` : "sin vencimiento"}</div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:16,marginBottom:16}}>
+      <Card title="Agenda prioritaria" sub={urgentAlerts.length ? `${urgentAlerts.length} hitos cercanos` : "Sin urgencias por ahora"}>
+        {focusItems.length ? focusItems.map(item=>{
+          const colores={red:"#ff5566",yellow:"#ffcc44",cyan:"var(--cy)"};
+          return <div key={item.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}>
+            <div style={{width:10,height:10,borderRadius:"50%",background:colores[item.tone],flexShrink:0,boxShadow:`0 0 8px ${colores[item.tone]}`}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700}}>{item.title}</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{item.sub}</div>
             </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontFamily:"var(--fm)",fontSize:12,color:late?"#ff5566":"#ffcc44"}}>{fmtM(f.total||0)}</div>
-              <Badge label={late?"Vencida":"Próxima"} color={late?"red":"yellow"} sm/>
-            </div>
+            <Badge label={item.badge} color={item.tone} sm/>
           </div>;
-        }) : <Empty text="Sin alertas de cobranza"/>}
-      </Card>}
-      {canContracts && <Card title="Contratos por Vencer" action={{label:"Ver contratos →",fn:()=>navTo("contratos")}}>
-        {contractsExpiring.length ? contractsExpiring.slice(0,5).map(ct=>{
-          const cli=(clientes||[]).find(x=>x.id===ct.cliId);
-          return <div key={ct.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>{cli?.nom || "Sin cliente"} · {fmtD(ct.vig)}</div>
-            </div>
-            <Badge label={`${daysUntil(ct.vig)} día${daysUntil(ct.vig)===1?"":"s"}`} color="yellow" sm/>
-          </div>;
-        }) : <Empty text="Sin contratos por vencer"/>}
-      </Card>}
-      {canBudgets && <Card title="Pipeline Comercial" action={{label:"Ver presupuestos →",fn:()=>navTo("presupuestos")}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
-          {[["Aceptados",acceptedBudgets.length,"#00e08a"],["Recurrentes",recurringBudgets.length,"#7c5cff"],["Listos para facturar",pres.filter(p=>p.autoFactura).length,"var(--cy)"]].map(([label,val,color])=><div key={label} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 10px",textAlign:"center"}}>
-            <div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color}}>{val}</div>
-            <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{label}</div>
+        }) : <Empty text="No tienes alertas prioritarias" sub="El calendario operativo y comercial está al día."/>}
+      </Card>
+      <Card title="Operación en foco" sub="Lo siguiente que conviene revisar">
+        {operationItems.length ? operationItems.map(item=><div key={item.id} onClick={()=>navTo(item.target[0],item.target[1])} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--bdr)",cursor:"pointer"}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700}}>{item.title}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{item.sub}</div>
+          </div>
+          <Badge label={item.badge} sm/>
+        </div>) : <Empty text="Sin operación en curso" sub="Crea un proyecto, producción o campaña para empezar."/>}
+      </Card>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:16}}>
+      <Card title="Radar rápido" action={{label:"Abrir clientes →",fn:()=>navTo("clientes")}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
+          {radarItems.map(item=><div key={item.label} style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{item.label}</div>
+            <div style={{fontSize:16,fontWeight:800,color:"var(--wh)",marginBottom:4}}>{item.value}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{item.sub}</div>
           </div>)}
         </div>
-        <div style={{fontSize:12,color:"var(--gr2)"}}>Monto aceptado actual: <span style={{fontFamily:"var(--fm)",color:"var(--wh)"}}>{fmtM(acceptedBudgets.reduce((s,p)=>s+Number(p.total||0),0))}</span></div>
-      </Card>}
-    </div>}
-    {/* Alertas en dashboard */}
-    {alertas&&alertas.length>0&&<div style={{marginBottom:16}}>
-      <Card title="🔔 Próximas Grabaciones" sub={`${alertas.length} fecha${alertas.length!==1?"s":""} próxima${alertas.length!==1?"s":""}`}>
-        {alertas.slice(0,5).map(a=>{
-          const colores={urgente:"#ff5566",pronto:"#ffcc44",info:"var(--cy)"};
-          return <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:"1px solid var(--bdr)"}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:colores[a.tipo],flexShrink:0,boxShadow:`0 0 6px ${colores[a.tipo]}`}}/>
-            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{a.titulo.replace(/^[^:]+:\s/,"")}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{a.sub} · {fmtD(a.fecha)}</div></div>
-            <Badge label={a.diff===0?"Hoy":a.diff===1?"Mañana":`${a.diff} días`} color={a.tipo==="urgente"?"red":a.tipo==="pronto"?"yellow":"cyan"} sm/>
-          </div>;
-        })}
-        {alertas.length>5&&<div style={{fontSize:11,color:"var(--gr2)",paddingTop:8,textAlign:"center"}}>+{alertas.length-5} más</div>}
       </Card>
-    </div>}
-    {/* Addons summary */}
-    {empresa?.addons?.length>0&&<div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(empresa.addons.length,3)},1fr)`,gap:16}}>
-      {canBudgets&&<Card title="📋 Presupuestos" action={{label:"Ver →",fn:()=>navTo("presupuestos")}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-          {[["Borrador",(presupuestos||[]).filter(p=>p.empId===empId&&p.estado==="Borrador").length,"gray"],["Aceptado",(presupuestos||[]).filter(p=>p.empId===empId&&p.estado==="Aceptado").length,"green"],["Total",(presupuestos||[]).filter(p=>p.empId===empId).length,"cyan"]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:10,background:"var(--card2)",borderRadius:8}}><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:c==="green"?"#00e08a":c==="cyan"?"var(--cy)":"var(--gr2)"}}>{v}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{l}</div></div>)}
+      <Card title="Resumen comercial" sub="Solo lo importante del ciclo de negocio">
+        <div style={{display:"grid",gap:10}}>
+          {canBudgets&&<div style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Presupuestos</div>
+            <div style={{fontSize:14,fontWeight:800,color:"var(--wh)",marginBottom:4}}>{acceptedBudgets.length} aceptados</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Total aceptado: {fmtM(totalAccepted)}{recurringBudgets.length?` · ${recurringBudgets.length} recurrentes`:""}</div>
+          </div>}
+          {canInvoices&&<div style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Facturación</div>
+            <div style={{fontSize:14,fontWeight:800,color:"var(--wh)",marginBottom:4}}>{facts.length} documentos</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{overdueFacts.length?`${overdueFacts.length} vencidos`:`Sin vencidos`}{payableSoon.length?` · ${payableSoon.length} próximos a vencer`:""}</div>
+          </div>}
+          {canContracts&&<div style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Contratos</div>
+            <div style={{fontSize:14,fontWeight:800,color:"var(--wh)",marginBottom:4}}>{cts.length} registrados</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>{contractsExpiring.length?`${contractsExpiring.length} por vencer en 30 días`:`Sin alertas próximas`}</div>
+          </div>}
+          {!canBudgets && !canInvoices && !canContracts && <Empty text="Sin módulos comerciales activos" sub="Activa presupuestos, facturación o contratos para ver este resumen."/>}
         </div>
-      </Card>}
-      {canInvoices&&<Card title="🧾 Facturación" action={{label:"Ver →",fn:()=>navTo("facturacion")}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[["Pendiente",(facturas||[]).filter(p=>p.empId===empId&&p.estado==="Pendiente").length,"yellow"],["Pagada",(facturas||[]).filter(p=>p.empId===empId&&p.estado==="Pagada").length,"green"]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:10,background:"var(--card2)",borderRadius:8}}><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:c==="green"?"#00e08a":"#ffcc44"}}>{v}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{l}</div></div>)}
-        </div>
-      </Card>}
-      {empresa.addons?.includes("activos")&&<Card title="📦 Activos" action={{label:"Ver →",fn:()=>navTo("activos")}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[["Total",(activos||[]).filter(a=>a.empId===empId).length,"cyan"],["Asignados",(activos||[]).filter(a=>a.empId===empId&&a.asignadoA).length,"green"]].map(([l,v,c])=><div key={l} style={{textAlign:"center",padding:10,background:"var(--card2)",borderRadius:8}}><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:c==="cyan"?"var(--cy)":"#00e08a"}}>{v}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{l}</div></div>)}
-        </div>
-      </Card>}
-    </div>}
+      </Card>
+    </div>
   </div>;
 }
 

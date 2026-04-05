@@ -875,9 +875,11 @@ const CRM_STAGE_SEED = [
   { id:"crm-st-7", name:"Perdido", order:7, convertToClient:false, closedWon:false, closedLost:true },
 ];
 function normalizeCrmStages(stages=[]){
-  const arr=(Array.isArray(stages)&&stages.length?stages:CRM_STAGE_SEED)
+  const source = Array.isArray(stages) ? stages : CRM_STAGE_SEED;
+  const arr=(source.length ? source : [])
     .map((s,idx)=>({
       id:s.id||uid(),
+      empId:s.empId || "",
       name:s.name||`Etapa ${idx+1}`,
       order:Number(s.order||idx+1),
       convertToClient:!!s.convertToClient,
@@ -4914,7 +4916,6 @@ function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
       status:"Activa",
       monto_estimado:"",
       fecha_cierre_estimada:"",
-      notas:"",
       responsable:"",
       nextAction:"",
       nextActionDate:"",
@@ -4954,7 +4955,6 @@ function MCrmOpp({open,data,crmStages,users,onClose,onSave}){
       <FG label="Próxima acción"><FI value={f.nextAction||""} onChange={e=>u("nextAction",e.target.value)} placeholder="Llamar, enviar propuesta, reagendar reunión..."/></FG>
       <FG label="Fecha próxima acción"><FI type="date" value={f.nextActionDate||""} onChange={e=>u("nextActionDate",e.target.value)}/></FG>
     </R2>
-    <FG label="Notas"><FTA value={f.notas||""} onChange={e=>u("notas",e.target.value)} placeholder="Contexto comercial, objeciones, próximos pasos..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.nombre?.trim()||!f.empresaMarca?.trim()) return; onSave(crmNormalizeOpportunity(f, stageList));}}/>
   </Modal>;
 }
@@ -5172,26 +5172,50 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const [tipo,setTipo]=useState("");
   const [estado,setEstado]=useState("");
   const [stageFilter,setStageFilter]=useState("");
+  const [nextActionFilter,setNextActionFilter]=useState("");
   const [sortKey,setSortKey]=useState("updated");
   const [pg,setPg]=useState(1);
   const [selectedIds,setSelectedIds]=useState([]);
   const [bulkResponsible,setBulkResponsible]=useState("");
+  const [bulkTipoNegocio,setBulkTipoNegocio]=useState("");
   const [detailId,setDetailId]=useState("");
   const [stagesOpen,setStagesOpen]=useState(false);
   const [activityForm,setActivityForm]=useState({type:"note",text:""});
   const [mobileStageId,setMobileStageId]=useState("");
+  const [collapsedStages,setCollapsedStages]=useState([]);
   const PP=10;
   const tasksEnabled=hasAddon(empresa,"tareas");
   const scopedStages=normalizeCrmStages((crmStages||[]).filter?.(s=>!s.empId || s.empId===empId) || crmStages || []);
   const scopedOpps=(crmOpps||[]).filter(opp=>opp.empId===empId).map(opp=>crmNormalizeOpportunity(opp, scopedStages));
   const scopedActivities=crmNormalizeActivities((crmActivities||[]).filter(act=>act.empId===empId));
   const tenantUsers=(users||[]).filter(u=>u.empId===empId && u.active!==false);
+  const todayStr=today();
+  const weekAhead=addDays(todayStr,7);
+  const matchNextActionFilter=opp=>{
+    const dt=opp.nextActionDate || "";
+    if(!nextActionFilter) return true;
+    if(nextActionFilter==="overdue") return !!dt && dt < todayStr;
+    if(nextActionFilter==="today") return dt===todayStr;
+    if(nextActionFilter==="week") return !!dt && dt>=todayStr && dt<=weekAhead;
+    if(nextActionFilter==="scheduled") return !!dt;
+    if(nextActionFilter==="none") return !dt;
+    return true;
+  };
+  const nextActionTone=opp=>{
+    const dt=opp?.nextActionDate || "";
+    if(!dt) return {color:"var(--gr2)", badge:"gray", label:"Sin fecha"};
+    if(dt < todayStr) return {color:"#ff5566", badge:"red", label:"Vencida"};
+    if(dt===todayStr) return {color:"#ffcc44", badge:"yellow", label:"Hoy"};
+    if(dt<=weekAhead) return {color:"var(--cy)", badge:"cyan", label:"Esta semana"};
+    return {color:"#00e08a", badge:"green", label:"Programada"};
+  };
   const filtered=scopedOpps.filter(opp=>{
     const haystack=[opp.nombre, opp.empresaMarca, opp.contacto, opp.email, opp.telefono].join(" ").toLowerCase();
     return (!q || haystack.includes(q.toLowerCase()))
       && (!tipo || opp.tipo_negocio===tipo)
       && (!estado || opp.status===estado)
-      && (!stageFilter || opp.stageId===stageFilter);
+      && (!stageFilter || opp.stageId===stageFilter)
+      && matchNextActionFilter(opp);
   });
   const sorted=[...filtered].sort((a,b)=>{
     if(sortKey==="amount") return Number(b.monto_estimado||0)-Number(a.monto_estimado||0);
@@ -5290,12 +5314,8 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     await saveOpp({...opp, linkedClientId:clientId, convertedAt:today(), convertedBy:user?.name||"", status:"Ganada", stageId:stageWon?.id || opp.stageId}, `Oportunidad vinculada al módulo de Clientes${existing?" (cliente existente).":"."}`, "conversion");
     ntf?.(existing?"Vinculado a cliente existente ✓":"Cliente creado desde CRM ✓");
   };
-  const saveNotes=async ()=>{
-    if(!detail) return;
-    await saveOpp(detail, "Notas actualizadas.", "note");
-    ntf?.("Notas guardadas ✓");
-  };
   const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleStageCollapsed=stageId=>setCollapsedStages(prev=>prev.includes(stageId)?prev.filter(id=>id!==stageId):[...prev,stageId]);
   const toggleAllVisible=()=>setSelectedIds(prev=>{
     const pageIds=paged.map(item=>item.id);
     const allSelected=pageIds.every(id=>prev.includes(id));
@@ -5305,6 +5325,22 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const clearSelection=()=>{
     setSelectedIds([]);
     setBulkResponsible("");
+    setBulkTipoNegocio("");
+  };
+  const bulkAssignTipoNegocio=async()=>{
+    if(!selectedItems.length || !bulkTipoNegocio) return;
+    const nextOpps=(crmOpps||[]).map(opp=>
+      opp.empId===empId && selectedIds.includes(opp.id)
+        ? crmNormalizeOpportunity({...opp,tipo_negocio:bulkTipoNegocio,updatedAt:today()}, scopedStages)
+        : opp
+    );
+    await setCrmOpps(nextOpps);
+    await setCrmActivities([
+      ...(crmActivities||[]),
+      ...selectedItems.map(opp=>crmActivityEntry(opp.id, `Tipo de negocio actualizado en lote a ${bulkTipoNegocio==="auspiciador"?"Auspiciador":"Cliente"}.`, "update", user, empId)),
+    ]);
+    ntf?.(`Tipo de negocio actualizado en ${selectedItems.length} oportunidad${selectedItems.length===1?"":"es"} ✓`);
+    clearSelection();
   };
   const bulkAssignResponsible=async()=>{
     if(!selectedItems.length || !bulkResponsible) return;
@@ -5371,6 +5407,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
       <FilterSel value={tipo} onChange={v=>{setTipo(v);setPg(1);}} options={[{value:"cliente",label:"Cliente"},{value:"auspiciador",label:"Auspiciador"}]} placeholder="Todo tipo"/>
       <FilterSel value={estado} onChange={v=>{setEstado(v);setPg(1);}} options={CRM_STATUS_OPTIONS} placeholder="Todo estado"/>
       <FilterSel value={stageFilter} onChange={v=>{setStageFilter(v);setPg(1);}} options={scopedStages.map(stage=>({value:stage.id,label:stage.name}))} placeholder="Todas etapas"/>
+      <FilterSel value={nextActionFilter} onChange={v=>{setNextActionFilter(v);setPg(1);}} options={[{value:"overdue",label:"Próximas vencidas"},{value:"today",label:"Próximas hoy"},{value:"week",label:"Próximas esta semana"},{value:"scheduled",label:"Con fecha programada"},{value:"none",label:"Sin fecha"}]} placeholder="Todas las próximas acciones"/>
       <FilterSel value={sortKey} onChange={setSortKey} options={[{value:"updated",label:"Más recientes"},{value:"close",label:"Cierre estimado"},{value:"amount",label:"Monto estimado"},{value:"name",label:"Nombre"}]} placeholder="Ordenar"/>
       <Btn onClick={()=>openM("crm-opp",{})}>+ Nueva oportunidad</Btn>
       <GBtn onClick={()=>setStagesOpen(true)}>Etapas</GBtn>
@@ -5378,6 +5415,14 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     </div>
     {!!selectedItems.length && tab===1 && <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center",padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
       <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedItems.length} seleccionada{selectedItems.length===1?"":"s"}</div>
+      <div style={{minWidth:180,flex:"0 1 220px"}}>
+        <FSl value={bulkTipoNegocio||""} onChange={e=>setBulkTipoNegocio(e.target.value)}>
+          <option value="">Asignar tipo…</option>
+          <option value="cliente">Cliente</option>
+          <option value="auspiciador">Auspiciador</option>
+        </FSl>
+      </div>
+      <Btn onClick={bulkAssignTipoNegocio} disabled={!bulkTipoNegocio}>Actualizar tipo</Btn>
       <div style={{minWidth:220,flex:"0 1 280px"}}>
         <FSl value={bulkResponsible||""} onChange={e=>setBulkResponsible(e.target.value)}>
           <option value="">Asignar responsable…</option>
@@ -5402,6 +5447,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
           {mobileStageItems.map(opp=>{
             const owner=tenantUsers.find(u=>u.id===opp.responsable);
             return <div key={opp.id} onClick={()=>setDetailId(opp.id)} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:12,cursor:"pointer",display:"flex",flexDirection:"column",gap:8}}>
+              {(() => { const actionTone=nextActionTone(opp); return <>
               <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                 <div style={{fontSize:13,fontWeight:700,lineHeight:1.3}}>{opp.nombre}</div>
                 <Badge label={crmEntityLabel(opp)} color={opp.tipo_negocio==="auspiciador"?"yellow":"cyan"} sm/>
@@ -5411,41 +5457,46 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
                 <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{owner?.name||"Sin responsable"}</span>
                 <span style={{fontFamily:"var(--fm)",color:"var(--cy)",flexShrink:0}}>{fmtM(opp.monto_estimado||0)}</span>
               </div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--gr2)",gap:8}}>
-                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{opp.nextAction || "Sin próxima acción"}</span>
-                <span style={{flexShrink:0}}>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</span>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,gap:8}}>
+                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:actionTone.color}}>{opp.nextAction || "Sin próxima acción"}</span>
+                <span style={{flexShrink:0,color:actionTone.color,fontWeight:700}}>{opp.nextActionDate ? fmtD(opp.nextActionDate) : "—"}</span>
               </div>
+              </>; })()}
             </div>;
           })}
           {!mobileStageItems.length && <Empty text="Sin oportunidades en esta etapa" sub="Cambia de etapa o crea una nueva oportunidad."/>}
         </div>
       </Card>
-    </> : <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.max(1,scopedStages.length)}, minmax(220px, 1fr))`,gap:14,overflowX:"auto",paddingBottom:8}}>
+    </> : <div style={{display:"flex",gap:14,overflowX:"auto",paddingBottom:8,alignItems:"stretch"}}>
       {scopedStages.map(stage=>{
         const stageItems=sorted.filter(opp=>opp.stageId===stage.id);
         const totalStage=stageItems.reduce((sum,opp)=>sum+Number(opp.monto_estimado||0),0);
-        return <Card key={stage.id} title={stage.name} sub={`${stageItems.length} oportunidad${stageItems.length===1?"":"es"} · ${fmtM(totalStage)}`} style={{padding:14,minWidth:240}}
-          action={{label:"+ Nuevo",fn:()=>openM("crm-opp",{stageId:stage.id,status:stage.closedWon?"Ganada":stage.closedLost?"Perdida":"Activa"})}}>
-          <div onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault(); const oppId=e.dataTransfer.getData("text/plain"); const opp=scopedOpps.find(item=>item.id===oppId); if(opp && opp.stageId!==stage.id) await updateStage(opp, stage.id);}} style={{display:"flex",flexDirection:"column",gap:10,minHeight:220}}>
-            {stageItems.map(opp=>{
+        const collapsed=collapsedStages.includes(stage.id);
+        return <Card key={stage.id} title={collapsed?<span style={{writingMode:"vertical-rl",textOrientation:"mixed",display:"inline-block",minHeight:120}}>{stage.name}</span>:stage.name} sub={collapsed?`${stageItems.length}`:`${stageItems.length} oportunidad${stageItems.length===1?"":"es"} · ${fmtM(totalStage)}`} style={{padding:14,minWidth:collapsed?86:240,width:collapsed?86:280,flexShrink:0,transition:"width .2s ease"}}
+          action={{label:collapsed?"›":"‹",fn:()=>toggleStageCollapsed(stage.id)}}>
+          <div onDragOver={e=>e.preventDefault()} onDrop={async e=>{e.preventDefault(); const oppId=e.dataTransfer.getData("text/plain"); const opp=scopedOpps.find(item=>item.id===oppId); if(opp && opp.stageId!==stage.id) await updateStage(opp, stage.id);}} style={{display:"flex",flexDirection:"column",gap:10,minHeight:220,alignItems:collapsed?"stretch":"initial"}}>
+            {!collapsed && <GBtn sm onClick={()=>openM("crm-opp",{stageId:stage.id,status:stage.closedWon?"Ganada":stage.closedLost?"Perdida":"Activa"})}>+ Nuevo</GBtn>}
+            {collapsed && <div style={{display:"grid",placeItems:"center",minHeight:180,color:"var(--gr2)",fontSize:28,fontWeight:800}}>{stageItems.length}</div>}
+            {!collapsed && stageItems.map(opp=>{
               const owner=tenantUsers.find(u=>u.id===opp.responsable);
-              return <div key={opp.id} draggable onDragStart={e=>e.dataTransfer.setData("text/plain", opp.id)} onClick={()=>setDetailId(opp.id)} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:12,cursor:"pointer",display:"flex",flexDirection:"column",gap:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+              const actionTone=nextActionTone(opp);
+              return <div key={opp.id} draggable onDragStart={e=>e.dataTransfer.setData("text/plain", opp.id)} onClick={()=>setDetailId(opp.id)} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:12,cursor:"pointer",display:"flex",flexDirection:"column",gap:8,alignItems:"flex-start"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,width:"100%"}}>
                   <div style={{fontSize:13,fontWeight:700,lineHeight:1.3}}>{opp.nombre}</div>
                   <Badge label={crmEntityLabel(opp)} color={opp.tipo_negocio==="auspiciador"?"yellow":"cyan"} sm/>
                 </div>
                 <div style={{fontSize:11,color:"var(--gr2)"}}>{opp.empresaMarca}</div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--gr3)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--gr3)",width:"100%",gap:8}}>
                   <span>{owner?.name||"Sin responsable"}</span>
                   <span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(opp.monto_estimado||0)}</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--gr2)"}}>
-                  <span>{opp.nextAction || "Sin próxima acción"}</span>
-                  <span>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</span>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,width:"100%",gap:8,alignItems:"center"}}>
+                  <span style={{color:actionTone.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{opp.nextAction || "Sin próxima acción"}</span>
+                  <span style={{flexShrink:0,color:actionTone.color,fontWeight:700}}>{opp.nextActionDate ? fmtD(opp.nextActionDate) : "—"}</span>
                 </div>
               </div>;
             })}
-            {!stageItems.length && <Empty text="Sin oportunidades" sub="Arrastra aquí o crea una nueva."/>}
+            {!collapsed && !stageItems.length && <Empty text="Sin oportunidades" sub="Arrastra aquí o crea una nueva."/>}
           </div>
         </Card>;
       })}
@@ -5462,13 +5513,14 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
               <TH>Estado</TH>
               <TH>Responsable</TH>
               <TH>Monto</TH>
-              <TH>Cierre</TH>
+              <TH>Próxima acción</TH>
               <TH></TH>
             </tr>
           </thead>
           <tbody>
             {paged.map(opp=>{
               const owner=tenantUsers.find(u=>u.id===opp.responsable);
+              const actionTone=nextActionTone(opp);
               return <tr key={opp.id}>
                 <TD><input type="checkbox" checked={selectedIds.includes(opp.id)} onChange={()=>toggleSelected(opp.id)}/></TD>
                 <TD bold>
@@ -5481,7 +5533,10 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
                 <TD><FSl value={opp.status} onChange={e=>updateQuickField(opp,"status",e.target.value,"Estado")}>{CRM_STATUS_OPTIONS.map(opt=><option key={opt}>{opt}</option>)}</FSl></TD>
                 <TD><FSl value={opp.responsable||""} onChange={e=>updateQuickField(opp,"responsable",e.target.value,"Responsable")}><option value="">—</option>{tenantUsers.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</FSl></TD>
                 <TD style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(opp.monto_estimado||0)}</TD>
-                <TD>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</TD>
+                <TD style={{color:actionTone.color}}>
+                  <div style={{fontSize:12,fontWeight:700}}>{opp.nextActionDate ? fmtD(opp.nextActionDate) : "—"}</div>
+                  <div style={{fontSize:10,marginTop:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{opp.nextAction || "Sin próxima acción"}</div>
+                </TD>
                 <TD>
                   <div style={{display:"flex",gap:4}}>
                     <GBtn sm onClick={()=>setDetailId(opp.id)}>Ver</GBtn>
@@ -5528,29 +5583,25 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
             <div style={{fontSize:11,color:"var(--gr2)"}}>Este bloque te ayuda a mantener foco comercial sin abrir otra herramienta.</div>
           </Card>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,320px),1fr))",gap:16}}>
-          <Card title="Notas">
-            <FTA value={detail.notas||""} onChange={e=>setDetailId(detail.id) || saveOpp({...detail,notas:e.target.value})} placeholder="Notas estratégicas, objeciones, acuerdos, contexto del lead..."/>
-            <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><GBtn sm onClick={saveNotes}>Guardar notas</GBtn></div>
-          </Card>
+        <div style={{display:"grid",gridTemplateColumns:"1fr",gap:16}}>
           <Card title="Historial de actividades" sub={`${detailActivities.length} registro${detailActivities.length===1?"":"s"}`}>
-            <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+            <div style={{display:"grid",gridTemplateColumns:"180px 1fr auto",gap:8,marginBottom:12,alignItems:"start"}}>
               <FSl value={activityForm.type} onChange={e=>setActivityForm(prev=>({...prev,type:e.target.value}))}>
                 <option value="note">Nota</option>
                 <option value="call">Llamada</option>
                 <option value="meeting">Reunión</option>
                 <option value="email">Email</option>
               </FSl>
-              <FI value={activityForm.text} onChange={e=>setActivityForm(prev=>({...prev,text:e.target.value}))} placeholder="Registrar actividad comercial..."/>
+              <FTA value={activityForm.text} onChange={e=>setActivityForm(prev=>({...prev,text:e.target.value}))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{minHeight:88}}/>
               <Btn onClick={async()=>{if(!activityForm.text.trim()) return; await addActivity(detail.id,activityForm.text,activityForm.type); setActivityForm({type:"note",text:""}); ntf?.("Actividad registrada ✓");}} sm>+ Registrar</Btn>
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:280,overflowY:"auto"}}>
-              {detailActivities.map(act=><div key={act.id} style={{padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:420,overflowY:"auto"}}>
+              {detailActivities.map(act=><div key={act.id} style={{padding:12,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:6}}>
                   <Badge label={act.type||"note"} color="gray" sm/>
                   <span style={{fontSize:10,color:"var(--gr2)"}}>{act.createdAt?fmtD(act.createdAt):"—"} · {act.byName||"Sistema"}</span>
                 </div>
-                <div style={{fontSize:12,color:"var(--gr3)"}}>{act.text}</div>
+                <div style={{fontSize:12,color:"var(--gr3)",lineHeight:1.55,whiteSpace:"pre-wrap"}}>{act.text}</div>
               </div>)}
               {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas."/>}
             </div>

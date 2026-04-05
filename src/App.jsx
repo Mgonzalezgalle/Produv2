@@ -6631,7 +6631,6 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       <FG label="Método de Pago"><FI value={f.metodoPago||""} onChange={e=>u("metodoPago",e.target.value)} placeholder="Transferencia, cuotas..."/></FG>
       <FG label="Fecha de Pago"><FI type="date" value={f.fechaPago||""} onChange={e=>u("fechaPago",e.target.value)}/></FG>
     </R2>
-    <FG label="Datos de Pago"><FTA value={f.notasPago||""} onChange={e=>u("notasPago",e.target.value)} placeholder="Banco, número de cuenta, RUT..."/></FG>
     <FG label="Observaciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Condiciones, notas adicionales..."/></FG>
     {canInvoices && <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
       <div>
@@ -6794,9 +6793,18 @@ function drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor = n
   });
 }
 
-function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white) {
+function drawCommercialLabel(page, text, x, y, width, accentColor, bold, white, size = 10.5) {
   drawRoundedPdfBox(page, x, y, width, 32, accentColor, accentColor, 1);
-  page.drawText(text, { x:x+12, y:y+10, size:11, font:bold, color:white });
+  const safe = String(text || "");
+  const textWidth = bold.widthOfTextAtSize(safe, size);
+  page.drawText(safe, {
+    x: x + Math.max(8, (width - textWidth) / 2),
+    y: y + 10,
+    size,
+    font: bold,
+    color: white,
+    maxWidth: Math.max(0, width - 16),
+  });
 }
 
 function drawCommercialValue(page, text, x, y, maxWidth, font, color, size = 12) {
@@ -6804,9 +6812,21 @@ function drawCommercialValue(page, text, x, y, maxWidth, font, color, size = 12)
   page.drawText(safe, { x, y, size, font, color, maxWidth });
 }
 
+function drawRightAlignedPdfText(page, text, x, y, width, font, size, color) {
+  const safe = String(text || "—");
+  const textWidth = font.widthOfTextAtSize(safe, size);
+  page.drawText(safe, {
+    x: x + Math.max(0, width - textWidth),
+    y,
+    size,
+    font,
+    color,
+    maxWidth: width,
+  });
+}
+
 function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, font, rut = "", docType = "", docNumber = "" }) {
   const legalRed = hexToRgb("#c1121f");
-  const legalText = hexToRgb("#1f2937");
   const centerText = (text, size, yy, color, useBold = false) => {
     const safe = String(text || "");
     const targetFont = useBold ? bold : font;
@@ -6820,8 +6840,8 @@ function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, 
     });
   };
   drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
-  centerText(rut || "RUT —", 10, y + height - 18, legalText, true);
-  centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalText, true);
+  centerText(rut || "RUT —", 10, y + height - 18, legalRed, true);
+  centerText(String(docType || "DOCUMENTO").toUpperCase(), 14, y + height - 40, legalRed, true);
   centerText(`N° ${docNumber || "S/C"}`, 12, y + height - 60, legalRed, true);
 }
 
@@ -7049,20 +7069,13 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const ivaVal = Number(pres.ivaVal||0);
   const total = Number(pres.total||0);
   const paymentInfo = companyPaymentInfoText(empresa, {
-    notes: [pres.notasPago || "", empresa?.bankInfo || ""].filter(Boolean).join("\n"),
     dueDate: pres.fechaPago || "",
   });
   const items = (pres.items||[]).length ? (pres.items||[]) : [{ id:"empty", desc:"Sin ítems", qty:0, precio:0, recurrence:"once" }];
-  const logo = await loadPdfImage(pdf, empresa?.logo || "");
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
 
-  let issuerTextX = margin;
-  if (logo) {
-    const dims = fitPdfImageDimensions(logo, 34, 34);
-    page.drawImage(logo, { x:margin, y:height-70, width:dims.width, height:dims.height });
-    issuerTextX = margin + dims.width + 10;
-  }
+  const issuerTextX = margin;
   page.drawText(empresa?.nombre || "", { x:issuerTextX, y:height-58, size:20, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
@@ -7071,23 +7084,20 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     issuerY -= 13;
   });
   drawLegalDocStamp(page, {
-    x: width - 198,
-    y: height - 104,
-    width: 160,
-    height: 78,
-    accentColor,
+    x: width - 208,
+    y: height - 106,
+    width: 170,
+    height: 82,
     white,
-    textColor,
-    muted,
     bold,
     font,
     rut: empresa?.rut || "",
     docType: "Presupuesto",
     docNumber: pres.correlativo || "",
   });
-  page.drawText(`Fecha: ${fmtD(today())}`, { x:width-198, y:height-116, size:10, font, color:textColor });
-  page.drawText(`Validez: ${pres.validez || 30} días`, { x:width-198, y:height-129, size:10, font, color:textColor });
-  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:width-198, y:height-142, size:10, font, color:textColor });
+  page.drawText(`Fecha: ${fmtD(today())}`, { x:width-208, y:height-120, size:10, font, color:textColor });
+  page.drawText(`Validez: ${pres.validez || 30} días`, { x:width-208, y:height-133, size:10, font, color:textColor });
+  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:width-208, y:height-146, size:10, font, color:textColor });
 
   let y = height - 170;
   drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, panel, border);
@@ -7136,28 +7146,30 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     y -= rowHeight + 4;
   });
 
-  const paymentCardY = y - 118;
+  const paymentCardY = y - 122;
   const cardWidth = (contentWidth - 22) / 2;
-  drawRoundedPdfBox(page, margin, paymentCardY, cardWidth, 104, panel, border);
-  const leftLabelWidth = 124;
+  drawRoundedPdfBox(page, margin, paymentCardY, cardWidth, 112, panel, border);
+  const leftLabelWidth = 142;
   const leftValueX = margin + 16 + leftLabelWidth + 16;
-  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+58, leftLabelWidth, accentColor, bold, white);
-  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:leftValueX, y:paymentCardY+69, size:14, font:bold, color:textColor, maxWidth:cardWidth-leftLabelWidth-36 });
-  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+18, leftLabelWidth, accentColor, bold, white);
-  page.drawText(pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", { x:leftValueX, y:paymentCardY+29, size:12, font:bold, color:textColor, maxWidth:cardWidth-leftLabelWidth-36 });
+  const leftValueWidth = cardWidth-leftLabelWidth-36;
+  drawCommercialLabel(page, "Pago Total", margin+16, paymentCardY+64, leftLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), leftValueX, paymentCardY+75, leftValueWidth, bold, 14, textColor);
+  drawCommercialLabel(page, "Fecha de Pago Inicial", margin+16, paymentCardY+24, leftLabelWidth, accentColor, bold, white, 9.4);
+  drawRightAlignedPdfText(page, pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", leftValueX, paymentCardY+35, leftValueWidth, bold, 11.5, textColor);
 
-  drawRoundedPdfBox(page, margin+cardWidth+22, paymentCardY, cardWidth, 104, panel, border);
+  drawRoundedPdfBox(page, margin+cardWidth+22, paymentCardY, cardWidth, 112, panel, border);
   const rightCardX = margin + cardWidth + 22;
-  const rightLabelWidth = 104;
+  const rightLabelWidth = 112;
   const rightValueX = rightCardX + 16 + rightLabelWidth + 16;
-  drawCommercialLabel(page, "SubTotal", rightCardX+16, paymentCardY+58, rightLabelWidth, accentColor, bold, white);
-  page.drawText(fmtMoney(subtotal, pres.moneda || "CLP"), { x:rightValueX, y:paymentCardY+69, size:14, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
-  drawCommercialLabel(page, pres.honorarios ? "Impuestos" : "Impuestos", rightCardX+16, paymentCardY+18, rightLabelWidth, accentColor, bold, white);
-  page.drawText((pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", { x:rightValueX, y:paymentCardY+29, size:12, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
-  drawCommercialLabel(page, "Total", rightCardX+16, paymentCardY-22, rightLabelWidth, accentColor, bold, white);
-  page.drawText(fmtMoney(total, pres.moneda || "CLP"), { x:rightValueX, y:paymentCardY-11, size:14, font:bold, color:textColor, maxWidth:cardWidth-rightLabelWidth-34 });
+  const rightValueWidth = cardWidth-rightLabelWidth-34;
+  drawCommercialLabel(page, "SubTotal", rightCardX+16, paymentCardY+64, rightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fmtMoney(subtotal, pres.moneda || "CLP"), rightValueX, paymentCardY+75, rightValueWidth, bold, 14, textColor);
+  drawCommercialLabel(page, "Impuestos", rightCardX+16, paymentCardY+24, rightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, (pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", rightValueX, paymentCardY+35, rightValueWidth, bold, 12, textColor);
+  drawCommercialLabel(page, "Total", rightCardX+16, paymentCardY-16, rightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fmtMoney(total, pres.moneda || "CLP"), rightValueX, paymentCardY-5, rightValueWidth, bold, 14, textColor);
 
-  let sectionY = paymentCardY - 48;
+  let sectionY = paymentCardY - 54;
   if (paymentInfo) {
     const paymentHeight = Math.max(96, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 11, 4) + 24);
     drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, accentColor, 1.2);
@@ -7244,16 +7256,10 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const total = Number(fact.total || (mn + ivaV));
   const docType = fact.tipoDoc || "Orden de Factura";
   const paymentInfo = companyPaymentInfoText(empresa, {
-    notes:[fact.obs || "", empresa?.bankInfo || ""].filter(Boolean).join("\n"),
     dueDate:fact.fechaVencimiento || "",
   });
-  const logo = await loadPdfImage(pdf, empresa?.logo || "");
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
-  if (logo) {
-    const dims = logo.scale(0.22);
-    page.drawImage(logo, { x:margin, y:height-90, width:dims.width, height:dims.height });
-  }
   page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:20, font:bold, color:textColor });
   const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
@@ -7262,24 +7268,21 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     issuerY -= 13;
   });
   drawLegalDocStamp(page, {
-    x: width - 198,
-    y: height - 104,
-    width: 160,
-    height: 78,
-    accentColor,
+    x: width - 208,
+    y: height - 106,
+    width: 170,
+    height: 82,
     white,
-    textColor,
-    muted,
     bold,
     font,
     rut: empresa?.rut || "",
     docType,
     docNumber: fact.correlativo || "",
   });
-  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:width-198, y:height-116, size:10, font, color:textColor });
-  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:width-198, y:height-129, size:10, font, color:textColor });
+  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x:width-208, y:height-120, size:10, font, color:textColor });
+  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x:width-208, y:height-133, size:10, font, color:textColor });
   if (fact.recurring) {
-    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:width-198, y:height-142, size:10, font, color:textColor });
+    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x:width-208, y:height-146, size:10, font, color:textColor });
   }
 
   let y = height - 170;
@@ -7316,23 +7319,30 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   });
   y -= detailHeight + 18;
 
-  const leftCardY = y - 104;
+  const leftCardY = y - 108;
   const cardWidth = (contentWidth - 22) / 2;
-  drawRoundedPdfBox(page, margin, leftCardY, cardWidth, 104, panel, border);
-  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+58, 150, accentColor, bold, white);
-  page.drawText(fmtM(mn), { x:margin+cardWidth-100, y:leftCardY+69, size:14, font:bold, color:textColor });
-  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+18, 150, accentColor, bold, white);
-  page.drawText(fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), { x:margin+cardWidth-100, y:leftCardY+29, size:12, font:bold, color:textColor });
+  drawRoundedPdfBox(page, margin, leftCardY, cardWidth, 112, panel, border);
+  const factLeftLabelWidth = 150;
+  const factLeftValueX = margin + 16 + factLeftLabelWidth + 16;
+  const factLeftValueWidth = cardWidth - factLeftLabelWidth - 34;
+  drawCommercialLabel(page, docType === "Invoice" ? "Pago esperado" : "Monto neto", margin+16, leftCardY+64, factLeftLabelWidth, accentColor, bold, white, 9.8);
+  drawRightAlignedPdfText(page, fmtM(mn), factLeftValueX, leftCardY+75, factLeftValueWidth, bold, 14, textColor);
+  drawCommercialLabel(page, "Fecha de pago", margin+16, leftCardY+24, factLeftLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), factLeftValueX, leftCardY+35, factLeftValueWidth, bold, 11.5, textColor);
 
-  drawRoundedPdfBox(page, margin+cardWidth+22, leftCardY, cardWidth, 104, panel, border);
-  drawCommercialLabel(page, "SubTotal", margin+cardWidth+38, leftCardY+58, 112, accentColor, bold, white);
-  page.drawText(fmtM(mn), { x:margin+contentWidth-110, y:leftCardY+69, size:14, font:bold, color:textColor });
-  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", margin+cardWidth+38, leftCardY+18, 112, accentColor, bold, white);
-  page.drawText(docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), { x:margin+contentWidth-110, y:leftCardY+29, size:12, font:bold, color:textColor });
-  drawCommercialLabel(page, "Total", margin+cardWidth+38, leftCardY-22, 112, accentColor, bold, white);
-  page.drawText(fmtM(total), { x:margin+contentWidth-110, y:leftCardY-11, size:14, font:bold, color:textColor });
+  drawRoundedPdfBox(page, margin+cardWidth+22, leftCardY, cardWidth, 112, panel, border);
+  const factRightCardX = margin + cardWidth + 22;
+  const factRightLabelWidth = 112;
+  const factRightValueX = factRightCardX + 16 + factRightLabelWidth + 16;
+  const factRightValueWidth = cardWidth - factRightLabelWidth - 34;
+  drawCommercialLabel(page, "SubTotal", factRightCardX+16, leftCardY+64, factRightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fmtM(mn), factRightValueX, leftCardY+75, factRightValueWidth, bold, 14, textColor);
+  drawCommercialLabel(page, docType === "Invoice" ? "Impuestos" : "IVA", factRightCardX+16, leftCardY+24, factRightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), factRightValueX, leftCardY+35, factRightValueWidth, bold, 12, textColor);
+  drawCommercialLabel(page, "Total", factRightCardX+16, leftCardY-16, factRightLabelWidth, accentColor, bold, white, 10);
+  drawRightAlignedPdfText(page, fmtM(total), factRightValueX, leftCardY-5, factRightValueWidth, bold, 14, textColor);
 
-  let sectionY = leftCardY - 48;
+  let sectionY = leftCardY - 54;
   if (paymentInfo) {
     const paymentHeight = Math.max(96, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 11, 4) + 24);
     drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, accentColor, 1.2);
@@ -7463,7 +7473,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Aceptado")}>Aceptado</GBtn>}
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Rechazado")}>Rechazado</GBtn>}
         {_cd&&_cd("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
-        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:p.notasPago||"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear orden de factura</Btn>}
+        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear orden de factura</Btn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":"Proyecto"}</Btn>}
         {_cd&&_cd("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
@@ -7496,7 +7506,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
-        {(companyPaymentInfoText(empresa,{intro:false,notes:[p.notasPago||"", empresa?.bankInfo || ""].filter(Boolean).join("\n"),dueDate:p.fechaPago||""}) || p.notasPago)&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false,notes:[p.notasPago||"", empresa?.bankInfo || ""].filter(Boolean).join("\n"),dueDate:p.fechaPago||""}) || p.notasPago}</div></>}
+        {companyPaymentInfoText(empresa,{intro:false,dueDate:p.fechaPago||""})&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false,dueDate:p.fechaPago||""})}</div></>}
       </Card>
     </div>
     {/* Items table */}
@@ -7546,7 +7556,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       montoNeto:Number(pres.subtotal||pres.total||0),
       iva:prev.tipoDoc==="Invoice" ? false : !!pres.iva,
       contratoId:pres.contratoId||prev.contratoId,
-      obs:prev.obs||pres.notasPago||"",
+      obs:prev.obs||"",
       obs2:prev.obs2||pres.obs||"",
       estado:prev.estado || "Emitida",
       cobranzaEstado:prev.cobranzaEstado || "Pendiente de pago",
@@ -7636,7 +7646,6 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG>
       <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={e=>u("fechaVencimiento",e.target.value)}/></FG>
     </R2>
-    <FG label="Datos de Pago / Información Bancaria"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Banco: BancoEstado&#10;Cuenta Corriente: 123456789&#10;RUT: 78.118.348-2&#10;Email: pagos@empresa.cl"/></FG>
     <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,tipoDoc:f.recurring?"Invoice":f.tipoDoc,cobranzaEstado:f.cobranzaEstado||"Pendiente de pago",fechaPago:cobranzaState(f)==="Pagado"?(f.fechaPago||today()):"",ivaVal:ivaV,total,projectedTotal});}}/>
   </Modal>;

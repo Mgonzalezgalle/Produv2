@@ -2786,6 +2786,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   const [uState,setUState]=useState("");
   const [uEmp,setUEmp]=useState("");
   const [printForm,setPrintForm]=useState(()=>normalizePrintLayouts(printLayouts));
+  const [activePrintDoc,setActivePrintDoc]=useState("budget");
   const totalEmp=(empresas||[]).length;
   const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
   const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
@@ -2852,6 +2853,45 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   }));
   const resetPrintLayouts=()=>setPrintForm(normalizePrintLayouts(DEFAULT_PRINT_LAYOUTS));
   const persistPrintLayouts=async()=>{ await savePrintLayouts(normalizePrintLayouts(printForm)); };
+  const applyPrintPreset=(doc,preset)=>{
+    const base=normalizePrintLayouts(printForm)?.[doc] || DEFAULT_PRINT_LAYOUTS[doc];
+    const nextPreset = preset==="compact"
+      ? {
+          companyTitleSize: Math.max(14, Number(base.companyTitleSize||16)-1.4),
+          metaSize: Math.max(7.2, Number(base.metaSize||8.8)-0.6),
+          sectionTitleSize: Math.max(8, Number(base.sectionTitleSize||9.2)-0.4),
+          sectionBodySize: Math.max(7.4, Number(base.sectionBodySize||8.6)-0.6),
+          summaryLabelSize: Math.max(6.8, Number(base.summaryLabelSize||7.5)-0.4),
+          summaryValueSize: Math.max(8.8, Number(base.summaryValueSize||10)-0.8),
+          stampWidth: Math.max(138, Number(base.stampWidth||158)-10),
+          stampHeight: Math.max(72, Number(base.stampHeight||84)-6),
+          detailHeaderSize: Math.max(6.8, Number(base.detailHeaderSize||7.7)-0.5),
+          detailBodySize: Math.max(6.4, Number(base.detailBodySize||7.1)-0.5),
+        }
+      : preset==="airy"
+        ? {
+            companyTitleSize: Math.min(24, Number(base.companyTitleSize||18)+1),
+            metaSize: Math.min(10.5, Number(base.metaSize||9)+0.4),
+            sectionTitleSize: Math.min(11.5, Number(base.sectionTitleSize||9.2)+0.6),
+            sectionBodySize: Math.min(10.2, Number(base.sectionBodySize||8.6)+0.5),
+            summaryLabelSize: Math.min(9.5, Number(base.summaryLabelSize||7.5)+0.4),
+            summaryValueSize: Math.min(12.6, Number(base.summaryValueSize||10)+0.6),
+            stampWidth: Math.min(200, Number(base.stampWidth||158)+8),
+            stampHeight: Math.min(104, Number(base.stampHeight||84)+6),
+            detailHeaderSize: Math.min(9.5, Number(base.detailHeaderSize||7.7)+0.4),
+            detailBodySize: Math.min(8.8, Number(base.detailBodySize||7.1)+0.4),
+          }
+        : {
+            ...DEFAULT_PRINT_LAYOUTS[doc],
+          };
+    setPrintForm(prev=>normalizePrintLayouts({
+      ...prev,
+      [doc]:{
+        ...prev?.[doc],
+        ...nextPreset,
+      },
+    }));
+  };
   const renderPrintPreview=(doc,cfg)=>{
     const isBudget=doc==="budget";
     const summaryRows=isBudget
@@ -3385,61 +3425,76 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
       }}/>
     </div>}
     {tab===6&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
-        {[
-          {key:"budget",title:"Presupuestos",sub:"Controla jerarquía, caja roja, tabla de detalle y bloques de resumen."},
-          {key:"billing",title:"Facturación",sub:"Ajusta composición general, sello legal y paneles de resumen."},
-        ].map(section=>{
-          const cfg=printForm?.[section.key] || DEFAULT_PRINT_LAYOUTS[section.key];
-          return <Card key={section.key} title={section.title} sub={section.sub}>
-            <div style={{display:"grid",gap:12}}>
-              <R2>
-                <FG label="Color acento"><FI type="color" value={cfg.accent||"#1f2f5f"} onChange={e=>updatePrint(section.key,"accent",e.target.value)}/></FG>
-                <FG label="Título empresa"><FI type="number" min="12" max="28" step="0.1" value={cfg.companyTitleSize||0} onChange={e=>updatePrint(section.key,"companyTitleSize",e.target.value)}/></FG>
-              </R2>
-              <R2>
-                <FG label="Meta header"><FI type="number" min="7" max="14" step="0.1" value={cfg.metaSize||0} onChange={e=>updatePrint(section.key,"metaSize",e.target.value)}/></FG>
-                <FG label="Título sección"><FI type="number" min="7" max="14" step="0.1" value={cfg.sectionTitleSize||0} onChange={e=>updatePrint(section.key,"sectionTitleSize",e.target.value)}/></FG>
-              </R2>
-              <R2>
-                <FG label="Texto sección"><FI type="number" min="7" max="13" step="0.1" value={cfg.sectionBodySize||0} onChange={e=>updatePrint(section.key,"sectionBodySize",e.target.value)}/></FG>
-                <FG label="Etiqueta resumen"><FI type="number" min="6.5" max="12" step="0.1" value={cfg.summaryLabelSize||0} onChange={e=>updatePrint(section.key,"summaryLabelSize",e.target.value)}/></FG>
-              </R2>
-              <R2>
-                <FG label="Valor resumen"><FI type="number" min="8" max="16" step="0.1" value={cfg.summaryValueSize||0} onChange={e=>updatePrint(section.key,"summaryValueSize",e.target.value)}/></FG>
-                <FG label="Ancho sello rojo"><FI type="number" min="130" max="220" step="1" value={cfg.stampWidth||0} onChange={e=>updatePrint(section.key,"stampWidth",e.target.value)}/></FG>
-              </R2>
-              <FG label="Altura sello rojo"><FI type="number" min="68" max="120" step="1" value={cfg.stampHeight||0} onChange={e=>updatePrint(section.key,"stampHeight",e.target.value)}/></FG>
-              {section.key==="budget"&&<>
-                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)",fontSize:11,color:"var(--gr2)"}}>
-                  Estructura del detalle de servicios
+      {(()=> {
+        const activeDoc=activePrintDoc==="billing"?"billing":"budget";
+        const cfg=printForm?.[activeDoc] || DEFAULT_PRINT_LAYOUTS[activeDoc];
+        const docLabel=activeDoc==="budget"?"Presupuestos":"Facturación";
+        return <>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16}}>
+            <GBtn sm onClick={()=>setActivePrintDoc("budget")} style={activeDoc==="budget"?{borderColor:"var(--cy)",background:"var(--cg)",color:"var(--cy)"}:undefined}>Presupuestos</GBtn>
+            <GBtn sm onClick={()=>setActivePrintDoc("billing")} style={activeDoc==="billing"?{borderColor:"var(--cy)",background:"var(--cg)",color:"var(--cy)"}:undefined}>Facturación</GBtn>
+            <span style={{fontSize:11,color:"var(--gr2)"}}>Editando: {docLabel}</span>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+            <GBtn sm onClick={()=>applyPrintPreset(activeDoc,"compact")}>Preset compacto</GBtn>
+            <GBtn sm onClick={()=>applyPrintPreset(activeDoc,"balanced")}>Preset base</GBtn>
+            <GBtn sm onClick={()=>applyPrintPreset(activeDoc,"airy")}>Preset aireado</GBtn>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.1fr) minmax(320px,.9fr)",gap:16,alignItems:"start"}}>
+            <Card title={`Controles de ${docLabel}`} sub="Ajusta jerarquía, sello legal, resumen y estructura visual.">
+              <div style={{display:"grid",gap:14}}>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)",fontSize:11,color:"var(--gr2)"}}>Jerarquía general</div>
+                <R2>
+                  <FG label="Color acento"><FI type="color" value={cfg.accent||"#1f2f5f"} onChange={e=>updatePrint(activeDoc,"accent",e.target.value)}/></FG>
+                  <FG label="Título empresa"><FI type="number" min="12" max="28" step="0.1" value={cfg.companyTitleSize||0} onChange={e=>updatePrint(activeDoc,"companyTitleSize",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Meta header"><FI type="number" min="7" max="14" step="0.1" value={cfg.metaSize||0} onChange={e=>updatePrint(activeDoc,"metaSize",e.target.value)}/></FG>
+                  <FG label="Título sección"><FI type="number" min="7" max="14" step="0.1" value={cfg.sectionTitleSize||0} onChange={e=>updatePrint(activeDoc,"sectionTitleSize",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Texto sección"><FI type="number" min="7" max="13" step="0.1" value={cfg.sectionBodySize||0} onChange={e=>updatePrint(activeDoc,"sectionBodySize",e.target.value)}/></FG>
+                  <FG label="Etiqueta resumen"><FI type="number" min="6.5" max="12" step="0.1" value={cfg.summaryLabelSize||0} onChange={e=>updatePrint(activeDoc,"summaryLabelSize",e.target.value)}/></FG>
+                </R2>
+                <R2>
+                  <FG label="Valor resumen"><FI type="number" min="8" max="16" step="0.1" value={cfg.summaryValueSize||0} onChange={e=>updatePrint(activeDoc,"summaryValueSize",e.target.value)}/></FG>
+                  <FG label="Ancho sello rojo"><FI type="number" min="130" max="220" step="1" value={cfg.stampWidth||0} onChange={e=>updatePrint(activeDoc,"stampWidth",e.target.value)}/></FG>
+                </R2>
+                <FG label="Altura sello rojo"><FI type="number" min="68" max="120" step="1" value={cfg.stampHeight||0} onChange={e=>updatePrint(activeDoc,"stampHeight",e.target.value)}/></FG>
+                {activeDoc==="budget"&&<>
+                  <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)",fontSize:11,color:"var(--gr2)"}}>Detalle de servicios</div>
+                  <R2>
+                    <FG label="Título detalle"><FI type="number" min="7" max="13" step="0.1" value={cfg.detailTitleSize||0} onChange={e=>updatePrint(activeDoc,"detailTitleSize",e.target.value)}/></FG>
+                    <FG label="Header tabla"><FI type="number" min="6.5" max="11" step="0.1" value={cfg.detailHeaderSize||0} onChange={e=>updatePrint(activeDoc,"detailHeaderSize",e.target.value)}/></FG>
+                  </R2>
+                  <R2>
+                    <FG label="Texto ítems"><FI type="number" min="6.2" max="10" step="0.1" value={cfg.detailBodySize||0} onChange={e=>updatePrint(activeDoc,"detailBodySize",e.target.value)}/></FG>
+                    <FG label="Ancho detalle"><FI type="number" min="240" max="360" step="1" value={cfg.detailColWidth||280} onChange={e=>updatePrint(activeDoc,"detailColWidth",e.target.value)}/></FG>
+                  </R2>
+                  <R2>
+                    <FG label="Ancho recurrencia"><FI type="number" min="56" max="110" step="1" value={cfg.recurrenceColWidth||78} onChange={e=>updatePrint(activeDoc,"recurrenceColWidth",e.target.value)}/></FG>
+                    <FG label="Ancho cantidad"><FI type="number" min="28" max="64" step="1" value={cfg.qtyColWidth||34} onChange={e=>updatePrint(activeDoc,"qtyColWidth",e.target.value)}/></FG>
+                  </R2>
+                  <R2>
+                    <FG label="Ancho valor unitario"><FI type="number" min="56" max="110" step="1" value={cfg.unitColWidth||74} onChange={e=>updatePrint(activeDoc,"unitColWidth",e.target.value)}/></FG>
+                    <FG label="Ancho total"><FI type="number" min="32" max="80" step="1" value={cfg.totalColWidth||48} onChange={e=>updatePrint(activeDoc,"totalColWidth",e.target.value)}/></FG>
+                  </R2>
+                </>}
+              </div>
+            </Card>
+            <div style={{display:"grid",gap:16,position:"sticky",top:12}}>
+              {renderPrintPreview(activeDoc,cfg)}
+              <Card title="Acciones" sub="Guarda o vuelve a la composición base.">
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <Btn onClick={persistPrintLayouts}>Guardar composición</Btn>
+                  <GBtn onClick={()=>applyPrintPreset(activeDoc,"balanced")}>Volver a preset base</GBtn>
+                  <GBtn onClick={resetPrintLayouts}>Restablecer defaults</GBtn>
                 </div>
-                <R2>
-                  <FG label="Título detalle"><FI type="number" min="7" max="13" step="0.1" value={cfg.detailTitleSize||0} onChange={e=>updatePrint(section.key,"detailTitleSize",e.target.value)}/></FG>
-                  <FG label="Header tabla"><FI type="number" min="6.5" max="11" step="0.1" value={cfg.detailHeaderSize||0} onChange={e=>updatePrint(section.key,"detailHeaderSize",e.target.value)}/></FG>
-                </R2>
-                <R2>
-                  <FG label="Texto ítems"><FI type="number" min="6.2" max="10" step="0.1" value={cfg.detailBodySize||0} onChange={e=>updatePrint(section.key,"detailBodySize",e.target.value)}/></FG>
-                  <FG label="Ancho detalle"><FI type="number" min="240" max="360" step="1" value={cfg.detailColWidth||280} onChange={e=>updatePrint(section.key,"detailColWidth",e.target.value)}/></FG>
-                </R2>
-                <R2>
-                  <FG label="Ancho recurrencia"><FI type="number" min="56" max="110" step="1" value={cfg.recurrenceColWidth||78} onChange={e=>updatePrint(section.key,"recurrenceColWidth",e.target.value)}/></FG>
-                  <FG label="Ancho cantidad"><FI type="number" min="28" max="64" step="1" value={cfg.qtyColWidth||34} onChange={e=>updatePrint(section.key,"qtyColWidth",e.target.value)}/></FG>
-                </R2>
-                <R2>
-                  <FG label="Ancho valor unitario"><FI type="number" min="56" max="110" step="1" value={cfg.unitColWidth||74} onChange={e=>updatePrint(section.key,"unitColWidth",e.target.value)}/></FG>
-                  <FG label="Ancho total"><FI type="number" min="32" max="80" step="1" value={cfg.totalColWidth||48} onChange={e=>updatePrint(section.key,"totalColWidth",e.target.value)}/></FG>
-                </R2>
-              </>}
+              </Card>
             </div>
-            {renderPrintPreview(section.key,cfg)}
-          </Card>;
-        })}
-      </div>
-      <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
-        <Btn onClick={persistPrintLayouts}>Guardar composición</Btn>
-        <GBtn onClick={resetPrintLayouts}>Restablecer defaults</GBtn>
-      </div>
+          </div>
+        </>;
+      })()}
     </div>}
   </div>;
 }

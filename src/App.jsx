@@ -4772,6 +4772,7 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
 
 function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspiciadores,tareas,users,openM,ntf,setClientes,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setTareas}){
   const empId=empresa?.id;
+  const isMobile=typeof window!=="undefined" ? window.innerWidth<=768 : false;
   const [tab,setTab]=useState(0);
   const [q,setQ]=useState("");
   const [tipo,setTipo]=useState("");
@@ -4783,6 +4784,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const [detailId,setDetailId]=useState("");
   const [stagesOpen,setStagesOpen]=useState(false);
   const [activityForm,setActivityForm]=useState({type:"note",text:""});
+  const [mobileStageId,setMobileStageId]=useState("");
   const PP=10;
   const tasksEnabled=hasAddon(empresa,"tareas");
   const scopedStages=normalizeCrmStages((crmStages||[]).filter?.(s=>!s.empId || s.empId===empId) || crmStages || []);
@@ -4808,6 +4810,14 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const detailActivities=scopedActivities.filter(act=>act.opportunityId===detailId).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
   const detailTasks=tasksEnabled ? (Array.isArray(tareas)?tareas:[]).filter(t=>t?.empId===empId && t.refTipo==="crm" && t.refId===detailId) : [];
   const stagesById=Object.fromEntries(scopedStages.map(stage=>[stage.id,stage]));
+  const activeMobileStageId=mobileStageId || scopedStages[0]?.id || "";
+  const mobileStage=scopedStages.find(stage=>stage.id===activeMobileStageId) || scopedStages[0];
+  const mobileStageItems=sorted.filter(opp=>opp.stageId===activeMobileStageId);
+
+  useEffect(()=>{
+    if(!mobileStageId && scopedStages[0]?.id) setMobileStageId(scopedStages[0].id);
+    if(mobileStageId && !scopedStages.some(stage=>stage.id===mobileStageId)) setMobileStageId(scopedStages[0]?.id || "");
+  },[mobileStageId,scopedStages]);
 
   const persistOpps=async next=>setCrmOpps(next.map(opp=>crmNormalizeOpportunity(opp, scopedStages)));
   const addActivity=async (oppId,text,type="note")=>{
@@ -4941,7 +4951,36 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     </div>
     <Tabs tabs={["Pipeline","Lista"]} active={tab} onChange={idx=>{setTab(idx);setPg(1);}}/>
 
-    {tab===0 ? <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.max(1,scopedStages.length)}, minmax(220px, 1fr))`,gap:14,overflowX:"auto",paddingBottom:8}}>
+    {tab===0 ? (isMobile ? <>
+      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:14}}>
+        {scopedStages.map(stage=><button key={stage.id} onClick={()=>setMobileStageId(stage.id)} style={{padding:"9px 12px",borderRadius:999,border:`1px solid ${activeMobileStageId===stage.id?"var(--cy)":"var(--bdr2)"}`,background:activeMobileStageId===stage.id?"var(--cg)":"var(--sur)",color:activeMobileStageId===stage.id?"var(--cy)":"var(--gr3)",fontSize:11,fontWeight:700,whiteSpace:"nowrap",cursor:"pointer"}}>
+          {stage.name} ({sorted.filter(opp=>opp.stageId===stage.id).length})
+        </button>)}
+      </div>
+      <Card title={mobileStage?.name || "Pipeline"} sub={`${mobileStageItems.length} oportunidad${mobileStageItems.length===1?"":"es"} · ${fmtM(mobileStageItems.reduce((sum,opp)=>sum+Number(opp.monto_estimado||0),0))}`} action={{label:"+ Nuevo",fn:()=>openM("crm-opp",{stageId:activeMobileStageId,status:mobileStage?.closedWon?"Ganada":mobileStage?.closedLost?"Perdida":"Activa"})}}>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {mobileStageItems.map(opp=>{
+            const owner=tenantUsers.find(u=>u.id===opp.responsable);
+            return <div key={opp.id} onClick={()=>setDetailId(opp.id)} style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:12,padding:12,cursor:"pointer",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                <div style={{fontSize:13,fontWeight:700,lineHeight:1.3}}>{opp.nombre}</div>
+                <Badge label={crmEntityLabel(opp)} color={opp.tipo_negocio==="auspiciador"?"yellow":"cyan"} sm/>
+              </div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>{opp.empresaMarca}</div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--gr3)",gap:8}}>
+                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{owner?.name||"Sin responsable"}</span>
+                <span style={{fontFamily:"var(--fm)",color:"var(--cy)",flexShrink:0}}>{fmtM(opp.monto_estimado||0)}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--gr2)",gap:8}}>
+                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{opp.nextAction || "Sin próxima acción"}</span>
+                <span style={{flexShrink:0}}>{opp.fecha_cierre_estimada ? fmtD(opp.fecha_cierre_estimada) : "—"}</span>
+              </div>
+            </div>;
+          })}
+          {!mobileStageItems.length && <Empty text="Sin oportunidades en esta etapa" sub="Cambia de etapa o crea una nueva oportunidad."/>}
+        </div>
+      </Card>
+    </> : <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.max(1,scopedStages.length)}, minmax(220px, 1fr))`,gap:14,overflowX:"auto",paddingBottom:8}}>
       {scopedStages.map(stage=>{
         const stageItems=sorted.filter(opp=>opp.stageId===stage.id);
         const totalStage=stageItems.reduce((sum,opp)=>sum+Number(opp.monto_estimado||0),0);
@@ -4970,7 +5009,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
           </div>
         </Card>;
       })}
-    </div> : <Card title="Oportunidades" sub={`${sorted.length} registro${sorted.length===1?"":"s"} según filtros`}>
+    </div>) : <Card title="Oportunidades" sub={`${sorted.length} registro${sorted.length===1?"":"s"} según filtros`}>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead>

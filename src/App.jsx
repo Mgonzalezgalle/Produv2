@@ -2458,6 +2458,16 @@ function SuperAdminPanel({empresas,users,onSave}){
   const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
   const selectedCommEmp = (empresas||[]).find(e=>e.id===commEmpId) || (empresas||[])[0] || null;
   const empLabelById=id=>(empresas||[]).find(e=>e.id===id)?.nombre||"Sin empresa";
+  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"];
+  const SUPER_TAB_META={
+    "Empresas":{eyebrow:"Estructura",desc:"Administra tenants, planes, addons y configuración base de cada instancia."},
+    "Cartera":{eyebrow:"Control comercial",desc:"Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants."},
+    "Usuarios del sistema":{eyebrow:"Accesos",desc:"Revisa usuarios creados, roles y conectividad operativa por empresa."},
+    "Integraciones":{eyebrow:"Base técnica",desc:"Activa o desactiva integraciones preparadas por tenant sin exponer funciones incompletas."},
+    "Comunicaciones":{eyebrow:"Mensajería",desc:"Envía mensajes sistémicos y banners visibles para cada empresa usuaria."},
+    "Solicitudes":{eyebrow:"Pipeline",desc:"Aprueba accesos, demos y referidos desde una sola bandeja de control."},
+  };
+  const activeSuperTab=SUPER_TABS[tab];
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
@@ -2514,7 +2524,23 @@ function SuperAdminPanel({empresas,users,onSave}){
     onSave("empresas",next);
   };
   return <div>
-    <Tabs tabs={["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes"]} active={tab} onChange={setTab}/>
+    <div style={{padding:"16px 18px",border:"1px solid var(--bdr2)",borderRadius:18,background:"linear-gradient(180deg,var(--cg),transparent 70%)",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>{SUPER_TAB_META[activeSuperTab]?.eyebrow || "Super Admin"}</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800,color:"var(--wh)",marginBottom:6}}>Torre de control de Produ</div>
+          <div style={{fontSize:12,color:"var(--gr2)",maxWidth:760,lineHeight:1.6}}>{SUPER_TAB_META[activeSuperTab]?.desc}</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,minWidth:280,flex:"1 1 320px"}}>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Tenants</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Activos</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"#00e08a"}}>{activeEmp}</div></div>
+          <div style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>MRR Neto</div><div style={{fontFamily:"var(--fm)",fontSize:20,fontWeight:700,color:"#a855f7"}}>{fmtMoney(netMRR,"UF")}</div></div>
+        </div>
+      </div>
+      <div style={{padding:10,borderRadius:16,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+        <Tabs tabs={SUPER_TABS} active={tab} onChange={setTab}/>
+      </div>
+    </div>
     {tab===0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Empresas</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{totalEmp}</div></div>
@@ -3201,6 +3227,17 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
   const inactiveUsers=empUsers.filter(u=>u.active===false).length;
   const referredSols=(refSols||[]).filter(s=>s.referredByEmpId===empresa?.id&&s.tipo==="empresa");
   const referralHistory=companyReferralDiscountHistory(empresa);
+  const ADMIN_TABS=["Colores","Usuarios","Empresa","Listas","Roles y Permisos","Referidos","Datos"];
+  const ADMIN_TAB_META={
+    "Colores":"Personaliza la identidad visual de la instancia con presets consistentes de Produ.",
+    "Usuarios":"Gestiona usuarios del tenant, accesos, roles base y pertenencia al crew interno.",
+    "Empresa":"Actualiza branding, datos societarios, bancarios y configuración general de la empresa.",
+    "Listas":"Administra opciones desplegables y taxonomías visibles en formularios operativos.",
+    "Roles y Permisos":"Crea roles propios por empresa y define acceso granular por módulo.",
+    "Referidos":"Comparte tu código, monitorea activaciones y revisa meses bonificados.",
+    "Datos":"Acciones críticas sobre la data del tenant y restauración controlada.",
+  };
+  const activeAdminTab=ADMIN_TABS[tab];
   const referralStatus=(sol)=>{
     const targetEmp=(empresas||[]).find(e=>e.id===sol.empresaId);
     const hasActiveUser=(users||[]).some(u=>u.empId===sol.empresaId&&u.active!==false);
@@ -3226,13 +3263,30 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} wide>
+    <div style={{padding:"16px 18px",border:"1px solid var(--bdr2)",borderRadius:18,background:"linear-gradient(180deg,var(--cg),transparent 70%)",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Tenant admin</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{empresa?.nombre || "Empresa"}</div>
+          <div style={{fontSize:12,color:"var(--gr2)",maxWidth:720,lineHeight:1.6}}>{ADMIN_TAB_META[activeAdminTab]}</div>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"flex-end",maxWidth:360}}>
+          <Badge label={`Plan ${empresa?.plan||"—"}`} color="cyan" sm/>
+          <Badge label={`${(empresa?.addons||[]).length} addons`} color="gray" sm/>
+          <Badge label={`${activeUsers} usuarios activos`} color="green" sm/>
+          <Badge label={`Tenant ${empresa?.tenantCode||"—"}`} color="purple" sm/>
+        </div>
+      </div>
+      <div style={{padding:10,borderRadius:16,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+        <Tabs tabs={ADMIN_TABS} active={tab} onChange={setTab}/>
+      </div>
+    </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"var(--cy)"}}>{activeUsers}</div></div>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Usuarios inactivos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#ffcc44"}}>{inactiveUsers}</div></div>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Addons activos</div><div style={{fontFamily:"var(--fm)",fontSize:24,fontWeight:700,color:"#00e08a"}}>{(empresa?.addons||[]).length}</div></div>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Plan</div><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,color:"var(--wh)"}}>{empresa?.plan||"—"}</div></div>
     </div>
-    <Tabs tabs={["Colores","Usuarios","Empresa","Listas","Roles y Permisos","Referidos","Datos"]} active={tab} onChange={setTab}/>
     {tab===0&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Selecciona un preset visual curado para tu instancia. Conserva la identidad de Produ y evita combinaciones de color poco legibles.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>

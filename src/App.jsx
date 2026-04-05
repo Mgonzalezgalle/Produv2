@@ -2851,7 +2851,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
     },
   }));
   const resetPrintLayouts=()=>setPrintForm(normalizePrintLayouts(DEFAULT_PRINT_LAYOUTS));
-  const persistPrintLayouts=()=>savePrintLayouts(normalizePrintLayouts(printForm));
+  const persistPrintLayouts=async()=>{ await savePrintLayouts(normalizePrintLayouts(printForm)); };
   const renderPrintPreview=(doc,cfg)=>{
     const isBudget=doc==="budget";
     const summaryRows=isBudget
@@ -4484,7 +4484,12 @@ export default function App(){
     }
   };
   const saveEmpresas=e=>{const normalized=normalizeEmpresasModel(e);setEmpresasRaw(normalized);dbSet("produ:empresas",normalized);};
-  const savePrintLayouts=layouts=>{const normalized=normalizePrintLayouts(layouts);setPrintLayoutsRaw(normalized);dbSet("produ:printLayouts",normalized);};
+  const savePrintLayouts=async layouts=>{
+    const normalized=normalizePrintLayouts(layouts);
+    setPrintLayoutsRaw(normalized);
+    await dbSet("produ:printLayouts",normalized);
+    ntf("Composición de impresos guardada ✓");
+  };
   const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);

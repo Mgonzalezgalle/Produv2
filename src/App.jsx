@@ -1565,9 +1565,15 @@ function EmpresaSelector({empresas,onSelect}){
 
 
 // ── EXPORT FUNCTIONS ─────────────────────────────────────────
-const movFecha = m => m?.fec ?? m?.fecha ?? "";
-const movDesc = m => m?.des ?? m?.desc ?? "";
-const movMonto = m => Number(m?.mon ?? m?.monto ?? 0);
+const movFecha = m => m?.fec ?? m?.fecha ?? m?.fechaPago ?? m?.fechaEmision ?? m?.cr ?? "";
+const movDesc = m => m?.des ?? m?.desc ?? m?.descripcion ?? m?.detalle ?? "";
+const movMonto = m => {
+  const raw = m?.mon ?? m?.monto ?? m?.m ?? 0;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  const clean = String(raw || "").replace(/[^0-9,-.]/g, "").replace(/\.(?=.*\.)/g, "").replace(",", ".");
+  const parsed = Number(clean);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 function exportMovCSV(movs, nombre) {
   const headers = ["Fecha","Tipo","Categoría","Descripción","Monto"];

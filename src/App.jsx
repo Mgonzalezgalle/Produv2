@@ -6891,6 +6891,103 @@ function drawSummaryPanel(page, { x, y, width, rows = [], labelWidth = 124, acce
   return height;
 }
 
+function drawDocumentSectionBox(page, {
+  x,
+  y,
+  width,
+  title = "",
+  text = "",
+  fillColor,
+  borderColor,
+  accentColor,
+  font,
+  bold,
+  textColor,
+  muted,
+  titleSize = 9.2,
+  bodySize = 8.7,
+  bodyGap = 2.5,
+  padding = 14,
+}) {
+  const titleBlock = title ? 16 : 0;
+  const bodyHeight = Math.max(bodySize + 2, measurePdfTextBlock(text || " ", width - padding * 2, font, bodySize, bodyGap));
+  const height = padding + titleBlock + bodyHeight + 12;
+  drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
+  let cursorY = y + height - padding - (title ? titleSize : 0);
+  if (title) {
+    page.drawText(title, { x: x + padding, y: cursorY, size: titleSize, font: bold, color: accentColor });
+    cursorY -= titleSize + 10;
+  }
+  drawPdfTextBlock(page, text || " ", x + padding, cursorY, width - padding * 2, font, bodySize, textColor || muted, bodyGap);
+  return height;
+}
+
+function drawDocumentItemsTable(page, {
+  x,
+  y,
+  width,
+  items = [],
+  accentColor,
+  white,
+  surface,
+  border,
+  font,
+  bold,
+  textColor,
+  moneyFormatter,
+}) {
+  const columns = {
+    detail: { label: "Detalle", x: x + 12, width: 286 },
+    recurrence: { label: "Recurrencia", x: x + 308, width: 74 },
+    qty: { label: "Cant.", x: x + 392, width: 34 },
+    unit: { label: "Valor Unit.", x: x + 436, width: 70 },
+    total: { label: "Total", x: x + 514, width: 48 },
+  };
+  drawRoundedPdfBox(page, x, y - 30, width, 30, accentColor, accentColor, 1);
+  page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.8, font: bold, color: white });
+  page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.8, font: bold, color: white });
+  page.drawText(columns.qty.label, { x: columns.qty.x, y: y - 20, size: 8.8, font: bold, color: white });
+  page.drawText(columns.unit.label, { x: columns.unit.x, y: y - 20, size: 8.8, font: bold, color: white });
+  page.drawText(columns.total.label, { x: columns.total.x, y: y - 20, size: 8.8, font: bold, color: white });
+
+  let cursorY = y - 42;
+  items.forEach((item, idx) => {
+    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 8.1);
+    const rowHeight = Math.max(24, detailLines.length * 10 + 12);
+    const rowY = cursorY - rowHeight + 6;
+    drawRoundedPdfBox(page, x, rowY, width, rowHeight, idx % 2 === 0 ? white : surface, border, 0.95);
+
+    let lineY = cursorY - 8;
+    detailLines.forEach(line => {
+      page.drawText(line || " ", {
+        x: columns.detail.x,
+        y: lineY,
+        size: 8.1,
+        font,
+        color: textColor,
+        maxWidth: columns.detail.width,
+      });
+      lineY -= 10;
+    });
+
+    const valueY = cursorY - 11;
+    page.drawText(item.recurrence === "monthly" ? "Mensual" : "Única vez", {
+      x: columns.recurrence.x,
+      y: valueY,
+      size: 8.1,
+      font,
+      color: textColor,
+      maxWidth: columns.recurrence.width,
+    });
+    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 8.1, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 8.1, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 8.3, textColor);
+    cursorY -= rowHeight + 4;
+  });
+
+  return cursorY;
+}
+
 function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, font, rut = "", docType = "", docNumber = "" }) {
   const legalRed = hexToRgb("#c1121f");
   const centerText = (text, size, yy, color, useBold = false) => {
@@ -7126,7 +7223,6 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#667085");
   const white = hexToRgb("#ffffff");
-  const panel = hexToRgb("#f8fafc");
   const surface = hexToRgb("#f1f5f9");
   const border = hexToRgb("#94a3b8");
   const contact = (cliente?.contactos||[])[0];
@@ -7144,7 +7240,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
 
   const issuerTextX = margin;
   page.drawText(empresa?.nombre || "", { x:issuerTextX, y:height-58, size:17, font:bold, color:textColor });
-  const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
+  const issuerLines = [empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
     page.drawText(line, { x:issuerTextX, y:issuerY, size:8.7, font, color:muted });
@@ -7167,55 +7263,50 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:width-208, y:height-144, size:8.7, font, color:textColor });
 
   let y = height - 170;
-  drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, surface, border, 1.1);
-  page.drawText("Cliente", { x:margin+14, y:y-19, size:9.4, font:bold, color:accentColor });
-  page.drawText(cliente?.nom || "—", { x:margin+14, y:y-37, size:11.5, font:bold, color:textColor });
-  const clientLines = [
+  const clientText = [
+    cliente?.nom || "—",
     cliente?.rut ? `RUT: ${cliente.rut}` : "",
     cliente?.dir || "",
     contact ? `Contacto: ${contact.nom}${contact.car ? ` · ${contact.car}` : ""}` : "",
     contact ? [contact.ema, contact.tel].filter(Boolean).join(" · ") : "",
-  ].filter(Boolean);
-  let clientY = y - 54;
-  clientLines.forEach(line => {
-    page.drawText(line, { x:margin+14, y:clientY, size:8.1, font, color:muted, maxWidth:contentWidth-28 });
-    clientY -= 9.5;
+  ].filter(Boolean).join("\n");
+  const clientHeight = drawDocumentSectionBox(page, {
+    x: margin,
+    y: y - 86,
+    width: contentWidth,
+    title: "Cliente",
+    text: clientText,
+    fillColor: surface,
+    borderColor: border,
+    accentColor,
+    font,
+    bold,
+    textColor,
+    muted,
+    titleSize: 9.3,
+    bodySize: 8.2,
+    bodyGap: 1.8,
   });
-  y -= 92;
+  y -= clientHeight + 18;
 
-  const tableTop = y;
-  const descX = margin + 10;
-  const recurX = margin + 320;
-  const qtyX = margin + 405;
-  const priceX = margin + 458;
-  const totalX = margin + 532;
-  drawRoundedPdfBox(page, margin, tableTop-30, contentWidth, 30, accentColor, accentColor, 1);
-  page.drawText("Detalle", { x:descX, y:tableTop-20, size:8.9, font:bold, color:white });
-  page.drawText("Recurrencia", { x:recurX, y:tableTop-20, size:8.9, font:bold, color:white });
-  page.drawText("Cant.", { x:qtyX, y:tableTop-20, size:8.9, font:bold, color:white });
-  page.drawText("Valor Unit.", { x:priceX, y:tableTop-20, size:8.9, font:bold, color:white });
-  page.drawText("Total", { x:totalX, y:tableTop-20, size:8.9, font:bold, color:white });
-  y = tableTop - 42;
-
-  items.forEach((item, idx) => {
-    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", 274, font, 8.3);
-    const rowHeight = Math.max(24, detailLines.length * 12 + 10);
-    drawRoundedPdfBox(page, margin, y-rowHeight+6, contentWidth, rowHeight, idx % 2 === 0 ? white : surface, border, 0.95);
-    let lineY = y - 8;
-    detailLines.forEach(line => {
-      page.drawText(line || " ", { x:descX, y:lineY, size:8.3, font, color:textColor, maxWidth: 278 });
-      lineY -= 11;
-    });
-    drawCommercialValue(page, item.recurrence==="monthly" ? "Mensual" : "Única vez", recurX, y-12, 76, font, textColor, 8.3);
-    drawCommercialValue(page, String(item.qty || 0), qtyX, y-12, 34, font, textColor, 8.3);
-    drawCommercialValue(page, fmtMoney(item.precio || 0, pres.moneda || "CLP"), priceX, y-12, 68, font, textColor, 8.3);
-    drawCommercialValue(page, fmtMoney(Number(item.qty||0) * Number(item.precio||0), pres.moneda || "CLP"), totalX, y-12, 64, bold, textColor, 8.5);
-    y -= rowHeight + 4;
+  y = drawDocumentItemsTable(page, {
+    x: margin,
+    y,
+    width: contentWidth,
+    items,
+    accentColor,
+    white,
+    surface,
+    border,
+    font,
+    bold,
+    textColor,
+    moneyFormatter: (value) => fmtMoney(value, pres.moneda || "CLP"),
   });
 
   const paymentCardY = y - 150;
   const cardWidth = (contentWidth - 22) / 2;
-  const leftSummaryHeight = drawSummaryPanel(page, {
+  drawSummaryPanel(page, {
     x: margin,
     y: paymentCardY,
     width: cardWidth,
@@ -7233,7 +7324,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     borderColor: border,
   });
   const rightCardX = margin + cardWidth + 22;
-  const rightSummaryHeight = drawSummaryPanel(page, {
+  drawSummaryPanel(page, {
     x: rightCardX,
     y: paymentCardY,
     width: cardWidth,
@@ -7254,16 +7345,43 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
 
   let sectionY = paymentCardY - 18;
   if (paymentInfo) {
-    const paymentHeight = Math.max(94, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 9, 2.5) + 24);
-    drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, border, 1.15);
-    drawPdfTextBlock(page, paymentInfo, margin+14, sectionY-18, contentWidth-28, bold, 9, textColor, 2.5);
+    const paymentHeight = drawDocumentSectionBox(page, {
+      x: margin,
+      y: sectionY - Math.max(98, measurePdfTextBlock(paymentInfo, contentWidth - 28, font, 8.8, 2.2) + 34),
+      width: contentWidth,
+      title: "Datos de pago",
+      text: paymentInfo,
+      fillColor: white,
+      borderColor: border,
+      accentColor,
+      font,
+      bold,
+      textColor,
+      muted,
+      titleSize: 9.2,
+      bodySize: 8.8,
+      bodyGap: 2.2,
+    });
     sectionY -= paymentHeight + 14;
   }
   if (pres.obs) {
-    const obsHeight = Math.max(76, measurePdfTextBlock(pres.obs, contentWidth-28, font, 8.8, 2.5) + 28);
-    drawRoundedPdfBox(page, margin, sectionY-obsHeight, contentWidth, obsHeight, surface, border, 1.05);
-    page.drawText("Observaciones", { x:margin+14, y:sectionY-18, size:9.4, font:bold, color:accentColor });
-    drawPdfTextBlock(page, pres.obs, margin+14, sectionY-33, contentWidth-28, font, 8.8, textColor, 2.5);
+    drawDocumentSectionBox(page, {
+      x: margin,
+      y: sectionY - Math.max(82, measurePdfTextBlock(pres.obs, contentWidth - 28, font, 8.6, 2.2) + 34),
+      width: contentWidth,
+      title: "Observaciones",
+      text: pres.obs,
+      fillColor: surface,
+      borderColor: border,
+      accentColor,
+      font,
+      bold,
+      textColor,
+      muted,
+      titleSize: 9.2,
+      bodySize: 8.6,
+      bodyGap: 2.2,
+    });
   }
 
   page.drawText("Documento generado desde Produ", { x:margin, y:24, size:8.5, font, color:muted });
@@ -7330,7 +7448,6 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#667085");
   const white = hexToRgb("#ffffff");
-  const panel = hexToRgb("#f8fafc");
   const surface = hexToRgb("#f1f5f9");
   const border = hexToRgb("#94a3b8");
   const margin = 38;
@@ -7345,7 +7462,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
 
   page.drawRectangle({ x:0, y:0, width, height, color:white });
   page.drawText(empresa?.nombre || "", { x:margin, y:height-58, size:17, font:bold, color:textColor });
-  const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
+  const issuerLines = [empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
   let issuerY = height - 82;
   issuerLines.forEach(line => {
     page.drawText(line, { x:margin, y:issuerY, size:8.7, font, color:muted });
@@ -7370,24 +7487,34 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   }
 
   let y = height - 170;
-  drawRoundedPdfBox(page, margin, y-72, contentWidth, 72, surface, border, 1.1);
-  page.drawText(fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente", { x:margin+14, y:y-19, size:9.4, font:bold, color:accentColor });
-  page.drawText(entidad?.nom || "—", { x:margin+14, y:y-37, size:11.5, font:bold, color:textColor });
-  const entityLines = [
+  const entityText = [
+    entidad?.nom || "—",
     entidad?.rut ? `RUT: ${entidad.rut}` : "",
     entidad?.dir || "",
     entidad?.con ? `Contacto: ${entidad.con}` : "",
     [entidad?.ema, entidad?.tel].filter(Boolean).join(" · "),
-  ].filter(Boolean);
-  let entityY = y - 54;
-  entityLines.forEach(line => {
-    page.drawText(line, { x:margin+14, y:entityY, size:8.1, font, color:muted, maxWidth:contentWidth-28 });
-    entityY -= 9.5;
+  ].filter(Boolean).join("\n");
+  const entityHeight = drawDocumentSectionBox(page, {
+    x: margin,
+    y: y - 86,
+    width: contentWidth,
+    title: fact.tipo === "auspiciador" ? "Auspiciador" : "Cliente",
+    text: entityText,
+    fillColor: surface,
+    borderColor: border,
+    accentColor,
+    font,
+    bold,
+    textColor,
+    muted,
+    titleSize: 9.3,
+    bodySize: 8.2,
+    bodyGap: 1.8,
   });
-  y -= 92;
+  y -= entityHeight + 18;
 
   const detailHeight = 108;
-  drawRoundedPdfBox(page, margin, y-detailHeight, contentWidth, detailHeight, surface, border, 1.1);
+  drawRoundedPdfBox(page, margin, y-detailHeight, contentWidth, detailHeight, white, border, 1.1);
   page.drawText("Detalle del documento", { x:margin+14, y:y-18, size:9.2, font:bold, color:accentColor });
   const detailRows = [
     ["Tipo de documento", docType],
@@ -7405,7 +7532,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
 
   const leftCardY = y - 150;
   const cardWidth = (contentWidth - 22) / 2;
-  const factLeftSummaryHeight = drawSummaryPanel(page, {
+  drawSummaryPanel(page, {
     x: margin,
     y: leftCardY,
     width: cardWidth,
@@ -7423,7 +7550,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     borderColor: border,
   });
   const factRightCardX = margin + cardWidth + 22;
-  const factRightSummaryHeight = drawSummaryPanel(page, {
+  drawSummaryPanel(page, {
     x: factRightCardX,
     y: leftCardY,
     width: cardWidth,
@@ -7444,17 +7571,44 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
 
   let sectionY = leftCardY - 18;
   if (paymentInfo) {
-    const paymentHeight = Math.max(94, measurePdfTextBlock(paymentInfo, contentWidth-28, font, 9, 2.5) + 24);
-    drawRoundedPdfBox(page, margin, sectionY-paymentHeight, contentWidth, paymentHeight, white, border, 1.15);
-    drawPdfTextBlock(page, paymentInfo, margin+14, sectionY-18, contentWidth-28, bold, 9, textColor, 2.5);
+    const paymentHeight = drawDocumentSectionBox(page, {
+      x: margin,
+      y: sectionY - Math.max(98, measurePdfTextBlock(paymentInfo, contentWidth - 28, font, 8.8, 2.2) + 34),
+      width: contentWidth,
+      title: "Datos de pago",
+      text: paymentInfo,
+      fillColor: white,
+      borderColor: border,
+      accentColor,
+      font,
+      bold,
+      textColor,
+      muted,
+      titleSize: 9.2,
+      bodySize: 8.8,
+      bodyGap: 2.2,
+    });
     sectionY -= paymentHeight + 14;
   }
   const trailingNotes = [fact.obs2 || "", docType === "Invoice" ? "Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." : ""].filter(Boolean).join("\n\n");
   if (trailingNotes) {
-    const notesHeight = Math.max(78, measurePdfTextBlock(trailingNotes, contentWidth-28, font, 9.2, 3) + 30);
-    drawRoundedPdfBox(page, margin, sectionY-notesHeight, contentWidth, notesHeight, panel, border);
-    page.drawText("Observaciones", { x:margin+14, y:sectionY-18, size:10, font:bold, color:accentColor });
-    drawPdfTextBlock(page, trailingNotes, margin+14, sectionY-34, contentWidth-28, font, 9.2, textColor, 3);
+    drawDocumentSectionBox(page, {
+      x: margin,
+      y: sectionY - Math.max(84, measurePdfTextBlock(trailingNotes, contentWidth - 28, font, 8.6, 2.2) + 34),
+      width: contentWidth,
+      title: "Observaciones",
+      text: trailingNotes,
+      fillColor: surface,
+      borderColor: border,
+      accentColor,
+      font,
+      bold,
+      textColor,
+      muted,
+      titleSize: 9.2,
+      bodySize: 8.6,
+      bodyGap: 2.2,
+    });
   }
 
   page.drawText("Documento generado desde Produ", { x:margin, y:24, size:8.5, font, color:muted });

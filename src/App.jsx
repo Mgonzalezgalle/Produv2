@@ -280,6 +280,40 @@ function companyPrintColorLabel(empresa = {}) {
   return PRINT_COLORS.find(opt => opt.value === companyPrintColor(empresa))?.label || "Azul institucional";
 }
 
+function normalizePaymentDetails(empresa = {}) {
+  const details = empresa?.paymentDetails || {};
+  return {
+    holder: details.holder || empresa?.nombre || "",
+    rut: details.rut || empresa?.rut || "",
+    bank: details.bank || "",
+    accountType: details.accountType || "",
+    accountNumber: details.accountNumber || "",
+    email: details.email || "",
+    notes: details.notes || "",
+  };
+}
+
+function companyPaymentInfoText(empresa = {}, extra = {}) {
+  const payment = normalizePaymentDetails(empresa);
+  const blocks = [];
+  const intro = extra?.intro === false
+    ? ""
+    : "Los pagos correspondientes a la presente propuesta deberán efectuarse mediante transferencia bancaria a la siguiente cuenta:";
+  if (intro) blocks.push(intro);
+  const details = [
+    payment.holder ? `Titular: ${payment.holder}` : "",
+    payment.rut ? `RUT: ${payment.rut}` : "",
+    payment.bank ? `Banco: ${payment.bank}` : "",
+    payment.accountType ? `Tipo de cuenta: ${payment.accountType}` : "",
+    payment.accountNumber ? `Número de cuenta: ${payment.accountNumber}` : "",
+    payment.email ? `Correo para envío de comprobante: ${payment.email}` : "",
+  ].filter(Boolean).join("\n");
+  if (details) blocks.push(details);
+  const notes = [payment.notes || "", extra?.notes || "", extra?.dueDate ? `Fecha de pago esperada: ${fmtD(extra.dueDate)}` : ""].filter(Boolean).join("\n");
+  if (notes) blocks.push(notes);
+  return blocks.filter(Boolean).join("\n\n");
+}
+
 function companyBillingDiscountPct(empresa = {}) {
   const pct = Number(empresa?.billingDiscountPct || 0);
   if (!Number.isFinite(pct)) return 0;
@@ -2551,7 +2585,7 @@ function SuperAdminPanel({empresas,users,onSave}){
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -3146,9 +3180,43 @@ function ListasEditor({ listas, saveListas }) {
 function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
   const [ef, setEf] = useState({});
   const [editing, setEditing] = useState(false);
-  useEffect(() => { setEf({ nombre: empresa.nombre||"", rut: empresa.rut||"", ema: empresa.ema||"", tel: empresa.tel||"", dir: empresa.dir||"", bankInfo:empresa.bankInfo||"", printColor:companyPrintColor(empresa), plan:empresa.plan||"starter", active:empresa.active!==false, addons:Array.isArray(empresa.addons)?empresa.addons:[], googleCalendarEnabled:companyGoogleCalendarEnabled(empresa) }); }, [empresa.id]);
+  useEffect(() => {
+    const payment = normalizePaymentDetails(empresa);
+    setEf({
+      nombre: empresa.nombre||"",
+      rut: empresa.rut||"",
+      ema: empresa.ema||"",
+      tel: empresa.tel||"",
+      dir: empresa.dir||"",
+      bankInfo:empresa.bankInfo||"",
+      paymentHolder:payment.holder||"",
+      paymentRut:payment.rut||"",
+      paymentBank:payment.bank||"",
+      paymentAccountType:payment.accountType||"",
+      paymentAccountNumber:payment.accountNumber||"",
+      paymentEmail:payment.email||"",
+      paymentNotes:payment.notes||"",
+      printColor:companyPrintColor(empresa),
+      plan:empresa.plan||"starter",
+      active:empresa.active!==false,
+      addons:Array.isArray(empresa.addons)?empresa.addons:[],
+      googleCalendarEnabled:companyGoogleCalendarEnabled(empresa)
+    });
+  }, [empresa.id]);
   const save = () => {
-    const updated = { ...empresa, ...ef };
+    const updated = {
+      ...empresa,
+      ...ef,
+      paymentDetails: {
+        holder: ef.paymentHolder || ef.nombre || "",
+        rut: ef.paymentRut || ef.rut || "",
+        bank: ef.paymentBank || "",
+        accountType: ef.paymentAccountType || "",
+        accountNumber: ef.paymentAccountNumber || "",
+        email: ef.paymentEmail || "",
+        notes: ef.paymentNotes || "",
+      },
+    };
     saveEmpresas((empresas||[]).map(em => em.id === empresa.id ? updated : em));
     ntf("Datos guardados ✓");
     setEditing(false);
@@ -3164,7 +3232,7 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
       </div>
       <div style={{marginTop:14}}>
         <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Información bancaria</div>
-        <div style={{background:"var(--card2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"10px 12px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{empresa.bankInfo||"Sin información bancaria configurada"}</div>
+        <div style={{background:"var(--card2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"10px 12px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false}) || empresa.bankInfo || "Sin información bancaria configurada"}</div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:12}}>{(empresa.addons||[]).length?(empresa.addons||[]).map(a=><Badge key={a} label={ADDONS[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin addons activos</span>}</div>
     </div>
@@ -3190,7 +3258,23 @@ function EmpresaEdit({ empresa, empresas, saveEmpresas, ntf }) {
           {PRINT_COLORS.map(opt=><option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </FSl>
       </FG>
-      <FG label="Información bancaria"><FTA value={ef.bankInfo||""} onChange={e=>setEf(p=>({...p,bankInfo:e.target.value}))} placeholder="Banco: BancoEstado&#10;Tipo de cuenta: Cuenta Corriente&#10;N° cuenta: 123456789&#10;RUT: 78.118.348-2&#10;Email pagos: pagos@empresa.cl"/></FG>
+      <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)",marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:10}}>Información bancaria / datos de pago</div>
+        <R2>
+          <FG label="Titular"><FI value={ef.paymentHolder||""} onChange={e=>setEf(p=>({...p,paymentHolder:e.target.value}))} placeholder="Razón social o titular"/></FG>
+          <FG label="RUT para pagos"><FI value={ef.paymentRut||""} onChange={e=>setEf(p=>({...p,paymentRut:e.target.value}))} placeholder="78.118.348-2"/></FG>
+        </R2>
+        <R2>
+          <FG label="Banco"><FI value={ef.paymentBank||""} onChange={e=>setEf(p=>({...p,paymentBank:e.target.value}))} placeholder="Banco de Chile"/></FG>
+          <FG label="Tipo de cuenta"><FI value={ef.paymentAccountType||""} onChange={e=>setEf(p=>({...p,paymentAccountType:e.target.value}))} placeholder="Cuenta Corriente"/></FG>
+        </R2>
+        <R2>
+          <FG label="Número de cuenta"><FI value={ef.paymentAccountNumber||""} onChange={e=>setEf(p=>({...p,paymentAccountNumber:e.target.value}))} placeholder="123456789"/></FG>
+          <FG label="Correo para comprobantes"><FI value={ef.paymentEmail||""} onChange={e=>setEf(p=>({...p,paymentEmail:e.target.value}))} placeholder="pagos@empresa.cl"/></FG>
+        </R2>
+        <FG label="Notas adicionales de pago"><FTA value={ef.paymentNotes||""} onChange={e=>setEf(p=>({...p,paymentNotes:e.target.value}))} placeholder="Instrucciones extra para pagos o comprobantes."/></FG>
+      </div>
+      <FG label="Información bancaria adicional"><FTA value={ef.bankInfo||""} onChange={e=>setEf(p=>({...p,bankInfo:e.target.value}))} placeholder="Texto adicional opcional que también quieras mostrar en documentos."/></FG>
       <div style={{marginTop:12}}>
         <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Addons activos</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -5602,7 +5686,7 @@ function ViewCalendario({empresa,user,tareas,crew,clientes,auspiciadores,episodi
 // ── PRESUPUESTOS ─────────────────────────────────────────────
 
 function MPres({open,data,clientes,producciones,programas,piezas,contratos,listas,onClose,onSave,empresa,currentUser}){
-  const pieceLine = () => ({id:uid(),desc:"Piezas mensuales",qty:1,precio:0,und:"pieza"});
+  const pieceLine = () => ({id:uid(),desc:"Piezas mensuales",qty:1,precio:0,und:"pieza",recurrence:"monthly"});
   const empty={titulo:"",cliId:"",tipo:"produccion",refId:"",estado:"Pendiente",validez:"30",moneda:"CLP",iva:true,metodoPago:"",fechaPago:"",notasPago:"",obs:"",items:[],contratoId:"",autoFactura:false,modoDetalle:"items",detallePiezas:"Piezas mensuales",pieceLines:[pieceLine()],recurring:false,recMonths:"6",recStart:today()};
   const [f,setF]=useState({});
   const [draftRestored,setDraftRestored]=useState(false);
@@ -5611,13 +5695,13 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
     if (!open) return;
     if (data?.id) {
       setDraftRestored(false);
-      setF({...data,items:data.items||[],pieceLines:(data.pieceLines||data.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]});
+      setF({...data,items:(data.items||[]).map(it=>({...it,recurrence:it.recurrence||"once"})),pieceLines:(data.pieceLines||data.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza",recurrence:it.recurrence||"monthly"})) || [pieceLine()]});
       return;
     }
     const draft=loadBudgetDraft(...draftKeyArgs);
     if (draft) {
       setDraftRestored(true);
-      setF({...empty,...draft,items:draft.items||[],pieceLines:(draft.pieceLines||draft.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza"})) || [pieceLine()]});
+      setF({...empty,...draft,items:(draft.items||[]).map(it=>({...it,recurrence:it.recurrence||"once"})),pieceLines:(draft.pieceLines||draft.items||[]).filter(it=>it&&it.und==="pieza").map(it=>({id:it.id||uid(),desc:it.desc||"Piezas mensuales",qty:Number(it.qty||1),precio:Number(it.precio||0),und:"pieza",recurrence:it.recurrence||"monthly"})) || [pieceLine()]});
       return;
     }
     setDraftRestored(false);
@@ -5632,7 +5716,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
   const canSocial = hasAddon(empresa, "social");
   const canContracts = hasAddon(empresa, "contratos");
   const canInvoices = hasAddon(empresa, "facturacion");
-  const addItem=()=>setF(p=>({...p,items:[...(p.items||[]),{id:uid(),desc:"",qty:1,precio:0,und:"Unidad"}]}));
+  const addItem=()=>setF(p=>({...p,items:[...(p.items||[]),{id:uid(),desc:"",qty:1,precio:0,und:"Unidad",recurrence:"once"}]}));
   const updItem=(i,k,v)=>setF(p=>({...p,items:(p.items||[]).map((it,j)=>j===i?{...it,[k]:v}:it)}));
   const delItem=i=>setF(p=>({...p,items:(p.items||[]).filter((_,j)=>j!==i)}));
   const addPieceLine=()=>setF(p=>({...p,pieceLines:[...(p.pieceLines||[]),pieceLine()]}));
@@ -5647,6 +5731,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
         qty:Number(it.qty||0),
         precio:Number(it.precio||0),
         und:"pieza",
+        recurrence:it.recurrence||"monthly",
       }))
     : (f.items||[]);
   const subtotal=pieceItems.reduce((s,it)=>s+Number(it.qty||0)*Number(it.precio||0),0);
@@ -5762,9 +5847,10 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       ? <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
           <div style={{overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Detalle</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Cantidad de piezas</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:140}}>Precio por pieza</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
+              <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Detalle</th><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Recurrencia</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Cantidad de piezas</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:140}}>Precio por pieza</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
               <tbody>{pieceItems.map((it,i)=><tr key={it.id} style={{borderTop:"1px solid var(--bdr)"}}>
                 <td style={{padding:"6px 12px"}}><input value={it.desc||""} onChange={e=>updPieceLine(i,"desc",e.target.value)} placeholder="Gestión mensual de contenidos" style={{...FS,padding:"6px 8px",fontSize:12}}/></td>
+                <td style={{padding:"6px 8px"}}><select value={it.recurrence||"monthly"} onChange={e=>updPieceLine(i,"recurrence",e.target.value)} style={{...FS,padding:"6px 8px",fontSize:12}}><option value="monthly">Mensual</option><option value="once">Única vez</option></select></td>
                 <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updPieceLine(i,"qty",e.target.value)} min="1" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
                 <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updPieceLine(i,"precio",e.target.value)} min="0" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
                 <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
@@ -5778,9 +5864,10 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
         </div>
       : (f.items||[]).length>0&&<div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,overflow:"hidden",marginBottom:12}}>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Descripción</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:80}}>Qty</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Precio Unit.</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
+        <thead><tr style={{background:"var(--bdr)"}}><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600}}>Descripción</th><th style={{padding:"8px 12px",textAlign:"left",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Recurrencia</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:80}}>Qty</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Precio Unit.</th><th style={{padding:"8px 12px",textAlign:"right",fontSize:10,color:"var(--gr2)",fontWeight:600,width:120}}>Total</th><th style={{width:40}}></th></tr></thead>
         <tbody>{(f.items||[]).map((it,i)=><tr key={it.id} style={{borderTop:"1px solid var(--bdr)"}}>
           <td style={{padding:"6px 12px"}}><input value={it.desc||""} onChange={e=>updItem(i,"desc",e.target.value)} placeholder="Descripción del ítem" style={{...FS,padding:"6px 8px",fontSize:12}}/></td>
+          <td style={{padding:"6px 8px"}}><select value={it.recurrence||"once"} onChange={e=>updItem(i,"recurrence",e.target.value)} style={{...FS,padding:"6px 8px",fontSize:12}}><option value="once">Única vez</option><option value="monthly">Mensual</option></select></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updItem(i,"qty",e.target.value)} min="1" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updItem(i,"precio",e.target.value)} min="0" style={{...FS,padding:"6px 8px",fontSize:12,textAlign:"right"}}/></td>
           <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
@@ -5904,7 +5991,7 @@ function countWrappedTextLines(text, maxWidth, font, size) {
   return Math.max(total, 1);
 }
 
-async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[] }) {
+async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empresa, counterpartTitle, counterpartName, counterpartLines=[], metaLines=[], summaryRows=[], bodySections=[], summaryPlacement="inline" }) {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
   const { width, height } = page.getSize();
@@ -5989,13 +6076,15 @@ async function buildModernPdf({ fileName, title, badge, accent="#00d4e8", empres
     sectionY -= sectionHeight + 14;
   });
 
-  drawCard(318, 40, 258, 124, "Totales");
-  let totalY = 126;
-  summaryRows.forEach(row => {
-    page.drawText(row.label, { x:332, y:totalY, size:10, font:row.highlight?bold:font, color:row.highlight?textColor:muted });
-    page.drawText(row.value, { x:468, y:totalY, size:11, font:row.highlight?bold:font, color:row.color || textColor });
-    totalY -= 18;
-  });
+  if (summaryPlacement === "fixed" && summaryRows.length) {
+    drawCard(318, 40, 258, 124, "Totales");
+    let totalY = 126;
+    summaryRows.forEach(row => {
+      page.drawText(row.label, { x:332, y:totalY, size:10, font:row.highlight?bold:font, color:row.highlight?textColor:muted });
+      page.drawText(row.value, { x:468, y:totalY, size:11, font:row.highlight?bold:font, color:row.color || textColor });
+      totalY -= 18;
+    });
+  }
   page.drawText("Generado con Produ", { x:36, y:28, size:9, font, color:muted });
   const bytes = await pdf.save();
   return new File([bytes], fileName, { type:"application/pdf" });
@@ -6112,6 +6201,10 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
   const ivaVal = Number(pres.ivaVal||0);
   const total = Number(pres.total||0);
   const accent = companyPrintColor(empresa);
+  const paymentInfo = companyPaymentInfoText(empresa, {
+    notes: [pres.notasPago || "", empresa?.bankInfo || ""].filter(Boolean).join("\n"),
+    dueDate: pres.fechaPago || "",
+  });
   return buildModernPdf({
     fileName: presupuestoPdfFileName(pres),
     title: pres.correlativo ? `Presupuesto ${pres.correlativo}` : "Presupuesto",
@@ -6132,24 +6225,28 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
       `Moneda: ${pres.moneda || "CLP"}`,
       pres.metodoPago ? `Método de pago: ${pres.metodoPago}` : "",
     ],
-    summaryRows: [
-      { label:"Subtotal neto", value:fmtMoney(subtotal, pres.moneda || "CLP") },
-      { label:pres.honorarios ? "Boleta honorarios 15,25%" : "IVA 19%", value:(pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "No aplica" },
-      { label:"Total final", value:fmtMoney(total, pres.moneda || "CLP"), highlight:true, color:hexToRgb(accent) },
-    ],
+    summaryRows: [],
     bodySections: [
       {
         title:"Detalle comercial",
         rows:(pres.items||[]).length
           ? (pres.items||[]).map((it, idx)=>({
               label:`${idx+1}. ${it.desc || "Ítem sin descripción"}`,
-              value:`${it.qty || 0} × ${fmtMoney(it.precio || 0, pres.moneda || "CLP")} = ${fmtMoney(Number(it.qty||0)*Number(it.precio||0), pres.moneda || "CLP")}`,
+              value:`${it.recurrence==="monthly"?"Mensual":"Única vez"} · ${it.qty || 0} × ${fmtMoney(it.precio || 0, pres.moneda || "CLP")} = ${fmtMoney(Number(it.qty||0)*Number(it.precio||0), pres.moneda || "CLP")}`,
             }))
           : [{ label:"Sin ítems", value:"—" }],
       },
-      ...(empresa?.bankInfo || pres.notasPago || pres.fechaPago ? [{
-        title:"Datos de pago",
-        text:[empresa?.bankInfo || "", pres.notasPago || "", pres.fechaPago ? `Fecha de pago esperada: ${fmtD(pres.fechaPago)}` : ""].filter(Boolean).join("\n\n"),
+      {
+        title:"Totales",
+        rows:[
+          { label:"Subtotal neto", value:fmtMoney(subtotal, pres.moneda || "CLP") },
+          { label:pres.honorarios ? "Boleta honorarios 15,25%" : "IVA 19%", value:(pres.iva||pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "No aplica" },
+          { label:"Total final", value:fmtMoney(total, pres.moneda || "CLP"), valueBold:true, valueColor:hexToRgb(accent), bold:true },
+        ],
+      },
+      ...(paymentInfo ? [{
+        title:"Información de pago",
+        text:paymentInfo,
       }] : []),
       ...(pres.obs ? [{ title:"Observaciones", text:pres.obs }] : []),
     ],
@@ -6210,6 +6307,10 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
   const total = Number(fact.total || (mn + ivaV));
   const accent = companyPrintColor(empresa);
   const docType = fact.tipoDoc || "Orden de Factura";
+  const paymentInfo = companyPaymentInfoText(empresa, {
+    intro:false,
+    notes:[fact.obs || "", empresa?.bankInfo || ""].filter(Boolean).join("\n"),
+  });
   return buildModernPdf({
     fileName: facturaPdfFileName(fact),
     title: fact.correlativo ? `${docType} ${fact.correlativo}` : docType,
@@ -6230,11 +6331,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
       fact.fechaPago ? `Pagada: ${fmtD(fact.fechaPago)}` : "",
       ref ? `Referencia: ${(fact.tipoRef === "produccion" ? "Proyecto" : fact.tipoRef === "contenido" ? "Campaña" : "Producción")} · ${ref.nom || ""}` : "Sin referencia directa",
     ],
-    summaryRows: [
-      { label:"Monto neto", value:fmtM(mn) },
-      { label:docType === "Invoice" ? "Impuesto" : "IVA 19%", value:docType === "Invoice" ? "No tributario" : (fact.iva ? fmtM(ivaV) : "No aplica") },
-      { label:"Total", value:fmtM(total), highlight:true, color:hexToRgb(accent) },
-    ],
+    summaryRows: [],
     bodySections: [
       {
         title:"Detalle del documento",
@@ -6244,7 +6341,15 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
           { label:"Referencia", value:ref ? ref.nom || "—" : "Sin referencia" },
         ],
       },
-      ...(empresa?.bankInfo || fact.obs ? [{ title:"Datos de pago / información bancaria", text:[empresa?.bankInfo || "", fact.obs || ""].filter(Boolean).join("\n\n") }] : []),
+      {
+        title:"Totales",
+        rows:[
+          { label:"Monto neto", value:fmtM(mn) },
+          { label:docType === "Invoice" ? "Impuesto" : "IVA 19%", value:docType === "Invoice" ? "No tributario" : (fact.iva ? fmtM(ivaV) : "No aplica") },
+          { label:"Total", value:fmtM(total), valueBold:true, valueColor:hexToRgb(accent), bold:true },
+        ],
+      },
+      ...(paymentInfo ? [{ title:"Datos de pago / información bancaria", text:paymentInfo }] : []),
       ...(fact.obs2 ? [{ title:"Observaciones", text:fact.obs2 }] : []),
       ...(docType === "Invoice" ? [{ title:"Nota", text:"Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." }] : []),
     ],
@@ -6395,14 +6500,14 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
-        {p.notasPago&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{p.notasPago}</div></>}
+        {(companyPaymentInfoText(empresa,{intro:false,notes:[p.notasPago||"", empresa?.bankInfo || ""].filter(Boolean).join("\n"),dueDate:p.fechaPago||""}) || p.notasPago)&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false,notes:[p.notasPago||"", empresa?.bankInfo || ""].filter(Boolean).join("\n"),dueDate:p.fechaPago||""}) || p.notasPago}</div></>}
       </Card>
     </div>
     {/* Items table */}
     <Card title="Detalle de Ítems" style={{marginBottom:16}}>
       {(p.items||[]).length>0?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Descripción</TH><TH>Cantidad</TH><TH>Precio Unit.</TH><TH>Total</TH></tr></thead>
-        <tbody>{(p.items||[]).map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
+        <thead><tr><TH>Descripción</TH><TH>Recurrencia</TH><TH>Cantidad</TH><TH>Precio Unit.</TH><TH>Total</TH></tr></thead>
+        <tbody>{(p.items||[]).map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD>{it.recurrence==="monthly"?"Mensual":"Única vez"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
       </table></div>:<Empty text="Sin ítems"/>}
       <div style={{marginTop:16,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotal||0,p.moneda||"CLP")}</span></div>

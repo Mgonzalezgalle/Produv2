@@ -2852,6 +2852,85 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   }));
   const resetPrintLayouts=()=>setPrintForm(normalizePrintLayouts(DEFAULT_PRINT_LAYOUTS));
   const persistPrintLayouts=()=>savePrintLayouts(normalizePrintLayouts(printForm));
+  const renderPrintPreview=(doc,cfg)=>{
+    const isBudget=doc==="budget";
+    const summaryRows=isBudget
+      ? [
+          {label:"Condición de pago",value:"Al iniciar"},
+          {label:"Validez",value:"30 días"},
+          {label:"SubTotal",value:"$185.000"},
+          {label:"TOTAL FINAL",value:"$185.000",highlight:true},
+        ]
+      : [
+          {label:"Pago esperado",value:"$185.000"},
+          {label:"Fecha de pago",value:"06 abr 2026"},
+          {label:"SubTotal",value:"$185.000"},
+          {label:"Total",value:"$185.000",highlight:true},
+        ];
+    const detailCols=[
+      {label:"Detalle",width:cfg.detailColWidth||300},
+      {label:isBudget?"Recurr.":"Estado",width:cfg.recurrenceColWidth||78},
+      {label:"Cant.",width:cfg.qtyColWidth||34},
+      {label:"V. Unit.",width:cfg.unitColWidth||74},
+      {label:"Total",width:cfg.totalColWidth||42},
+    ];
+    return <div style={{padding:14,border:"1px solid var(--bdr2)",borderRadius:18,background:"linear-gradient(180deg,var(--sur),var(--card))",marginTop:14}}>
+      <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:10}}>Vista previa</div>
+      <div style={{width:320,maxWidth:"100%",aspectRatio:"0.77",margin:"0 auto",border:"1px solid #d6dce7",borderRadius:16,background:"#fff",boxShadow:"0 20px 40px rgba(15,23,42,.14)",padding:16,display:"grid",gridTemplateRows:"auto auto auto 1fr auto auto",gap:10,overflow:"hidden"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:Math.max(9,cfg.companyTitleSize||18),fontWeight:800,color:"#111827",lineHeight:1.1}}>Play Media SpA</div>
+            <div style={{marginTop:6,fontSize:Math.max(6.2,(cfg.metaSize||9)-1),lineHeight:1.35,color:"#6b7280"}}>
+              78.118.348-2<br/>Av. Providencia 1234, Santiago<br/>playmedia@grupogonzalez.co
+            </div>
+          </div>
+          <div style={{width:Math.max(86,(cfg.stampWidth||158)*0.5),height:Math.max(58,(cfg.stampHeight||84)*0.52),border:"2px solid #c1121f",borderRadius:12,padding:"8px 10px",display:"grid",alignContent:"center",justifyItems:"center",color:"#c1121f",flexShrink:0}}>
+            <div style={{fontSize:7,fontWeight:800,lineHeight:1}}>78.118.348-2</div>
+            <div style={{fontSize:Math.max(9,(cfg.sectionTitleSize||9.2)+4),fontWeight:900,lineHeight:1.05,marginTop:4}}>{isBudget?"PRESUPUESTO":"FACTURACIÓN"}</div>
+            <div style={{fontSize:Math.max(8,(cfg.sectionTitleSize||9.2)+1),fontWeight:800,lineHeight:1,marginTop:4}}>N° 002396</div>
+          </div>
+        </div>
+        <div style={{fontSize:Math.max(6.2,cfg.metaSize||9),lineHeight:1.45,color:"#111827"}}>
+          Fecha: 05 abr 2026<br/>
+          {isBudget?"Validez: 30 días":"Vencimiento: 15 abr 2026"}<br/>
+          Moneda: CLP
+        </div>
+        <div style={{border:"1px solid #d7deea",borderRadius:12,padding:"10px 12px",background:"#fff"}}>
+          <div style={{fontSize:Math.max(6.4,cfg.sectionTitleSize||9.2),fontWeight:800,color:cfg.accent||"#1f2f5f",marginBottom:4}}>Cliente</div>
+          <div style={{fontSize:Math.max(8.5,(cfg.companyTitleSize||18)-3),fontWeight:800,color:"#111827",lineHeight:1.1}}>Raíces de Tango</div>
+          <div style={{marginTop:4,fontSize:Math.max(6.1,cfg.sectionBodySize||8.8),lineHeight:1.35,color:"#6b7280"}}>
+            Av. Calera de Tango, paradero 8<br/>Contacto: Catalina Contreras
+          </div>
+        </div>
+        <div style={{border:"1px solid #d7deea",borderRadius:12,overflow:"hidden",background:"#fff"}}>
+          <div style={{padding:"8px 10px",background:cfg.accent||"#1f2f5f",display:"grid",gridTemplateColumns:`${detailCols.map(c=>`${c.width}fr`).join(" ")}`,gap:8}}>
+            {detailCols.map(col=><div key={col.label} style={{fontSize:Math.max(5.8,cfg.detailHeaderSize||7.7),fontWeight:800,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{col.label}</div>)}
+          </div>
+          {[1,2].map(row=><div key={row} style={{padding:"8px 10px",display:"grid",gridTemplateColumns:`${detailCols.map(c=>`${c.width}fr`).join(" ")}`,gap:8,borderTop:"1px solid #e5e7eb",alignItems:"start"}}>
+            <div style={{fontSize:Math.max(5.8,cfg.detailBodySize||7.1),lineHeight:1.25,color:"#111827"}}>{row===1?"Piezas Reel Instagram - Video Vertical":"Piezas Gráficas Mensuales - Foto Montajes"}</div>
+            <div style={{fontSize:Math.max(5.8,cfg.detailBodySize||7.1),lineHeight:1.25,color:"#111827"}}>{isBudget?(row===1?"Mensual":"Única vez"):(row===1?"Emitida":"Pagada")}</div>
+            <div style={{fontSize:Math.max(5.8,cfg.detailBodySize||7.1),textAlign:"right",color:"#111827"}}>{row===1?"3":"10"}</div>
+            <div style={{fontSize:Math.max(5.8,cfg.detailBodySize||7.1),textAlign:"right",color:"#111827"}}>{row===1?"$25.000":"$6.000"}</div>
+            <div style={{fontSize:Math.max(5.9,(cfg.detailBodySize||7.1)+.2),textAlign:"right",fontWeight:800,color:"#111827"}}>{row===1?"$75.000":"$60.000"}</div>
+          </div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {[summaryRows.slice(0,2),summaryRows.slice(2)].map((rows,idx)=><div key={idx} style={{border:"1px solid #d7deea",borderRadius:12,padding:10,background:"#fff",display:"grid",gap:8}}>
+            {rows.map(row=><div key={row.label} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",gap:10,alignItems:"center"}}>
+              <div style={{padding:"6px 10px",borderRadius:10,background:idx===0&&row.highlight?"#c1121f":cfg.accent||"#1f2f5f",fontSize:Math.max(5.8,cfg.summaryLabelSize||7.5),fontWeight:800,color:"#fff",textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{row.label}</div>
+              <div style={{fontSize:Math.max(7,cfg.summaryValueSize||10),fontWeight:900,color:row.highlight?"#c1121f":"#111827",textAlign:"right"}}>{row.value}</div>
+            </div>)}
+          </div>)}
+        </div>
+        <div style={{border:"1px solid #d7deea",borderRadius:12,padding:"10px 12px",background:"#fff"}}>
+          <div style={{fontSize:Math.max(6.4,cfg.sectionTitleSize||9.2),fontWeight:800,color:cfg.accent||"#1f2f5f",marginBottom:4}}>Datos de pago</div>
+          <div style={{fontSize:Math.max(6.1,cfg.sectionBodySize||8.8),lineHeight:1.35,color:"#111827"}}>
+            Titular: Play Media SpA<br/>Banco: Banco Scotiabank<br/>Cuenta corriente: 991604383
+          </div>
+        </div>
+      </div>
+    </div>;
+  };
   const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos"];
   const SUPER_TAB_META={
     "Empresas":{eyebrow:"Estructura",desc:"Administra tenants, planes, addons y configuración base de cada instancia."},
@@ -3353,6 +3432,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
                 </R2>
               </>}
             </div>
+            {renderPrintPreview(section.key,cfg)}
           </Card>;
         })}
       </div>

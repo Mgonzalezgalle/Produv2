@@ -5189,8 +5189,18 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const scopedOpps=(crmOpps||[]).filter(opp=>opp.empId===empId).map(opp=>crmNormalizeOpportunity(opp, scopedStages));
   const scopedActivities=crmNormalizeActivities((crmActivities||[]).filter(act=>act.empId===empId));
   const tenantUsers=(users||[]).filter(u=>u.empId===empId && u.active!==false);
+  const shiftIsoDate=(dateStr,days=0)=>{
+    if(!dateStr) return "";
+    const base=new Date(`${dateStr}T00:00:00`);
+    if(Number.isNaN(base.getTime())) return dateStr;
+    base.setDate(base.getDate()+days);
+    const y=base.getFullYear();
+    const m=String(base.getMonth()+1).padStart(2,"0");
+    const d=String(base.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  };
   const todayStr=today();
-  const weekAhead=addDays(todayStr,7);
+  const weekAhead=shiftIsoDate(todayStr,7);
   const matchNextActionFilter=opp=>{
     const dt=opp.nextActionDate || "";
     if(!nextActionFilter) return true;

@@ -1009,7 +1009,7 @@ function Modal({open,onClose,title,sub,children,wide,extraWide}){
   if(!open) return null;
   const mob = window.innerWidth <= 768;
   return <div className="modal-wrap" onClick={e=>{if(e.target===e.currentTarget&&!mob)onClose();}} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:mob?"flex-end":"center",justifyContent:"center",padding:mob?0:20}}>
-    <div className="modal-box" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:mob?"16px 16px 0 0":14,width:mob?"100%":extraWide?900:wide?700:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:mob?"20px 16px":28,animation:mob?"slideIn .25s ease":"modalIn .2s ease"}}>
+    <div className="modal-box" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:mob?"16px 16px 0 0":14,width:mob?"100%":extraWide?1120:wide?820:600,maxWidth:"100%",maxHeight:"92vh",overflowY:"auto",padding:mob?"20px 16px":28,animation:mob?"slideIn .25s ease":"modalIn .2s ease"}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
         <div><div style={{fontFamily:"var(--fh)",fontSize:mob?18:20,fontWeight:800,color:"var(--wh)"}}>{title}</div>{sub&&<div style={{fontSize:12,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",padding:4,borderRadius:4,fontSize:20,lineHeight:1}}>✕</button>
@@ -3311,7 +3311,7 @@ function AdminPanel({open,onClose,theme,onSaveTheme,empresa,user,users,empresas,
     saveUsers(uid2?(users||[]).map(u=>u.id===uid2?obj:u):[...(users||[]),obj]);
     setUf({});setUid2(null);ntf("Usuario guardado");
   };
-  return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} wide>
+  return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre||"Sistema"}`} extraWide>
     <div style={{padding:"18px 20px",border:"1px solid var(--bdr2)",borderRadius:20,background:"linear-gradient(180deg,var(--cg),transparent 68%)",marginBottom:16,boxShadow:"0 14px 40px rgba(0,0,0,.08)"}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap",marginBottom:14}}>
         <div>

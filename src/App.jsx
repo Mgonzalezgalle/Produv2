@@ -4906,6 +4906,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const [sortKey,setSortKey]=useState("updated");
   const [pg,setPg]=useState(1);
   const [selectedIds,setSelectedIds]=useState([]);
+  const [bulkResponsible,setBulkResponsible]=useState("");
   const [detailId,setDetailId]=useState("");
   const [stagesOpen,setStagesOpen]=useState(false);
   const [activityForm,setActivityForm]=useState({type:"note",text:""});
@@ -5032,6 +5033,38 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     return allSelected ? prev.filter(id=>!pageIds.includes(id)) : [...new Set([...prev,...pageIds])];
   });
   const exportTarget=selectedItems.length?selectedItems:sorted;
+  const clearSelection=()=>{
+    setSelectedIds([]);
+    setBulkResponsible("");
+  };
+  const bulkAssignResponsible=async()=>{
+    if(!selectedItems.length || !bulkResponsible) return;
+    const targetUser=tenantUsers.find(item=>item.id===bulkResponsible);
+    const nextOpps=(crmOpps||[]).map(opp=>
+      opp.empId===empId && selectedIds.includes(opp.id)
+        ? crmNormalizeOpportunity({...opp,responsable:bulkResponsible,updatedAt:today()}, scopedStages)
+        : opp
+    );
+    await setCrmOpps(nextOpps);
+    await setCrmActivities([
+      ...(crmActivities||[]),
+      ...selectedItems.map(opp=>crmActivityEntry(opp.id, `Responsable reasignado en lote a ${targetUser?.name || "nuevo responsable"}.`, "update", user, empId)),
+    ]);
+    ntf?.(`Responsable actualizado en ${selectedItems.length} oportunidad${selectedItems.length===1?"":"es"} ✓`);
+    clearSelection();
+  };
+  const bulkDeleteSelected=async()=>{
+    if(!selectedItems.length) return;
+    if(!confirm(`¿Eliminar ${selectedItems.length} oportunidad${selectedItems.length===1?"":"es"} seleccionada${selectedItems.length===1?"":"s"}?`)) return;
+    const selectedSet=new Set(selectedIds);
+    await setCrmOpps((crmOpps||[]).filter(opp=>!(opp.empId===empId && selectedSet.has(opp.id))));
+    await setCrmActivities((crmActivities||[]).filter(act=>!selectedSet.has(act.opportunityId)));
+    if(tasksEnabled){
+      await setTareas((Array.isArray(tareas)?tareas:[]).filter(task=>!(task?.empId===empId && task.refTipo==="crm" && selectedSet.has(task.refId))));
+    }
+    ntf?.(`Se eliminaron ${selectedItems.length} oportunidad${selectedItems.length===1?"":"es"} ✓`,"warn");
+    clearSelection();
+  };
   const saveStageConfig=async next=>{
     await setCrmStages(next.map(stage=>({...stage,empId})));
     ntf?.("Etapas CRM actualizadas ✓");
@@ -5074,6 +5107,19 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
       <GBtn onClick={()=>setStagesOpen(true)}>Etapas</GBtn>
       <GBtn onClick={()=>exportCrmCsv(exportTarget, scopedStages, tenantUsers)}>{selectedItems.length?`⬇ ${selectedItems.length} seleccionadas`:"⬇ CSV / Excel"}</GBtn>
     </div>
+    {!!selectedItems.length && tab===1 && <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center",padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedItems.length} seleccionada{selectedItems.length===1?"":"s"}</div>
+      <div style={{minWidth:220,flex:"0 1 280px"}}>
+        <FSl value={bulkResponsible||""} onChange={e=>setBulkResponsible(e.target.value)}>
+          <option value="">Asignar responsable…</option>
+          {tenantUsers.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}
+        </FSl>
+      </div>
+      <Btn onClick={bulkAssignResponsible} disabled={!bulkResponsible}>Reasignar responsable</Btn>
+      <GBtn onClick={()=>exportCrmCsv(selectedItems, scopedStages, tenantUsers)}>⬇ Exportar seleccionadas</GBtn>
+      <DBtn onClick={bulkDeleteSelected}>Eliminar seleccionadas</DBtn>
+      <GBtn onClick={clearSelection}>Limpiar selección</GBtn>
+    </div>}
     <Tabs tabs={["Pipeline","Lista"]} active={tab} onChange={idx=>{setTab(idx);setPg(1);}}/>
 
     {tab===0 ? (isMobile ? <>

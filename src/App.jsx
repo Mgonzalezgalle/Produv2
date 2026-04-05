@@ -6933,6 +6933,7 @@ function drawDocumentItemsTable(page, {
   y,
   width,
   items = [],
+  title = "Detalle de los servicios",
   accentColor,
   white,
   surface,
@@ -6943,12 +6944,19 @@ function drawDocumentItemsTable(page, {
   moneyFormatter,
 }) {
   const columns = {
-    detail: { label: "Detalle", x: x + 12, width: 286 },
-    recurrence: { label: "Recurrencia", x: x + 308, width: 74 },
-    qty: { label: "Cant.", x: x + 392, width: 34 },
-    unit: { label: "Valor Unit.", x: x + 436, width: 70 },
-    total: { label: "Total", x: x + 514, width: 48 },
+    detail: { label: "Detalle", x: x + 14, width: 312 },
+    recurrence: { label: "Recurrencia", x: x + 336, width: 70 },
+    qty: { label: "Cant.", x: x + 412, width: 28 },
+    unit: { label: "Valor Unit.", x: x + 446, width: 64 },
+    total: { label: "Total", x: x + 516, width: 58 },
   };
+  page.drawText(title, {
+    x: x,
+    y: y + 6,
+    size: 9.8,
+    font: bold,
+    color: accentColor,
+  });
   drawRoundedPdfBox(page, x, y - 30, width, 30, accentColor, accentColor, 1);
   page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: 8.8, font: bold, color: white });
   page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: 8.8, font: bold, color: white });
@@ -6958,17 +6966,17 @@ function drawDocumentItemsTable(page, {
 
   let cursorY = y - 42;
   items.forEach((item, idx) => {
-    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 8.1);
-    const rowHeight = Math.max(24, detailLines.length * 10 + 12);
+    const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, 8);
+    const rowHeight = Math.max(26, detailLines.length * 10 + 14);
     const rowY = cursorY - rowHeight + 6;
     drawRoundedPdfBox(page, x, rowY, width, rowHeight, idx % 2 === 0 ? white : surface, border, 0.95);
 
-    let lineY = cursorY - 8;
+    let lineY = rowY + rowHeight - 12;
     detailLines.forEach(line => {
       page.drawText(line || " ", {
         x: columns.detail.x,
         y: lineY,
-        size: 8.1,
+        size: 8,
         font,
         color: textColor,
         maxWidth: columns.detail.width,
@@ -6976,18 +6984,18 @@ function drawDocumentItemsTable(page, {
       lineY -= 10;
     });
 
-    const valueY = cursorY - 11;
+    const valueY = rowY + Math.max(7, (rowHeight - 8.2) / 2);
     page.drawText(item.recurrence === "monthly" ? "Mensual" : "Única vez", {
       x: columns.recurrence.x,
       y: valueY,
-      size: 8.1,
+      size: 8,
       font,
       color: textColor,
       maxWidth: columns.recurrence.width,
     });
-    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 8.1, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 8.1, textColor);
-    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 8.3, textColor);
+    drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, 8, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(item.precio || 0), columns.unit.x, valueY, columns.unit.width, font, 8, textColor);
+    drawRightAlignedPdfText(page, moneyFormatter(Number(item.qty || 0) * Number(item.precio || 0)), columns.total.x, valueY, columns.total.width, bold, 8.2, textColor);
     cursorY -= rowHeight + 4;
   });
 

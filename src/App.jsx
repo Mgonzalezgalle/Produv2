@@ -5076,6 +5076,28 @@ export default function App(){
     closeM();ntf("Registrado ✓");await setMovimientos(next);
   };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
+  const saveCrewSafe=async member=>{
+    const empId=member?.empId || curEmp?.id;
+    if(!empId) return;
+    const currentCrew=Array.isArray(crew)?crew:[];
+    const liveCrew=await dbGet(`produ:${empId}:crew`);
+    const baseCrew=Array.isArray(liveCrew)?liveCrew:currentCrew;
+    const normalizedMember={
+      ...member,
+      id:member?.id || uid(),
+      empId,
+      tipo:member?.tipo || "externo",
+      active:member?.active !== false,
+      managedByUser:member?.managedByUser === true,
+      cr:member?.cr || today(),
+    };
+    const next=baseCrew.some(item=>item?.id===normalizedMember.id)
+      ? baseCrew.map(item=>item?.id===normalizedMember.id?{...item,...normalizedMember}:item)
+      : [...baseCrew,normalizedMember];
+    closeM();
+    ntf("Guardado ✓");
+    await setCrew(next);
+  };
   const saveFacturaDoc=async fact=>{
     const currentFacts=Array.isArray(facturas)?facturas:[];
     const isNew = !fact.id;
@@ -5730,7 +5752,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
     }}/>
     <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={saveContratoSafe}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
-    <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
+    <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>saveCrewSafe(withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
     <MPres   open={mOpen==="pres"}   data={mData} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>cSave(VP.presupuestos,setPresupuestos,withEmp(d))} empresa={empresa} currentUser={VP.user}/>
     <MFact   open={mOpen==="fact"}   data={mData} empresa={empresa} clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} contratos={VP.contratos} listas={VP.listas} onClose={closeM} onSave={d=>saveFacturaDoc(withEmp(d))}/>
@@ -7112,7 +7134,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
   const empId=empresa?.id;
   const [q,setQ]=useState("");const [fa,setFa]=useState("");const [sortMode,setSortMode]=useState("az");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
-  const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa)).sort((a,b)=>{
+  const fd=(crew||[]).filter(x=>x.empId===empId || (!x.empId && x?.managedByUser!==true)).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa)).sort((a,b)=>{
     if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
     if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
     if(sortMode==="recent") return String(b.cr||"").localeCompare(String(a.cr||""));

@@ -889,6 +889,25 @@ function normalizeCrmStages(stages=[]){
     .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
   return arr.map((s,idx)=>({...s,order:idx+1}));
 }
+function recoverPreferredCrmStages(stages=[], empId=""){
+  const list = Array.isArray(stages) ? [...stages] : [];
+  if(!list.length) return list;
+  const hasPorContactar = list.some(s => String(s?.name||"").trim().toLowerCase()==="por contactar");
+  if(hasPorContactar) return list;
+  const insertAt = Math.min(1, list.length);
+  const recovered = {
+    id: uid(),
+    empId: empId || list[0]?.empId || "",
+    name: "Por contactar",
+    order: insertAt + 1,
+    convertToClient: false,
+    closedWon: false,
+    closedLost: false,
+  };
+  const next = [...list];
+  next.splice(insertAt, 0, recovered);
+  return next.map((stage, idx) => ({ ...stage, order: idx + 1 }));
+}
 function crmDefaultStageId(stages=[]){
   return normalizeCrmStages(stages)[0]?.id || CRM_STAGE_SEED[0].id;
 }
@@ -4343,7 +4362,8 @@ export default function App(){
       setCrmStages(normalizeCrmStages(CRM_STAGE_SEED.map(stage=>({...stage,empId:curEmp.id}))));
       return;
     }
-    const normalized = normalizeCrmStages(crmStages);
+    const recovered = recoverPreferredCrmStages(crmStages, curEmp.id);
+    const normalized = normalizeCrmStages(recovered);
     if(JSON.stringify(normalized)!==JSON.stringify(crmStages||[])) setCrmStages(normalized);
   },[curEmp?.id,ldCrmStages,crmStages,setCrmStages]);
 

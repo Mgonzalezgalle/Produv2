@@ -7949,6 +7949,7 @@ function MPres({open,data,clientes,producciones,programas,piezas,contratos,lista
       <FG label="Método de Pago"><FI value={f.metodoPago||""} onChange={e=>u("metodoPago",e.target.value)} placeholder="Transferencia, cuotas..."/></FG>
       <FG label="Fecha de Pago"><FI type="date" value={f.fechaPago||""} onChange={e=>u("fechaPago",e.target.value)}/></FG>
     </R2>
+    <FG label="Notas de pago"><FTA value={f.notasPago||""} onChange={e=>u("notasPago",e.target.value)} placeholder="Instrucciones de pago, condiciones comerciales o aclaraciones para el cliente..."/></FG>
     <FG label="Observaciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Condiciones, notas adicionales..."/></FG>
     {canInvoices && <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
       <div>
@@ -8568,7 +8569,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     docNumber: pres.correlativo || "",
   });
   const stampX = width - margin - (layout.stampWidth || 158);
-  page.drawText(`Fecha: ${fmtD(today())}`, { x:stampX, y:height-146, size:layout.metaSize || 9, font, color:textColor });
+  page.drawText(`Fecha: ${fmtD(pres.cr || today())}`, { x:stampX, y:height-146, size:layout.metaSize || 9, font, color:textColor });
   page.drawText(`Validez: ${pres.validez || 30} días`, { x:stampX, y:height-160, size:layout.metaSize || 9, font, color:textColor });
   page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x:stampX, y:height-174, size:layout.metaSize || 9, font, color:textColor });
 
@@ -8652,8 +8653,9 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     y: paymentCardY,
     width: cardWidth,
     rows: [
-      { label: "Condición de pago", value: pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", bold: true, valueSize: 9.8, labelSize: 7.9 },
-      { label: "Validez", value: `${pres.validez || 30} días`, bold: true, valueSize: 9.8, labelSize: 8.1 },
+      { label: "Método de pago", value: pres.metodoPago || "Por definir", bold: true, valueSize: 9.4, labelSize: 7.8 },
+      { label: "Fecha de pago", value: pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", bold: true, valueSize: 9.4, labelSize: 7.8 },
+      { label: "Validez", value: `${pres.validez || 30} días`, bold: true, valueSize: 9.6, labelSize: 8.1 },
     ],
     labelWidth: 136,
     accentColor: legalRed,
@@ -8709,13 +8711,14 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     });
     sectionY -= paymentHeight + 14;
   }
-  if (pres.obs) {
+  const budgetNotes = [pres.notasPago || "", pres.obs || ""].filter(Boolean).join("\n\n");
+  if (budgetNotes) {
     drawDocumentSectionBox(page, {
       x: margin,
-      y: sectionY - Math.max(82, measurePdfTextBlock(pres.obs, contentWidth - 28, font, 8.6, 2.2) + 34),
+      y: sectionY - Math.max(82, measurePdfTextBlock(budgetNotes, contentWidth - 28, font, 8.6, 2.2) + 34),
       width: contentWidth,
       title: "Observaciones",
-      text: pres.obs,
+      text: budgetNotes,
       fillColor: white,
       borderColor: border,
       accentColor: accentColor,
@@ -8869,6 +8872,8 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     ["Estado", fact.estado || "Emitida"],
     ["Referencia", ref ? `${ref.nom || "—"}` : "Sin referencia directa"],
     ["Cobranza", cobranzaState(fact)],
+    ["Presupuesto", fact.presupuestoId || "—"],
+    ["Contrato", fact.contratoId || "—"],
   ];
   let detailY = y - 42;
   detailRows.forEach(([label, value]) => {
@@ -8942,7 +8947,7 @@ async function buildFactPdfFile(fact, entidad, ref, empresa) {
     });
     sectionY -= paymentHeight + 14;
   }
-  const trailingNotes = [fact.obs2 || "", docType === "Invoice" ? "Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." : ""].filter(Boolean).join("\n\n");
+  const trailingNotes = [fact.obs || "", fact.obs2 || "", docType === "Invoice" ? "Este documento es un comprobante no tributario para servicios y mantiene el registro interno del movimiento en Produ." : ""].filter(Boolean).join("\n\n");
   if (trailingNotes) {
     drawDocumentSectionBox(page, {
       x: margin,
@@ -9138,10 +9143,10 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["IVA",p.iva?"19% incluido":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Facturación posterior",p.autoFactura?"Lista para facturar":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
-        {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"],["Notas de pago",p.notasPago||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
         {companyPaymentInfoText(empresa,{intro:false,dueDate:p.fechaPago||""})&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false,dueDate:p.fechaPago||""})}</div></>}
       </Card>
     </div>
@@ -9157,7 +9162,10 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtMoney(p.total||0,p.moneda||"CLP")}</span></div>
       </div>
     </Card>
-    {p.obs&&<Card title="Observaciones"><p style={{fontSize:12,color:"var(--gr3)"}}>{p.obs}</p></Card>}
+    {(p.notasPago||p.obs)&&<Card title="Observaciones">
+      {p.notasPago&&<div style={{marginBottom:p.obs?12:0}}><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Notas de pago</div><p style={{fontSize:12,color:"var(--gr3)",margin:0}}>{p.notasPago}</p></div>}
+      {p.obs&&<div><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Observaciones comerciales</div><p style={{fontSize:12,color:"var(--gr3)",margin:0}}>{p.obs}</p></div>}
+    </Card>}
     {/* Modal convertir */}
     <Modal open={convOpen} onClose={()=>setConvOpen(false)} title="Convertir presupuesto" sub="Crea el registro operativo correspondiente.">
       <FG label="Tipo de registro"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nuevo Proyecto</option>{canPrograms&&<option value="programa">📺 Nueva Producción</option>}</FSl></FG>
@@ -9282,7 +9290,8 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={e=>u("fechaEmision",e.target.value)}/></FG>
       <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={e=>u("fechaVencimiento",e.target.value)}/></FG>
     </R2>
-    <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones..."/></FG>
+    <FG label="Observación comercial"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Glosa comercial visible para el documento o contexto del cobro..."/></FG>
+    <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones o aclaraciones extra..."/></FG>
     <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,tipoDoc:f.recurring?"Invoice":f.tipoDoc,cobranzaEstado:f.cobranzaEstado||"Pendiente de pago",fechaPago:cobranzaState(f)==="Pagado"?(f.fechaPago||today()):"",ivaVal:ivaV,total,projectedTotal});}}/>
   </Modal>;
 }

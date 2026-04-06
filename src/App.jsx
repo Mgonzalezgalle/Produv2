@@ -3280,7 +3280,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
       </div>
     </div>;
   };
-  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos","Soporte"];
+  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos"];
   const SUPER_TAB_META={
     "Empresas":{eyebrow:"Estructura",desc:"Administra tenants, planes, addons y configuración base de cada instancia."},
     "Cartera":{eyebrow:"Control comercial",desc:"Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants."},
@@ -3289,7 +3289,6 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
     "Comunicaciones":{eyebrow:"Mensajería",desc:"Envía mensajes sistémicos y banners visibles para cada empresa usuaria."},
     "Solicitudes":{eyebrow:"Pipeline",desc:"Aprueba accesos, demos y referidos desde una sola bandeja de control."},
     "Impresos":{eyebrow:"Diseño documental",desc:"Ajusta tamaños, pesos visuales y estructura base de los PDFs de Presupuestos y Facturación desde una consola central."},
-    "Soporte":{eyebrow:"Widget de soporte",desc:"Activa o desactiva el chat por tenant, responde conversaciones y automatiza mensajes de bienvenida."},
   };
   const activeSuperTab=SUPER_TABS[tab];
   const saveEmp=()=>{
@@ -3438,8 +3437,12 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
             </div>
           </div>
           <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
+          <Badge label={emp.supportChatEnabled!==false?"Soporte ON":"Soporte OFF"} color={emp.supportChatEnabled!==false?"cyan":"gray"} sm/>
           <Badge label={emp.plan} color="gray" sm/>
           <GBtn sm onClick={()=>{setEid(emp.id);setEf({...emp});}}>✏</GBtn>
+          <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,supportChatEnabled:e.supportChatEnabled===false?true:false}:e))}>
+            {emp.supportChatEnabled===false?"Activar soporte":"Desactivar soporte"}
+          </GBtn>
           <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,active:!e.active}:e))}>{emp.active?"Desactivar":"Activar"}</GBtn>
         </div>)}
         {!filteredEmp.length&&<Empty text="Sin empresas para este filtro"/>}
@@ -3454,6 +3457,10 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
         <R2><FG label="Teléfono"><FI value={ef.tel||""} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG><FG label="Dirección"><FI value={ef.dir||""} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG></R2>
         <FG label="Addons activados"><MultiSelect options={Object.entries(ADDONS).map(([v,a])=>({value:v,label:a.icon+" "+a.label}))} value={ef.addons||[]} onChange={v=>setEf(p=>({...p,addons:v}))} placeholder="Seleccionar addons..."/></FG>
         <R2><FG label="Color acento"><FI type="color" value={ef.color||"#00d4e8"} onChange={e=>setEf(p=>({...p,color:e.target.value}))}/></FG><FG label="Estado"><FSl value={ef.active===false?"false":"true"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
+        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",marginBottom:12}}>
+          <input type="checkbox" checked={ef.supportChatEnabled!==false} onChange={e=>setEf(p=>({...p,supportChatEnabled:e.target.checked}))}/>
+          Habilitar soporte interno para esta empresa
+        </label>
         <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>La creación de empresa genera la instancia principal. Luego los datos operativos se poblarán al primer acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveEmp}>{eid?"Actualizar":"Crear Empresa"}</Btn>{eid&&<GBtn onClick={()=>{setEid(null);setEf({});}}>Cancelar</GBtn>}</div>
       </div>
@@ -3853,106 +3860,6 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
           </div>
         </>;
       })()}
-    </div>}
-    {tab===7&&<div>
-      <div style={{marginBottom:14,padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:12,color:"var(--gr2)",lineHeight:1.6}}>
-        El widget de soporte funciona dentro de Produ. Desde aquí activas o desactivas el canal por tenant, defines quién atiende las conversaciones y configuras automatizaciones visibles para las empresas usuarias.
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:16,alignItems:"start"}}>
-        <Card title="Control del widget" sub="Activa el soporte por empresa y define automatizaciones globales.">
-          <div style={{display:"grid",gap:12}}>
-            <FG label="Empresa">
-              <FSl value={supportEmpId || selectedSupportEmp?.id || ""} onChange={e=>setSupportEmpId(e.target.value)}>
-                {(empresas||[]).map(emp=><option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
-              </FSl>
-            </FG>
-            {selectedSupportEmp && <div style={{padding:12,borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:800}}>{selectedSupportEmp.nombre}</div>
-                  <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>Tenant ID: {selectedSupportEmp.tenantCode||"—"}</div>
-                </div>
-                <Badge label={selectedSupportEmp.supportChatEnabled!==false?"Soporte activo":"Soporte apagado"} color={selectedSupportEmp.supportChatEnabled!==false?"green":"red"} sm/>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Btn sm onClick={()=>toggleSupportForEmp(true)}>Activar widget</Btn>
-                <GBtn sm onClick={()=>toggleSupportForEmp(false)}>Desactivar</GBtn>
-              </div>
-            </div>}
-            <FG label="Equipo visible en el widget">
-              <MultiSelect options={(users||[]).filter(u=>["admin","superadmin"].includes(u.role) && u.active!==false).map(u=>({value:u.id,label:`${u.name} · ${u.role}`}))} value={supportForm.teamIds||[]} onChange={v=>setSupportForm(prev=>({...prev,teamIds:v}))} placeholder="Seleccionar administradores..."/>
-            </FG>
-            <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
-              <input type="checkbox" checked={supportForm.autoAckEnabled!==false} onChange={e=>setSupportForm(prev=>({...prev,autoAckEnabled:e.target.checked}))}/>
-              Activar respuesta automática
-            </label>
-            <FG label="Mensaje de bienvenida"><FTA value={supportForm.welcomeMessage||""} onChange={e=>setSupportForm(prev=>({...prev,welcomeMessage:e.target.value}))} placeholder="Hola, somos el equipo de soporte de Produ..."/></FG>
-            <FG label="Respuesta automática"><FTA value={supportForm.autoAckMessage||""} onChange={e=>setSupportForm(prev=>({...prev,autoAckMessage:e.target.value}))} placeholder="Recibimos tu mensaje correctamente..."/></FG>
-            <R2>
-              <FG label="Etiqueta enlace ayuda"><FI value={supportForm.helpLinkLabel||""} onChange={e=>setSupportForm(prev=>({...prev,helpLinkLabel:e.target.value}))} placeholder="Ayúdanos a mejorar el producto"/></FG>
-              <FG label="URL ayuda"><FI value={supportForm.helpLinkUrl||""} onChange={e=>setSupportForm(prev=>({...prev,helpLinkUrl:e.target.value}))} placeholder="https://..."/></FG>
-            </R2>
-            <Btn onClick={persistSupportSettings}>Guardar automatizaciones</Btn>
-          </div>
-        </Card>
-        <div style={{display:"grid",gridTemplateColumns:"320px 1fr",gap:16,alignItems:"start"}}>
-          <Card title="Conversaciones" sub={`${supportThreadsForEmp.length} hilo${supportThreadsForEmp.length===1?"":"s"} de soporte`}>
-            <div style={{display:"grid",gap:8,maxHeight:720,overflowY:"auto"}}>
-              {supportThreadsForEmp.map(thread=>{
-                const emp=(empresas||[]).find(item=>item.id===thread.empId);
-                const active=selectedSupportThread?.id===thread.id;
-                return <button key={thread.id} onClick={()=>setSupportThreadId(thread.id)} style={{textAlign:"left",padding:"12px 12px",borderRadius:14,border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,background:active?"var(--cg)":"var(--sur)",cursor:"pointer"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",marginBottom:6}}>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:800,color:active?"var(--cy)":"var(--wh)"}}>{emp?.nombre || "Tenant"}</div>
-                      <div style={{fontSize:10,color:"var(--gr2)",marginTop:3}}>{thread.status==="closed"?"Cerrado":"Abierto"} · {fmtDT(thread.lastMessageAt)}</div>
-                    </div>
-                    <Badge label={`${thread.messages?.length||0}`} color="gray" sm/>
-                  </div>
-                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.45}}>{supportThreadPreviewText(thread)}</div>
-                </button>;
-              })}
-              {!supportThreadsForEmp.length&&<Empty text="Todavía no hay conversaciones de soporte" sub="Cuando una empresa escriba desde el widget, aparecerá aquí."/>}
-            </div>
-          </Card>
-          {selectedSupportThread ? <Card title={(empresas||[]).find(item=>item.id===selectedSupportThread.empId)?.nombre || "Conversación"} sub={`Última actualización ${fmtDT(selectedSupportThread.lastMessageAt)}`}>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-              <Badge label={selectedSupportThread.status==="closed"?"Cerrado":"Abierto"} color={selectedSupportThread.status==="closed"?"red":"green"} sm/>
-              <GBtn sm onClick={()=>updateSupportThreadStatus("open")}>Marcar abierto</GBtn>
-              <GBtn sm onClick={()=>updateSupportThreadStatus("closed")}>Cerrar hilo</GBtn>
-            </div>
-            <FG label="Quién atiende esta conversación">
-              <MultiSelect options={(users||[]).filter(u=>["admin","superadmin"].includes(u.role) && u.active!==false).map(u=>({value:u.id,label:`${u.name} · ${u.role}`}))} value={selectedSupportThread.assignedAdminIds||[]} onChange={assignSupportAdmins} placeholder="Asignar administradores..."/>
-            </FG>
-            <div style={{display:"grid",gap:8,maxHeight:360,overflowY:"auto",marginBottom:14}}>
-              {(selectedSupportThread.messages||[]).map(msg=><div key={msg.id} style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:msg.authorType==="tenant"?"var(--sur)":"var(--card2)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:6}}>
-                  <div style={{fontSize:11,fontWeight:800,color:msg.authorType==="tenant"?"var(--cy)":"var(--wh)"}}>{msg.authorName}</div>
-                  <div style={{fontSize:10,color:"var(--gr2)"}}>{fmtDT(msg.createdAt)}</div>
-                </div>
-                <div style={{fontSize:12,color:"var(--gr3)",lineHeight:1.6,whiteSpace:"pre-line"}}>{msg.text || "Adjunto"}</div>
-                {!!msg.attachments?.length&&<div style={{display:"grid",gap:6,marginTop:8}}>
-                  {msg.attachments.map(att=><button key={att.id} onClick={()=>window.open(att.src,"_blank")} style={{textAlign:"left",padding:"8px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",cursor:"pointer",fontSize:11,color:"var(--gr3)"}}>{att.type==="pdf"?"PDF":"Archivo"} · {att.name}</button>)}
-                </div>}
-              </div>)}
-            </div>
-            <FG label="Responder"><FTA value={supportReply} onChange={e=>setSupportReply(e.target.value)} placeholder="Escribe una respuesta clara y útil para la empresa..." style={{minHeight:120}}/></FG>
-            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-              <label style={{padding:"8px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:12,color:"var(--gr3)",cursor:"pointer"}}>
-                Adjuntar archivo
-                <input type="file" accept="image/*,application/pdf" multiple style={{display:"none"}} onChange={async e=>{ await loadSupportFiles(e.target.files); e.target.value=""; }}/>
-              </label>
-              <Btn onClick={sendSupportReply}>Enviar respuesta</Btn>
-            </div>
-            {!!supportAttachments.length&&<div style={{display:"grid",gap:6,marginTop:10}}>
-              {supportAttachments.map(att=><div key={att.id} style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",padding:"8px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:11,color:"var(--gr3)"}}>
-                <span>{att.name}</span>
-                <span onClick={()=>setSupportAttachments(prev=>prev.filter(item=>item.id!==att.id))} style={{cursor:"pointer",fontWeight:800}}>×</span>
-              </div>)}
-            </div>}
-          </Card> : <Empty text="Selecciona una conversación para responder" sub="Aquí podrás ver el historial, adjuntar archivos y asignar responsables."/>}
-        </div>
-      </div>
     </div>}
   </div>;
 }

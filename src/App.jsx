@@ -654,12 +654,14 @@ function normalizeEmpresasTenantCodes(empresas = []) {
 
 function normalizeEmpresasAddons(empresas = []) {
   return (Array.isArray(empresas) ? empresas : []).map(emp => {
-    if (emp?.migratedTasksAddon) return emp;
     const addons = Array.isArray(emp?.addons) ? emp.addons : [];
+    const withTasks = addons.includes("tareas") ? addons : [...addons, "tareas"];
+    const withCrm = withTasks.includes("crm") ? withTasks : [...withTasks, "crm"];
     return {
       ...emp,
-      addons: addons.includes("tareas") ? addons : [...addons, "tareas"],
+      addons: withCrm,
       migratedTasksAddon: true,
+      migratedCrmAddon: true,
     };
   });
 }
@@ -2400,7 +2402,20 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
   </>;
 }
 
-function FreshdeskWidget() {
+function FreshdeskWidget({ empresa, user }) {
+  useEffect(() => {
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      try {
+        if (!window.fcWidget) return;
+        if (empresa?.freshdeskEnabled === true && user?.role !== "superadmin") window.fcWidget.show?.();
+        else window.fcWidget.hide?.();
+      } catch {}
+      if (tries > 20) window.clearInterval(timer);
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [empresa?.freshdeskEnabled, user?.role]);
   return null;
 }
 
@@ -4878,6 +4893,21 @@ export default function App(){
   },[empresas]);
 
   useEffect(()=>{
+    if(!Array.isArray(empresas) || !empresas.length) return;
+    try{
+      const flag = localStorage.getItem("produ_crm_default_on_v1");
+      if(flag) return;
+      const next = normalizeEmpresasModel((empresas||[]).map(emp=>{
+        const addons = Array.isArray(emp?.addons) ? emp.addons : [];
+        return addons.includes("crm") ? emp : { ...emp, addons:[...addons,"crm"], migratedCrmAddon:true };
+      }));
+      setEmpresasRaw(next);
+      dbSet("produ:empresas",next);
+      localStorage.setItem("produ_crm_default_on_v1","1");
+    }catch{}
+  },[empresas]);
+
+  useEffect(()=>{
     if(!printLayouts) return;
     const normalized = normalizePrintLayouts(printLayouts);
     if(JSON.stringify(normalized)!==JSON.stringify(printLayouts)){
@@ -5306,7 +5336,7 @@ export default function App(){
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
     {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
-    {curUser?.role!=="superadmin" && currentEmpresa?.freshdeskEnabled===true && <FreshdeskWidget empresa={currentEmpresa} user={curUser}/>}
+    {curUser?.role!=="superadmin" && currentEmpresa && <FreshdeskWidget empresa={currentEmpresa} user={curUser}/>}
     {curUser?.role!=="superadmin" && currentEmpresa?.freshdeskEnabled!==true && currentEmpresa?.supportChatEnabled!==false && <SupportChatWidget empresa={currentEmpresa} user={curUser} users={users||[]} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} onSaveThreads={saveSupportThreads}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}

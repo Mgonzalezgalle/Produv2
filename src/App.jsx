@@ -10,6 +10,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 const SB_URL = "https://zpgxbmlzoxxgymsschrd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZ3hibWx6b3h4Z3ltc3NjaHJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTkxODksImV4cCI6MjA5MDM5NTE4OX0.HWIkm-Vm255FFrj07pf3JIYE5MNuZ8tukiLYUDCuZK8";
 const sb = createClient(SB_URL, SB_KEY);
+const FRESHDESK_WIDGET_SRC = "https://fw-cdn.com/16062405/7053033.js";
 
 async function dbGet(key) {
   try {
@@ -25,6 +26,7 @@ async function dbSet(key, val) {
 // ── UTILS ────────────────────────────────────────────────────
 const uid   = () => "_" + Math.random().toString(36).slice(2,10);
 const today = () => new Date().toISOString().split("T")[0];
+const nowIso = () => new Date().toISOString();
 const addMonths = (dateStr = today(), months = 0) => {
   const [year, month, day] = String(dateStr || today()).split("-").map(Number);
   const base = new Date(year || new Date().getFullYear(), (month || 1) - 1, day || 1);
@@ -42,6 +44,7 @@ const fmtMoney = (n, currency="CLP") => {
   return fmtM(value);
 };
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
+const fmtDT = d => { try { return new Date(d || nowIso()).toLocaleString("es-CL",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); } catch { return d||"—"; } };
 const fmtMonthPeriod = d => {
   try { return new Date(`${d || today()}T12:00:00`).toLocaleDateString("es-CL",{month:"long",year:"numeric"}); }
   catch { return d || "—"; }
@@ -248,6 +251,100 @@ function normalizeCommentAttachments(item = {}) {
     }))
     .filter(att => att.src);
   return [...normalizedBase, ...normalizedLegacy].slice(0, 6);
+}
+
+async function supportAttachmentFromFile(file) {
+  return commentAttachmentFromFile(file);
+}
+
+function supportThreadPreviewText(thread = {}) {
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  return messages[messages.length - 1]?.text || "Todavía no hay mensajes en esta conversación.";
+}
+
+function buildSupportSettings(settings = {}, users = []) {
+  const adminUsers = (Array.isArray(users) ? users : []).filter(u => ["admin","superadmin"].includes(u?.role) && u.active !== false);
+  const fallbackTeamIds = adminUsers.slice(0, 3).map(u => u.id);
+  return {
+    enabledByDefault: settings?.enabledByDefault !== false,
+    teamIds: Array.isArray(settings?.teamIds) && settings.teamIds.length ? settings.teamIds : fallbackTeamIds,
+    welcomeMessage: settings?.welcomeMessage || "Hola, somos el equipo de soporte de Produ. Cuéntanos en qué te podemos ayudar y te responderemos a la brevedad.",
+    autoAckEnabled: settings?.autoAckEnabled !== false,
+    autoAckMessage: settings?.autoAckMessage || "Recibimos tu mensaje correctamente. Un administrador revisará esta conversación muy pronto.",
+    helpLinkLabel: settings?.helpLinkLabel || "Ayúdanos a mejorar el producto",
+    helpLinkUrl: settings?.helpLinkUrl || "",
+    helpSearchPlaceholder: settings?.helpSearchPlaceholder || "Buscar ayuda",
+  };
+}
+
+function normalizeSupportThreads(threads = [], empresas = [], users = [], settings = {}) {
+  const normalizedSettings = buildSupportSettings(settings, users);
+  const empMap = Object.fromEntries((empresas || []).map(emp => [emp.id, emp]));
+  const userMap = Object.fromEntries((users || []).map(user => [user.id, user]));
+  return (Array.isArray(threads) ? threads : [])
+    .filter(Boolean)
+    .map((thread, idx) => {
+      const messages = (Array.isArray(thread.messages) ? thread.messages : [])
+        .filter(Boolean)
+        .map(msg => ({
+          id: msg.id || uid(),
+          authorType: msg.authorType || "tenant",
+          authorId: msg.authorId || "",
+          authorName: msg.authorName || (msg.authorId ? userMap[msg.authorId]?.name : "") || "Usuario",
+          text: String(msg.text || ""),
+          attachments: normalizeCommentAttachments({ attachments: msg.attachments || [] }),
+          automated: msg.automated === true,
+          createdAt: msg.createdAt || nowIso(),
+        }));
+      const assignedAdminIds = (Array.isArray(thread.assignedAdminIds) ? thread.assignedAdminIds : normalizedSettings.teamIds)
+        .filter(id => userMap[id])
+        .slice(0, 4);
+      const updatedAt = thread.updatedAt || messages[messages.length - 1]?.createdAt || thread.createdAt || nowIso();
+      return {
+        id: thread.id || uid(),
+        empId: thread.empId || "",
+        status: thread.status || "open",
+        createdAt: thread.createdAt || updatedAt,
+        updatedAt,
+        lastMessageAt: updatedAt,
+        createdBy: thread.createdBy || "",
+        assignedAdminIds,
+        title: thread.title || `Soporte ${empMap[thread.empId]?.nombre || idx + 1}`,
+        messages,
+      };
+    })
+    .sort((a, b) => String(b.lastMessageAt || "").localeCompare(String(a.lastMessageAt || "")));
+}
+
+function ensureSupportThread(threads = [], empId = "", empresa = null, users = [], settings = {}) {
+  const normalized = normalizeSupportThreads(threads, empresa ? [empresa] : [], users, settings);
+  const existing = normalized.find(thread => thread.empId === empId);
+  if (existing) return { threads: normalized, thread: existing, created: false };
+  const supportSettings = buildSupportSettings(settings, users);
+  const ts = nowIso();
+  const welcome = {
+    id: uid(),
+    authorType: "system",
+    authorId: "",
+    authorName: "Soporte Produ",
+    text: supportSettings.welcomeMessage,
+    attachments: [],
+    automated: true,
+    createdAt: ts,
+  };
+  const nextThread = {
+    id: uid(),
+    empId,
+    status: "open",
+    createdAt: ts,
+    updatedAt: ts,
+    lastMessageAt: ts,
+    createdBy: "",
+    assignedAdminIds: supportSettings.teamIds,
+    title: `Soporte ${empresa?.nombre || "Tenant"}`,
+    messages: [welcome],
+  };
+  return { threads: [nextThread, ...normalized], thread: nextThread, created: true };
 }
 
 function sessionPayload(user, emp) {
@@ -493,6 +590,7 @@ function normalizeEmpresasAddons(empresas = []) {
 function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
+    supportChatEnabled: emp?.supportChatEnabled !== false,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
     referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),
@@ -2047,6 +2145,70 @@ function SystemMessagesPanel({ empresa, mensajes=[], leidas=[], onMarcar, onMarc
   </div>;
 }
 
+function SupportChatWidget({ empresa, user, users = [], supportThreads = [], supportSettings = {}, onSaveThreads }) {
+  const supportEnabled = empresa?.supportChatEnabled !== false;
+  useEffect(() => {
+    if (!supportEnabled || !empresa?.id || !user || user?.role === "superadmin") {
+      try { window.fcWidget?.hide?.(); } catch {}
+      return;
+    }
+
+    let cancelled = false;
+    let poller = null;
+
+    const applyIdentity = () => {
+      if (cancelled || !window.fcWidget?.user) return false;
+      const externalId = `${empresa.tenantCode || empresa.id}:${user.id || normalizeEmailValue(user.email || user.name || "tenant")}`;
+      try {
+        window.fcWidget.setExternalId(externalId);
+        window.fcWidget.user.setFirstName(user.name || empresa.nombre || "Usuario");
+        if (user.email) window.fcWidget.user.setEmail(normalizeEmailValue(user.email));
+        window.fcWidget.user.setProperties({
+          cf_plan: String(empresa.plan || "starter").toUpperCase(),
+          cf_status: empresa.active !== false ? "Active" : "Inactive",
+          cf_tenant_code: empresa.tenantCode || "",
+          cf_tenant_name: empresa.nombre || "",
+          cf_tenant_id: empresa.id || "",
+          cf_role: user.role || "",
+        });
+        window.fcWidget.show?.();
+      } catch {}
+      return true;
+    };
+
+    const mountScript = () => {
+      const existing = document.querySelector(`script[src="${FRESHDESK_WIDGET_SRC}"]`);
+      if (!existing) {
+        const script = document.createElement("script");
+        script.src = FRESHDESK_WIDGET_SRC;
+        script.async = true;
+        script.setAttribute("chat", "true");
+        document.body.appendChild(script);
+      }
+      poller = window.setInterval(() => {
+        if (applyIdentity() && poller) {
+          window.clearInterval(poller);
+          poller = null;
+        }
+      }, 500);
+      window.setTimeout(() => {
+        if (poller) {
+          window.clearInterval(poller);
+          poller = null;
+        }
+      }, 12000);
+    };
+
+    mountScript();
+    return () => {
+      cancelled = true;
+      if (poller) window.clearInterval(poller);
+    };
+  }, [supportEnabled, empresa?.id, empresa?.tenantCode, empresa?.nombre, empresa?.plan, empresa?.active, user?.id, user?.email, user?.name, user?.role]);
+
+  return null;
+}
+
 
 // ── TAREAS — Pipeline Kanban ──────────────────────────────────
 const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
@@ -2795,7 +2957,7 @@ const THEME_PRESETS={
   },
 };
 
-function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
+function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,supportThreads=[],supportSettings={}}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
   const [sysUf,setSysUf]=useState({active:true,role:"admin",empId:"",password:""});
@@ -2816,6 +2978,11 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   const [uEmp,setUEmp]=useState("");
   const [printForm,setPrintForm]=useState(()=>normalizePrintLayouts(printLayouts));
   const [activePrintDoc,setActivePrintDoc]=useState("budget");
+  const [supportEmpId,setSupportEmpId]=useState("");
+  const [supportThreadId,setSupportThreadId]=useState("");
+  const [supportReply,setSupportReply]=useState("");
+  const [supportAttachments,setSupportAttachments]=useState([]);
+  const [supportForm,setSupportForm]=useState(()=>buildSupportSettings(supportSettings, users));
   const totalEmp=(empresas||[]).length;
   const activeEmp=(empresas||[]).filter(e=>e.active!==false).length;
   const proEmp=(empresas||[]).filter(e=>e.plan==="pro"||e.plan==="enterprise").length;
@@ -2850,7 +3017,13 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
   );
   const selectedIntegrationEmp = (empresas||[]).find(e=>e.id===integrationEmpId) || (empresas||[])[0] || null;
   const selectedCommEmp = (empresas||[]).find(e=>e.id===commEmpId) || (empresas||[])[0] || null;
+  const normalizedSupportSettings = buildSupportSettings(supportSettings, users);
+  const normalizedSupportThreads = normalizeSupportThreads(supportThreads, empresas, users, normalizedSupportSettings);
+  const selectedSupportEmp = (empresas||[]).find(e=>e.id===supportEmpId) || (empresas||[])[0] || null;
+  const supportThreadsForEmp = normalizedSupportThreads.filter(thread => !selectedSupportEmp || thread.empId===selectedSupportEmp.id);
+  const selectedSupportThread = supportThreadsForEmp.find(thread => thread.id===supportThreadId) || supportThreadsForEmp[0] || null;
   useEffect(()=>{ setPrintForm(normalizePrintLayouts(printLayouts)); },[printLayouts]);
+  useEffect(()=>{ setSupportForm(buildSupportSettings(supportSettings, users)); },[supportSettings, users]);
   const saveSystemUser=async()=>{
     if(!sysUf.name?.trim() || !sysUf.email?.trim() || !sysUf.password?.trim()) return;
     const normalizedEmail = normalizeEmailValue(sysUf.email);
@@ -3000,7 +3173,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
       </div>
     </div>;
   };
-  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos"];
+  const SUPER_TABS=["Empresas","Cartera","Usuarios del sistema","Integraciones","Comunicaciones","Solicitudes","Impresos","Soporte"];
   const SUPER_TAB_META={
     "Empresas":{eyebrow:"Estructura",desc:"Administra tenants, planes, addons y configuración base de cada instancia."},
     "Cartera":{eyebrow:"Control comercial",desc:"Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants."},
@@ -3009,13 +3182,14 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
     "Comunicaciones":{eyebrow:"Mensajería",desc:"Envía mensajes sistémicos y banners visibles para cada empresa usuaria."},
     "Solicitudes":{eyebrow:"Pipeline",desc:"Aprueba accesos, demos y referidos desde una sola bandeja de control."},
     "Impresos":{eyebrow:"Diseño documental",desc:"Ajusta tamaños, pesos visuales y estructura base de los PDFs de Presupuestos y Facturación desde una consola central."},
+    "Soporte":{eyebrow:"Widget de soporte",desc:"Activa o desactiva el chat por tenant, responde conversaciones y automatiza mensajes de bienvenida."},
   };
   const activeSuperTab=SUPER_TABS[tab];
   const saveEmp=()=>{
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -3065,6 +3239,54 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
     if(!selectedCommEmp) return;
     const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemMessages:(e.systemMessages||[]).filter(m=>m.id!==msgId)}:e);
     onSave("empresas",next);
+  };
+  const toggleSupportForEmp=enabled=>{
+    if(!selectedSupportEmp) return;
+    onSave("empresas",(empresas||[]).map(emp=>emp.id===selectedSupportEmp.id?{...emp,supportChatEnabled:enabled}:emp));
+  };
+  const persistSupportSettings=()=>onSave("supportSettings", supportForm);
+  const loadSupportFiles = async files => {
+    const list = Array.from(files || []).slice(0, Math.max(0, 4 - supportAttachments.length));
+    const next = [];
+    for (const file of list) {
+      const att = await supportAttachmentFromFile(file);
+      if (att) next.push(att);
+    }
+    if (next.length) setSupportAttachments(prev => [...prev, ...next].slice(0, 4));
+  };
+  const saveSupportThreadsFromPanel = next => onSave("supportThreads", next);
+  const assignSupportAdmins = ids => {
+    if(!selectedSupportThread) return;
+    const next = normalizedSupportThreads.map(thread => thread.id===selectedSupportThread.id ? {...thread,assignedAdminIds:ids,updatedAt:nowIso()} : thread);
+    saveSupportThreadsFromPanel(next);
+  };
+  const sendSupportReply = () => {
+    if(!selectedSupportThread || (!supportReply.trim() && !supportAttachments.length)) return;
+    const adminName = "Equipo Produ";
+    const msg = {
+      id: uid(),
+      authorType: "admin",
+      authorId: "",
+      authorName: adminName,
+      text: supportReply.trim(),
+      attachments: supportAttachments,
+      createdAt: nowIso(),
+    };
+    const next = normalizedSupportThreads.map(thread => thread.id===selectedSupportThread.id ? {
+      ...thread,
+      status: "open",
+      updatedAt: msg.createdAt,
+      lastMessageAt: msg.createdAt,
+      messages: [...(thread.messages||[]), msg],
+    } : thread);
+    saveSupportThreadsFromPanel(next);
+    setSupportReply("");
+    setSupportAttachments([]);
+  };
+  const updateSupportThreadStatus = status => {
+    if(!selectedSupportThread) return;
+    const next = normalizedSupportThreads.map(thread => thread.id===selectedSupportThread.id ? {...thread,status,updatedAt:nowIso()} : thread);
+    saveSupportThreadsFromPanel(next);
   };
   return <div>
     <div style={{padding:"16px 18px",border:"1px solid var(--bdr2)",borderRadius:18,background:"linear-gradient(180deg,var(--cg),transparent 70%)",marginBottom:16}}>
@@ -3524,6 +3746,106 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts}){
           </div>
         </>;
       })()}
+    </div>}
+    {tab===7&&<div>
+      <div style={{marginBottom:14,padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:12,color:"var(--gr2)",lineHeight:1.6}}>
+        El widget de soporte usa Freshdesk como proveedor externo. Desde aquí controlas qué tenants lo tienen activo y qué identidad/envío contextual recibe el chat. Las conversaciones finales se gestionan en Freshdesk.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:16,alignItems:"start"}}>
+        <Card title="Control del widget" sub="Activa el soporte por empresa y define automatizaciones globales.">
+          <div style={{display:"grid",gap:12}}>
+            <FG label="Empresa">
+              <FSl value={supportEmpId || selectedSupportEmp?.id || ""} onChange={e=>setSupportEmpId(e.target.value)}>
+                {(empresas||[]).map(emp=><option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
+              </FSl>
+            </FG>
+            {selectedSupportEmp && <div style={{padding:12,borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:800}}>{selectedSupportEmp.nombre}</div>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginTop:2}}>Tenant ID: {selectedSupportEmp.tenantCode||"—"}</div>
+                </div>
+                <Badge label={selectedSupportEmp.supportChatEnabled!==false?"Soporte activo":"Soporte apagado"} color={selectedSupportEmp.supportChatEnabled!==false?"green":"red"} sm/>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Btn sm onClick={()=>toggleSupportForEmp(true)}>Activar widget</Btn>
+                <GBtn sm onClick={()=>toggleSupportForEmp(false)}>Desactivar</GBtn>
+              </div>
+            </div>}
+            <FG label="Equipo visible en el widget">
+              <MultiSelect options={(users||[]).filter(u=>["admin","superadmin"].includes(u.role) && u.active!==false).map(u=>({value:u.id,label:`${u.name} · ${u.role}`}))} value={supportForm.teamIds||[]} onChange={v=>setSupportForm(prev=>({...prev,teamIds:v}))} placeholder="Seleccionar administradores..."/>
+            </FG>
+            <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
+              <input type="checkbox" checked={supportForm.autoAckEnabled!==false} onChange={e=>setSupportForm(prev=>({...prev,autoAckEnabled:e.target.checked}))}/>
+              Activar respuesta automática
+            </label>
+            <FG label="Mensaje de bienvenida"><FTA value={supportForm.welcomeMessage||""} onChange={e=>setSupportForm(prev=>({...prev,welcomeMessage:e.target.value}))} placeholder="Hola, somos el equipo de soporte de Produ..."/></FG>
+            <FG label="Respuesta automática"><FTA value={supportForm.autoAckMessage||""} onChange={e=>setSupportForm(prev=>({...prev,autoAckMessage:e.target.value}))} placeholder="Recibimos tu mensaje correctamente..."/></FG>
+            <R2>
+              <FG label="Etiqueta enlace ayuda"><FI value={supportForm.helpLinkLabel||""} onChange={e=>setSupportForm(prev=>({...prev,helpLinkLabel:e.target.value}))} placeholder="Ayúdanos a mejorar el producto"/></FG>
+              <FG label="URL ayuda"><FI value={supportForm.helpLinkUrl||""} onChange={e=>setSupportForm(prev=>({...prev,helpLinkUrl:e.target.value}))} placeholder="https://..."/></FG>
+            </R2>
+            <Btn onClick={persistSupportSettings}>Guardar automatizaciones</Btn>
+          </div>
+        </Card>
+        <div style={{display:"grid",gridTemplateColumns:"320px 1fr",gap:16,alignItems:"start"}}>
+          <Card title="Conversaciones" sub={`${supportThreadsForEmp.length} hilo${supportThreadsForEmp.length===1?"":"s"} de soporte`}>
+            <div style={{display:"grid",gap:8,maxHeight:720,overflowY:"auto"}}>
+              {supportThreadsForEmp.map(thread=>{
+                const emp=(empresas||[]).find(item=>item.id===thread.empId);
+                const active=selectedSupportThread?.id===thread.id;
+                return <button key={thread.id} onClick={()=>setSupportThreadId(thread.id)} style={{textAlign:"left",padding:"12px 12px",borderRadius:14,border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,background:active?"var(--cg)":"var(--sur)",cursor:"pointer"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",marginBottom:6}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:800,color:active?"var(--cy)":"var(--wh)"}}>{emp?.nombre || "Tenant"}</div>
+                      <div style={{fontSize:10,color:"var(--gr2)",marginTop:3}}>{thread.status==="closed"?"Cerrado":"Abierto"} · {fmtDT(thread.lastMessageAt)}</div>
+                    </div>
+                    <Badge label={`${thread.messages?.length||0}`} color="gray" sm/>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.45}}>{supportThreadPreviewText(thread)}</div>
+                </button>;
+              })}
+              {!supportThreadsForEmp.length&&<Empty text="Todavía no hay conversaciones de soporte" sub="Cuando una empresa escriba desde el widget, aparecerá aquí."/>}
+            </div>
+          </Card>
+          {selectedSupportThread ? <Card title={(empresas||[]).find(item=>item.id===selectedSupportThread.empId)?.nombre || "Conversación"} sub={`Última actualización ${fmtDT(selectedSupportThread.lastMessageAt)}`}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              <Badge label={selectedSupportThread.status==="closed"?"Cerrado":"Abierto"} color={selectedSupportThread.status==="closed"?"red":"green"} sm/>
+              <GBtn sm onClick={()=>updateSupportThreadStatus("open")}>Marcar abierto</GBtn>
+              <GBtn sm onClick={()=>updateSupportThreadStatus("closed")}>Cerrar hilo</GBtn>
+            </div>
+            <FG label="Quién atiende esta conversación">
+              <MultiSelect options={(users||[]).filter(u=>["admin","superadmin"].includes(u.role) && u.active!==false).map(u=>({value:u.id,label:`${u.name} · ${u.role}`}))} value={selectedSupportThread.assignedAdminIds||[]} onChange={assignSupportAdmins} placeholder="Asignar administradores..."/>
+            </FG>
+            <div style={{display:"grid",gap:8,maxHeight:360,overflowY:"auto",marginBottom:14}}>
+              {(selectedSupportThread.messages||[]).map(msg=><div key={msg.id} style={{padding:"10px 12px",borderRadius:14,border:"1px solid var(--bdr2)",background:msg.authorType==="tenant"?"var(--sur)":"var(--card2)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:6}}>
+                  <div style={{fontSize:11,fontWeight:800,color:msg.authorType==="tenant"?"var(--cy)":"var(--wh)"}}>{msg.authorName}</div>
+                  <div style={{fontSize:10,color:"var(--gr2)"}}>{fmtDT(msg.createdAt)}</div>
+                </div>
+                <div style={{fontSize:12,color:"var(--gr3)",lineHeight:1.6,whiteSpace:"pre-line"}}>{msg.text || "Adjunto"}</div>
+                {!!msg.attachments?.length&&<div style={{display:"grid",gap:6,marginTop:8}}>
+                  {msg.attachments.map(att=><button key={att.id} onClick={()=>window.open(att.src,"_blank")} style={{textAlign:"left",padding:"8px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",cursor:"pointer",fontSize:11,color:"var(--gr3)"}}>{att.type==="pdf"?"PDF":"Archivo"} · {att.name}</button>)}
+                </div>}
+              </div>)}
+            </div>
+            <FG label="Responder"><FTA value={supportReply} onChange={e=>setSupportReply(e.target.value)} placeholder="Escribe una respuesta clara y útil para la empresa..." style={{minHeight:120}}/></FG>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <label style={{padding:"8px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:12,color:"var(--gr3)",cursor:"pointer"}}>
+                Adjuntar archivo
+                <input type="file" accept="image/*,application/pdf" multiple style={{display:"none"}} onChange={async e=>{ await loadSupportFiles(e.target.files); e.target.value=""; }}/>
+              </label>
+              <Btn onClick={sendSupportReply}>Enviar respuesta</Btn>
+            </div>
+            {!!supportAttachments.length&&<div style={{display:"grid",gap:6,marginTop:10}}>
+              {supportAttachments.map(att=><div key={att.id} style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",padding:"8px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",fontSize:11,color:"var(--gr3)"}}>
+                <span>{att.name}</span>
+                <span onClick={()=>setSupportAttachments(prev=>prev.filter(item=>item.id!==att.id))} style={{cursor:"pointer",fontWeight:800}}>×</span>
+              </div>)}
+            </div>}
+          </Card> : <Empty text="Selecciona una conversación para responder" sub="Aquí podrás ver el historial, adjuntar archivos y asignar responsables."/>}
+        </div>
+      </div>
     </div>}
   </div>;
 }
@@ -4214,6 +4536,8 @@ export default function App(){
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
   const [users,setUsersRaw,savUsrRef]=useDB("produ:users");
   const [printLayouts,setPrintLayoutsRaw]=useDB("produ:printLayouts");
+  const [supportThreads,setSupportThreadsRaw,savSupportThreads]=useDB("produ:supportThreads");
+  const [supportSettings,setSupportSettingsRaw,savSupportSettings]=useDB("produ:supportSettings");
   const [,setThemeDB]=useDB("produ:theme");
 
   // Per-empresa data
@@ -4261,6 +4585,8 @@ export default function App(){
   usePoll(`produ:${eId}:crew`,setCrew,savCrew);
   usePoll(`produ:${eId}:listas`,setListas,savLst);
   usePoll(`produ:${eId}:tareas`,setTareas,savTar);
+  usePoll("produ:supportThreads",setSupportThreadsRaw,savSupportThreads);
+  usePoll("produ:supportSettings",setSupportSettingsRaw,savSupportSettings);
 
   // Init global data
   useEffect(()=>{
@@ -4285,6 +4611,16 @@ export default function App(){
       const normalized = normalizePrintLayouts(v || DEFAULT_PRINT_LAYOUTS);
       setPrintLayoutsRaw(normalized);
       if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:printLayouts",normalized);
+    });
+    dbGet("produ:supportThreads").then(v=>{
+      const normalized = normalizeSupportThreads(v || [], empresas || SEED_EMPRESAS, users || SEED_USERS, supportSettings || {});
+      setSupportThreadsRaw(normalized);
+      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:supportThreads", normalized);
+    });
+    dbGet("produ:supportSettings").then(v=>{
+      const normalized = buildSupportSettings(v || {}, users || SEED_USERS);
+      setSupportSettingsRaw(normalized);
+      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:supportSettings", normalized);
     });
     applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
@@ -4579,7 +4915,23 @@ export default function App(){
     await dbSet("produ:printLayouts",normalized);
     ntf("Composición de impresos guardada ✓");
   };
-  const saveSuperData=(key,data)=>{ if(key==="empresas"){saveEmpresas(data);}else if(key==="users"){saveUsers(data);} ntf("Guardado ✓");};
+  const saveSupportThreads=async threads=>{
+    const normalized = normalizeSupportThreads(threads, empresas||SEED_EMPRESAS, users||SEED_USERS, supportSettings||{});
+    setSupportThreadsRaw(normalized);
+    await dbSet("produ:supportThreads", normalized);
+  };
+  const saveSupportSettings=async settings=>{
+    const normalized = buildSupportSettings(settings, users||SEED_USERS);
+    setSupportSettingsRaw(normalized);
+    await dbSet("produ:supportSettings", normalized);
+  };
+  const saveSuperData=(key,data)=>{
+    if(key==="empresas") saveEmpresas(data);
+    else if(key==="users") saveUsers(data);
+    else if(key==="supportThreads") saveSupportThreads(data);
+    else if(key==="supportSettings") saveSupportSettings(data);
+    ntf("Guardado ✓");
+  };
 
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
@@ -4602,7 +4954,7 @@ export default function App(){
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
-    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts}/></>;
+    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings}/></>;
     if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;
@@ -4650,6 +5002,8 @@ export default function App(){
   const SW=sidebarCollapsed?64:240;
   const bc=buildBc();
   const currentEmpresa=(empresas||[]).find(e=>e.id===curEmp?.id)||curEmp||null;
+  const activeSupportSettings = buildSupportSettings(supportSettings || {}, users || SEED_USERS);
+  const activeSupportThreads = normalizeSupportThreads(supportThreads || [], empresas || SEED_EMPRESAS, users || SEED_USERS, activeSupportSettings);
   const systemMessages=(currentEmpresa?.systemMessages||[]);
   const activeBanner=currentEmpresa?.systemBanner?.active && currentEmpresa?.systemBanner?.text ? currentEmpresa.systemBanner : null;
   const unreadSystemCount=systemMessages.filter(m=>!systemLeidas.includes(m.id)).length;
@@ -4710,6 +5064,7 @@ export default function App(){
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
     {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
+    {curUser?.role!=="superadmin" && currentEmpresa?.supportChatEnabled!==false && <SupportChatWidget empresa={currentEmpresa} user={curUser} users={users||[]} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} onSaveThreads={saveSupportThreads}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

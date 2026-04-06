@@ -5541,13 +5541,26 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
 function ViewClientes({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fi,setFi]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
-  const fd=(clientes||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.contactos||[]).some(co=>co.nom.toLowerCase().includes(q.toLowerCase())))&&(!fi||c.ind===fi));
+  const [q,setQ]=useState("");const [fi,setFi]=useState("");const [sortMode,setSortMode]=useState("az");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
+  const fd=(clientes||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.contactos||[]).some(co=>co.nom.toLowerCase().includes(q.toLowerCase())))&&(!fi||c.ind===fi)).sort((a,b)=>{
+    const balanceFor=cli=>{
+      let ti=0,tg=0;
+      (producciones||[]).filter(p=>p.cliId===cli.id).forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
+      return ti-tg;
+    };
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="recent") return String(b.cr||"").localeCompare(String(a.cr||""));
+    if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
+    if(sortMode==="amount-desc") return balanceFor(b)-balanceFor(a);
+    if(sortMode==="amount-asc") return balanceFor(a)-balanceFor(b);
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
   const canEdit=canDo({role:_cd?.user?.role||"admin"},"clientes");
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar cliente o contacto..."/>
       <FilterSel value={fi} onChange={v=>{setFi(v);setPg(1);}} options={["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Otro"]} placeholder="Todas industrias"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"amount-desc",label:"Mayor balance"},{value:"amount-asc",label:"Menor balance"}]} placeholder="Ordenar"/>
       <div style={{display:"flex",gap:4,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:3}}>
         {[["cards","⊟"],["list","☰"]].map(([v,i])=><button key={v} onClick={()=>setVista(v)} style={{padding:"5px 10px",borderRadius:4,border:"none",background:vista===v?"var(--cy)":"transparent",color:vista===v?"var(--bg)":"var(--gr2)",cursor:"pointer",fontSize:13}}>{i}</button>)}
       </div>

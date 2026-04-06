@@ -670,7 +670,7 @@ function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
     supportChatEnabled: false,
-    freshdeskEnabled: emp?.freshdeskEnabled === true,
+    freshdeskEnabled: false,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
     referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),
@@ -3399,7 +3399,7 @@ function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,sav
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,freshdeskEnabled:ef.freshdeskEnabled ?? prev.freshdeskEnabled ?? false,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,freshdeskEnabled:false,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -3821,19 +3821,6 @@ function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,sav
           <KV label="Gobierno" value="Super Admin por empresa"/>
           <KV label="Conexión futura" value="Usuario individual"/>
           <KV label="Modelo" value="Multiempresa / multiusuario"/>
-        </Card>
-        <Card title="Freshdesk" sub="Activación por tenant del canal externo de soporte">
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-            <Badge label={selectedIntegrationEmp.freshdeskEnabled===true?"Activa":"Desactivada"} color={selectedIntegrationEmp.freshdeskEnabled===true?"green":"gray"} sm/>
-            <Badge label="Preparada por tenant" color="cyan" sm/>
-          </div>
-          <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.6,marginBottom:14}}>
-            Activa esta base solo para empresas que usarán Freshdesk como soporte externo. El toggle queda separado por tenant para que no afecte al resto de las instancias.
-          </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <Btn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,freshdeskEnabled:true}:e))} sm>Activar Freshdesk</Btn>
-            <GBtn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,freshdeskEnabled:false}:e))} sm>Desactivar</GBtn>
-          </div>
         </Card>
       </div> : <Empty text="Selecciona una empresa para administrar integraciones"/>}
     </div>}
@@ -4875,6 +4862,18 @@ export default function App(){
   useEffect(()=>{
     if(!Array.isArray(empresas) || !empresas.length) return;
     try{
+      const flag = localStorage.getItem("produ_freshdesk_removed_v1");
+      if(flag) return;
+      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,freshdeskEnabled:false})));
+      setEmpresasRaw(next);
+      dbSet("produ:empresas",next);
+      localStorage.setItem("produ_freshdesk_removed_v1","1");
+    }catch{}
+  },[empresas]);
+
+  useEffect(()=>{
+    if(!Array.isArray(empresas) || !empresas.length) return;
+    try{
       const flag = localStorage.getItem("produ_crm_default_on_v1");
       if(flag) return;
       const next = normalizeEmpresasModel((empresas||[]).map(emp=>{
@@ -5316,7 +5315,6 @@ export default function App(){
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
     {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
-    {curUser?.role!=="superadmin" && currentEmpresa && <FreshdeskWidget empresa={currentEmpresa} user={curUser}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

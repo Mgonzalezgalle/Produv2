@@ -589,7 +589,7 @@ function normalizeEmpresasAddons(empresas = []) {
 function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
-    supportChatEnabled: emp?.supportChatEnabled !== false,
+    supportChatEnabled: emp?.supportChatEnabled === true,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
     referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),
@@ -3295,7 +3295,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? true,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -4684,6 +4684,18 @@ export default function App(){
       setEmpresasRaw(normalized);
       dbSet("produ:empresas",normalized);
     }
+  },[empresas]);
+
+  useEffect(()=>{
+    if(!Array.isArray(empresas) || !empresas.length) return;
+    try{
+      const flag = localStorage.getItem("produ_support_chat_default_off_v1");
+      if(flag) return;
+      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,supportChatEnabled:false})));
+      setEmpresasRaw(next);
+      dbSet("produ:empresas",next);
+      localStorage.setItem("produ_support_chat_default_off_v1","1");
+    }catch{}
   },[empresas]);
 
   useEffect(()=>{

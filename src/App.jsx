@@ -2317,6 +2317,55 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
   </>;
 }
 
+function FreshdeskWidget({ empresa, user }) {
+  const externalId = `${empresa?.tenantCode || empresa?.id || "tenant"}:${user?.id || normalizeEmailValue(user?.email || "guest")}`;
+  useEffect(() => {
+    if (!empresa?.freshdeskEnabled || !user) return;
+    const existing = document.querySelector('script[data-produ-freshdesk="true"]');
+    const identify = () => {
+      try {
+        if (!window.fcWidget) return false;
+        window.fcWidget.setExternalId?.(externalId);
+        window.fcWidget.user?.setFirstName?.(user?.name?.split(" ")[0] || user?.name || "Usuario");
+        if (user?.email) window.fcWidget.user?.setEmail?.(user.email);
+        window.fcWidget.user?.setProperties?.({
+          cf_plan: String(empresa?.plan || "Starter"),
+          cf_status: empresa?.active === false ? "Inactive" : "Active",
+        });
+        window.fcWidget.show?.();
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const pollIdentify = () => {
+      let tries = 0;
+      const timer = window.setInterval(() => {
+        tries += 1;
+        if (identify() || tries > 20) window.clearInterval(timer);
+      }, 400);
+      return () => window.clearInterval(timer);
+    };
+    let clearPoll = () => {};
+    if (!existing) {
+      const script = document.createElement("script");
+      script.src = "//fw-cdn.com/16062405/7053033.js";
+      script.setAttribute("chat", "true");
+      script.async = true;
+      script.dataset.produFreshdesk = "true";
+      script.onload = () => { clearPoll = pollIdentify(); };
+      document.body.appendChild(script);
+    } else {
+      clearPoll = pollIdentify();
+    }
+    return () => {
+      clearPoll?.();
+      try { window.fcWidget?.hide?.(); } catch {}
+    };
+  }, [empresa?.id, empresa?.tenantCode, empresa?.plan, empresa?.active, empresa?.freshdeskEnabled, user?.id, user?.email, user?.name]);
+  return null;
+}
+
 
 // ── TAREAS — Pipeline Kanban ──────────────────────────────────
 const COLS_TAREAS = ["Pendiente","En Progreso","En Revisión","Completada"];
@@ -4713,6 +4762,18 @@ export default function App(){
   },[empresas]);
 
   useEffect(()=>{
+    if(!Array.isArray(empresas) || !empresas.length) return;
+    try{
+      const flag = localStorage.getItem("produ_freshdesk_default_on_v1");
+      if(flag) return;
+      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,freshdeskEnabled:true})));
+      setEmpresasRaw(next);
+      dbSet("produ:empresas",next);
+      localStorage.setItem("produ_freshdesk_default_on_v1","1");
+    }catch{}
+  },[empresas]);
+
+  useEffect(()=>{
     if(!printLayouts) return;
     const normalized = normalizePrintLayouts(printLayouts);
     if(JSON.stringify(normalized)!==JSON.stringify(printLayouts)){
@@ -5104,7 +5165,8 @@ export default function App(){
     </main>
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
     {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
-    {curUser?.role!=="superadmin" && currentEmpresa?.supportChatEnabled!==false && <SupportChatWidget empresa={currentEmpresa} user={curUser} users={users||[]} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} onSaveThreads={saveSupportThreads}/>}
+    {curUser?.role!=="superadmin" && currentEmpresa?.freshdeskEnabled===true && <FreshdeskWidget empresa={currentEmpresa} user={curUser}/>}
+    {curUser?.role!=="superadmin" && currentEmpresa?.freshdeskEnabled!==true && currentEmpresa?.supportChatEnabled!==false && <SupportChatWidget empresa={currentEmpresa} user={curUser} users={users||[]} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} onSaveThreads={saveSupportThreads}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

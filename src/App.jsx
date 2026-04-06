@@ -875,7 +875,7 @@ const CRM_STAGE_SEED = [
   { id:"crm-st-7", name:"Perdido", order:7, convertToClient:false, closedWon:false, closedLost:true },
 ];
 function normalizeCrmStages(stages=[]){
-  const source = Array.isArray(stages) ? stages : CRM_STAGE_SEED;
+  const source = Array.isArray(stages) ? stages : [];
   const arr=(source.length ? source : [])
     .map((s,idx)=>({
       id:s.id||uid(),
@@ -4339,6 +4339,10 @@ export default function App(){
 
   useEffect(()=>{
     if(!curEmp?.id || ldCrmStages) return;
+    if(crmStages==null){
+      setCrmStages(normalizeCrmStages(CRM_STAGE_SEED.map(stage=>({...stage,empId:curEmp.id}))));
+      return;
+    }
     const normalized = normalizeCrmStages(crmStages);
     if(JSON.stringify(normalized)!==JSON.stringify(crmStages||[])) setCrmStages(normalized);
   },[curEmp?.id,ldCrmStages,crmStages,setCrmStages]);
@@ -5185,7 +5189,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const [collapsedStages,setCollapsedStages]=useState([]);
   const PP=10;
   const tasksEnabled=hasAddon(empresa,"tareas");
-  const scopedStages=normalizeCrmStages((crmStages||[]).filter?.(s=>!s.empId || s.empId===empId) || crmStages || []);
+  const scopedStages=normalizeCrmStages(crmStages||[]);
   const scopedOpps=(crmOpps||[]).filter(opp=>opp.empId===empId).map(opp=>crmNormalizeOpportunity(opp, scopedStages));
   const scopedActivities=crmNormalizeActivities((crmActivities||[]).filter(act=>act.empId===empId));
   const tenantUsers=(users||[]).filter(u=>u.empId===empId && u.active!==false);

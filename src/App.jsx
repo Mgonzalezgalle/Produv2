@@ -2403,8 +2403,23 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
 function FreshdeskWidget({ empresa, user }) {
   const externalId = `${empresa?.tenantCode || empresa?.id || "tenant"}:${user?.id || normalizeEmailValue(user?.email || "guest")}`;
   useEffect(() => {
+    if (!empresa?.freshdeskEnabled) {
+      try { window.fcWidget?.hide?.(); } catch {}
+      return;
+    }
+    let script = document.querySelector('script[data-produ-freshdesk="true"]');
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "//fw-cdn.com/16062405/7053033.js";
+      script.setAttribute("chat", "true");
+      script.async = true;
+      script.dataset.produFreshdesk = "true";
+      document.body.appendChild(script);
+    }
+  }, [empresa?.freshdeskEnabled]);
+
+  useEffect(() => {
     if (!empresa?.freshdeskEnabled || !user) return;
-    const existing = document.querySelector('script[data-produ-freshdesk="true"]');
     const identify = () => {
       try {
         if (!window.fcWidget) return false;
@@ -2420,30 +2435,13 @@ function FreshdeskWidget({ empresa, user }) {
         return false;
       }
     };
-    const pollIdentify = () => {
-      let tries = 0;
-      const timer = window.setInterval(() => {
-        tries += 1;
-        if (identify() || tries > 20) window.clearInterval(timer);
-      }, 400);
-      return () => window.clearInterval(timer);
-    };
-    let clearPoll = () => {};
-    if (!existing) {
-      const script = document.createElement("script");
-      script.src = "//fw-cdn.com/16062405/7053033.js";
-      script.setAttribute("chat", "true");
-      script.async = true;
-      script.dataset.produFreshdesk = "true";
-      script.onload = () => { clearPoll = pollIdentify(); };
-      document.body.appendChild(script);
-    } else {
-      clearPoll = pollIdentify();
-    }
-    return () => {
-      clearPoll?.();
-    };
-  }, [empresa?.id, empresa?.tenantCode, empresa?.plan, empresa?.active, empresa?.freshdeskEnabled, user?.id, user?.email, user?.name]);
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      if (identify() || tries > 20) window.clearInterval(timer);
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [externalId, empresa?.freshdeskEnabled, empresa?.plan, empresa?.active, user?.id, user?.email, user?.name]);
   return null;
 }
 

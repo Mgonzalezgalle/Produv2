@@ -703,6 +703,34 @@ function recurringSummary(item = {}, fallbackDate = today()) {
   return `Mensual · ${count} mes${count === 1 ? "" : "es"} · desde ${fmtMonthPeriod(start)}`;
 }
 
+function budgetCorrelativeValue(item = {}) {
+  return item?.correlativo || item?.numero || item?.nro || "";
+}
+
+function budgetPaymentMethodValue(item = {}) {
+  return item?.metodoPago || item?.paymentMethod || item?.metodo || "";
+}
+
+function budgetPaymentDateValue(item = {}) {
+  return item?.fechaPago || item?.paymentDate || item?.fechaVencimiento || "";
+}
+
+function budgetPaymentNotesValue(item = {}) {
+  return item?.notasPago || item?.paymentNotes || item?.notas || "";
+}
+
+function budgetObservationValue(item = {}) {
+  return item?.obs || item?.observaciones || "";
+}
+
+function invoiceCommercialObsValue(item = {}) {
+  return item?.obs || item?.glosa || item?.descripcion || "";
+}
+
+function invoiceExtraObsValue(item = {}) {
+  return item?.obs2 || item?.observaciones || item?.notas || "";
+}
+
 function cobranzaState(doc = {}) {
   if (doc.cobranzaEstado) return doc.cobranzaEstado;
   if (doc.estado === "Pagada") return "Pagado";
@@ -4940,9 +4968,14 @@ export default function App(){
   useEffect(()=>{
     if(!curEmp?.id || ldCrew) return;
     const scopedUsers=(users||[]).filter(u=>u?.empId===curEmp.id);
-    const currentCrew=(crew||[]).filter(c=>c?.empId===curEmp.id);
+    const allCrew=Array.isArray(crew)?crew:[];
+    const currentCrew=allCrew
+      .filter(c=>c?.empId===curEmp.id || (!c?.empId && c?.managedByUser!==true))
+      .map(c=>c?.empId?c:{...c,empId:curEmp.id});
     const synced=syncCrewWithUsers(scopedUsers,currentCrew);
-    if(JSON.stringify(synced)!==JSON.stringify(currentCrew)) setCrew(synced);
+    const restCrew=allCrew.filter(c=>c?.empId && c.empId!==curEmp.id);
+    const next=[...restCrew,...synced];
+    if(JSON.stringify(next)!==JSON.stringify(allCrew)) setCrew(next);
   },[curEmp?.id,users,crew,ldCrew,setCrew]);
 
   useEffect(()=>{
@@ -5669,6 +5702,12 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
 
   const empId=empresa?.id;
   const withEmp=d=>({...d,empId});
+  const saveContratoSafe=async d=>{
+    const nextItem = withEmp(d);
+    const existing = (contratos||[]).find(item=>item.id===nextItem.id);
+    const merged = existing ? { ...existing, ...nextItem } : nextItem;
+    await cSave(contratos,setContratos,merged);
+  };
 
   return <>
     <MCli    open={mOpen==="cli"}    data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(clientes,setClientes,withEmp(d))}/>
@@ -5689,7 +5728,7 @@ function ModalRouter({mOpen,mData,closeM,VP,setters,saveTheme,saveUsers,saveEmpr
       closeM();
       ntf(exists?"Oportunidad actualizada ✓":"Oportunidad creada ✓");
     }}/>
-    <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={d=>cSave(contratos,setContratos,withEmp(d))}/>
+    <MCt     open={mOpen==="ct"}     data={mData} empresa={empresa} clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} presupuestos={VP.presupuestos} facturas={VP.facturas} listas={VP.listas} onClose={closeM} onSave={saveContratoSafe}/>
     <MMov    open={mOpen==="mov"}    data={mData} listas={VP.listas} onClose={closeM} onSave={saveMov}/>
     <MCrew   open={mOpen==="crew"}   data={mData} listas={VP.listas} onClose={closeM} onSave={d=>cSave(crew,setCrew,withEmp(d))}/>
     <MEvento open={mOpen==="evento"} data={mData} producciones={producciones} programas={programas} piezas={piezas} onClose={closeM} onSave={d=>cSave(eventos,setEventos,withEmp(d))}/>
@@ -8653,8 +8692,8 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     y: paymentCardY,
     width: cardWidth,
     rows: [
-      { label: "Método de pago", value: pres.metodoPago || "Por definir", bold: true, valueSize: 9.4, labelSize: 7.8 },
-      { label: "Fecha de pago", value: pres.fechaPago ? fmtD(pres.fechaPago) : "Al iniciar", bold: true, valueSize: 9.4, labelSize: 7.8 },
+      { label: "Método de pago", value: budgetPaymentMethodValue(pres) || "Por definir", bold: true, valueSize: 9.4, labelSize: 7.8 },
+      { label: "Fecha de pago", value: budgetPaymentDateValue(pres) ? fmtD(budgetPaymentDateValue(pres)) : "Al iniciar", bold: true, valueSize: 9.4, labelSize: 7.8 },
       { label: "Validez", value: `${pres.validez || 30} días`, bold: true, valueSize: 9.6, labelSize: 8.1 },
     ],
     labelWidth: 136,
@@ -8711,7 +8750,7 @@ async function buildBudgetPdfFile(pres, cliente, empresa) {
     });
     sectionY -= paymentHeight + 14;
   }
-  const budgetNotes = [pres.notasPago || "", pres.obs || ""].filter(Boolean).join("\n\n");
+  const budgetNotes = [budgetPaymentNotesValue(pres), budgetObservationValue(pres)].filter(Boolean).join("\n\n");
   if (budgetNotes) {
     drawDocumentSectionBox(page, {
       x: margin,

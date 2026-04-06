@@ -2402,10 +2402,36 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
 
 function FreshdeskWidget({ empresa, user }) {
   const externalId = `${empresa?.tenantCode || empresa?.id || "tenant"}:${user?.id || normalizeEmailValue(user?.email || "guest")}`;
+  const resetFreshdeskSession = () => {
+    try { window.fcWidget?.destroy?.(); } catch {}
+    try { delete window.fcWidget; } catch {}
+    [
+      'script[data-produ-freshdesk="true"]',
+      '#fc_frame',
+      '#fc_widget',
+      'iframe#fc_frame',
+      'iframe#fc_widget',
+      '[id^="fc_frame"]',
+      '[id^="fc_widget"]',
+    ].forEach(selector => {
+      document.querySelectorAll(selector).forEach(node => {
+        try { node.remove(); } catch {}
+      });
+    });
+    try {
+      Object.keys(window.localStorage || {}).forEach(key => {
+        if (key.startsWith("fc_") || key.startsWith("fwcrm")) window.localStorage.removeItem(key);
+      });
+    } catch {}
+  };
+
   useEffect(() => {
     if (!empresa?.freshdeskEnabled) {
       try { window.fcWidget?.hide?.(); } catch {}
       return;
+    }
+    if (window.__produFreshdeskExternalId && window.__produFreshdeskExternalId !== externalId) {
+      resetFreshdeskSession();
     }
     let script = document.querySelector('script[data-produ-freshdesk="true"]');
     if (!script) {
@@ -2416,6 +2442,30 @@ function FreshdeskWidget({ empresa, user }) {
       script.dataset.produFreshdesk = "true";
       document.body.appendChild(script);
     }
+    window.__produFreshdeskExternalId = externalId;
+  }, [empresa?.freshdeskEnabled, externalId]);
+
+  useEffect(() => {
+    if (!empresa?.freshdeskEnabled) return;
+    let style = document.querySelector('style[data-produ-freshdesk-fix="true"]');
+    if (!style) {
+      style = document.createElement("style");
+      style.dataset.produFreshdeskFix = "true";
+      style.textContent = `
+        #fc_frame,
+        #fc_widget,
+        iframe#fc_frame,
+        iframe#fc_widget,
+        [id^="fc_frame"],
+        [id^="fc_widget"]{
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    return () => {};
   }, [empresa?.freshdeskEnabled]);
 
   useEffect(() => {

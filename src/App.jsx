@@ -590,6 +590,7 @@ function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
     supportChatEnabled: emp?.supportChatEnabled === true,
+    freshdeskEnabled: emp?.freshdeskEnabled === true,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
     referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),
@@ -3295,7 +3296,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,freshdeskEnabled:ef.freshdeskEnabled ?? prev.freshdeskEnabled ?? false,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -3681,6 +3682,19 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
           <KV label="Gobierno" value="Super Admin por empresa"/>
           <KV label="Conexión futura" value="Usuario individual"/>
           <KV label="Modelo" value="Multiempresa / multiusuario"/>
+        </Card>
+        <Card title="Freshdesk" sub="Activación por tenant del canal externo de soporte">
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <Badge label={selectedIntegrationEmp.freshdeskEnabled===true?"Activa":"Desactivada"} color={selectedIntegrationEmp.freshdeskEnabled===true?"green":"gray"} sm/>
+            <Badge label="Preparada por tenant" color="cyan" sm/>
+          </div>
+          <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.6,marginBottom:14}}>
+            Activa esta base solo para empresas que usarán Freshdesk como soporte externo. El toggle queda separado por tenant para que no afecte al resto de las instancias.
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <Btn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,freshdeskEnabled:true}:e))} sm>Activar Freshdesk</Btn>
+            <GBtn onClick={()=>onSave("empresas",(empresas||[]).map(e=>e.id===selectedIntegrationEmp.id?{...e,freshdeskEnabled:false}:e))} sm>Desactivar</GBtn>
+          </div>
         </Card>
       </div> : <Empty text="Selecciona una empresa para administrar integraciones"/>}
     </div>}
@@ -6060,13 +6074,19 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
 function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
-  const fd=(producciones||[]).filter(p=>p.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return(p.nom.toLowerCase().includes(q.toLowerCase())||(c&&c.nom.toLowerCase().includes(q.toLowerCase())))&&(!fe||p.est===fe)&&(!ft||p.tip===ft);});
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [sortMode,setSortMode]=useState("recent");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(producciones||[]).filter(p=>p.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return(p.nom.toLowerCase().includes(q.toLowerCase())||(c&&c.nom.toLowerCase().includes(q.toLowerCase())))&&(!fe||p.est===fe)&&(!ft||p.tip===ft);}).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="oldest") return String(a.cr||a.ini||"").localeCompare(String(b.cr||b.ini||""));
+    return String(b.cr||b.ini||"").localeCompare(String(a.cr||a.ini||""));
+  });
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPro||DEFAULT_LISTAS.estadosPro} placeholder="Todo estados"/>
       <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposPro||DEFAULT_LISTAS.tiposPro} placeholder="Todo tipos"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nuevo Proyecto</Btn>}
     </div>
@@ -6203,12 +6223,18 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
 function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
-  const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe));
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
+  const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe)).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
+    return String(b.cr||"").localeCompare(String(a.cr||""));
+  });
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={listas?.estadosPg||DEFAULT_LISTAS.estadosPg} placeholder="Todo estados"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nueva Producción</Btn>}
     </div>
@@ -6256,24 +6282,51 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
   </div>;
 }
 
-function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd}){
+function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_cd,setPiezas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [fp,setFp]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
-  const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm)&&(!fp||p.plataforma===fp));
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fm,setFm]=useState("");const [fp,setFp]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(piezas||[]).filter(x=>x.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return (p.nom||"").toLowerCase().includes(q.toLowerCase())||((c?.nom||"").toLowerCase().includes(q.toLowerCase()));}).filter(p=>(!fe||p.est===fe)&&(!fm||p.mes===fm)&&(!fp||p.plataforma===fp)).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="oldest") return String(a.cr||a.ini||"").localeCompare(String(b.cr||b.ini||""));
+    return String(b.cr||b.ini||"").localeCompare(String(a.cr||a.ini||""));
+  });
   const totalPlanned=fd.reduce((s,p)=>s+Number(p.plannedPieces||0),0);
   const totalCreated=fd.reduce((s,p)=>s+countCampaignPieces(p),0);
   const totalPublished=fd.reduce((s,p)=>s+(p.piezas||[]).filter(pc=>pc.est==="Publicado").length,0);
   const totalScheduled=fd.reduce((s,p)=>s+(p.piezas||[]).filter(pc=>pc.est==="Programado").length,0);
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar campaña o cliente..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={CAMPANA_ESTADOS} placeholder="Todo estados"/>
       <FilterSel value={fm} onChange={v=>{setFm(v);setPg(1);}} options={MESES} placeholder="Todos los meses"/>
       <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={PIEZA_PLATAFORMAS} placeholder="Todas las plataformas"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("contenidos")&&<Btn onClick={()=>openM("contenido",{})}>+ Nueva Campaña</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:180}}>
+        <option value="">Cambiar estado...</option>
+        {CAMPANA_ESTADOS.map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setPiezas((piezas||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      <DBtn sm onClick={()=>{
+        if(!_cd||!_cd("contenidos")) return;
+        if(!confirm(`¿Eliminar ${selectedIds.length} campaña${selectedIds.length===1?"":"s"} seleccionada${selectedIds.length===1?"":"s"}?`)) return;
+        setPiezas((piezas||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionadas</DBtn>
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
       <Stat label="Planificadas" value={totalPlanned} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Creadas" value={totalCreated} accent="#7c5cff" vc="#7c5cff"/>
@@ -6305,9 +6358,10 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return<tr key={pz.id} onClick={()=>navTo("contenido-det",pz.id)}>
+            <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(pz.id)} onChange={()=>toggleSelected(pz.id)}/></TD>
             <TD bold>{pz.nom}</TD>
             <TD>{c?.nom||"—"}</TD>
             <TD>{[pz.mes,pz.ano].filter(Boolean).join(" ")||"—"}</TD>
@@ -6317,7 +6371,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
             <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("contenido-det",pz.id);}}>Ver →</GBtn></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin campañas" sub="Crea la primera con el botón superior"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin campañas" sub="Crea la primera con el botón superior"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -6429,6 +6483,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
   const [piezaQ,setPiezaQ]=useState("");
   const [piezaEstado,setPiezaEstado]=useState("");
   const [piezaResp,setPiezaResp]=useState("");
+  const [piezaDetailId,setPiezaDetailId]=useState("");
   const piezasCamp=(pz.piezas||[]).filter(pc=>(pc.nom||"").toLowerCase().includes(piezaQ.toLowerCase())&&(!piezaEstado||pc.est===piezaEstado));
   const piezasFiltradas=piezasCamp.filter(pc=>(!piezaResp||pc.responsableId===piezaResp));
   const piezasPub=(pz.piezas||[]).filter(pc=>pc.est==="Publicado").length;
@@ -6450,6 +6505,12 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
     const next=(piezas||[]).map(x=>x.id!==id?x:{...x,piezas:(x.piezas||[]).filter(p=>p.id!==pieceId)});
     await setPiezas(next);
     ntf&&ntf("Pieza eliminada","warn");
+  };
+  const pieceDetail=(pz.piezas||[]).find(pc=>pc.id===piezaDetailId) || null;
+  const updatePieceQuick=async(pieceId, patch={})=>{
+    const base=(pz.piezas||[]).find(pc=>pc.id===pieceId);
+    if(!base) return;
+    await savePiece({...base,...patch});
   };
   return <div>
     <DetHeader title={pz.nom} tag="Campaña" badges={[<Badge key={0} label={pz.est||"Planificada"}/>]} meta={[cli&&`Cliente: ${cli.nom}`,pz.plataforma&&`Plataforma: ${pz.plataforma}`,[pz.mes,pz.ano].filter(Boolean).join(" "),pz.fin&&`Cierre: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
@@ -6483,11 +6544,15 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Responsable</TH><TH>Estado</TH><TH>Aprobación</TH><TH>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
-            {piezasFiltradas.map(pc=><tr key={pc.id}>
-              <TD bold><div>{pc.nom}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{pc.objetivo||pc.plataforma||"—"}</div></TD>
+            {piezasFiltradas.map(pc=><tr key={pc.id} onClick={()=>setPiezaDetailId(pc.id)} style={{cursor:"pointer"}}>
+              <TD bold><div style={{color:"var(--cy)"}}>{pc.nom}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{pc.objetivo||pc.plataforma||"—"}</div></TD>
               <TD><Badge label={pc.formato||"Pieza"} color="gray" sm/></TD>
               <TD>{pc.responsableId&&crewMap[pc.responsableId]?crewMap[pc.responsableId].nom:<span style={{color:"var(--gr2)"}}>—</span>}</TD>
-              <TD><Badge label={pc.est||"Planificado"}/></TD>
+              <TD onClick={e=>e.stopPropagation()}>
+                <FSl value={pc.est||"Planificado"} onChange={e=>updatePieceQuick(pc.id,{est:e.target.value})}>
+                  {(DEFAULT_LISTAS.estadosPieza||[]).map(o=><option key={o}>{o}</option>)}
+                </FSl>
+              </TD>
               <TD><Badge label={pc.approval||"Pendiente"} color={(pc.approval||"Pendiente")==="Aprobada"?"green":(pc.approval||"Pendiente")==="Observada"?"red":(pc.approval||"Pendiente")==="En revisión"?"yellow":"gray"} sm/></TD>
               <TD mono style={{fontSize:11}}>{pc.publishDate?fmtD(pc.publishDate):pc.fin?fmtD(pc.fin):"—"}{pc.publishedAt&&<div style={{fontSize:10,color:"#00e08a",marginTop:4}}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>
               <TD style={{fontSize:11}}>
@@ -6495,7 +6560,8 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
                   ? <a href={pc.link} target="_blank" rel="noreferrer" style={{color:"var(--cy)",fontWeight:700,textDecoration:"none"}}>Pieza ↗</a>
                   : <span style={{color:"var(--gr2)"}}>—</span>}
               </TD>
-              <TD><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
+              <TD onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,justifyContent:"flex-end"}}>
+                <GBtn sm onClick={()=>setPiezaDetailId(pc.id)}>Ver</GBtn>
                 {_cd&&_cd("contenidos")&&<><GBtn sm onClick={()=>openM("pieza",{...pc,campId:id})}>✏</GBtn><XBtn onClick={()=>deletePiece(pc.id)}/></>}
               </div></TD>
             </tr>)}
@@ -6576,6 +6642,42 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       </Card>
     </div>}
     {tasksEnabled&&tab===8&&<TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"&&t.empId===empId):[]} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={_cd&&_cd("contenidos")}/>}
+    <Modal open={!!pieceDetail} onClose={()=>setPiezaDetailId("")} title={pieceDetail?.nom || "Pieza"} sub="Revisión completa de la pieza" wide>
+      {pieceDetail && <>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card title="Resumen">
+            <KV label="Estado" value={<Badge label={pieceDetail.est||"Planificado"}/>}/>
+            <KV label="Formato" value={pieceDetail.formato||"—"}/>
+            <KV label="Plataforma" value={pieceDetail.plataforma||"—"}/>
+            <KV label="Responsable" value={pieceDetail.responsableId&&crewMap[pieceDetail.responsableId]?crewMap[pieceDetail.responsableId].nom:"—"}/>
+            <KV label="Aprobación" value={<Badge label={pieceDetail.approval||"Pendiente"} color={(pieceDetail.approval||"Pendiente")==="Aprobada"?"green":(pieceDetail.approval||"Pendiente")==="Observada"?"red":(pieceDetail.approval||"Pendiente")==="En revisión"?"yellow":"gray"} sm/>}/>
+          </Card>
+          <Card title="Fechas y enlaces">
+            <KV label="Inicio" value={pieceDetail.ini?fmtD(pieceDetail.ini):"—"}/>
+            <KV label="Entrega" value={pieceDetail.fin?fmtD(pieceDetail.fin):"—"}/>
+            <KV label="Publicación estimada" value={pieceDetail.publishDate?fmtD(pieceDetail.publishDate):"—"}/>
+            <KV label="Publicación real" value={pieceDetail.publishedAt?fmtD(pieceDetail.publishedAt):"—"}/>
+            <KV label="Link de trabajo" value={pieceDetail.link?<a href={pieceDetail.link} target="_blank" rel="noreferrer" style={{color:"var(--cy)",textDecoration:"none",fontWeight:700}}>Abrir ↗</a>:"—"}/>
+            <KV label="Link final" value={pieceDetail.finalLink?<a href={pieceDetail.finalLink} target="_blank" rel="noreferrer" style={{color:"var(--cy)",textDecoration:"none",fontWeight:700}}>Abrir ↗</a>:"—"}/>
+          </Card>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginTop:16}}>
+          <Card title="Brief">
+            <KV label="Objetivo" value={pieceDetail.objetivo||"—"}/>
+            <KV label="CTA" value={pieceDetail.cta||"—"}/>
+            <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6,marginTop:12}}>{pieceDetail.brief||pieceDetail.des||"—"}</div>
+          </Card>
+          <Card title="Texto">
+            <KV label="Hashtags" value={pieceDetail.hashtags||"—"}/>
+            <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6,marginTop:12}}>{pieceDetail.copy||"—"}</div>
+          </Card>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+          <GBtn onClick={()=>setPiezaDetailId("")}>Cerrar</GBtn>
+          {_cd&&_cd("contenidos")&&<Btn onClick={()=>{setPiezaDetailId("");openM("pieza",{...pieceDetail,campId:id});}}>Editar pieza</Btn>}
+        </div>
+      </>}
+    </Modal>
   </div>;
 }
 
@@ -6584,8 +6686,8 @@ function AusCard({a,pgs,onEdit,onDel}){
     <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
       <div style={{width:38,height:38,borderRadius:8,background:"var(--bdr)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--fh)",fontSize:12,fontWeight:800,flexShrink:0}}>{ini(a.nom)}</div>
       <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{a.nom}</div><div style={{marginTop:4}}><Badge label={a.tip} sm/></div></div>
-      {onEdit&&<GBtn sm onClick={onEdit}>✏</GBtn>}
-      {onDel&&<XBtn onClick={onDel}/>}
+      {onEdit&&<GBtn sm onClick={e=>{e.stopPropagation();onEdit();}}>✏</GBtn>}
+      {onDel&&<XBtn onClick={e=>{e.stopPropagation();onDel();}}/>}
     </div>
     {(pgs||[]).length>0&&<div style={{marginBottom:8,display:"flex",flexWrap:"wrap",gap:4}}>{pgs.map(p=><Badge key={p.id} label={p.nom} color="cyan" sm/>)}</div>}
     {a.con&&<div style={{fontSize:11,color:"var(--gr3)"}}>{a.con}{a.ema?" · "+a.ema:""}</div>}
@@ -6745,41 +6847,100 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
 // ── AUSPICIADORES ─────────────────────────────────────────────
 function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,setAuspiciadores,listas}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
-  const fd=(auspiciadores||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.con||"").toLowerCase().includes(q.toLowerCase()))&&(!ft||a.tip===ft)&&(!fp||(a.pids||[]).includes(fp)));
+  const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const [detailId,setDetailId]=useState("");const PP=9;
+  const fd=(auspiciadores||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.con||"").toLowerCase().includes(q.toLowerCase()))&&(!ft||a.tip===ft)&&(!fp||(a.pids||[]).includes(fp))).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="amount-desc") return Number(b.mon||0)-Number(a.mon||0);
+    if(sortMode==="amount-asc") return Number(a.mon||0)-Number(b.mon||0);
+    if(sortMode==="oldest") return String(a.cr||a.vig||"").localeCompare(String(b.cr||b.vig||""));
+    return String(b.cr||b.vig||"").localeCompare(String(a.cr||a.vig||""));
+  });
   const pgOpts=(programas||[]).filter(x=>x.empId===empId).map(p=>({value:p.id,label:p.nom}));
+  const detail=(auspiciadores||[]).find(a=>a.id===detailId) || null;
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar auspiciador..."/>
       <FilterSel value={ft} onChange={v=>{setFt(v);setPg(1);}} options={listas?.tiposAus||DEFAULT_LISTAS.tiposAus} placeholder="Todo tipos"/>
       <FilterSel value={fp} onChange={v=>{setFp(v);setPg(1);}} options={pgOpts} placeholder="Todas producciones"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{})}>+ Nuevo Auspiciador</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
+        <option value="">Cambiar estado...</option>
+        {(listas?.estadosAus||DEFAULT_LISTAS.estadosAus).map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setAuspiciadores((auspiciadores||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      <DBtn sm onClick={()=>{
+        if(!_cd||!_cd("auspiciadores")) return;
+        if(!confirm(`¿Eliminar ${selectedIds.length} auspiciador${selectedIds.length===1?"":"es"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
+        setAuspiciadores((auspiciadores||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     {vista==="cards"?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
       {fd.slice((pg-1)*PP,pg*PP).map(a=>{
         const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)).filter(Boolean);
-        return <AusCard key={a.id} a={a} pgs={pgs} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null} onDel={_cd&&_cd("auspiciadores")?()=>cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado"):null}/>;
+        return <div key={a.id} onClick={()=>setDetailId(a.id)} style={{cursor:"pointer"}}><AusCard a={a} pgs={pgs} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null} onDel={_cd&&_cd("auspiciadores")?()=>cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado"):null}/></div>;
       })}
     </div>:<Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH>Monto</TH><TH>Vigencia</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH>Monto</TH><TH>Vigencia</TH><TH></TH></tr></thead>
         <tbody>
-          {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)?.nom).filter(Boolean);return <tr key={a.id}>
-            <TD bold>{a.nom}</TD>
+          {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)?.nom).filter(Boolean);return <tr key={a.id} onClick={()=>setDetailId(a.id)} style={{cursor:"pointer"}}>
+            <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={()=>toggleSelected(a.id)}/></TD>
+            <TD bold style={{color:"var(--cy)"}}>{a.nom}</TD>
             <TD><Badge label={a.tip} sm/></TD>
             <TD style={{fontSize:11}}>{pgs.join(", ")||"—"}</TD>
             <TD style={{fontSize:11}}>{[a.con,a.ema].filter(Boolean).join(" · ")||"—"}</TD>
             <TD style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cy)"}}>{a.mon?fmtM(a.mon):"—"}</TD>
             <TD style={{fontSize:11}}>{a.vig?fmtD(a.vig):"—"}</TD>
-            <TD><div style={{display:"flex",gap:4}}>{_cd&&_cd("auspiciadores")&&<><GBtn sm onClick={()=>openM("aus",a)}>✏</GBtn><XBtn onClick={()=>cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado")}/></>}</div></TD>
+            <TD onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}><GBtn sm onClick={()=>setDetailId(a.id)}>Ver</GBtn>{_cd&&_cd("auspiciadores")&&<><GBtn sm onClick={e=>{e.stopPropagation();openM("aus",a);}}>✏</GBtn><XBtn onClick={e=>{e.stopPropagation();cDel(auspiciadores,setAuspiciadores,a.id,null,"Auspiciador eliminado");}}/></>}</div></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={7}><Empty text="Sin auspiciadores"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin auspiciadores"/></td></tr>}
         </tbody>
       </table></div>
     </Card>}
     {!fd.length&&vista==="cards"&&<Empty text="Sin auspiciadores"/>}
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
+    <Modal open={!!detail} onClose={()=>setDetailId("")} title={detail?.nom || "Auspiciador"} sub="Ficha de auspiciador" wide>
+      {detail && <>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <Card title="Información general">
+            <KV label="Tipo" value={<Badge label={detail.tip||"—"} sm/>}/>
+            <KV label="Estado" value={<Badge label={detail.est||"Activo"} color={(detail.est||"Activo")==="Activo"?"green":"gray"} sm/>}/>
+            <KV label="Monto" value={detail.mon?fmtM(detail.mon):"—"}/>
+            <KV label="Frecuencia de pago" value={detail.frecPago||"—"}/>
+            <KV label="Vigencia" value={detail.vig?fmtD(detail.vig):"—"}/>
+          </Card>
+          <Card title="Contacto">
+            <KV label="Contacto" value={detail.con||"—"}/>
+            <KV label="Email" value={detail.ema||"—"}/>
+            <KV label="Teléfono" value={detail.tel||"—"}/>
+            <div style={{marginTop:12}}><ContactBtns tel={detail.tel} ema={detail.ema} nombre={detail.con||detail.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${detail.con || detail.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}/></div>
+          </Card>
+        </div>
+        <Card title="Producciones asociadas" style={{marginTop:16}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{(detail.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)).filter(Boolean).map(pg=><Badge key={pg.id} label={pg.nom} color="cyan" sm/>)}</div>
+          {!(detail.pids||[]).length&&<div style={{fontSize:12,color:"var(--gr2)"}}>Sin producciones asociadas.</div>}
+          {detail.not&&<><Sep/><div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{detail.not}</div></>}
+        </Card>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+          <GBtn onClick={()=>setDetailId("")}>Cerrar</GBtn>
+          {_cd&&_cd("auspiciadores")&&<Btn onClick={()=>{setDetailId("");openM("aus",detail);}}>Editar auspiciador</Btn>}
+        </div>
+      </>}
+    </Modal>
   </div>;
 }
 
@@ -8454,11 +8615,18 @@ async function generarPDFFactura(fact, entidad, ref, empresa) {
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────
 function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,contratos,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [pg,setPg]=useState(1);const PP=10;
-  const fd=(presupuestos||[]).filter(x=>x.empId===empId).filter(p=>(p.titulo||"").toLowerCase().includes(q.toLowerCase())&&(!fe||p.estado===fe));
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(presupuestos||[]).filter(x=>x.empId===empId).filter(p=>(p.titulo||"").toLowerCase().includes(q.toLowerCase())&&(!fe||p.estado===fe)).sort((a,b)=>{
+    if(sortMode==="az") return String(a.titulo||"").localeCompare(String(b.titulo||""));
+    if(sortMode==="za") return String(b.titulo||"").localeCompare(String(a.titulo||""));
+    if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
+    return String(b.cr||"").localeCompare(String(a.cr||""));
+  });
   const total=fd.reduce((s,p)=>s+Number(p.total||0),0);
   const aceptados=fd.filter(p=>p.estado==="Aceptado").reduce((s,p)=>s+Number(p.total||0),0);
   const setEstadoRapido=(evt,pres,estado)=>{evt.stopPropagation();cSave(presupuestos,setPresupuestos,{...pres,estado});};
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total"     value={fd.length}                                          accent="var(--cy)" vc="var(--cy)"/>
@@ -8469,13 +8637,25 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar presupuesto..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Borrador","Enviado","En Revisión","Aceptado","Rechazado"]} placeholder="Todo estados"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"}]} placeholder="Ordenar"/>
       {_cd&&_cd("presupuestos")&&<Btn onClick={()=>openM("pres",{})}>+ Nuevo Presupuesto</Btn>}
     </div>
+    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
+        <option value="">Cambiar estado...</option>
+        {["Borrador","Enviado","En Revisión","Aceptado","Rechazado"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{ if(!bulkEstado) return; setPresupuestos((presupuestos||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item)); setSelectedIds([]); }}>Aplicar estado</GBtn>
+      <DBtn sm onClick={()=>{ if(!confirm(`¿Eliminar ${selectedIds.length} presupuesto${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return; setPresupuestos((presupuestos||[]).filter(item=>!selectedIds.includes(item.id))); setSelectedIds([]); }}>Eliminar seleccionados</DBtn>
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return<tr key={p.id} onClick={()=>navTo("pres-det",p.id)}>
+            <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleSelected(p.id)}/></TD>
             <TD><div style={{fontWeight:700}}>{p.titulo}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{recurringSummary(p, p.cr || today())}</div></TD>
             <TD>{c?c.nom:"—"}</TD>
             <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
@@ -8495,7 +8675,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
               {_cd&&_cd("presupuestos")&&<XBtn onClick={e=>{e.stopPropagation();cDel(presupuestos,setPresupuestos,p.id,null,"Presupuesto eliminado");}}/>}
             </div></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin presupuestos" sub={_cd&&_cd("presupuestos")?"Crea el primero con el botón superior":""}/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin presupuestos" sub={_cd&&_cd("presupuestos")?"Crea el primero con el botón superior":""}/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>

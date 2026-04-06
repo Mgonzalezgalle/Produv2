@@ -256,8 +256,8 @@ async function supportAttachmentFromFile(file) {
   return commentAttachmentFromFile(file);
 }
 
-function supportThreadPreviewText(thread = {}) {
-  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+function supportThreadPreviewText(thread = null) {
+  const messages = Array.isArray(thread?.messages) ? thread.messages : [];
   return messages[messages.length - 1]?.text || "Todavía no hay mensajes en esta conversación.";
 }
 

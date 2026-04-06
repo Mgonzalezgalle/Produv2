@@ -3197,7 +3197,7 @@ const THEME_PRESETS={
   },
 };
 
-function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,supportThreads=[],supportSettings={}}){
+function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,savePrintLayouts,supportThreads=[],supportSettings={}}){
   const [tab,setTab]=useState(0);
   const [ef,setEf]=useState({});const [eid,setEid]=useState(null);
   const [sysUf,setSysUf]=useState({active:true,role:"admin",empId:"",password:""});
@@ -3614,14 +3614,15 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
             </div>
           </div>
           <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
-          <Badge label={emp.supportChatEnabled!==false?"Soporte ON":"Soporte OFF"} color={emp.supportChatEnabled!==false?"cyan":"gray"} sm/>
-          <Badge label={emp.plan} color="gray" sm/>
-          <GBtn sm onClick={()=>{setEid(emp.id);setEf({...emp});}}>✏</GBtn>
-          <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,supportChatEnabled:e.supportChatEnabled===false?true:false}:e))}>
-            {emp.supportChatEnabled===false?"Activar soporte":"Desactivar soporte"}
-          </GBtn>
-          <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,active:!e.active}:e))}>{emp.active?"Desactivar":"Activar"}</GBtn>
-        </div>)}
+        <Badge label={emp.supportChatEnabled!==false?"Soporte ON":"Soporte OFF"} color={emp.supportChatEnabled!==false?"cyan":"gray"} sm/>
+        <Badge label={emp.plan} color="gray" sm/>
+        <GBtn sm onClick={()=>{setEid(emp.id);setEf({...emp});}}>✏</GBtn>
+        <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,supportChatEnabled:e.supportChatEnabled===false?true:false}:e))}>
+          {emp.supportChatEnabled===false?"Activar soporte":"Desactivar soporte"}
+        </GBtn>
+        <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,active:!e.active}:e))}>{emp.active?"Desactivar":"Activar"}</GBtn>
+        {emp.active===false&&<button onClick={()=>onDeleteEmpresa&&onDeleteEmpresa(emp)} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #ff556655",background:"#ff556614",color:"#ff5566",cursor:"pointer",fontSize:11,fontWeight:700}}>Eliminar instancia</button>}
+      </div>)}
         {!filteredEmp.length&&<Empty text="Sin empresas para este filtro"/>}
       </div>
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
@@ -5174,6 +5175,43 @@ export default function App(){
     setSupportSettingsRaw(normalized);
     await dbSet("produ:supportSettings", normalized);
   };
+  const deleteEmpresa = async emp => {
+    if(!emp?.id) return;
+    if(emp.active !== false){
+      ntf("Primero desactiva la empresa antes de eliminarla","warn");
+      return;
+    }
+    const confirmDelete = confirm(`¿Eliminar la instancia ${emp.nombre}?\n\nEsto borrará usuarios y datos asociados del tenant. Esta acción no se puede deshacer.`);
+    if(!confirmDelete) return;
+    const targetId = emp.id;
+    const tenantKeys = ["listas","tareas","clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"];
+    await Promise.all(tenantKeys.map(key=>dbSet(`produ:${targetId}:${key}`,[])));
+    const nextEmpresas = normalizeEmpresasModel((empresas||[]).filter(item=>item.id!==targetId));
+    const nextUsers = ensureRequiredSystemUsers((users||[]).filter(item=>item.empId!==targetId));
+    const nextThreads = normalizeSupportThreads((supportThreads||[]).filter(thread=>thread.empId!==targetId), nextEmpresas, nextUsers, supportSettings||{});
+    setEmpresasRaw(nextEmpresas);
+    setUsersRaw(nextUsers);
+    setSupportThreadsRaw(nextThreads);
+    await dbSet("produ:empresas", nextEmpresas);
+    await dbSet("produ:users", nextUsers);
+    await dbSet("produ:supportThreads", nextThreads);
+    try{
+      const solicitudes = await dbGet("produ:solicitudes");
+      if(Array.isArray(solicitudes)){
+        const nextSolicitudes = solicitudes.filter(sol=>sol.empresaId!==targetId && sol.referredByEmpId!==targetId);
+        await dbSet("produ:solicitudes", nextSolicitudes);
+      }
+    }catch{}
+    if(curEmp?.id===targetId){
+      setCurEmp(null);
+      if(curUser?.role!=="superadmin"){
+        setCurUser(null);
+        try{localStorage.removeItem("produ_session");}catch{}
+        setStoredSession(null);
+      }
+    }
+    ntf("Instancia eliminada","warn");
+  };
   const saveSuperData=(key,data)=>{
     if(key==="empresas") saveEmpresas(data);
     else if(key==="users") saveUsers(data);
@@ -5203,7 +5241,7 @@ export default function App(){
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
 
   const renderView=()=>{
-    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings}/></>;
+    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanel empresas={empresas||[]} users={users||[]} onSave={saveSuperData} onDeleteEmpresa={deleteEmpresa} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings}/></>;
     if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas}/>;

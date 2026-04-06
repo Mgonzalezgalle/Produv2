@@ -2404,7 +2404,45 @@ function FreshdeskWidget({ empresa, user }) {
   const externalId = `${empresa?.tenantCode || empresa?.id || "tenant"}:${user?.id || normalizeEmailValue(user?.email || "guest")}`;
   useEffect(() => {
     if (!empresa?.freshdeskEnabled || !user) return;
+    const styleId = "produ-freshdesk-mobile-fixes";
     const existing = document.querySelector('script[data-produ-freshdesk="true"]');
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        #fc_frame,
+        #fc_frame.fc-widget-normal,
+        #fc_frame.fc-widget-small,
+        #fc_widget,
+        #fc_widget .fc-widget-normal,
+        #fc_widget .fc-widget-small,
+        #fc_widget iframe,
+        iframe[id^="fc_frame"],
+        iframe[id^="fc_widget"]{
+          background: transparent !important;
+        }
+        @media (max-width: 1024px){
+          #fc_frame,
+          #fc_widget{
+            background: transparent !important;
+            box-shadow: none !important;
+          }
+          #fc_frame iframe,
+          #fc_widget iframe,
+          iframe[id^="fc_frame"],
+          iframe[id^="fc_widget"]{
+            background: transparent !important;
+            border-radius: 22px !important;
+          }
+          #fc_frame.fc-widget-small iframe,
+          #fc_widget .fc-widget-small iframe{
+            border-radius: 999px !important;
+            box-shadow: none !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
     const identify = () => {
       try {
         if (!window.fcWidget) return false;

@@ -2150,6 +2150,7 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [helpQuery, setHelpQuery] = useState("");
+  const creatingThreadRef = useRef(false);
   const settings = buildSupportSettings(supportSettings, users);
   const currentThread = normalizeSupportThreads(supportThreads, [empresa], users, settings).find(thread => thread.empId === empresa?.id) || null;
   const activeAdmins = (currentThread?.assignedAdminIds?.length ? currentThread.assignedAdminIds : settings.teamIds)
@@ -2158,10 +2159,17 @@ function SupportChatWidget({ empresa, user, users = [], supportThreads = [], sup
     .slice(0, 3);
 
   useEffect(() => {
-    if (!open || !empresa?.id || !supportEnabled || currentThread) return;
+    if (!open || !empresa?.id || !supportEnabled || currentThread || creatingThreadRef.current) return;
+    creatingThreadRef.current = true;
     const ensured = ensureSupportThread(supportThreads, empresa.id, empresa, users, settings);
-    if (ensured.created) onSaveThreads?.(ensured.threads);
-  }, [open, empresa?.id, supportEnabled, currentThread, supportThreads, users, settings, onSaveThreads]);
+    if (ensured.created) {
+      Promise.resolve(onSaveThreads?.(ensured.threads)).finally(() => {
+        creatingThreadRef.current = false;
+      });
+    } else {
+      creatingThreadRef.current = false;
+    }
+  }, [open, empresa?.id, supportEnabled, currentThread, supportThreads, users, supportSettings]);
 
   const loadAttachments = async files => {
     const list = Array.from(files || []).slice(0, Math.max(0, 4 - attachments.length));

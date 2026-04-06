@@ -1443,7 +1443,12 @@ const DBtn=({onClick,children,sm})=><button onClick={onClick} style={{padding:sm
 const XBtn=({onClick})=><button onClick={onClick} style={{padding:"3px 8px",borderRadius:4,border:"1px solid #ff556625",background:"transparent",color:"var(--red)",cursor:"pointer",fontSize:10,fontWeight:600}}>✕</button>;
 
 function Stat({label,value,sub,accent="var(--cy)",vc}){return <div style={{background:"linear-gradient(180deg,var(--card),var(--card2))",border:"1px solid var(--bdr)",borderRadius:14,padding:"18px 20px",position:"relative",overflow:"hidden",boxShadow:"0 10px 30px rgba(0,0,0,.08)"}}><div style={{position:"absolute",top:0,left:0,right:0,height:3,background:accent}}/><div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"var(--gr2)",marginBottom:10,fontWeight:700}}>{label}</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:500,color:vc||"var(--wh)"}}>{value}</div>{sub&&<div style={{fontSize:11,color:"var(--gr2)",marginTop:6}}>{sub}</div>}</div>;}
-const TH=({children})=><th style={{textAlign:"left",padding:"12px 14px",fontSize:10,letterSpacing:1.7,textTransform:"uppercase",color:"var(--gr2)",borderBottom:"1px solid var(--bdr)",fontWeight:700,whiteSpace:"nowrap",background:"linear-gradient(180deg,var(--card2),transparent)"}}>{children}</th>;
+const TH=({children,onClick,active=false,dir="",style,title})=><th onClick={onClick} title={title} style={{textAlign:"left",padding:"12px 14px",fontSize:10,letterSpacing:1.7,textTransform:"uppercase",color:active?"var(--cy)":"var(--gr2)",borderBottom:"1px solid var(--bdr)",fontWeight:700,whiteSpace:"nowrap",background:"linear-gradient(180deg,var(--card2),transparent)",cursor:onClick?"pointer":"default",userSelect:"none",...style}}>
+  <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+    <span>{children}</span>
+    {active&&<span style={{fontSize:10,lineHeight:1}}>{dir==="desc"?"↓":"↑"}</span>}
+  </span>
+</th>;
 const TD=({children,bold,mono,style:s={}})=><td style={{padding:"12px 14px",fontSize:12.5,color:bold?"var(--wh)":"var(--gr3)",borderBottom:"1px solid var(--bdr)",fontFamily:mono?"var(--fm)":"inherit",fontWeight:bold?600:400,verticalAlign:"middle",...s}}>{children}</td>;
 function Card({title,sub,action,children,style:s={}}){return <div style={{background:"linear-gradient(180deg,var(--card),var(--card2))",border:"1px solid var(--bdr)",borderRadius:16,padding:20,boxShadow:"0 12px 32px rgba(0,0,0,.08)",...s}}>{title&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,paddingBottom:12,borderBottom:"1px solid var(--bdr)"}}><div><div style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:800}}>{title}</div>{sub&&<div style={{fontSize:11,color:"var(--gr2)",marginTop:3}}>{sub}</div>}</div>{action&&<button onClick={action.fn} style={{padding:"7px 12px",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",cursor:"pointer",fontSize:11,fontWeight:700}}>{action.label}</button>}</div>}{children}</div>;}
 const Empty=({text,sub})=><div style={{textAlign:"center",padding:"44px 24px",color:"var(--gr2)",background:"linear-gradient(180deg,transparent,var(--card2))",border:"1px dashed var(--bdr2)",borderRadius:14}}><div style={{fontSize:34,marginBottom:12,opacity:.35}}>◻</div><p style={{fontSize:13,fontWeight:600,color:"var(--gr3)"}}>{text}</p>{sub&&<small style={{fontSize:11,color:"var(--gr)",marginTop:6,display:"block"}}>{sub}</small>}</div>;
@@ -5179,34 +5184,49 @@ function MovBlock({movimientos,tipo,eid,etype,onAdd,onDel,canEdit}){
   const items=(movimientos||[]).filter(m=>m.tipo===tipo&&m.eid===eid);
   const total=items.reduce((s,m)=>s+Number(m.mon),0);
   const mc=tipo==="ingreso"?"#00e08a":tipo==="gasto"?"#ff5566":"var(--wh)";
-  const [pg,setPg]=useState(1);const PP=8;
+  const [pg,setPg]=useState(1);const [sortMode,setSortMode]=useState("date-desc");const PP=8;
+  const sorted=[...items].sort((a,b)=>{
+    if(sortMode==="desc-asc") return String(a.des||"").localeCompare(String(b.des||""));
+    if(sortMode==="desc-desc") return String(b.des||"").localeCompare(String(a.des||""));
+    if(sortMode==="amount-asc") return Number(a.mon||0)-Number(b.mon||0);
+    if(sortMode==="amount-desc") return Number(b.mon||0)-Number(a.mon||0);
+    if(sortMode==="date-asc") return String(a.fec||"").localeCompare(String(b.fec||""));
+    return String(b.fec||"").localeCompare(String(a.fec||""));
+  });
   return <Card title={lbl} sub={`Total: `} action={canEdit?{label:"+ Agregar",fn:()=>onAdd(eid,etype,tipo)}:null}>
     <div style={{fontSize:11,color:"var(--gr2)",marginTop:-10,marginBottom:12}}>Total: <span style={{color:mc,fontFamily:"var(--fm)"}}>{fmtM(total)}</span></div>
     {items.length>0?<><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-      <thead><tr><TH>Descripción</TH><TH>Categoría</TH><TH>Fecha</TH><TH>Monto</TH>{canEdit&&<TH></TH>}</tr></thead>
-      <tbody>{items.slice((pg-1)*PP,pg*PP).map(m=><tr key={m.id}>
+      <thead><tr><TH onClick={()=>setSortMode(sortMode==="desc-asc"?"desc-desc":"desc-asc")} active={sortMode==="desc-asc"||sortMode==="desc-desc"} dir={sortMode==="desc-desc"?"desc":"asc"}>Descripción</TH><TH>Categoría</TH><TH onClick={()=>setSortMode(sortMode==="date-asc"?"date-desc":"date-asc")} active={sortMode==="date-asc"||sortMode==="date-desc"} dir={sortMode==="date-desc"?"desc":"asc"}>Fecha</TH><TH onClick={()=>setSortMode(sortMode==="amount-asc"?"amount-desc":"amount-asc")} active={sortMode==="amount-asc"||sortMode==="amount-desc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH>{canEdit&&<TH></TH>}</tr></thead>
+      <tbody>{sorted.slice((pg-1)*PP,pg*PP).map(m=><tr key={m.id}>
         <TD bold>{m.des}</TD>
         <TD><Badge label={m.cat||"General"} color="gray" sm/></TD>
         <TD mono style={{fontSize:11}}>{m.fec?fmtD(m.fec):"—"}</TD>
         <TD style={{color:mc,fontFamily:"var(--fm)",fontSize:12}}>{fmtM(m.mon)}</TD>
         {canEdit&&<TD><XBtn onClick={()=>onDel(m.id)}/></TD>}
       </tr>)}</tbody>
-    </table></div><Paginator page={pg} total={items.length} perPage={PP} onChange={setPg}/></>
+    </table></div><Paginator page={pg} total={sorted.length} perPage={PP} onChange={setPg}/></>
     :<Empty text={`Sin ${lbl.toLowerCase()}`} sub={canEdit?'Clic en "+ Agregar" para comenzar':""}/>}
   </Card>;
 }
 
 function MiniCal({refId,eventos,onAdd,onDel,onEdit,canEdit,titulo}){
   const propios=(eventos||[]).filter(e=>e.ref===refId);
-  const [pg,setPg]=useState(1);const PP=8;
-  const sorted=[...propios].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+  const [pg,setPg]=useState(1);const [sortMode,setSortMode]=useState("date-asc");const PP=8;
   const TIPOS=[{v:"grabacion",ico:"🎬",lbl:"Grabación",c:"var(--cy)"},{v:"emision",ico:"📡",lbl:"Emisión",c:"#00e08a"},{v:"reunion",ico:"💬",lbl:"Reunión",c:"#ffcc44"},{v:"entrega",ico:"✓",lbl:"Entrega",c:"#ff8844"},{v:"otro",ico:"📌",lbl:"Otro",c:"#7c7c8a"}];
   const tc=v=>TIPOS.find(t=>t.v===v)?.c||"#7c7c8a";
   const ti=v=>TIPOS.find(t=>t.v===v)?.ico||"📌";
   const tl=v=>TIPOS.find(t=>t.v===v)?.lbl||v;
+  const sorted=[...propios].sort((a,b)=>{
+    if(sortMode==="type-asc") return String(tl(a.tipo)||"").localeCompare(String(tl(b.tipo)||""));
+    if(sortMode==="type-desc") return String(tl(b.tipo)||"").localeCompare(String(tl(a.tipo)||""));
+    if(sortMode==="title-asc") return String(a.titulo||"").localeCompare(String(b.titulo||""));
+    if(sortMode==="title-desc") return String(b.titulo||"").localeCompare(String(a.titulo||""));
+    if(sortMode==="date-desc") return String(b.fecha||"").localeCompare(String(a.fecha||""));
+    return String(a.fecha||"").localeCompare(String(b.fecha||""));
+  });
   return <Card title={`📅 Fechas — ${titulo||""}`} action={canEdit?{label:"+ Evento",fn:onAdd}:null}>
     {sorted.length>0?<><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-      <thead><tr><TH>Tipo</TH><TH>Título</TH><TH>Fecha</TH><TH>Hora</TH><TH>Descripción</TH>{canEdit&&<TH></TH>}</tr></thead>
+      <thead><tr><TH onClick={()=>setSortMode(sortMode==="type-asc"?"type-desc":"type-asc")} active={sortMode==="type-asc"||sortMode==="type-desc"} dir={sortMode==="type-desc"?"desc":"asc"}>Tipo</TH><TH onClick={()=>setSortMode(sortMode==="title-asc"?"title-desc":"title-asc")} active={sortMode==="title-asc"||sortMode==="title-desc"} dir={sortMode==="title-desc"?"desc":"asc"}>Título</TH><TH onClick={()=>setSortMode(sortMode==="date-asc"?"date-desc":"date-asc")} active={sortMode==="date-asc"||sortMode==="date-desc"} dir={sortMode==="date-desc"?"desc":"asc"}>Fecha</TH><TH>Hora</TH><TH>Descripción</TH>{canEdit&&<TH></TH>}</tr></thead>
       <tbody>{sorted.slice((pg-1)*PP,pg*PP).map(ev=><tr key={ev.id}>
         <TD><span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 9px",borderRadius:20,fontSize:10,fontWeight:700,background:tc(ev.tipo)+"22",color:tc(ev.tipo),border:`1px solid ${tc(ev.tipo)}40`}}>{ti(ev.tipo)} {tl(ev.tipo)}</span></TD>
         <TD bold>{ev.titulo}</TD>
@@ -5588,7 +5608,15 @@ function ViewClientes({empresa,clientes,producciones,movimientos,navTo,openM,can
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Nombre</TH><TH>Industria</TH><TH>Contacto Principal</TH><TH>Email</TH><TH>Teléfono</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr>
+          <TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Nombre</TH>
+          <TH>Industria</TH>
+          <TH>Contacto Principal</TH>
+          <TH>Email</TH>
+          <TH>Teléfono</TH>
+          <TH title="Orden calculado desde el selector">Balance</TH>
+          <TH></TH>
+        </tr></thead>
         <tbody>{fd.slice((pg-1)*PP,pg*PP).map(c=>{
           let ti=0,tg=0;(producciones||[]).filter(p=>p.cliId===c.id).forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
           const pc=(c.contactos||[])[0];
@@ -6018,14 +6046,14 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
           <thead>
             <tr>
               <TH><input type="checkbox" checked={paged.length>0 && paged.every(item=>selectedIds.includes(item.id))} onChange={toggleAllVisible}/></TH>
-              <TH>Oportunidad</TH>
+              <TH onClick={()=>setSortKey(sortKey==="name"?"updated":"name")} active={sortKey==="name"||sortKey==="updated"} dir={sortKey==="updated"?"desc":"asc"}>Oportunidad</TH>
               <TH>Empresa / Marca</TH>
               <TH>Tipo</TH>
               <TH>Etapa</TH>
               <TH>Estado</TH>
               <TH>Responsable</TH>
-              <TH>Monto</TH>
-              <TH>Próxima acción</TH>
+              <TH onClick={()=>setSortKey(sortKey==="amount"?"updated":"amount")} active={sortKey==="amount"} dir="desc">Monto</TH>
+              <TH onClick={()=>setSortKey(sortKey==="close"?"updated":"close")} active={sortKey==="close"} dir="asc">Próxima acción</TH>
               <TH></TH>
             </tr>
           </thead>
@@ -6218,7 +6246,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);const b=bal(p.id);return<tr key={p.id} onClick={()=>navTo("pro-det",p.id)}>
             <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleSelected(p.id)}/></TD>
@@ -6377,7 +6405,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
       })}
     </div>:<Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Producción</TH><TH>Canal</TH><TH>Estado</TH><TH>Episodios</TH><TH>Publicados</TH><TH>Auspiciadores</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Producción</TH><TH>Canal</TH><TH>Estado</TH><TH>Episodios</TH><TH>Publicados</TH><TH>Auspiciadores</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{const eps=(episodios||[]).filter(e=>e.pgId===pg_.id);const pub=eps.filter(e=>e.estado==="Publicado").length;const aus=(auspiciadores||[]).filter(a=>(a.pids||[]).includes(pg_.id)).length;const b=bal(pg_.id);return <tr key={pg_.id} onClick={()=>navTo("pg-det",pg_.id)}>
             <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(pg_.id)} onChange={()=>toggleSelected(pg_.id)}/></TD>
@@ -6475,7 +6503,7 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Campaña</TH><TH>Cliente</TH><TH>Mes</TH><TH>Piezas</TH><TH>Plataforma</TH><TH>Estado</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(pz=>{const c=(clientes||[]).find(x=>x.id===pz.cliId);const b=bal(pz.id);return<tr key={pz.id} onClick={()=>navTo("contenido-det",pz.id)}>
             <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(pz.id)} onChange={()=>toggleSelected(pz.id)}/></TD>
@@ -6506,9 +6534,16 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
   const b=bal(id);const mv=(movimientos||[]).filter(m=>m.eid===id);
   const tauz=aus.reduce((s,a)=>s+Number(a.mon||0),0);
   const [tab,setTab]=useState(0);
-  const [epQ,setEpQ]=useState("");const [epF,setEpF]=useState("");const [epPg,setEpPg]=useState(1);const EPP=8;
+  const [epQ,setEpQ]=useState("");const [epF,setEpF]=useState("");const [epSort,setEpSort]=useState("num-asc");const [epPg,setEpPg]=useState(1);const EPP=8;
   const epStats={plan:eps.filter(e=>e.estado==="Planificado").length,grab:eps.filter(e=>e.estado==="Grabado").length,edit:eps.filter(e=>e.estado==="En Edición").length,prog:eps.filter(e=>e.estado==="Programado").length,pub:eps.filter(e=>e.estado==="Publicado").length,can:eps.filter(e=>e.estado==="Cancelado").length};
-  const fdEps=eps.filter(e=>(!epF||e.estado===epF)&&(e.titulo.toLowerCase().includes(epQ.toLowerCase())||(e.invitado||"").toLowerCase().includes(epQ.toLowerCase())));
+  const fdEps=eps.filter(e=>(!epF||e.estado===epF)&&(e.titulo.toLowerCase().includes(epQ.toLowerCase())||(e.invitado||"").toLowerCase().includes(epQ.toLowerCase()))).sort((a,b)=>{
+    if(epSort==="title-asc") return String(a.titulo||"").localeCompare(String(b.titulo||""));
+    if(epSort==="title-desc") return String(b.titulo||"").localeCompare(String(a.titulo||""));
+    if(epSort==="date-desc") return String(b.fechaGrab||b.fechaEmision||"").localeCompare(String(a.fechaGrab||a.fechaEmision||""));
+    if(epSort==="date-asc") return String(a.fechaGrab||a.fechaEmision||"").localeCompare(String(b.fechaGrab||b.fechaEmision||""));
+    if(epSort==="num-desc") return Number(b.num||0)-Number(a.num||0);
+    return Number(a.num||0)-Number(b.num||0);
+  });
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pg_.crewIds||[]).includes(x.id));
   const addCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
   const remCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};
@@ -6549,7 +6584,7 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
       </div>
       <Card>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>N°</TH><TH>Título</TH><TH>Invitado</TH><TH>Grabación</TH><TH>Emisión</TH><TH>Estado</TH><TH>Gastos</TH><TH></TH></tr></thead>
+          <thead><tr><TH onClick={()=>setEpSort(epSort==="num-asc"?"num-desc":"num-asc")} active={epSort==="num-asc"||epSort==="num-desc"} dir={epSort==="num-desc"?"desc":"asc"}>N°</TH><TH onClick={()=>setEpSort(epSort==="title-asc"?"title-desc":"title-asc")} active={epSort==="title-asc"||epSort==="title-desc"} dir={epSort==="title-desc"?"desc":"asc"}>Título</TH><TH>Invitado</TH><TH onClick={()=>setEpSort(epSort==="date-asc"?"date-desc":"date-asc")} active={epSort==="date-asc"||epSort==="date-desc"} dir={epSort==="date-desc"?"desc":"asc"}>Grabación</TH><TH>Emisión</TH><TH>Estado</TH><TH>Gastos</TH><TH></TH></tr></thead>
           <tbody>
             {fdEps.slice((epPg-1)*EPP,epPg*EPP).map(ep=>{const eg=bal(ep.id);return<tr key={ep.id} onClick={()=>navTo("ep-det",ep.id)}>
               <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontWeight:700,fontSize:13}}>#{String(ep.num).padStart(2,"0")}</TD>
@@ -6600,9 +6635,17 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
   const [piezaQ,setPiezaQ]=useState("");
   const [piezaEstado,setPiezaEstado]=useState("");
   const [piezaResp,setPiezaResp]=useState("");
+  const [piezaSort,setPiezaSort]=useState("name-asc");
   const [piezaDetailId,setPiezaDetailId]=useState("");
   const piezasCamp=(pz.piezas||[]).filter(pc=>(pc.nom||"").toLowerCase().includes(piezaQ.toLowerCase())&&(!piezaEstado||pc.est===piezaEstado));
-  const piezasFiltradas=piezasCamp.filter(pc=>(!piezaResp||pc.responsableId===piezaResp));
+  const piezasFiltradas=piezasCamp.filter(pc=>(!piezaResp||pc.responsableId===piezaResp)).sort((a,b)=>{
+    if(piezaSort==="name-desc") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(piezaSort==="date-desc") return String(b.publishDate||b.fin||"").localeCompare(String(a.publishDate||a.fin||""));
+    if(piezaSort==="date-asc") return String(a.publishDate||a.fin||"").localeCompare(String(b.publishDate||b.fin||""));
+    if(piezaSort==="status-desc") return String(b.est||"").localeCompare(String(a.est||""));
+    if(piezaSort==="status-asc") return String(a.est||"").localeCompare(String(b.est||""));
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
   const piezasPub=(pz.piezas||[]).filter(pc=>pc.est==="Publicado").length;
   const piezasProgramadas=(pz.piezas||[]).filter(pc=>pc.est==="Programado").length;
   const piezasRevision=(pz.piezas||[]).filter(pc=>(pc.approval||"Pendiente")==="En revisión" || pc.est==="Correcciones").length;
@@ -6659,7 +6702,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       </div>
       <Card>
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Pieza</TH><TH>Formato</TH><TH>Responsable</TH><TH>Estado</TH><TH>Aprobación</TH><TH>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
+          <thead><tr><TH onClick={()=>setPiezaSort(piezaSort==="name-asc"?"name-desc":"name-asc")} active={piezaSort==="name-asc"||piezaSort==="name-desc"} dir={piezaSort==="name-desc"?"desc":"asc"}>Pieza</TH><TH>Formato</TH><TH>Responsable</TH><TH onClick={()=>setPiezaSort(piezaSort==="status-asc"?"status-desc":"status-asc")} active={piezaSort==="status-asc"||piezaSort==="status-desc"} dir={piezaSort==="status-desc"?"desc":"asc"}>Estado</TH><TH>Aprobación</TH><TH onClick={()=>setPiezaSort(piezaSort==="date-asc"?"date-desc":"date-asc")} active={piezaSort==="date-asc"||piezaSort==="date-desc"} dir={piezaSort==="date-desc"?"desc":"asc"}>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
             {piezasFiltradas.map(pc=><tr key={pc.id} onClick={()=>setPiezaDetailId(pc.id)} style={{cursor:"pointer"}}>
               <TD bold><div style={{color:"var(--cy)"}}>{pc.nom}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{pc.objetivo||pc.plataforma||"—"}</div></TD>
@@ -6949,7 +6992,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Nombre</TH><TH>Rol</TH><TH>Área</TH><TH>Email</TH><TH>Teléfono</TH><TH>Disponibilidad</TH><TH>Tarifa</TH><TH>Estado</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Nombre</TH><TH>Rol</TH><TH>Área</TH><TH>Email</TH><TH>Teléfono</TH><TH>Disponibilidad</TH><TH>Tarifa</TH><TH>Estado</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(m=><tr key={m.id}>
             <TD><input type="checkbox" checked={selectedIds.includes(m.id)} onChange={()=>toggleSelected(m.id)}/></TD>
@@ -7025,7 +7068,7 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
       })}
     </div>:<Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH>Monto</TH><TH>Vigencia</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Vigencia</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pgs=(a.pids||[]).map(pid=>(programas||[]).find(x=>x.id===pid)?.nom).filter(Boolean);return <tr key={a.id} onClick={()=>setDetailId(a.id)} style={{cursor:"pointer"}}>
             <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={()=>toggleSelected(a.id)}/></TD>
@@ -7149,7 +7192,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Monto</TH><TH>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(ct=>{const c=(clientes||[]).find(x=>x.id===ct.cliId);return<tr key={ct.id}>
             <TD><input type="checkbox" checked={selectedIds.includes(ct.id)} onChange={()=>toggleSelected(ct.id)}/></TD>
@@ -8811,7 +8854,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
     </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return<tr key={p.id} onClick={()=>navTo("pres-det",p.id)}>
             <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleSelected(p.id)}/></TD>
@@ -9254,7 +9297,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
             const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
@@ -9315,7 +9358,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       </div>}
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Invoice</TH><TH>Entidad</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
+          <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Invoice</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
           <tbody>
             {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
               const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
@@ -9476,7 +9519,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH>Valor</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH onClick={()=>setSortMode(sortMode==="value-desc"?"value-asc":"value-desc")} active={sortMode==="value-desc"||sortMode==="value-asc"} dir={sortMode==="value-desc"?"desc":"asc"}>Valor</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pro=(producciones||[]).find(x=>x.id===a.asignadoA);return<tr key={a.id}>
             <TD><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={()=>toggleSelected(a.id)}/></TD>

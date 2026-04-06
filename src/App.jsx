@@ -669,7 +669,7 @@ function normalizeEmpresasAddons(empresas = []) {
 function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp=>({
     ...emp,
-    supportChatEnabled: emp?.supportChatEnabled === true,
+    supportChatEnabled: false,
     freshdeskEnabled: emp?.freshdeskEnabled === true,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
@@ -3399,7 +3399,7 @@ function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,sav
     if(!ef.nombre?.trim()) return;
     const id=eid||`emp_${uid().slice(1,7)}`;
     const prev=empresas.find(e=>e.id===eid)||{};
-    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,freshdeskEnabled:ef.freshdeskEnabled ?? prev.freshdeskEnabled ?? false,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:ef.supportChatEnabled ?? prev.supportChatEnabled ?? false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
+    const obj={id,tenantCode:prev.tenantCode||nextTenantCode(empresas),nombre:ef.nombre,rut:ef.rut||"",dir:ef.dir||"",tel:ef.tel||"",ema:ef.ema||"",logo:ef.logo||prev.logo||"",color:ef.color||"#00d4e8",addons:ef.addons||[],active:ef.active!==false,plan:ef.plan||"starter",theme:ef.theme||prev.theme||null,googleCalendarEnabled:prev.googleCalendarEnabled===true,freshdeskEnabled:ef.freshdeskEnabled ?? prev.freshdeskEnabled ?? false,migratedTasksAddon:prev.migratedTasksAddon??true,supportChatEnabled:false,systemMessages:prev.systemMessages||[],systemBanner:prev.systemBanner||{active:false,tone:"info",text:""},billingCurrency:prev.billingCurrency||"UF",billingMonthly:Number(prev.billingMonthly||0),billingDiscountPct:companyBillingDiscountPct(prev),billingDiscountNote:prev.billingDiscountNote||"",billingStatus:prev.billingStatus||"Pendiente",billingDueDay:Number(prev.billingDueDay||0),billingLastPaidAt:prev.billingLastPaidAt||"",referralDiscountMonthsPending:companyReferralDiscountMonthsPending(prev),referralDiscountHistory:companyReferralDiscountHistory(prev),contractOwner:prev.contractOwner||"",clientPortalUrl:prev.clientPortalUrl||"",paymentDetails:prev.paymentDetails||null,bankInfo:prev.bankInfo||"",cr:eid?(empresas.find(e=>e.id===eid)?.cr||today()):today()};
     onSave("empresas",eid?empresas.map(e=>e.id===eid?obj:e):[...empresas,obj]);
     setEf({});setEid(null);
   };
@@ -3584,12 +3584,8 @@ function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,sav
             </div>
           </div>
           <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
-        <Badge label={emp.supportChatEnabled!==false?"Soporte ON":"Soporte OFF"} color={emp.supportChatEnabled!==false?"cyan":"gray"} sm/>
         <Badge label={emp.plan} color="gray" sm/>
         <GBtn sm onClick={()=>{setEid(emp.id);setEf({...emp});}}>✏</GBtn>
-        <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,supportChatEnabled:e.supportChatEnabled===false?true:false}:e))}>
-          {emp.supportChatEnabled===false?"Activar soporte":"Desactivar soporte"}
-        </GBtn>
         <GBtn sm onClick={()=>onSave("empresas",empresas.map(e=>e.id===emp.id?{...e,active:!e.active}:e))}>{emp.active?"Desactivar":"Activar"}</GBtn>
         {emp.active===false&&<button onClick={()=>onDeleteEmpresa&&onDeleteEmpresa(emp)} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #ff556655",background:"#ff556614",color:"#ff5566",cursor:"pointer",fontSize:11,fontWeight:700}}>Eliminar instancia</button>}
       </div>)}
@@ -3605,10 +3601,6 @@ function SuperAdminPanel({empresas,users,onSave,onDeleteEmpresa,printLayouts,sav
         <R2><FG label="Teléfono"><FI value={ef.tel||""} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG><FG label="Dirección"><FI value={ef.dir||""} onChange={e=>setEf(p=>({...p,dir:e.target.value}))} placeholder="Av. Principal 123, Santiago"/></FG></R2>
         <FG label="Addons activados"><MultiSelect options={Object.entries(ADDONS).map(([v,a])=>({value:v,label:a.icon+" "+a.label}))} value={ef.addons||[]} onChange={v=>setEf(p=>({...p,addons:v}))} placeholder="Seleccionar addons..."/></FG>
         <R2><FG label="Color acento"><FI type="color" value={ef.color||"#00d4e8"} onChange={e=>setEf(p=>({...p,color:e.target.value}))}/></FG><FG label="Estado"><FSl value={ef.active===false?"false":"true"} onChange={e=>setEf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
-        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",marginBottom:12}}>
-          <input type="checkbox" checked={ef.supportChatEnabled!==false} onChange={e=>setEf(p=>({...p,supportChatEnabled:e.target.checked}))}/>
-          Habilitar soporte interno para esta empresa
-        </label>
         <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>La creación de empresa genera la instancia principal. Luego los datos operativos se poblarán al primer acceso.</div>
         <div style={{display:"flex",gap:8}}><Btn onClick={saveEmp}>{eid?"Actualizar":"Crear Empresa"}</Btn>{eid&&<GBtn onClick={()=>{setEid(null);setEf({});}}>Cancelar</GBtn>}</div>
       </div>
@@ -4883,18 +4875,6 @@ export default function App(){
   useEffect(()=>{
     if(!Array.isArray(empresas) || !empresas.length) return;
     try{
-      const flag = localStorage.getItem("produ_freshdesk_default_on_v1");
-      if(flag) return;
-      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,freshdeskEnabled:true})));
-      setEmpresasRaw(next);
-      dbSet("produ:empresas",next);
-      localStorage.setItem("produ_freshdesk_default_on_v1","1");
-    }catch{}
-  },[empresas]);
-
-  useEffect(()=>{
-    if(!Array.isArray(empresas) || !empresas.length) return;
-    try{
       const flag = localStorage.getItem("produ_crm_default_on_v1");
       if(flag) return;
       const next = normalizeEmpresasModel((empresas||[]).map(emp=>{
@@ -5337,7 +5317,6 @@ export default function App(){
     {alertasOpen&&<AlertasPanel alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)}/> }
     {systemOpen&&<SystemMessagesPanel empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)}/>}
     {curUser?.role!=="superadmin" && currentEmpresa && <FreshdeskWidget empresa={currentEmpresa} user={curUser}/>}
-    {curUser?.role!=="superadmin" && currentEmpresa?.freshdeskEnabled!==true && currentEmpresa?.supportChatEnabled!==false && <SupportChatWidget empresa={currentEmpresa} user={curUser} users={users||[]} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} onSaveThreads={saveSupportThreads}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<ModalRouter mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} saveTheme={saveTheme} saveUsers={saveUsers} saveEmpresas={saveEmpresas} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc}/>}
     {adminOpen&&<AdminPanel open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"].forEach(k=>dbSet(`produ:${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf}/>}

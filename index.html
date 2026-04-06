@@ -19,56 +19,6 @@
       src='//fw-cdn.com/16062405/7053033.js'
       chat='true'>
     </script>
-    <script>
-      (function(){
-        const selectors = [
-          '#fc_frame',
-          '#fc_widget',
-          'iframe#fc_frame',
-          'iframe#fc_widget',
-          '[id^="fc_frame"]',
-          '[id^="fc_widget"]'
-        ];
-        const cleanFreshdeskLauncher = () => {
-          selectors.forEach((selector) => {
-            document.querySelectorAll(selector).forEach((node) => {
-              if (!(node instanceof HTMLElement)) return;
-              const rect = node.getBoundingClientRect();
-              const isLauncher = rect.width > 0 && rect.width <= 96 && rect.height > 0 && rect.height <= 96;
-              if (!isLauncher) return;
-              [node, node.parentElement, node.parentElement && node.parentElement.parentElement]
-                .filter(Boolean)
-                .forEach((el) => {
-                  try {
-                    el.style.setProperty('background', 'transparent', 'important');
-                    el.style.setProperty('background-color', 'transparent', 'important');
-                    el.style.setProperty('border', '0', 'important');
-                    el.style.setProperty('box-shadow', 'none', 'important');
-                  } catch {}
-                });
-              [node.parentElement, node.parentElement && node.parentElement.parentElement]
-                .filter(Boolean)
-                .forEach((el) => {
-                  try {
-                    el.style.setProperty('border-radius', '999px', 'important');
-                    el.style.setProperty('overflow', 'hidden', 'important');
-                  } catch {}
-                });
-            });
-          });
-        };
-        const startFreshdeskCleanup = () => {
-          cleanFreshdeskLauncher();
-          const obs = new MutationObserver(() => cleanFreshdeskLauncher());
-          obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-        };
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', startFreshdeskCleanup, { once: true });
-        } else {
-          startFreshdeskCleanup();
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

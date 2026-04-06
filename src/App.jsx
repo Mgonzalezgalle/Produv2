@@ -2407,15 +2407,6 @@ function FreshdeskWidget({ empresa, user }) {
       try { window.fcWidget?.hide?.(); } catch {}
       return;
     }
-    let script = document.querySelector('script[data-produ-freshdesk="true"]');
-    if (!script) {
-      script = document.createElement("script");
-      script.src = "//fw-cdn.com/16062405/7053033.js";
-      script.setAttribute("chat", "true");
-      script.async = true;
-      script.dataset.produFreshdesk = "true";
-      document.body.appendChild(script);
-    }
   }, [empresa?.freshdeskEnabled]);
 
   useEffect(() => {
@@ -2430,11 +2421,21 @@ function FreshdeskWidget({ empresa, user }) {
     ];
     const cleanNode = node => {
       if (!(node instanceof HTMLElement)) return;
-      [node, node.parentElement, node.parentElement?.parentElement].filter(Boolean).forEach(el => {
+      const layers = [node, node.parentElement, node.parentElement?.parentElement].filter(Boolean);
+      const rect = node.getBoundingClientRect();
+      const isLauncher = rect.width > 0 && rect.width <= 96 && rect.height > 0 && rect.height <= 96;
+      layers.forEach(el => {
         try {
           el.style.setProperty("background", "transparent", "important");
           el.style.setProperty("border", "0", "important");
           el.style.setProperty("box-shadow", "none", "important");
+          if (isLauncher) {
+            el.style.setProperty("border-radius", "999px", "important");
+            el.style.setProperty("overflow", "hidden", "important");
+            el.style.setProperty("clip-path", "circle(50% at 50% 50%)", "important");
+          } else {
+            el.style.removeProperty("clip-path");
+          }
         } catch {}
       });
     };
@@ -2454,6 +2455,7 @@ function FreshdeskWidget({ empresa, user }) {
     const identify = () => {
       try {
         if (!window.fcWidget) return false;
+        window.fcWidget.show?.();
         window.fcWidget.setExternalId?.(externalId);
         window.fcWidget.user?.setFirstName?.(user?.name?.split(" ")[0] || user?.name || "Usuario");
         if (user?.email) window.fcWidget.user?.setEmail?.(user.email);

@@ -2,7 +2,7 @@
 //  PRODU — Gestión de Productoras
 //  src/App.jsx  |  Parte 1 de 4: Core + Auth + Layout
 // ============================================================
-import { Component, useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { Component, useState, useEffect, useCallback, useRef, createContext, useContext, forwardRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
@@ -73,6 +73,32 @@ const REQUIRED_SYSTEM_USERS = [
     crewRole: "",
   },
 ];
+const SYSTEM_MESSAGE_PRESETS = [
+  {
+    id:"maintenance",
+    label:"Mantenimiento",
+    title:"Mantenimiento programado",
+    body:"**Hola equipo**\n\nTendremos una ventana de mantenimiento el **[fecha]** entre **[hora inicio]** y **[hora fin]**.\n\nDurante ese período pueden presentarse intermitencias leves.\n\nGracias por su comprensión.",
+  },
+  {
+    id:"incident",
+    label:"Incidencia",
+    title:"Incidencia en revisión",
+    body:"**Estamos revisando una incidencia** reportada por el equipo.\n\n- Módulo afectado: [módulo]\n- Estado: En análisis\n- Próxima actualización: [hora]\n\nLes avisaremos apenas quede resuelta.",
+  },
+  {
+    id:"feature",
+    label:"Nueva función",
+    title:"Nueva funcionalidad disponible",
+    body:"**Ya activamos una mejora nueva en Produ**.\n\n- Disponible desde hoy\n- Impacta: [módulo / flujo]\n- Recomendación: revisar con el equipo interno\n\nSi necesitan apoyo, nos escriben por este mismo canal.",
+  },
+  {
+    id:"billing",
+    label:"Cobranza",
+    title:"Recordatorio administrativo",
+    body:"**Hola equipo**\n\nLes compartimos este recordatorio administrativo:\n\n- Documento: [tipo / número]\n- Fecha relevante: [fecha]\n- Acción sugerida: [acción]\n\nQuedamos atentos si necesitan apoyo.",
+  },
+];
 
 async function sha256Hex(text="") {
   const data = new TextEncoder().encode(String(text));
@@ -103,6 +129,58 @@ async function normalizeUsersAuth(users=[]) {
 
 function normalizeEmailValue(v="") {
   return String(v||"").trim().toLowerCase();
+}
+
+function parseSimpleRichText(text="") {
+  const lines = String(text || "").split("\n");
+  return lines.map((line, index) => {
+    const bullet = /^\s*-\s+/.test(line);
+    const content = bullet ? line.replace(/^\s*-\s+/, "") : line;
+    const parts = [];
+    const tokenRe = /(\[[^\]]+\]\((https?:\/\/[^\s)]+)\)|https?:\/\/[^\s]+|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = tokenRe.exec(content))) {
+      if (match.index > lastIndex) {
+        parts.push({ text: content.slice(lastIndex, match.index) });
+      }
+      const raw = match[0];
+      if (raw.startsWith("[")) {
+        const linkMatch = raw.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+        if (linkMatch) parts.push({ text: linkMatch[1], href: linkMatch[2] });
+      } else if (/^https?:\/\//.test(raw)) {
+        parts.push({ text: raw, href: raw });
+      } else if (raw.startsWith("**")) {
+        parts.push({ text: raw.slice(2, -2), bold: true });
+      } else {
+        parts.push({ text: raw.slice(1, -1), italic: true });
+      }
+      lastIndex = match.index + raw.length;
+    }
+    if (lastIndex < content.length) {
+      parts.push({ text: content.slice(lastIndex) });
+    }
+    if (!parts.length) parts.push({ text: "" });
+    return { id: `${index}-${content}`, bullet, parts };
+  });
+}
+
+function RichTextBlock({ text="", style={}, color="inherit" }) {
+  const lines = parseSimpleRichText(text);
+  return <div style={style}>
+    {lines.map(line => <div key={line.id} style={{display:"flex",gap:8,alignItems:"flex-start",minHeight:line.parts.some(part=>part.text)?undefined:10}}>
+      {line.bullet && <span style={{color,opacity:.75,lineHeight:1.5}}>•</span>}
+      <span style={{flex:1,minWidth:0}}>
+        {line.parts.map((part, index) => part.href
+          ? <a key={`${line.id}-${index}`} href={part.href} target="_blank" rel="noreferrer" style={{fontWeight:part.bold?700:400,fontStyle:part.italic?"italic":"normal",color:"var(--cy)",textDecoration:"underline",textUnderlineOffset:2,wordBreak:"break-word"}}>
+              {part.text}
+            </a>
+          : <span key={`${line.id}-${index}`} style={{fontWeight:part.bold?700:400,fontStyle:part.italic?"italic":"normal"}}>
+              {part.text}
+            </span>)}
+      </span>
+    </div>)}
+  </div>;
 }
 
 function ensureRequiredSystemUsers(users=[]) {
@@ -1433,7 +1511,7 @@ const FS={width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px so
 const FG=({label,children})=><div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:6,letterSpacing:.3}}>{label}</label>{children}</div>;
 const FI=p=><input style={FS} {...p}/>;
 const FSl=({children,...p})=><select style={{...FS,cursor:"pointer"}} {...p}>{children}</select>;
-const FTA=p=><textarea style={{...FS,resize:"vertical",minHeight:80}} {...p}/>;
+const FTA=forwardRef((p,ref)=><textarea ref={ref} style={{...FS,resize:"vertical",minHeight:80}} {...p}/>);
 const R2=({children})=><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:12}}>{children}</div>;
 const R3=({children})=><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,180px),1fr))",gap:12}}>{children}</div>;
 const MFoot=({onClose,onSave,label="Guardar"})=><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:22,paddingTop:18,borderTop:"1px solid var(--bdr)"}}><button onClick={onClose} style={{padding:"8px 16px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>Cancelar</button><button onClick={onSave} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>{label}</button></div>;
@@ -2142,7 +2220,7 @@ function SystemMessagesPanel({ empresa, mensajes=[], leidas=[], onMarcar, onMarc
             <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{m.title||"Mensaje del sistema"}</div>
             <div style={{fontSize:10,color:"var(--gr2)",whiteSpace:"nowrap"}}>{m.createdAt?fmtD(m.createdAt):"—"}</div>
           </div>
-          <div style={{fontSize:11,color:"var(--gr3)",marginTop:6,whiteSpace:"pre-line",lineHeight:1.5}}>{m.body||""}</div>
+          <RichTextBlock text={m.body||""} style={{fontSize:11,color:"var(--gr3)",marginTop:6,lineHeight:1.5}} color="var(--gr3)"/>
         </div>
         {!leidas.includes(m.id)&&<button onClick={()=>onMarcar(m.id)} style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leído</button>}
       </div>)}
@@ -3143,6 +3221,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
   const [supportEmpId,setSupportEmpId]=useState("");
   const [supportThreadId,setSupportThreadId]=useState("");
   const [supportReply,setSupportReply]=useState("");
+  const sysMsgBodyRef = useRef(null);
   const [supportAttachments,setSupportAttachments]=useState([]);
   const [supportForm,setSupportForm]=useState(()=>buildSupportSettings(supportSettings, users));
   const totalEmp=(empresas||[]).length;
@@ -3389,6 +3468,49 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
     const next=(empresas||[]).map(e=>e.id===selectedCommEmp.id?{...e,systemMessages:[{id:uid(),title:sysMsg.title.trim(),body:sysMsg.body.trim(),createdAt:today()},...(e.systemMessages||[])]}:e);
     onSave("empresas",next);
     setSysMsg({title:"",body:""});
+  };
+  const updateSystemBody = updater => {
+    setSysMsg(prev => ({ ...prev, body: typeof updater === "function" ? updater(prev.body || "") : updater }));
+  };
+  const wrapSystemSelection = (before, after = before) => {
+    const el = sysMsgBodyRef.current;
+    if(!el) {
+      updateSystemBody(text => `${text || ""}${before}${after}`);
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    const value = sysMsg.body || "";
+    const selected = value.slice(start, end);
+    const nextValue = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    updateSystemBody(nextValue);
+    requestAnimationFrame(()=>{
+      el.focus();
+      const cursorStart = start + before.length;
+      const cursorEnd = cursorStart + selected.length;
+      el.setSelectionRange(cursorStart, cursorEnd);
+    });
+  };
+  const insertSystemBlock = block => {
+    const el = sysMsgBodyRef.current;
+    const value = sysMsg.body || "";
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? start;
+    const prefix = start>0 && !value.slice(0, start).endsWith("\n") ? "\n" : "";
+    const suffix = end<value.length && !value.slice(end).startsWith("\n") ? "\n" : "";
+    const nextValue = `${value.slice(0,start)}${prefix}${block}${suffix}${value.slice(end)}`;
+    updateSystemBody(nextValue);
+    requestAnimationFrame(()=>{
+      if(el){
+        const caret = start + prefix.length + block.length;
+        el.focus();
+        el.setSelectionRange(caret, caret);
+      }
+    });
+  };
+  const applySystemPreset = preset => {
+    setSysMsg({ title: preset.title, body: preset.body });
+    requestAnimationFrame(()=>sysMsgBodyRef.current?.focus());
   };
   const saveBanner=()=>{
     if(!selectedCommEmp) return;
@@ -3760,7 +3882,28 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
       {selectedCommEmp ? <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card title="Mensajes del sistema" sub={selectedCommEmp.nombre}>
           <FG label="Título"><FI value={sysMsg.title||""} onChange={e=>setSysMsg(p=>({...p,title:e.target.value}))} placeholder="Mantenimiento programado"/></FG>
-          <FG label="Mensaje"><FTA value={sysMsg.body||""} onChange={e=>setSysMsg(p=>({...p,body:e.target.value}))} placeholder="Este es un mensaje visible para todos los usuarios de la empresa."/></FG>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:11,color:"var(--gr2)",marginBottom:8}}>Mensajes preset</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {SYSTEM_MESSAGE_PRESETS.map(preset=><button key={preset.id} onClick={()=>applySystemPreset(preset)} style={{padding:"8px 10px",borderRadius:999,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                {preset.label}
+              </button>)}
+            </div>
+          </div>
+          <FG label="Mensaje">
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+              <button onClick={()=>wrapSystemSelection("**","**")} style={{padding:"7px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)",fontSize:11,fontWeight:800,cursor:"pointer"}}>B</button>
+              <button onClick={()=>wrapSystemSelection("*","*")} style={{padding:"7px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)",fontSize:11,fontStyle:"italic",cursor:"pointer"}}>I</button>
+              <button onClick={()=>insertSystemBlock("- ")} style={{padding:"7px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>Lista</button>
+              <button onClick={()=>insertSystemBlock("**Título breve**")} style={{padding:"7px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>Título</button>
+              <button onClick={()=>wrapSystemSelection("[","](https://)")} style={{padding:"7px 10px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:11,fontWeight:700,cursor:"pointer"}}>Link</button>
+            </div>
+            <FTA ref={sysMsgBodyRef} value={sysMsg.body||""} onChange={e=>setSysMsg(p=>({...p,body:e.target.value}))} placeholder="Este es un mensaje visible para todos los usuarios de la empresa. Usa **negrita**, *cursiva* o [texto](https://enlace.com)."/>
+          </FG>
+          <div style={{padding:12,borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:14}}>
+            <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:6}}>Vista previa</div>
+            <RichTextBlock text={sysMsg.body||"Aquí verás cómo se mostrará el mensaje."} style={{fontSize:12,color:"var(--gr3)",lineHeight:1.55}} color="var(--gr3)"/>
+          </div>
           <div style={{display:"flex",gap:8,marginBottom:16}}>
             <Btn onClick={publishSystemMessage}>Enviar mensaje</Btn>
           </div>
@@ -3769,7 +3912,7 @@ function SuperAdminPanel({empresas,users,onSave,printLayouts,savePrintLayouts,su
               <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
                 <div>
                   <div style={{fontSize:12,fontWeight:700}}>{msg.title}</div>
-                  <div style={{fontSize:11,color:"var(--gr3)",marginTop:4,whiteSpace:"pre-line"}}>{msg.body}</div>
+                  <RichTextBlock text={msg.body||""} style={{fontSize:11,color:"var(--gr3)",marginTop:4,lineHeight:1.55}} color="var(--gr3)"/>
                   <div style={{fontSize:10,color:"var(--gr2)",marginTop:6}}>{msg.createdAt?fmtD(msg.createdAt):"—"}</div>
                 </div>
                 <XBtn onClick={()=>removeSystemMessage(msg.id)}/>

@@ -6569,23 +6569,6 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
           </tbody>
         </table></div>
       </Card>
-      {!!piezasFiltradas.length&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginTop:16}}>
-        {piezasFiltradas.slice(0,4).map(pc=><div key={pc.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",marginBottom:10}}>
-            <div>
-              <div style={{fontSize:14,fontWeight:800}}>{pc.nom}</div>
-              <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>{pc.formato||"Pieza"} · {pc.plataforma||"—"}</div>
-            </div>
-            <Badge label={pc.est||"Planificado"} sm/>
-          </div>
-          <div style={{display:"grid",gap:6,fontSize:12,color:"var(--gr3)"}}>
-            <div><strong style={{color:"var(--wh)"}}>Responsable:</strong> {pc.responsableId&&crewMap[pc.responsableId]?crewMap[pc.responsableId].nom:"—"}</div>
-            <div><strong style={{color:"var(--wh)"}}>Objetivo:</strong> {pc.objetivo||"—"}</div>
-            <div><strong style={{color:"var(--wh)"}}>CTA:</strong> {pc.cta||"—"}</div>
-            <div><strong style={{color:"var(--wh)"}}>Publicación:</strong> {pc.publishDate?fmtD(pc.publishDate):"—"}</div>
-          </div>
-        </div>)}
-      </div>}
     </div>}
     {tab===2&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Calendario editorial" sub="Qué se viene, qué está atrasado y qué ya salió.">

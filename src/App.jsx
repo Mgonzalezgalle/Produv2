@@ -5563,16 +5563,9 @@ function ViewClientes({empresa,clientes,producciones,movimientos,navTo,openM,can
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fi,setFi]=useState("");const [sortMode,setSortMode]=useState("az");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
   const fd=(clientes||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.contactos||[]).some(co=>co.nom.toLowerCase().includes(q.toLowerCase())))&&(!fi||c.ind===fi)).sort((a,b)=>{
-    const balanceFor=cli=>{
-      let ti=0,tg=0;
-      (producciones||[]).filter(p=>p.cliId===cli.id).forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
-      return ti-tg;
-    };
     if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
     if(sortMode==="recent") return String(b.cr||"").localeCompare(String(a.cr||""));
     if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
-    if(sortMode==="amount-desc") return balanceFor(b)-balanceFor(a);
-    if(sortMode==="amount-asc") return balanceFor(a)-balanceFor(b);
     return String(a.nom||"").localeCompare(String(b.nom||""));
   });
   const canEdit=canDo({role:_cd?.user?.role||"admin"},"clientes");
@@ -5580,7 +5573,7 @@ function ViewClientes({empresa,clientes,producciones,movimientos,navTo,openM,can
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar cliente o contacto..."/>
       <FilterSel value={fi} onChange={v=>{setFi(v);setPg(1);}} options={["Retail","Tecnología","Salud","Educación","Entretenimiento","Gastronomía","Inmobiliaria","Servicios","Media","Gobierno","Otro"]} placeholder="Todas industrias"/>
-      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"amount-desc",label:"Mayor balance"},{value:"amount-asc",label:"Menor balance"}]} placeholder="Ordenar"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"}]} placeholder="Ordenar"/>
       <div style={{display:"flex",gap:4,background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:3}}>
         {[["cards","⊟"],["list","☰"]].map(([v,i])=><button key={v} onClick={()=>setVista(v)} style={{padding:"5px 10px",borderRadius:4,border:"none",background:vista===v?"var(--cy)":"transparent",color:vista===v?"var(--bg)":"var(--gr2)",cursor:"pointer",fontSize:13}}>{i}</button>)}
       </div>
@@ -5637,6 +5630,9 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
   const c=(clientes||[]).find(x=>x.id===id);if(!c) return <Empty text="No encontrado"/>;
+  const [proSort,setProSort]=useState("name-asc");
+  const [pgSort,setPgSort]=useState("name-asc");
+  const [pzSort,setPzSort]=useState("name-asc");
   const prs=(producciones||[]).filter(p=>p.cliId===id);
   const pgs=(programas||[]).filter(p=>p.cliId===id);
   const ctn=(piezas||[]).filter(p=>p.cliId===id);
@@ -5644,15 +5640,42 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
   let ti=0,tg=0;prs.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
   pgs.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
   ctn.forEach(p=>{const b=bal(p.id);ti+=b.i;tg+=b.g;});
+  const sortedPrs=[...prs].sort((a,b)=>{
+    const ba=bal(a.id).b, bb=bal(b.id).b;
+    if(proSort==="name-desc") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(proSort==="date-desc") return String(b.ini||b.cr||"").localeCompare(String(a.ini||a.cr||""));
+    if(proSort==="date-asc") return String(a.ini||a.cr||"").localeCompare(String(b.ini||b.cr||""));
+    if(proSort==="balance-desc") return bb-ba;
+    if(proSort==="balance-asc") return ba-bb;
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
+  const sortedPgs=[...pgs].sort((a,b)=>{
+    const ba=bal(a.id).b, bb=bal(b.id).b;
+    if(pgSort==="name-desc") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(pgSort==="date-desc") return String(b.cr||"").localeCompare(String(a.cr||""));
+    if(pgSort==="date-asc") return String(a.cr||"").localeCompare(String(b.cr||""));
+    if(pgSort==="balance-desc") return bb-ba;
+    if(pgSort==="balance-asc") return ba-bb;
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
+  const sortedCtn=[...ctn].sort((a,b)=>{
+    const ba=bal(a.id).b, bb=bal(b.id).b;
+    if(pzSort==="name-desc") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(pzSort==="date-desc") return String(`${b.ano||""}-${b.mes||""}`).localeCompare(String(`${a.ano||""}-${a.mes||""}`));
+    if(pzSort==="date-asc") return String(`${a.ano||""}-${a.mes||""}`).localeCompare(String(`${b.ano||""}-${b.mes||""}`));
+    if(pzSort==="balance-desc") return bb-ba;
+    if(pzSort==="balance-asc") return ba-bb;
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
   const associationBlocks = [
-    { key:"pro", title:"Proyectos", count:prs.length, action:_cd&&_cd("producciones")?{label:"+ Nuevo",fn:()=>openM("pro",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
-      {prs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD><TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    { key:"pro", title:"Proyectos", count:prs.length, action:_cd&&_cd("producciones")?{label:"+ Nuevo",fn:()=>openM("pro",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH onClick={()=>setProSort(proSort==="name-asc"?"name-desc":"name-asc")} active={proSort==="name-asc"||proSort==="name-desc"} dir={proSort==="name-desc"?"desc":"asc"}>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={()=>setProSort(proSort==="date-asc"?"date-desc":"date-asc")} active={proSort==="date-asc"||proSort==="date-desc"} dir={proSort==="date-desc"?"desc":"asc"}>Inicio</TH><TH>Entrega</TH><TH onClick={()=>setProSort(proSort==="balance-asc"?"balance-desc":"balance-asc")} active={proSort==="balance-asc"||proSort==="balance-desc"} dir={proSort==="balance-desc"?"desc":"asc"}>Balance</TH><TH></TH></tr></thead><tbody>
+      {sortedPrs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pro-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD><TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
     </tbody></table>},
-    { key:"pg", title:"Producciones", count:pgs.length, action:_cd&&_cd("programas")?{label:"+ Nuevo",fn:()=>openM("pg",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Canal</TH><TH>Frecuencia</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
-      {pgs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pg-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip||"Producción"} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD>{p.can||"—"}</TD><TD>{p.fre||"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pg-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    { key:"pg", title:"Producciones", count:pgs.length, action:_cd&&_cd("programas")?{label:"+ Nuevo",fn:()=>openM("pg",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH onClick={()=>setPgSort(pgSort==="name-asc"?"name-desc":"name-asc")} active={pgSort==="name-asc"||pgSort==="name-desc"} dir={pgSort==="name-desc"?"desc":"asc"}>Nombre</TH><TH>Tipo</TH><TH>Estado</TH><TH>Canal</TH><TH>Frecuencia</TH><TH onClick={()=>setPgSort(pgSort==="balance-asc"?"balance-desc":"balance-asc")} active={pgSort==="balance-asc"||pgSort==="balance-desc"} dir={pgSort==="balance-desc"?"desc":"asc"}>Balance</TH><TH></TH></tr></thead><tbody>
+      {sortedPgs.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("pg-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.tip||"Producción"} color="gray" sm/></TD><TD><Badge label={p.est}/></TD><TD>{p.can||"—"}</TD><TD>{p.fre||"—"}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pg-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
     </tbody></table>},
-    { key:"pz", title:"Contenidos", count:ctn.length, action:_cd&&_cd("contenidos")?{label:"+ Nuevo",fn:()=>openM("contenido",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH>Campaña</TH><TH>Plataforma</TH><TH>Mes</TH><TH>Estado</TH><TH>Piezas</TH><TH>Balance</TH><TH></TH></tr></thead><tbody>
-      {ctn.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("contenido-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.plataforma||"Contenidos"} color="gray" sm/></TD><TD>{[p.mes,p.ano].filter(Boolean).join(" ")||"—"}</TD><TD><Badge label={p.est||"Planificada"}/></TD><TD mono style={{fontSize:11}}>{countCampaignPieces(p)}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("contenido-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
+    { key:"pz", title:"Contenidos", count:ctn.length, action:_cd&&_cd("contenidos")?{label:"+ Nuevo",fn:()=>openM("contenido",{cliId:id})}:null, render:()=><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><TH onClick={()=>setPzSort(pzSort==="name-asc"?"name-desc":"name-asc")} active={pzSort==="name-asc"||pzSort==="name-desc"} dir={pzSort==="name-desc"?"desc":"asc"}>Campaña</TH><TH>Plataforma</TH><TH onClick={()=>setPzSort(pzSort==="date-asc"?"date-desc":"date-asc")} active={pzSort==="date-asc"||pzSort==="date-desc"} dir={pzSort==="date-desc"?"desc":"asc"}>Mes</TH><TH>Estado</TH><TH>Piezas</TH><TH onClick={()=>setPzSort(pzSort==="balance-asc"?"balance-desc":"balance-asc")} active={pzSort==="balance-asc"||pzSort==="balance-desc"} dir={pzSort==="balance-desc"?"desc":"asc"}>Balance</TH><TH></TH></tr></thead><tbody>
+      {sortedCtn.map(p=>{const b=bal(p.id);return <tr key={p.id} onClick={()=>navTo("contenido-det",p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.plataforma||"Contenidos"} color="gray" sm/></TD><TD>{[p.mes,p.ano].filter(Boolean).join(" ")||"—"}</TD><TD><Badge label={p.est||"Planificada"}/></TD><TD mono style={{fontSize:11}}>{countCampaignPieces(p)}</TD><TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("contenido-det",p.id);}}>Ver →</GBtn></TD></tr>;})}
     </tbody></table>},
   ].filter(block=>block.count>0);
   return <div>
@@ -8897,6 +8920,7 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
   const [convOpen,setConvOpen]=useState(false);
   const [convTipo,setConvTipo]=useState("produccion");
   const [convNom,setConvNom]=useState(p.titulo||"");
+  const [itemSort,setItemSort]=useState("desc-asc");
   const setEstadoPres = estado => cSave(presupuestos,setPresupuestos,{...p,estado});
   const convertir=async()=>{
     if(!convNom.trim()) return;
@@ -8918,6 +8942,16 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
     setConvOpen(false);
     navTo(convTipo==="produccion"?"producciones":"programas");
   };
+  const sortedItems=[...(p.items||[])].sort((a,b)=>{
+    if(itemSort==="desc-desc") return String(b.desc||"").localeCompare(String(a.desc||""));
+    if(itemSort==="qty-desc") return Number(b.qty||0)-Number(a.qty||0);
+    if(itemSort==="qty-asc") return Number(a.qty||0)-Number(b.qty||0);
+    if(itemSort==="price-desc") return Number(b.precio||0)-Number(a.precio||0);
+    if(itemSort==="price-asc") return Number(a.precio||0)-Number(b.precio||0);
+    if(itemSort==="total-desc") return Number(b.qty||0)*Number(b.precio||0) - Number(a.qty||0)*Number(a.precio||0);
+    if(itemSort==="total-asc") return Number(a.qty||0)*Number(a.precio||0) - Number(b.qty||0)*Number(b.precio||0);
+    return String(a.desc||"").localeCompare(String(b.desc||""));
+  });
   return <div>
     <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -8971,8 +9005,8 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
     {/* Items table */}
     <Card title="Detalle de Ítems" style={{marginBottom:16}}>
       {(p.items||[]).length>0?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Descripción</TH><TH>Recurrencia</TH><TH>Cantidad</TH><TH>Precio Unit.</TH><TH>Total</TH></tr></thead>
-        <tbody>{(p.items||[]).map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD>{it.recurrence==="monthly"?"Mensual":"Única vez"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
+        <thead><tr><TH onClick={()=>setItemSort(itemSort==="desc-asc"?"desc-desc":"desc-asc")} active={itemSort==="desc-asc"||itemSort==="desc-desc"} dir={itemSort==="desc-desc"?"desc":"asc"}>Descripción</TH><TH>Recurrencia</TH><TH onClick={()=>setItemSort(itemSort==="qty-asc"?"qty-desc":"qty-asc")} active={itemSort==="qty-asc"||itemSort==="qty-desc"} dir={itemSort==="qty-desc"?"desc":"asc"}>Cantidad</TH><TH onClick={()=>setItemSort(itemSort==="price-asc"?"price-desc":"price-asc")} active={itemSort==="price-asc"||itemSort==="price-desc"} dir={itemSort==="price-desc"?"desc":"asc"}>Precio Unit.</TH><TH onClick={()=>setItemSort(itemSort==="total-asc"?"total-desc":"total-asc")} active={itemSort==="total-asc"||itemSort==="total-desc"} dir={itemSort==="total-desc"?"desc":"asc"}>Total</TH></tr></thead>
+        <tbody>{sortedItems.map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD>{it.recurrence==="monthly"?"Mensual":"Única vez"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
       </table></div>:<Empty text="Sin ítems"/>}
       <div style={{marginTop:16,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotal||0,p.moneda||"CLP")}</span></div>

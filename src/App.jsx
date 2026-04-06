@@ -2410,34 +2410,24 @@ function FreshdeskWidget({ empresa, user }) {
       const style = document.createElement("style");
       style.id = styleId;
       style.textContent = `
-        #fc_frame,
-        #fc_frame.fc-widget-normal,
-        #fc_frame.fc-widget-small,
-        #fc_widget,
-        #fc_widget .fc-widget-normal,
-        #fc_widget .fc-widget-small,
-        #fc_widget iframe,
-        iframe[id^="fc_frame"],
-        iframe[id^="fc_widget"]{
-          background: transparent !important;
-        }
         @media (max-width: 1024px){
           #fc_frame,
-          #fc_widget{
+          #fc_widget,
+          #fc_frame.fc-widget-normal,
+          #fc_frame.fc-widget-small,
+          #fc_widget .fc-widget-normal,
+          #fc_widget .fc-widget-small{
             background: transparent !important;
             box-shadow: none !important;
+            border: none !important;
           }
           #fc_frame iframe,
           #fc_widget iframe,
           iframe[id^="fc_frame"],
           iframe[id^="fc_widget"]{
             background: transparent !important;
-            border-radius: 22px !important;
-          }
-          #fc_frame.fc-widget-small iframe,
-          #fc_widget .fc-widget-small iframe{
-            border-radius: 999px !important;
             box-shadow: none !important;
+            border: none !important;
           }
         }
       `;

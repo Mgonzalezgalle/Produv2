@@ -2404,35 +2404,7 @@ function FreshdeskWidget({ empresa, user }) {
   const externalId = `${empresa?.tenantCode || empresa?.id || "tenant"}:${user?.id || normalizeEmailValue(user?.email || "guest")}`;
   useEffect(() => {
     if (!empresa?.freshdeskEnabled || !user) return;
-    const styleId = "produ-freshdesk-mobile-fixes";
     const existing = document.querySelector('script[data-produ-freshdesk="true"]');
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = `
-        @media (max-width: 1024px){
-          #fc_frame,
-          #fc_widget,
-          #fc_frame.fc-widget-normal,
-          #fc_frame.fc-widget-small,
-          #fc_widget .fc-widget-normal,
-          #fc_widget .fc-widget-small{
-            background: transparent !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-          #fc_frame iframe,
-          #fc_widget iframe,
-          iframe[id^="fc_frame"],
-          iframe[id^="fc_widget"]{
-            background: transparent !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
     const identify = () => {
       try {
         if (!window.fcWidget) return false;
@@ -2443,7 +2415,6 @@ function FreshdeskWidget({ empresa, user }) {
           cf_plan: String(empresa?.plan || "Starter"),
           cf_status: empresa?.active === false ? "Inactive" : "Active",
         });
-        window.fcWidget.show?.();
         return true;
       } catch {
         return false;
@@ -2471,7 +2442,6 @@ function FreshdeskWidget({ empresa, user }) {
     }
     return () => {
       clearPoll?.();
-      try { window.fcWidget?.hide?.(); } catch {}
     };
   }, [empresa?.id, empresa?.tenantCode, empresa?.plan, empresa?.active, empresa?.freshdeskEnabled, user?.id, user?.email, user?.name]);
   return null;

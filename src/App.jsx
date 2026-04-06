@@ -866,7 +866,7 @@ const DEFAULT_LISTAS = {
 
 const CRM_STATUS_OPTIONS = ["Activa","En seguimiento","Ganada","Perdida","Pausada"];
 const CRM_STAGE_SEED = [
-  { id:"crm-st-1", name:"Lead nuevo", order:1, convertToClient:false, closedWon:false, closedLost:false },
+  { id:"crm-st-1", name:"Por contactar", order:1, convertToClient:false, closedWon:false, closedLost:false },
   { id:"crm-st-2", name:"Contactado", order:2, convertToClient:false, closedWon:false, closedLost:false },
   { id:"crm-st-3", name:"Reunión agendada", order:3, convertToClient:false, closedWon:false, closedLost:false },
   { id:"crm-st-4", name:"Propuesta enviada", order:4, convertToClient:false, closedWon:false, closedLost:false },
@@ -892,21 +892,29 @@ function normalizeCrmStages(stages=[]){
 function recoverPreferredCrmStages(stages=[], empId=""){
   const list = Array.isArray(stages) ? [...stages] : [];
   if(!list.length) return list;
-  const hasPorContactar = list.some(s => String(s?.name||"").trim().toLowerCase()==="por contactar");
-  if(hasPorContactar) return list;
-  const insertAt = Math.min(1, list.length);
+  const normalizedNames = list.map(stage => String(stage?.name || "").trim().toLowerCase());
+  const hasPorContactar = normalizedNames.includes("por contactar");
+  const leadIndex = normalizedNames.findIndex(name => name === "lead nuevo");
+  if(leadIndex >= 0){
+    const next = list
+      .map((stage, idx) => idx===leadIndex ? { ...stage, empId: empId || stage.empId || "", name:"Por contactar" } : stage)
+      .filter((stage, idx, arr) => {
+        const name = String(stage?.name || "").trim().toLowerCase();
+        return !(name==="lead nuevo") && arr.findIndex(item => String(item?.name || "").trim().toLowerCase()===name)===idx;
+      });
+    return next.map((stage, idx) => ({ ...stage, order: idx + 1 }));
+  }
+  if(hasPorContactar) return list.map((stage, idx) => ({ ...stage, empId: empId || stage.empId || "", order: idx + 1 }));
   const recovered = {
     id: uid(),
     empId: empId || list[0]?.empId || "",
     name: "Por contactar",
-    order: insertAt + 1,
+    order: 1,
     convertToClient: false,
     closedWon: false,
     closedLost: false,
   };
-  const next = [...list];
-  next.splice(insertAt, 0, recovered);
-  return next.map((stage, idx) => ({ ...stage, order: idx + 1 }));
+  return [recovered, ...list].map((stage, idx) => ({ ...stage, order: idx + 1 }));
 }
 function crmDefaultStageId(stages=[]){
   return normalizeCrmStages(stages)[0]?.id || CRM_STAGE_SEED[0].id;

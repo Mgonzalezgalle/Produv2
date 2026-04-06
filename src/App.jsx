@@ -6133,16 +6133,18 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
 }
 
 // ── PROYECTOS ──────────────────────────────────────────────
-function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas}){
+function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas,setProducciones}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [sortMode,setSortMode]=useState("recent");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const fd=(producciones||[]).filter(p=>p.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return(p.nom.toLowerCase().includes(q.toLowerCase())||(c&&c.nom.toLowerCase().includes(q.toLowerCase())))&&(!fe||p.est===fe)&&(!ft||p.tip===ft);}).sort((a,b)=>{
     if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
     if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
     if(sortMode==="oldest") return String(a.cr||a.ini||"").localeCompare(String(b.cr||b.ini||""));
     return String(b.cr||b.ini||"").localeCompare(String(a.cr||a.ini||""));
   });
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción o cliente..."/>
@@ -6152,6 +6154,24 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("producciones")&&<Btn onClick={()=>openM("pro",{})}>+ Nuevo Proyecto</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
+        <option value="">Cambiar estado...</option>
+        {(listas?.estadosPro||DEFAULT_LISTAS.estadosPro).map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setProducciones((producciones||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("producciones")&&<DBtn sm onClick={()=>{
+        if(!confirm(`¿Eliminar ${selectedIds.length} proyecto${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
+        setProducciones((producciones||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     {vista==="cards"?<>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
         {fd.slice((pg-1)*PP,pg*PP).map(p=>{
@@ -6185,9 +6205,10 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Proyecto</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Inicio</TH><TH>Entrega</TH><TH>Ingresos</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);const b=bal(p.id);return<tr key={p.id} onClick={()=>navTo("pro-det",p.id)}>
+            <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleSelected(p.id)}/></TD>
             <TD bold>{p.nom}</TD><TD>{c?c.nom:"—"}</TD><TD><Badge label={p.tip} color="gray" sm/></TD><TD><Badge label={p.est}/></TD>
             <TD mono style={{fontSize:11}}>{p.ini?fmtD(p.ini):"—"}</TD>
             <TD mono style={{fontSize:11}}>{p.fin?fmtD(p.fin):"—"}</TD>
@@ -6195,7 +6216,7 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
             <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pro-det",p.id);}}>Ver →</GBtn></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin proyectos" sub="Crea el primero con el botón superior"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={10}><Empty text="Sin proyectos" sub="Crea el primero con el botón superior"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -6282,16 +6303,18 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
 }
 
 // ── PRODUCCIONES ──────────────────────────────────────────────
-function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas}){
+function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas,setProgramas}){
   const empId=empresa?.id;
   const bal=useBal(movimientos,empId);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
   const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe)).sort((a,b)=>{
     if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
     if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
     if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
     return String(b.cr||"").localeCompare(String(a.cr||""));
   });
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar producción..."/>
@@ -6300,6 +6323,24 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("programas")&&<Btn onClick={()=>openM("pg",{})}>+ Nueva Producción</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
+        <option value="">Cambiar estado...</option>
+        {(listas?.estadosPg||DEFAULT_LISTAS.estadosPg).map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setProgramas((programas||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("programas")&&<DBtn sm onClick={()=>{
+        if(!confirm(`¿Eliminar ${selectedIds.length} producción${selectedIds.length===1?"":"es"} seleccionada${selectedIds.length===1?"":"s"}?`)) return;
+        setProgramas((programas||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionadas</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     {vista==="cards"?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:12}}>
       {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{
         const eps=(episodios||[]).filter(e=>e.pgId===pg_.id);
@@ -6323,9 +6364,10 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
       })}
     </div>:<Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Producción</TH><TH>Canal</TH><TH>Estado</TH><TH>Episodios</TH><TH>Publicados</TH><TH>Auspiciadores</TH><TH>Balance</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Producción</TH><TH>Canal</TH><TH>Estado</TH><TH>Episodios</TH><TH>Publicados</TH><TH>Auspiciadores</TH><TH>Balance</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(pg_=>{const eps=(episodios||[]).filter(e=>e.pgId===pg_.id);const pub=eps.filter(e=>e.estado==="Publicado").length;const aus=(auspiciadores||[]).filter(a=>(a.pids||[]).includes(pg_.id)).length;const b=bal(pg_.id);return <tr key={pg_.id} onClick={()=>navTo("pg-det",pg_.id)}>
+            <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(pg_.id)} onChange={()=>toggleSelected(pg_.id)}/></TD>
             <TD bold>{pg_.nom}</TD>
             <TD>{[pg_.can,pg_.fre].filter(Boolean).join(" · ")||"—"}</TD>
             <TD><Badge label={pg_.est}/></TD>
@@ -6335,7 +6377,7 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
             <TD style={{color:b.b>=0?"#00e08a":"#ff5566",fontFamily:"var(--fm)",fontSize:12}}>{fmtM(b.b)}</TD>
             <TD><GBtn sm onClick={e=>{e.stopPropagation();navTo("pg-det",pg_.id);}}>Ver →</GBtn></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin producciones" sub="Crea la primera con el botón superior"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin producciones" sub="Crea la primera con el botón superior"/></td></tr>}
         </tbody>
       </table></div>
     </Card>}
@@ -6807,11 +6849,18 @@ function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos
 // ── CREW ──────────────────────────────────────────────────────
 function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSave,cDel,setCrew,listas}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fa,setFa]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fa,setFa]=useState("");const [sortMode,setSortMode]=useState("az");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
-  const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa));
+  const fd=(crew||[]).filter(x=>x.empId===empId).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa)).sort((a,b)=>{
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="oldest") return String(a.cr||"").localeCompare(String(b.cr||""));
+    if(sortMode==="recent") return String(b.cr||"").localeCompare(String(a.cr||""));
+    return String(a.nom||"").localeCompare(String(b.nom||""));
+  });
   const canEditMember=m=>_cd&&_cd("crew");
   const canDeleteMember=m=>_cd&&_cd("crew")&&!m?.managedByUser;
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   const exportCSV=()=>{
     const header="Nombre,Rol,Área,Email,Teléfono,Disponibilidad,Tarifa,Estado";
     const rows=fd.map(m=>[m.nom,m.rol,m.area,m.ema,m.tel,m.dis,m.tarifa,m.active!==false?"Activo":"Inactivo"].map(v=>`"${v||""}"`).join(","));
@@ -6822,10 +6871,32 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar por nombre o rol..."/>
       <FilterSel value={fa} onChange={v=>{setFa(v);setPg(1);}} options={AREAS} placeholder="Todas las áreas"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("crew")&&<Btn onClick={()=>openM("crew",{})}>+ Agregar Miembro</Btn>}
       <GBtn onClick={exportCSV}>⬇ Exportar CSV</GBtn>
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:180}}>
+        <option value="">Cambiar estado...</option>
+        <option value="Activo">Activo</option>
+        <option value="Inactivo">Inactivo</option>
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setCrew((crew||[]).map(item=>selectedIds.includes(item.id)?{...item,active:bulkEstado==="Activo"}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("crew")&&<DBtn sm onClick={()=>{
+        const removable=(crew||[]).filter(item=>selectedIds.includes(item.id)&&!item?.managedByUser);
+        if(!removable.length){ alert("No hay seleccionados eliminables."); return; }
+        if(!confirm(`¿Eliminar ${removable.length} miembro${removable.length===1?"":"s"} seleccionado${removable.length===1?"":"s"}?`)) return;
+        setCrew((crew||[]).filter(item=>!removable.some(rem=>rem.id===item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     <div style={{fontSize:11,color:"var(--gr2)",marginBottom:16}}>El crew interno proviene de `Usuarios`. Desde aquí puedes completar sus datos operativos; para cambiar nombre, cargo o estado base, usa `Panel Administrador &gt; Usuarios`.</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:20}}>
       {AREAS.slice(0,6).map(a=>{const cnt=(crew||[]).filter(x=>x.empId===empId&&x.area===a).length;return<div key={a} onClick={()=>setFa(fa===a?"":a)} style={{background:"var(--card)",border:`1px solid ${fa===a?"var(--cy)":"var(--bdr)"}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",textAlign:"center"}}><div style={{fontFamily:"var(--fm)",fontSize:18,fontWeight:700,color:fa===a?"var(--cy)":"var(--wh)"}}>{cnt}</div><div style={{fontSize:9,color:"var(--gr2)",marginTop:2}}>{a}</div></div>;})}
@@ -6865,9 +6936,10 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Nombre</TH><TH>Rol</TH><TH>Área</TH><TH>Email</TH><TH>Teléfono</TH><TH>Disponibilidad</TH><TH>Tarifa</TH><TH>Estado</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Nombre</TH><TH>Rol</TH><TH>Área</TH><TH>Email</TH><TH>Teléfono</TH><TH>Disponibilidad</TH><TH>Tarifa</TH><TH>Estado</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(m=><tr key={m.id}>
+            <TD><input type="checkbox" checked={selectedIds.includes(m.id)} onChange={()=>toggleSelected(m.id)}/></TD>
             <TD bold><div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:30,height:30,borderRadius:"50%",background:"linear-gradient(135deg,var(--cy),var(--cy2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(m.nom)}</div>{m.nom}
             </div></TD>
@@ -6881,7 +6953,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
               {canDeleteMember(m)&&<XBtn onClick={()=>cDel(crew,setCrew,m.id,null,"Miembro eliminado")}/>}
             </div></TD>
           </tr>)}
-          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin miembros" sub={_cd&&_cd("crew")?"Agrega el primero arriba":""}/></td></tr>}
+          {!fd.length&&<tr><td colSpan={10}><Empty text="Sin miembros" sub={_cd&&_cd("crew")?"Agrega el primero arriba":""}/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -6992,11 +7064,20 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
 // ── CONTRATOS ─────────────────────────────────────────────────
 function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_cd,cSave,cDel,setContratos}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
-  const fd=(contratos||[]).filter(x=>x.empId===empId).filter(c=>c.nom.toLowerCase().includes(q.toLowerCase())&&(!fe||contractVisualState(c)===fe||c.est===fe));
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const fd=(contratos||[]).filter(x=>x.empId===empId).filter(c=>c.nom.toLowerCase().includes(q.toLowerCase())&&(!fe||contractVisualState(c)===fe||c.est===fe)).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="amount-desc") return Number(b.mon||0)-Number(a.mon||0);
+    if(sortMode==="amount-asc") return Number(a.mon||0)-Number(b.mon||0);
+    if(sortMode==="oldest") return String(a.cr||a.vig||"").localeCompare(String(b.cr||b.vig||""));
+    return String(b.cr||b.vig||"").localeCompare(String(a.cr||a.vig||""));
+  });
   const vigentes=fd.filter(ct=>contractVisualState(ct)==="Vigente").length;
   const porVencer=fd.filter(ct=>contractVisualState(ct)==="Por vencer").length;
   const vencidos=fd.filter(ct=>contractVisualState(ct)==="Vencido").length;
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Contratos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
@@ -7007,9 +7088,28 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar contrato..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Borrador","En Revisión","Firmado","Vigente","Vencido"]} placeholder="Todo estados"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("contratos")&&<Btn onClick={()=>openM("ct",{})}>+ Nuevo Contrato</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:190}}>
+        <option value="">Cambiar estado...</option>
+        {["Borrador","En Revisión","Firmado","Vigente","Vencido"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setContratos((contratos||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("contratos")&&<DBtn sm onClick={()=>{
+        if(!confirm(`¿Eliminar ${selectedIds.length} contrato${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
+        setContratos((contratos||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     {vista==="cards"?<>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:12}}>
         {fd.slice((pg-1)*PP,pg*PP).map(ct=>{const c=(clientes||[]).find(x=>x.id===ct.cliId);const vinculos=[(ct.pids||[]).length && `${(ct.pids||[]).length} vínculo${(ct.pids||[]).length===1?"":"s"}`,ct.presupuestoId && `${(presupuestos||[]).filter(p=>p.id===ct.presupuestoId).length} presupuesto`,(ct.facturaIds||[]).length && `${(ct.facturaIds||[]).length} factura${(ct.facturaIds||[]).length===1?"":"s"}`].filter(Boolean).join(" · ");return <div key={ct.id} style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:10}}>
@@ -7036,9 +7136,10 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Monto</TH><TH>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH>Monto</TH><TH>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(ct=>{const c=(clientes||[]).find(x=>x.id===ct.cliId);return<tr key={ct.id}>
+            <TD><input type="checkbox" checked={selectedIds.includes(ct.id)} onChange={()=>toggleSelected(ct.id)}/></TD>
             <TD bold>{ct.nom}</TD><TD>{c?c.nom:"—"}</TD><TD><Badge label={ct.tip} color="gray" sm/></TD><TD><Badge label={contractVisualState(ct)}/></TD>
             <TD mono style={{fontSize:12}}>{ct.mon?fmtM(ct.mon):"—"}</TD>
             <TD mono style={{fontSize:11}}>{ct.vig?fmtD(ct.vig):"—"}</TD>
@@ -7051,7 +7152,7 @@ function ViewCts({empresa,contratos,clientes,presupuestos,facturas,openM,canDo:_
             </TD>
             <TD><div style={{display:"flex",gap:4}}>{_cd&&_cd("contratos")&&<><GBtn sm onClick={()=>openM("ct",ct)}>✏</GBtn><XBtn onClick={()=>cDel(contratos,setContratos,ct.id,null,"Contrato eliminado")}/></>}</div></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin contratos"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin contratos"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -8956,19 +9057,36 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
 function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,setMovimientos,saveFacturaDoc,ntf}){
   const empId=empresa?.id;
   const [tab,setTab]=useState(0);
-  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fc,setFc]=useState("");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fc,setFc]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [bulkCobranza,setBulkCobranza]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
   const allDocs = (facturas||[]).filter(x=>x.empId===empId);
   const fd=(facturas||[]).filter(x=>x.empId===empId).filter(f=>{
     const ent=invoiceEntityName(f,clientes,auspiciadores);
     return(ent.toLowerCase().includes(q.toLowerCase())||(f.correlativo||"").toLowerCase().includes(q.toLowerCase()))&&(!fe||f.estado===fe);
+  }).sort((a,b)=>{
+    if(sortMode==="az") return invoiceEntityName(a,clientes,auspiciadores).localeCompare(invoiceEntityName(b,clientes,auspiciadores));
+    if(sortMode==="za") return invoiceEntityName(b,clientes,auspiciadores).localeCompare(invoiceEntityName(a,clientes,auspiciadores));
+    if(sortMode==="amount-desc") return Number(b.total||0)-Number(a.total||0);
+    if(sortMode==="amount-asc") return Number(a.total||0)-Number(b.total||0);
+    if(sortMode==="oldest") return String(a.fechaEmision||a.cr||"").localeCompare(String(b.fechaEmision||b.cr||""));
+    return String(b.fechaEmision||b.cr||"").localeCompare(String(a.fechaEmision||a.cr||""));
   });
   const invoices = allDocs.filter(f=>f.tipoDoc==="Invoice");
   const cobranzaDocs = invoices.filter(f=>{
     const ent=invoiceEntityName(f,clientes,auspiciadores);
     return (ent.toLowerCase().includes(q.toLowerCase()) || (f.correlativo||"").toLowerCase().includes(q.toLowerCase())) && (!fc || cobranzaState(f)===fc);
+  }).sort((a,b)=>{
+    if(sortMode==="az") return invoiceEntityName(a,clientes,auspiciadores).localeCompare(invoiceEntityName(b,clientes,auspiciadores));
+    if(sortMode==="za") return invoiceEntityName(b,clientes,auspiciadores).localeCompare(invoiceEntityName(a,clientes,auspiciadores));
+    if(sortMode==="amount-desc") return Number(b.total||0)-Number(a.total||0);
+    if(sortMode==="amount-asc") return Number(a.total||0)-Number(b.total||0);
+    if(sortMode==="oldest") return String(a.fechaEmision||a.cr||"").localeCompare(String(b.fechaEmision||b.cr||""));
+    return String(b.fechaEmision||b.cr||"").localeCompare(String(a.fechaEmision||a.cr||""));
   });
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const currentPageIds=(tab===1?cobranzaDocs:fd).slice((pg-1)*PP,pg*PP).map(item=>item.id);
+  const toggleAll=checked=>setSelectedIds(checked?currentPageIds:[]);
   const cuentasPorCobrar = invoices.filter(f=>cobranzaState(f)!=="Pagado");
   const pendiente=cuentasPorCobrar.reduce((s,f)=>s+Number(f.total||0),0);
   const pagado=invoices.filter(f=>cobranzaState(f)==="Pagado").reduce((s,f)=>s+Number(f.total||0),0);
@@ -9098,11 +9216,32 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar invoice o entidad..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Borrador","Emitida","Anulada"]} placeholder="Todo estados"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
       {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{tipoDoc:"Invoice"})}>+ Nuevo Invoice</Btn>}
     </div>
+    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:180}}>
+        <option value="">Cambiar estado...</option>
+        {["Borrador","Emitida","Anulada"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setFacturas((facturas||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("facturacion")&&<DBtn sm onClick={()=>{
+        if(!confirm(`¿Eliminar ${selectedIds.length} documento${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
+        const removedIds=[...selectedIds];
+        setFacturas((facturas||[]).filter(item=>!removedIds.includes(item.id)));
+        setMovimientos((Array.isArray(movimientos)?movimientos:[]).filter(m=>!removedIds.includes(m.facturaId)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Documento</TH><TH>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
             const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
@@ -9112,6 +9251,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
             const pres=(presupuestos||[]).find(x=>x.id===f.presupuestoId);
             const ct=(contratos||[]).find(x=>x.id===f.contratoId);
             return<tr key={f.id}>
+              <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)}/></TD>
               <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipoDoc||"Invoice"}</div><div style={{fontSize:10,color:f.recurring?"#00e08a":"var(--gr2)",marginTop:4}}>{recurringSummary(f, f.fechaEmision || today())}</div></TD>
               <TD><div>{ent?.nom||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div></TD>
               <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
@@ -9135,7 +9275,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
               </div></TD>
             </tr>;
           })}
-          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin órdenes de factura"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={10}><Empty text="Sin órdenes de factura"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -9145,16 +9285,31 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar invoice o entidad..."/>
         <FilterSel value={fc} onChange={v=>{setFc(v);setPg(1);}} options={COBRANZA_STATES} placeholder="Todo cobro"/>
+        <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
       </div>
+      {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
+        <FSl value={bulkCobranza} onChange={e=>setBulkCobranza(e.target.value)} style={{minWidth:180}}>
+          <option value="">Cambiar cobranza...</option>
+          {COBRANZA_STATES.map(opt=><option key={opt} value={opt}>{opt}</option>)}
+        </FSl>
+        <GBtn sm onClick={()=>{
+          if(!bulkCobranza) return;
+          setFacturas((facturas||[]).map(item=>selectedIds.includes(item.id)?{...item,cobranzaEstado:bulkCobranza,fechaPago:bulkCobranza==="Pagado"?(item.fechaPago||today()):""}:item));
+          setSelectedIds([]);
+        }}>Aplicar estado</GBtn>
+        <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+      </div>}
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Invoice</TH><TH>Entidad</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
+          <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Invoice</TH><TH>Entidad</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
           <tbody>
             {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
               const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
               const cobro=cobranzaState(f);
               const entityDocs=invoices.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
               return <tr key={f.id}>
+                <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)}/></TD>
                 <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?recurringSummary(f, f.fechaEmision || today()):"Único"}</div></TD>
                 <TD>{ent?.nom||"—"}</TD>
                 <TD style={{fontSize:11,color:cobro==="Retrasado de pago"?"#ff5566":"var(--gr2)"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"Sin vencimiento"}</TD>
@@ -9175,7 +9330,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
                   </div>
                 </TD>
               </tr>;
-            }) : <tr><td colSpan={6}><Empty text="Sin invoices emitidos" sub="Emite un invoice para empezar a gestionar su cobranza."/></td></tr>}
+            }) : <tr><td colSpan={7}><Empty text="Sin invoices emitidos" sub="Emite un invoice para empezar a gestionar su cobranza."/></td></tr>}
           </tbody>
         </table>
       </div>
@@ -9225,14 +9380,23 @@ function MActivo({open,data,producciones,listas,onClose,onSave}){
 
 function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,cDel,setActivos}){
   const empId=empresa?.id;
-  const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
+  const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
   const ESTADOS=listas?.estadosActivos||DEFAULT_LISTAS.estadosActivos;
-  const fd=(activos||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.marca||"").toLowerCase().includes(q.toLowerCase()))&&(!fc||a.categoria===fc)&&(!fe||a.estado===fe));
+  const fd=(activos||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.marca||"").toLowerCase().includes(q.toLowerCase()))&&(!fc||a.categoria===fc)&&(!fe||a.estado===fe)).sort((a,b)=>{
+    if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
+    if(sortMode==="za") return String(b.nom||"").localeCompare(String(a.nom||""));
+    if(sortMode==="value-desc") return Number(b.valorCompra||0)-Number(a.valorCompra||0);
+    if(sortMode==="value-asc") return Number(a.valorCompra||0)-Number(b.valorCompra||0);
+    if(sortMode==="oldest") return String(a.fechaCompra||a.cr||"").localeCompare(String(b.fechaCompra||b.cr||""));
+    return String(b.fechaCompra||b.cr||"").localeCompare(String(a.fechaCompra||a.cr||""));
+  });
   const totalValor=fd.reduce((s,a)=>s+Number(a.valorCompra||0),0);
   const dispCount=fd.filter(a=>a.estado==="Disponible").length;
   const enUsoCount=fd.filter(a=>a.estado==="En Uso").length;
   const statColor=s=>({Disponible:"#00e08a","En Uso":"var(--cy)","En Mantención":"#ffcc44",Dañado:"#ff8844","Dado de Baja":"#ff5566"}[s]||"var(--gr2)");
+  const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+  const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Total Activos"  value={fd.length}          accent="var(--cy)" vc="var(--cy)"/>
@@ -9244,9 +9408,28 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar activo o marca..."/>
       <FilterSel value={fc} onChange={v=>{setFc(v);setPg(1);}} options={CATS} placeholder="Todas categorías"/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={ESTADOS} placeholder="Todo estados"/>
+      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"},{value:"value-desc",label:"Mayor valor"},{value:"value-asc",label:"Menor valor"}]} placeholder="Ordenar"/>
       <ViewModeToggle value={vista} onChange={setVista}/>
       {_cd&&_cd("activos")&&<Btn onClick={()=>openM("activo",{})}>+ Nuevo Activo</Btn>}
     </div>
+    {!!selectedIds.length&&vista==="list"&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
+      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
+        <option value="">Cambiar estado...</option>
+        {ESTADOS.map(opt=><option key={opt} value={opt}>{opt}</option>)}
+      </FSl>
+      <GBtn sm onClick={()=>{
+        if(!bulkEstado) return;
+        setActivos((activos||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item));
+        setSelectedIds([]);
+      }}>Aplicar estado</GBtn>
+      {_cd&&_cd("activos")&&<DBtn sm onClick={()=>{
+        if(!confirm(`¿Eliminar ${selectedIds.length} activo${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
+        setActivos((activos||[]).filter(item=>!selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}>Eliminar seleccionados</DBtn>}
+      <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
+    </div>}
     {/* Chips por estado */}
     <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
       {ESTADOS.map(s=>{const cnt=(activos||[]).filter(a=>a.empId===empId&&a.estado===s).length;return<div key={s} onClick={()=>setFe(fe===s?"":s)} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:20,border:`1px solid ${fe===s?statColor(s):"var(--bdr2)"}`,background:fe===s?statColor(s)+"22":"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:fe===s?statColor(s):"var(--gr3)"}}><span style={{width:8,height:8,borderRadius:"50%",background:statColor(s),flexShrink:0}}/>{s} ({cnt})</div>;})}
@@ -9280,9 +9463,10 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
     </>:
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH>Valor</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={fd.slice((pg-1)*PP,pg*PP).length>0 && fd.slice((pg-1)*PP,pg*PP).every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH>Valor</TH><TH></TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(a=>{const pro=(producciones||[]).find(x=>x.id===a.asignadoA);return<tr key={a.id}>
+            <TD><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={()=>toggleSelected(a.id)}/></TD>
             <TD bold>{a.nom}</TD>
             <TD><Badge label={a.categoria||"—"} color="gray" sm/></TD>
             <TD style={{fontSize:12}}>{[a.marca,a.modelo].filter(Boolean).join(" · ")||"—"}</TD>
@@ -9294,7 +9478,7 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
               {_cd&&_cd("activos")&&<><GBtn sm onClick={()=>openM("activo",a)}>✏</GBtn><XBtn onClick={()=>cDel(activos,setActivos,a.id,null,"Activo eliminado")}/></>}
             </div></TD>
           </tr>;})}
-          {!fd.length&&<tr><td colSpan={8}><Empty text="Sin activos registrados" sub={_cd&&_cd("activos")?"Registra el primero con el botón superior":""}/></td></tr>}
+          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin activos registrados" sub={_cd&&_cd("activos")?"Registra el primero con el botón superior":""}/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>

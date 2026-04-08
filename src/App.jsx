@@ -1324,8 +1324,12 @@ const SEED_DATA = (empId) => ({
 function useDB(key, initial=null) {
   const [data,setData]=useState(initial);
   const [loading,setLoading]=useState(true);
-  const saving=useRef(false);
+  const writingRef=useRef(false);
+  const dataRef=useRef(data);
   const loaded=useRef(false);
+  useEffect(()=>{
+    dataRef.current=data;
+  },[data]);
   useEffect(()=>{
     if(!key) return;
     if(loaded.current) return;
@@ -1333,18 +1337,25 @@ function useDB(key, initial=null) {
     setLoading(true);
     dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
   },[key]);
-  const save=useCallback(async d=>{
-    saving.current=true; setData(d);
-    await dbSet(key,d);
-    await new Promise(r=>setTimeout(r,1500));
-    saving.current=false;
+  const save=useCallback(async next=>{
+    const resolved=typeof next==="function" ? next(dataRef.current) : next;
+    writingRef.current=true;
+    setData(resolved);
+    await dbSet(key,resolved);
+    writingRef.current=false;
+    return resolved;
   },[key]);
-  return [data,save,saving,loading];
+  return [data,save,save,loading,writingRef];
 }
-function usePoll(key,setter,savingRef,ms=20000){
+function usePoll(key,setter,writingRef,ms=20000){
   useEffect(()=>{
     if(!key) return;
-    const t=setInterval(async()=>{ if(savingRef?.current) return; const v=await dbGet(key); if(v!==null) setter(v); },ms);
+    const t=setInterval(async()=>{
+      if(writingRef?.current) return;
+      const v=await dbGet(key);
+      if(writingRef?.current) return;
+      if(v!==null) setter(v);
+    },ms);
     return()=>clearInterval(t);
   },[key]);
 }
@@ -4739,57 +4750,57 @@ export default function App(){
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
   const [users,setUsersRaw,savUsrRef]=useDB("produ:users");
   const [printLayouts,setPrintLayoutsRaw]=useDB("produ:printLayouts");
-  const [supportThreads,setSupportThreadsRaw,savSupportThreads]=useDB("produ:supportThreads");
-  const [supportSettings,setSupportSettingsRaw,savSupportSettings]=useDB("produ:supportSettings");
+  const [supportThreads,setSupportThreadsRaw,savSupportThreads,,supportThreadsRef]=useDB("produ:supportThreads");
+  const [supportSettings,setSupportSettingsRaw,savSupportSettings,,supportSettingsRef]=useDB("produ:supportSettings");
   const [,setThemeDB]=useDB("produ:theme");
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
-  const [listas,setListas,savLst,ldLst]=useDB(`produ:${eId}:listas`);
-  const [tareas,setTareas,savTar,ldTar]=useDB(`produ:${eId}:tareas`);
+  const [listas,setListas,savLst,ldLst,listasRef]=useDB(`produ:${eId}:listas`);
+  const [tareas,setTareas,savTar,ldTar,tareasRef]=useDB(`produ:${eId}:tareas`);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
-  const [clientes,setClientes,savCli,ldCli]=useDB(`produ:${eId}:clientes`);
-  const [producciones,setProducciones,savPro,ldPro]=useDB(`produ:${eId}:producciones`);
-  const [programas,setProgramas,savPg,ldPg]=useDB(`produ:${eId}:programas`);
-  const [piezas,setPiezas,savPiezas,ldPiezas]=useDB(`produ:${eId}:piezas`);
-  const [episodios,setEpisodios,savEp,ldEp]=useDB(`produ:${eId}:episodios`);
-  const [auspiciadores,setAuspiciadores,savAus,ldAus]=useDB(`produ:${eId}:auspiciadores`);
-  const [crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps]=useDB(`produ:${eId}:crmOpps`);
-  const [crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities]=useDB(`produ:${eId}:crmActivities`);
-  const [crmStages,setCrmStages,savCrmStages,ldCrmStages]=useDB(`produ:${eId}:crmStages`);
-  const [contratos,setContratos,savCt,ldCt]=useDB(`produ:${eId}:contratos`);
-  const [movimientos,setMovimientos,savMov,ldMov]=useDB(`produ:${eId}:movimientos`);
-  const [crew,setCrew,savCrew,ldCrew]=useDB(`produ:${eId}:crew`);
-  const [eventos,setEventos,savEv,ldEv]=useDB(`produ:${eId}:eventos`);
-  const [presupuestos,setPresupuestos,savPres,ldPres]=useDB(`produ:${eId}:presupuestos`);
-  const [facturas,setFacturas,savFact,ldFact]=useDB(`produ:${eId}:facturas`);
-  const [activos,setActivos,savAct,ldAct]=useDB(`produ:${eId}:activos`);
+  const [clientes,setClientes,savCli,ldCli,clientesRef]=useDB(`produ:${eId}:clientes`);
+  const [producciones,setProducciones,savPro,ldPro,produccionesRef]=useDB(`produ:${eId}:producciones`);
+  const [programas,setProgramas,savPg,ldPg,programasRef]=useDB(`produ:${eId}:programas`);
+  const [piezas,setPiezas,savPiezas,ldPiezas,piezasRef]=useDB(`produ:${eId}:piezas`);
+  const [episodios,setEpisodios,savEp,ldEp,episodiosRef]=useDB(`produ:${eId}:episodios`);
+  const [auspiciadores,setAuspiciadores,savAus,ldAus,auspiciadoresRef]=useDB(`produ:${eId}:auspiciadores`);
+  const [crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps,crmOppsRef]=useDB(`produ:${eId}:crmOpps`);
+  const [crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities,crmActivitiesRef]=useDB(`produ:${eId}:crmActivities`);
+  const [crmStages,setCrmStages,savCrmStages,ldCrmStages,crmWritingRef]=useDB(`produ:${eId}:crmStages`);
+  const [contratos,setContratos,savCt,ldCt,contratosRef]=useDB(`produ:${eId}:contratos`);
+  const [movimientos,setMovimientos,savMov,ldMov,movimientosRef]=useDB(`produ:${eId}:movimientos`);
+  const [crew,setCrew,savCrew,ldCrew,crewRef]=useDB(`produ:${eId}:crew`);
+  const [eventos,setEventos,savEv,ldEv,eventosRef]=useDB(`produ:${eId}:eventos`);
+  const [presupuestos,setPresupuestos,savPres,ldPres,presupuestosRef]=useDB(`produ:${eId}:presupuestos`);
+  const [facturas,setFacturas,savFact,ldFact,facturasRef]=useDB(`produ:${eId}:facturas`);
+  const [activos,setActivos,savAct,ldAct,activosRef]=useDB(`produ:${eId}:activos`);
   const empId = curEmp?.id;
   const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCrmOpps,ldCrmActivities,ldCrmStages,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
   const tasksEnabled = hasAddon(curEmp,"tareas");
   const alertas = useAlertas(episodios, programas, eventos||[], tasksEnabled?(tareas||[]):[], facturas||[], contratos||[], empId);
 
   // Polling
-  usePoll(`produ:${eId}:clientes`,setClientes,savCli);
-  usePoll(`produ:${eId}:producciones`,setProducciones,savPro);
-  usePoll(`produ:${eId}:programas`,setProgramas,savPg);
-  usePoll(`produ:${eId}:piezas`,setPiezas,savPiezas);
-  usePoll(`produ:${eId}:episodios`,setEpisodios,savEp);
-  usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,savAus);
-  usePoll(`produ:${eId}:crmOpps`,setCrmOpps,savCrmOpps);
-  usePoll(`produ:${eId}:crmActivities`,setCrmActivities,savCrmActivities);
-  usePoll(`produ:${eId}:crmStages`,setCrmStages,savCrmStages);
-  usePoll(`produ:${eId}:contratos`,setContratos,savCt);
-  usePoll(`produ:${eId}:movimientos`,setMovimientos,savMov);
-  usePoll(`produ:${eId}:eventos`,setEventos,savEv);
-  usePoll(`produ:${eId}:presupuestos`,setPresupuestos,savPres);
-  usePoll(`produ:${eId}:facturas`,setFacturas,savFact);
-  usePoll(`produ:${eId}:activos`,setActivos,savAct);
-  usePoll(`produ:${eId}:crew`,setCrew,savCrew);
-  usePoll(`produ:${eId}:listas`,setListas,savLst);
-  usePoll(`produ:${eId}:tareas`,setTareas,savTar);
-  usePoll("produ:supportThreads",setSupportThreadsRaw,savSupportThreads);
-  usePoll("produ:supportSettings",setSupportSettingsRaw,savSupportSettings);
+  usePoll(`produ:${eId}:clientes`,setClientes,clientesRef);
+  usePoll(`produ:${eId}:producciones`,setProducciones,produccionesRef);
+  usePoll(`produ:${eId}:programas`,setProgramas,programasRef);
+  usePoll(`produ:${eId}:piezas`,setPiezas,piezasRef);
+  usePoll(`produ:${eId}:episodios`,setEpisodios,episodiosRef);
+  usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,auspiciadoresRef);
+  usePoll(`produ:${eId}:crmOpps`,setCrmOpps,crmOppsRef);
+  usePoll(`produ:${eId}:crmActivities`,setCrmActivities,crmActivitiesRef);
+  usePoll(`produ:${eId}:crmStages`,setCrmStages,crmWritingRef);
+  usePoll(`produ:${eId}:contratos`,setContratos,contratosRef);
+  usePoll(`produ:${eId}:movimientos`,setMovimientos,movimientosRef);
+  usePoll(`produ:${eId}:eventos`,setEventos,eventosRef);
+  usePoll(`produ:${eId}:presupuestos`,setPresupuestos,presupuestosRef);
+  usePoll(`produ:${eId}:facturas`,setFacturas,facturasRef);
+  usePoll(`produ:${eId}:activos`,setActivos,activosRef);
+  usePoll(`produ:${eId}:crew`,setCrew,crewRef);
+  usePoll(`produ:${eId}:listas`,setListas,listasRef);
+  usePoll(`produ:${eId}:tareas`,setTareas,tareasRef);
+  usePoll("produ:supportThreads",setSupportThreadsRaw,supportThreadsRef);
+  usePoll("produ:supportSettings",setSupportSettingsRaw,supportSettingsRef);
 
   // Init global data
   useEffect(()=>{
@@ -5934,6 +5945,8 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
   const [bulkTipoNegocio,setBulkTipoNegocio]=useState("");
   const [detailId,setDetailId]=useState("");
   const [stagesOpen,setStagesOpen]=useState(false);
+  const [localStages,setLocalStages]=useState(null);
+  const [stagesChanged,setStagesChanged]=useState(false);
   const [activityForm,setActivityForm]=useState({type:"note",text:""});
   const [mobileStageId,setMobileStageId]=useState("");
   const [collapsedStages,setCollapsedStages]=useState([]);
@@ -6174,7 +6187,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
       <FilterSel value={nextActionFilter} onChange={v=>{setNextActionFilter(v);setPg(1);}} options={[{value:"overdue",label:"Próximas vencidas"},{value:"today",label:"Próximas hoy"},{value:"week",label:"Próximas esta semana"},{value:"scheduled",label:"Con fecha programada"},{value:"none",label:"Sin fecha"}]} placeholder="Todas las próximas acciones"/>
       <FilterSel value={sortKey} onChange={setSortKey} options={[{value:"updated",label:"Más recientes"},{value:"close",label:"Cierre estimado"},{value:"amount",label:"Monto estimado"},{value:"name",label:"Nombre"}]} placeholder="Ordenar"/>
       <Btn onClick={()=>openM("crm-opp",{})}>+ Nueva oportunidad</Btn>
-      <GBtn onClick={()=>setStagesOpen(true)}>Etapas</GBtn>
+      <GBtn onClick={()=>{setLocalStages(scopedStages);setStagesChanged(false);setStagesOpen(true);}}>Etapas</GBtn>
       <GBtn onClick={()=>exportCrmCsv(exportTarget, scopedStages, tenantUsers)}>{selectedItems.length?`⬇ ${selectedItems.length} seleccionadas`:"⬇ CSV / Excel"}</GBtn>
     </div>
     {!!selectedItems.length && tab===1 && <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center",padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
@@ -6381,17 +6394,20 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
 
     <Modal open={stagesOpen} onClose={()=>setStagesOpen(false)} title="Etapas del pipeline" sub="Edita el flujo comercial del CRM">
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {scopedStages.map((stage,idx)=><div key={stage.id} style={{display:"grid",gridTemplateColumns:"1fr auto auto auto auto",gap:8,alignItems:"center",padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
-          <FI value={stage.name} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,name:e.target.value}:item))}/>
-          <label style={{fontSize:11,color:"var(--gr3)",display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={!!stage.convertToClient} onChange={e=>saveStageConfig(scopedStages.map(item=>item.id===stage.id?{...item,convertToClient:e.target.checked}:item))}/>Cliente</label>
-          <GBtn sm onClick={()=>idx>0 && saveStageConfig(scopedStages.map((item,i)=>i===idx-1?{...stage,order:i+1}:i===idx?{...scopedStages[idx-1],order:i+1}:{...item,order:i+1}))}>↑</GBtn>
-          <GBtn sm onClick={()=>idx<scopedStages.length-1 && saveStageConfig(scopedStages.map((item,i)=>i===idx+1?{...stage,order:i+1}:i===idx?{...scopedStages[idx+1],order:i+1}:{...item,order:i+1}))}>↓</GBtn>
+        {(localStages||[]).map((stage,idx)=><div key={stage.id} style={{display:"grid",gridTemplateColumns:"1fr auto auto auto auto",gap:8,alignItems:"center",padding:10,border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+          <FI value={stage.name} onChange={e=>{setLocalStages(localStages.map(item=>item.id===stage.id?{...item,name:e.target.value}:item));setStagesChanged(true);}}/>
+          <label style={{fontSize:11,color:"var(--gr3)",display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={!!stage.convertToClient} onChange={e=>{setLocalStages(localStages.map(item=>item.id===stage.id?{...item,convertToClient:e.target.checked}:item));setStagesChanged(true);}}/>Cliente</label>
+          <GBtn sm onClick={()=>{if(idx>0){setLocalStages(localStages.map((item,i)=>i===idx-1?{...stage,order:i+1}:i===idx?{...localStages[idx-1],order:i+1}:{...item,order:i+1}));setStagesChanged(true);}}}>↑</GBtn>
+          <GBtn sm onClick={()=>{if(idx<localStages.length-1){setLocalStages(localStages.map((item,i)=>i===idx+1?{...stage,order:i+1}:i===idx?{...localStages[idx+1],order:i+1}:{...item,order:i+1}));setStagesChanged(true);}}}>↓</GBtn>
           <DBtn sm onClick={()=>removeStage(stage.id)}>Eliminar</DBtn>
         </div>)}
       </div>
       <div style={{marginTop:12,display:"flex",justifyContent:"space-between",gap:8}}>
-        <GBtn onClick={()=>saveStageConfig([...scopedStages,{id:uid(),name:"Nueva etapa",order:scopedStages.length+1,convertToClient:false,closedWon:false,closedLost:false}])}>+ Agregar etapa</GBtn>
-        <Btn onClick={()=>setStagesOpen(false)}>Cerrar</Btn>
+        <GBtn onClick={()=>{setLocalStages([...(localStages||[]),{id:uid(),name:"Nueva etapa",order:(localStages||[]).length+1,convertToClient:false,closedWon:false,closedLost:false}]);setStagesChanged(true);}}>+ Agregar etapa</GBtn>
+        <div style={{display:"flex",gap:8}}>
+          <GBtn onClick={()=>{setStagesOpen(false);setStagesChanged(false);}}>Cerrar</GBtn>
+          <Btn onClick={async()=>{await saveStageConfig(localStages||scopedStages);setStagesChanged(false);setStagesOpen(false);}}>Guardar</Btn>
+        </div>
       </div>
     </Modal>
   </div>;

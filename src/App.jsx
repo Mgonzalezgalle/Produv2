@@ -1093,7 +1093,7 @@ function normalizeCrmStages(stages=[]){
       closedLost:!!s.closedLost || (s.name||"").toLowerCase()==="perdido",
     }))
     .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
-  return arr.map((s,idx)=>({...s,order:idx+1}));
+  return arr;
 }
 function recoverPreferredCrmStages(stages=[], empId=""){
   const list = Array.isArray(stages) ? [...stages] : [];
@@ -4948,9 +4948,6 @@ export default function App(){
       setCrmStages(normalizeCrmStages(CRM_STAGE_SEED.map(stage=>({...stage,empId:curEmp.id}))));
       return;
     }
-    const recovered = recoverPreferredCrmStages(crmStages, curEmp.id);
-    const normalized = normalizeCrmStages(recovered);
-    if(JSON.stringify(normalized)!==JSON.stringify(crmStages||[])) setCrmStages(normalized);
   },[curEmp?.id,ldCrmStages,crmStages,setCrmStages]);
 
   useEffect(()=>{

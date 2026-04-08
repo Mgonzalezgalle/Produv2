@@ -6138,7 +6138,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     clearSelection();
   };
   const saveStageConfig=async next=>{
-    await setCrmStages(next.map(stage=>({...stage,empId})));
+    await savCrmStages(next.map(stage=>({...stage,empId})));
     ntf?.("Etapas CRM actualizadas ✓");
   };
   const removeStage=async stageId=>{

@@ -4953,13 +4953,15 @@ export default function App(){
     if(changed) setPiezas(normalized);
   },[curEmp?.id,ldPiezas,piezas,setPiezas]);
 
-  useEffect(()=>{
-    if(!curEmp?.id || ldCrmStages) return;
-    if(crmStages==null){
-      setCrmStages(normalizeCrmStages(CRM_STAGE_SEED.map(stage=>({...stage,empId:curEmp.id}))));
-      return;
-    }
-  },[curEmp?.id,ldCrmStages,crmStages,setCrmStages]);
+useEffect(()=>{
+  if(!curEmp?.id || ldCrmStages) return;
+  if(crmStages==null || (Array.isArray(crmStages) && crmStages.length===0)){
+    const seed=normalizeCrmStages(CRM_STAGE_SEED.map(stage=>({...stage,empId:curEmp.id})));
+    dbSet(`produ:${curEmp.id}:crmStages`, seed);
+    setCrmStages(seed);
+    return;
+  }
+},[curEmp?.id,ldCrmStages]);
 
   useEffect(()=>{
     if(!curEmp?.id || ldCrmOpps) return;
@@ -5282,7 +5284,7 @@ export default function App(){
       case"contenidos":   return <ViewContenidos    {...VP} setPiezas={setPiezas}/>;
       case"contenido-det":return <ViewContenidoDet  {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas}/>;
       case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos}/>;
-      case"crm":          return <ViewCRM           {...VP} setClientes={setClientes} setAuspiciadores={setAuspiciadores} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} setTareas={setTareas}/>;
+      case"crm":          return <ViewCRM           {...VP} setClientes={setClientes} setAuspiciadores={setAuspiciadores} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} savCrmStages={savCrmStages} setTareas={setTareas}/>;
       case"crew":         return <ViewCrew          {...VP} setCrew={setCrew}/>;
       case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos}/>;
       case"auspiciadores":return <ViewAus           {...VP} setAuspiciadores={setAuspiciadores}/>;
@@ -5929,7 +5931,7 @@ function ViewCliDet({id,empresa,clientes,producciones,programas,piezas,contratos
   </div>;
 }
 
-function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspiciadores,tareas,users,openM,ntf,setClientes,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setTareas}){
+function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspiciadores,tareas,users,openM,ntf,setClientes,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,savCrmStages,setTareas}){
   const empId=empresa?.id;
   const isMobile=typeof window!=="undefined" ? window.innerWidth<=768 : false;
   const [tab,setTab]=useState(0);
@@ -6148,7 +6150,9 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
     clearSelection();
   };
   const saveStageConfig=async next=>{
-    await setCrmStages(next.map(stage=>({...stage,empId})));
+    const staged=next.map(stage=>({...stage,empId}));
+    await setCrmStages(staged);
+    await savCrmStages(staged);
     ntf?.("Etapas CRM actualizadas ✓");
   };
   const removeStage=async stageId=>{

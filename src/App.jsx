@@ -1063,7 +1063,7 @@ const DEFAULT_LISTAS = {
   tiposPres:   ["Proyecto","Producción","Contenidos","Servicio"],
   estadosFact: ["Borrador","Emitida","Anulada"],
   tiposEntidadFact:["Cliente","Auspiciador"],
-  tiposDocFact:["Orden de Factura","Invoice"],
+  tiposDocFact:["Orden de Factura","Factura","Invoice"],
   catActivos:  ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
   estadosActivos:["Disponible","Asignado","En Mantención","Baja"],
   prioridadesTarea:["Alta","Media","Baja"],
@@ -4804,37 +4804,39 @@ export default function App(){
 
   // Init global data
   useEffect(()=>{
-    dbGet("produ:empresas").then(v=>{
-      if(!v){
+    Promise.all([
+      dbGet("produ:empresas"),
+      dbGet("produ:users"),
+      dbGet("produ:printLayouts"),
+      dbGet("produ:supportThreads"),
+      dbGet("produ:supportSettings"),
+    ]).then(([empresasDb, usersDb, printLayoutsDb, supportThreadsDb, supportSettingsDb])=>{
+      if(!empresasDb){
         const seeded = normalizeEmpresasTenantCodes(SEED_EMPRESAS);
         setEmpresasRaw(seeded);
         dbSet("produ:empresas",seeded);
       }else{
-        const normalized = normalizeEmpresasTenantCodes(v);
+        const normalized = normalizeEmpresasTenantCodes(empresasDb);
         setEmpresasRaw(normalized);
-        if(JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:empresas",normalized);
+        if(JSON.stringify(normalized)!==JSON.stringify(empresasDb)) dbSet("produ:empresas",normalized);
       }
-    });
-    dbGet("produ:users").then(v=>{
-      const baseUsers = v && Array.isArray(v) ? v : SEED_USERS;
+
+      const baseUsers = usersDb && Array.isArray(usersDb) ? usersDb : SEED_USERS;
       const normalizedUsers = ensureRequiredSystemUsers(baseUsers);
       setUsersRaw(normalizedUsers);
-      if(!v || JSON.stringify(normalizedUsers)!==JSON.stringify(baseUsers)) dbSet("produ:users",normalizedUsers);
-    });
-    dbGet("produ:printLayouts").then(v=>{
-      const normalized = normalizePrintLayouts(v || DEFAULT_PRINT_LAYOUTS);
-      setPrintLayoutsRaw(normalized);
-      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:printLayouts",normalized);
-    });
-    dbGet("produ:supportThreads").then(v=>{
-      const normalized = normalizeSupportThreads(v || [], empresas || SEED_EMPRESAS, users || SEED_USERS, supportSettings || {});
-      setSupportThreadsRaw(normalized);
-      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:supportThreads", normalized);
-    });
-    dbGet("produ:supportSettings").then(v=>{
-      const normalized = buildSupportSettings(v || {}, users || SEED_USERS);
-      setSupportSettingsRaw(normalized);
-      if(!v || JSON.stringify(normalized)!==JSON.stringify(v)) dbSet("produ:supportSettings", normalized);
+      if(!usersDb || JSON.stringify(normalizedUsers)!==JSON.stringify(baseUsers)) dbSet("produ:users",normalizedUsers);
+
+      const normalizedLayouts = normalizePrintLayouts(printLayoutsDb || DEFAULT_PRINT_LAYOUTS);
+      setPrintLayoutsRaw(normalizedLayouts);
+      if(!printLayoutsDb || JSON.stringify(normalizedLayouts)!==JSON.stringify(printLayoutsDb)) dbSet("produ:printLayouts",normalizedLayouts);
+
+      const normalizedSupportSettings = buildSupportSettings(supportSettingsDb || {}, normalizedUsers);
+      setSupportSettingsRaw(normalizedSupportSettings);
+      if(!supportSettingsDb || JSON.stringify(normalizedSupportSettings)!==JSON.stringify(supportSettingsDb)) dbSet("produ:supportSettings", normalizedSupportSettings);
+
+      const normalizedSupportThreads = normalizeSupportThreads(supportThreadsDb || [], empresasDb || SEED_EMPRESAS, normalizedUsers, normalizedSupportSettings);
+      setSupportThreadsRaw(normalizedSupportThreads);
+      if(!supportThreadsDb || JSON.stringify(normalizedSupportThreads)!==JSON.stringify(supportThreadsDb)) dbSet("produ:supportThreads", normalizedSupportThreads);
     });
     applyTheme(THEME_PRESETS.dark);
     try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
@@ -5063,10 +5065,13 @@ useEffect(()=>{
 
   // CRUD
   const cSave=async(arr,setArr,item)=>{
-    const withEmp=item.empId?item:{...item,empId:curEmp?.id};
+    const tenantEmpId=item?.empId || curEmp?.id;
+    if(!tenantEmpId) return false;
+    const withEmp={...item,empId:tenantEmpId};
     const idx=(arr||[]).findIndex(x=>x.id===withEmp.id);
     const next=idx>=0?(arr||[]).map((x,i)=>i===idx?withEmp:x):[...(arr||[]),{...withEmp,id:withEmp.id||uid(),cr:today()}];
     closeM();ntf("Guardado ✓");await setArr(next);
+    return true;
   };
   const cDel=async(arr,setArr,id,goFn,msg="Eliminado")=>{
     if(!confirm("¿Confirmar eliminación?")) return;
@@ -5074,16 +5079,19 @@ useEffect(()=>{
     await setArr((arr||[]).filter(x=>x.id!==id));
   };
   const saveMov=async d=>{
+    const tenantEmpId=curEmp?.id || d?.empId;
+    if(!tenantEmpId) return false;
     const item={
       ...d,
       id:uid(),
-      empId:curEmp?.id,
+      empId:tenantEmpId,
       mon:Number(d?.mon ?? d?.monto ?? 0),
       des:d?.des ?? d?.desc ?? "",
       fec:d?.fec ?? d?.fecha ?? today(),
     };
     const next=[...(movimientos||[]),item];
     closeM();ntf("Registrado ✓");await setMovimientos(next);
+    return true;
   };
   const delMov=async id=>{await setMovimientos((movimientos||[]).filter(m=>m.id!==id));ntf("Eliminado","warn");};
   const saveCrewSafe=async member=>{
@@ -5109,6 +5117,8 @@ useEffect(()=>{
     await setCrew(next);
   };
   const saveFacturaDoc=async fact=>{
+    const tenantEmpId=fact?.empId || curEmp?.id;
+    if(!tenantEmpId) return false;
     const currentFacts=Array.isArray(facturas)?facturas:[];
     const isNew = !fact.id;
     const recurringEnabled = !!fact.recurring && isNew;
@@ -5122,7 +5132,7 @@ useEffect(()=>{
           const fechaPago = cobranzaState(fact)==="Pagado" && fact.fechaPago ? addMonths(fact.fechaPago, idx) : cobranzaState(fact)==="Pagado" ? fechaEmision : "";
           return {
             ...fact,
-            empId:fact.empId || curEmp?.id,
+            empId:tenantEmpId,
             id:uid(),
             cr:idx === 0 ? (fact.cr || today()) : today(),
             tipoDoc:"Invoice",
@@ -5143,7 +5153,7 @@ useEffect(()=>{
               : "",
           };
         })
-      : [{...fact, empId:fact.empId || curEmp?.id, id:fact.id || uid(), cr:fact.cr || today(), estado:fact.estado || "Emitida", cobranzaEstado:cobranzaState(fact)}];
+      : [{...fact, empId:tenantEmpId, id:fact.id || uid(), cr:fact.cr || today(), estado:fact.estado || "Emitida", cobranzaEstado:cobranzaState(fact)}];
     const itemsById = new Map(currentFacts.map(x=>[x.id,x]));
     series.forEach(item=>itemsById.set(item.id,item));
     const nextFacts = Array.from(itemsById.values());
@@ -5152,7 +5162,7 @@ useEffect(()=>{
     series.forEach(item=>{
       const targetEt=item.tipoRef==="produccion"?"pro":item.tipoRef==="programa"?"pg":item.tipoRef==="contenido"?"pz":"";
       const movement={
-        empId:curEmp?.id,
+        empId:tenantEmpId,
         eid:item.proId||"",
         et:targetEt,
         tipo:"ingreso",
@@ -5174,6 +5184,7 @@ useEffect(()=>{
     await setMovimientos(nextMovs);
     closeM();
     ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths===1?"":"s"})` : "Documento guardado ✓");
+    return true;
   };
 
   const saveUsers=async u=>{
@@ -9261,7 +9272,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
   const canPres = hasAddon(empresa, "presupuestos");
   const canContracts = hasAddon(empresa, "contratos");
   useEffect(()=>{
-    const base={correlativo:"",tipoDoc:"Invoice",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:false,estado:"Emitida",cobranzaEstado:"Pendiente de pago",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:"",recurring:false,recMonths:"6",recStart:today()};
+  const base={correlativo:"",tipoDoc:"Invoice",tipo:"cliente",entidadId:"",proId:"",tipoRef:"",montoNeto:0,iva:false,honorarios:false,estado:"Emitida",cobranzaEstado:"Pendiente de pago",fechaEmision:today(),fechaVencimiento:"",fechaPago:"",presupuestoId:"",contratoId:"",obs:"",obs2:"",recurring:false,recMonths:"6",recStart:today()};
     setF(data?.id?{...base,...data}:{...base,...(data||{})});
   },[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -9277,6 +9288,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       proId:pres.refId||prev.proId,
       montoNeto:Number(pres.subtotal||pres.total||0),
       iva:prev.tipoDoc==="Invoice" ? false : !!pres.iva,
+      honorarios:prev.tipoDoc==="Invoice" ? false : !!pres.honorarios,
       contratoId:pres.contratoId||prev.contratoId,
       obs:prev.obs||"",
       obs2:prev.obs2||pres.obs||"",
@@ -9287,7 +9299,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
       recStart:prev.recStart || pres.recStart || prev.fechaEmision || today(),
     }));
   };
-  const mn=Number(f.montoNeto||0);const ivaV=f.iva?Math.round(mn*0.19):0;const total=mn+ivaV;
+  const mn=Number(f.montoNeto||0);const ivaV=f.iva?Math.round(mn*0.19):f.honorarios?Math.round(mn*0.1525):0;const total=mn+ivaV;
   const recurringMonths=Math.max(1,Number(f.recMonths||1));
   const projectedTotal=f.recurring?total*recurringMonths:total;
   // Solo auspiciadores principales y secundarios para programas
@@ -9302,7 +9314,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     </FG>}
     <R3>
       <FG label="Tipo de documento">
-        <FSl value={f.recurring?"Invoice":(f.tipoDoc||"Invoice")} onChange={e=>setF(prev=>({...prev,tipoDoc:e.target.value,iva:e.target.value==="Invoice"?false:prev.iva}))} disabled={!!f.recurring}>
+        <FSl value={f.recurring?"Invoice":(f.tipoDoc||"Factura")} onChange={e=>setF(prev=>({...prev,tipoDoc:e.target.value,iva:e.target.value==="Invoice"?false:prev.iva,honorarios:e.target.value==="Invoice"?false:prev.honorarios}))} disabled={!!f.recurring}>
           {(listas?.tiposDocFact||DEFAULT_LISTAS.tiposDocFact).map(o=><option key={o}>{o}</option>)}
         </FSl>
       </FG>
@@ -9339,7 +9351,12 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     </FG>}
     <R3>
       <FG label="Monto Neto *"><FI type="number" value={f.montoNeto||""} onChange={e=>u("montoNeto",e.target.value)} placeholder="0" min="0"/></FG>
-      <FG label={f.tipoDoc==="Invoice"?"Impuesto":"IVA 19%"}><FSl value={f.iva?"true":"false"} onChange={e=>u("iva",e.target.value==="true")} disabled={f.tipoDoc==="Invoice"}><option value="true">Incluir IVA</option><option value="false">{f.tipoDoc==="Invoice"?"No tributario":"Sin IVA"}</option></FSl></FG>
+      <FG label="Impuesto"><FSl value={f.tipoDoc==="Invoice"?"none":f.honorarios?"hon":f.iva?"iva":"none"} onChange={e=>{const v=e.target.value;u("iva",v==="iva");u("honorarios",v==="hon");}} disabled={f.tipoDoc==="Invoice"}>
+        {(listas?.impuestos||DEFAULT_LISTAS.impuestos).map(o=>{
+          const value=o==="IVA 19%"?"iva":o==="Boleta Honorarios 15,25%"?"hon":"none";
+          return <option key={o} value={value}>{f.tipoDoc==="Invoice"&&value!=="none" ? `${o} (solo Factura / OF)` : o}</option>;
+        })}
+      </FSl></FG>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"9px 12px"}}>
         <div style={{fontSize:10,color:"var(--gr2)",marginBottom:4,fontWeight:600}}>TOTAL</div>
         <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</div>
@@ -9352,7 +9369,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
           <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>La recurrencia siempre se crea desde un Invoice y luego se administra aparte del cobro.</div>
         </div>
         <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
-          <input type="checkbox" checked={!!f.recurring} onChange={e=>setF(prev=>({...prev,recurring:e.target.checked,tipoDoc:e.target.checked?"Invoice":prev.tipoDoc,iva:e.target.checked?false:prev.iva}))}/>
+          <input type="checkbox" checked={!!f.recurring} onChange={e=>setF(prev=>({...prev,recurring:e.target.checked,tipoDoc:e.target.checked?"Invoice":prev.tipoDoc,iva:e.target.checked?false:prev.iva,honorarios:e.target.checked?false:prev.honorarios}))}/>
           Activar mensualidad
         </label>
       </div>
@@ -9370,7 +9387,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
     </R2>
     <FG label="Observación comercial"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Glosa comercial visible para el documento o contexto del cobro..."/></FG>
     <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={e=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones o aclaraciones extra..."/></FG>
-    <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,tipoDoc:f.recurring?"Invoice":f.tipoDoc,cobranzaEstado:f.cobranzaEstado||"Pendiente de pago",fechaPago:cobranzaState(f)==="Pagado"?(f.fechaPago||today()):"",ivaVal:ivaV,total,projectedTotal});}}/>
+    <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave({...f,tipoDoc:f.recurring?"Invoice":f.tipoDoc,iva:f.tipoDoc==="Invoice"?false:!!f.iva,honorarios:f.tipoDoc==="Invoice"?false:!!f.honorarios,cobranzaEstado:f.cobranzaEstado||"Pendiente de pago",fechaPago:cobranzaState(f)==="Pagado"?(f.fechaPago||today()):"",ivaVal:ivaV,total,projectedTotal});}}/>
   </Modal>;
 }
 
@@ -9392,8 +9409,8 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     if(sortMode==="oldest") return String(a.fechaEmision||a.cr||"").localeCompare(String(b.fechaEmision||b.cr||""));
     return String(b.fechaEmision||b.cr||"").localeCompare(String(a.fechaEmision||a.cr||""));
   });
-  const invoices = allDocs.filter(f=>f.tipoDoc==="Invoice");
-  const cobranzaDocs = invoices.filter(f=>{
+  const cobranzaSourceDocs = allDocs.filter(f=>["Invoice","Factura"].includes(f.tipoDoc || "Orden de Factura"));
+  const cobranzaDocs = cobranzaSourceDocs.filter(f=>{
     const ent=invoiceEntityName(f,clientes,auspiciadores);
     return (ent.toLowerCase().includes(q.toLowerCase()) || (f.correlativo||"").toLowerCase().includes(q.toLowerCase())) && (!fc || cobranzaState(f)===fc);
   }).sort((a,b)=>{
@@ -9407,10 +9424,10 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
   const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const currentPageIds=(tab===1?cobranzaDocs:fd).slice((pg-1)*PP,pg*PP).map(item=>item.id);
   const toggleAll=checked=>setSelectedIds(checked?currentPageIds:[]);
-  const cuentasPorCobrar = invoices.filter(f=>cobranzaState(f)!=="Pagado");
+  const cuentasPorCobrar = cobranzaSourceDocs.filter(f=>cobranzaState(f)!=="Pagado");
   const pendiente=cuentasPorCobrar.reduce((s,f)=>s+Number(f.total||0),0);
-  const pagado=invoices.filter(f=>cobranzaState(f)==="Pagado").reduce((s,f)=>s+Number(f.total||0),0);
-  const vencidas=invoices.filter(f=>cobranzaState(f)==="Retrasado de pago").length;
+  const pagado=cobranzaSourceDocs.filter(f=>cobranzaState(f)==="Pagado").reduce((s,f)=>s+Number(f.total||0),0);
+  const vencidas=cobranzaSourceDocs.filter(f=>cobranzaState(f)==="Retrasado de pago").length;
   const emitidas=fd.filter(f=>f.estado==="Emitida").length;
   const recurrentes=fd.filter(f=>f.recurring).length;
   const seriesList = Object.values(allDocs.filter(f=>f.seriesId).reduce((acc,f)=>{
@@ -9523,7 +9540,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Cuentas por cobrar" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44" sub={`${cuentasPorCobrar.length} invoice(s)`}/>
+      <Stat label="Cuentas por cobrar" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44" sub={`${cuentasPorCobrar.length} documento(s)`}/>
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Emitidos / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`atrasadas: ${vencidas}`}/>
     </div>
@@ -9537,7 +9554,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar invoice o entidad..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);setPg(1);}} options={["Borrador","Emitida","Anulada"]} placeholder="Todo estados"/>
       <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
-      {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{tipoDoc:"Invoice"})}>+ Nuevo Invoice</Btn>}
+      {_cd&&_cd("facturacion")&&<Btn onClick={()=>openM("fact",{tipoDoc:"Factura"})}>+ Nuevo documento</Btn>}
     </div>
     {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
       <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
@@ -9601,9 +9618,9 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
     </Card>
     </>}
-    {tab===1 && <Card title="Cobranza" sub="Cuentas por cobrar por invoice emitido">
+    {tab===1 && <Card title="Cobranza" sub="Cuentas por cobrar por factura o invoice emitido">
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-        <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar invoice o entidad..."/>
+        <SearchBar value={q} onChange={v=>{setQ(v);setPg(1);}} placeholder="Buscar documento o entidad..."/>
         <FilterSel value={fc} onChange={v=>{setFc(v);setPg(1);}} options={COBRANZA_STATES} placeholder="Todo cobro"/>
         <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
       </div>
@@ -9622,12 +9639,12 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
       </div>}
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Invoice</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
+          <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
           <tbody>
             {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
               const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
               const cobro=cobranzaState(f);
-              const entityDocs=invoices.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
+              const entityDocs=cobranzaSourceDocs.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
               return <tr key={f.id}>
                 <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)}/></TD>
                 <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?recurringSummary(f, f.fechaEmision || today()):"Único"}</div></TD>
@@ -9650,7 +9667,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
                   </div>
                 </TD>
               </tr>;
-            }) : <tr><td colSpan={7}><Empty text="Sin invoices emitidos" sub="Emite un invoice para empezar a gestionar su cobranza."/></td></tr>}
+            }) : <tr><td colSpan={7}><Empty text="Sin documentos en cobranza" sub="Emite una factura o un invoice para empezar a gestionar su cobranza."/></td></tr>}
           </tbody>
         </table>
       </div>

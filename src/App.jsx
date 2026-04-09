@@ -6534,6 +6534,7 @@ function ViewCRM({empresa,user,crmOpps,crmActivities,crmStages,clientes,auspicia
 // ── PROYECTOS ──────────────────────────────────────────────
 function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_cd,listas,setProducciones}){
   const empId=empresa?.id;
+  const canManageProjects=!!(_cd&&_cd("producciones"));
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [ft,setFt]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const fd=(producciones||[]).filter(p=>p.empId===empId).filter(p=>{const c=(clientes||[]).find(x=>x.id===p.cliId);return(p.nom.toLowerCase().includes(q.toLowerCase())||(c&&c.nom.toLowerCase().includes(q.toLowerCase())))&&(!fe||p.est===fe)&&(!ft||p.tip===ft);}).sort((a,b)=>{
@@ -6560,11 +6561,12 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
         {(listas?.estadosPro||DEFAULT_LISTAS.estadosPro).map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManageProjects) return;
         if(!bulkEstado) return;
         setProducciones((producciones||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {_cd&&_cd("producciones")&&<DBtn sm onClick={()=>{
+      {canManageProjects&&<DBtn sm onClick={()=>{
         if(!confirm(`¿Eliminar ${selectedIds.length} proyecto${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
         setProducciones((producciones||[]).filter(item=>!selectedIds.includes(item.id)));
         setSelectedIds([]);
@@ -6626,6 +6628,9 @@ function ViewPros({empresa,clientes,producciones,movimientos,navTo,openM,canDo:_
 function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,contratos,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProducciones,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const tasksEnabled=hasAddon(empresa,"tareas");
+  const canManageProjects=!!(_cd&&_cd("producciones"));
+  const canManageMoves=!!(_cd&&_cd("movimientos"));
+  const canManageCalendar=!!(_cd&&_cd("calendario"));
   const bal=useBal(movimientos,empId);
   const p=(producciones||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
   const c=(clientes||[]).find(x=>x.id===p.cliId);
@@ -6634,8 +6639,8 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(p.crewIds||[]).includes(x.id));
   const cContacto=(c?.contactos||[])[0];
   const [tab,setTab]=useState(0);
-  const addCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProducciones(next);};
-  const remCrew=async crId=>{const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
+  const addCrew=async crId=>{if(!canManageProjects) return;const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProducciones(next);};
+  const remCrew=async crId=>{if(!canManageProjects) return;const next=(producciones||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProducciones(next);};
   return <div>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est}/>]} meta={[c&&`Cliente: ${c.nom}`,p.ini&&`Inicio: ${fmtD(p.ini)}`,p.fin&&`Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
       actions={_cd&&_cd("producciones")&&<><GBtn onClick={()=>openM("pro",p)}>✏ Editar</GBtn><DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(producciones,setProducciones,id,()=>navTo("producciones"),"Proyecto eliminado");}}>🗑</DBtn></>}/>
@@ -6654,16 +6659,16 @@ function ViewProDet({id,empresa,user,clientes,producciones,programas,piezas,cont
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===1?m.tipo==="ingreso":m.tipo==="gasto"),p.nom,empresa,tab===1?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("producciones")} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={p.comentarios||[]} onSave={async comentarios=>{if(!canManageProjects) return;await setProducciones((producciones||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{if(!canManageProjects) return;const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${p.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pro",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={canManageProjects} title="Comentarios del Proyecto" empresa={empresa} currentUser={user}/>}
     {tab===1&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto"   eid={id} etype="pro" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("producciones")} onHonorario={m=>{saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={p.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={canManageProjects} onHonorario={m=>{if(!canManageMoves) return;saveMov({eid:id,et:"pro",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
     {tab===4&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
-      <Card title="Fechas Base del Proyecto" action={_cd&&_cd("producciones")?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
+      <Card title="Fechas Base del Proyecto" action={canManageProjects?{label:"✏ Editar Fechas",fn:()=>openM("pro",p)}:null}>
         <KV label="Inicio" value={p.ini?fmtD(p.ini):"Por definir"}/>
         <KV label="Entrega" value={p.fin?fmtD(p.fin):"Por definir"}/>
       </Card>
-      <MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={_cd&&_cd("calendario")} titulo={p.nom}/>
+      <MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"produccion"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{if(!canManageCalendar) return;await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{}); }} canEdit={canManageCalendar} titulo={p.nom}/>
     </div>}
     {tab===5&&<Card title="Contratos Relacionados" action={_cd&&_cd("contratos")?{label:"+ Nuevo",fn:()=>openM("ct",{cliId:p.cliId,pids:[`p:${id}`],tip:"Producción",nom:`Contrato ${p.nom}`})}:null}>
       {contratosRel.map(ct=><div key={ct.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}}><span style={{fontSize:18}}>📄</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{ct.nom}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{ct.tip}{ct.vig?" · "+fmtD(ct.vig):""}</div></div><Badge label={ct.est}/>{ct.mon&&<span style={{fontFamily:"var(--fm)",fontSize:12}}>{fmtM(ct.mon)}</span>}</div>)}
@@ -6704,6 +6709,7 @@ function CrewTab({crew,empId,asignados,onAdd,onRem,onHonorario,canEdit}){
 // ── PRODUCCIONES ──────────────────────────────────────────────
 function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,openM,canDo:_cd,listas,setProgramas}){
   const empId=empresa?.id;
+  const canManagePrograms=!!(_cd&&_cd("programas"));
   const bal=useBal(movimientos,empId);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const PP=9;
   const fd=(programas||[]).filter(x=>x.empId===empId).filter(p=>(p.nom.toLowerCase().includes(q.toLowerCase())||p.tip.toLowerCase().includes(q.toLowerCase()))&&(!fe||p.est===fe)).sort((a,b)=>{
@@ -6729,11 +6735,12 @@ function ViewPgs({empresa,programas,episodios,auspiciadores,movimientos,navTo,op
         {(listas?.estadosPg||DEFAULT_LISTAS.estadosPg).map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManagePrograms) return;
         if(!bulkEstado) return;
         setProgramas((programas||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {_cd&&_cd("programas")&&<DBtn sm onClick={()=>{
+      {canManagePrograms&&<DBtn sm onClick={()=>{
         if(!confirm(`¿Eliminar ${selectedIds.length} producción${selectedIds.length===1?"":"es"} seleccionada${selectedIds.length===1?"":"s"}?`)) return;
         setProgramas((programas||[]).filter(item=>!selectedIds.includes(item.id)));
         setSelectedIds([]);
@@ -6885,6 +6892,9 @@ function ViewContenidos({empresa,clientes,piezas,movimientos,navTo,openM,canDo:_
 function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episodios,auspiciadores,movimientos,crew,eventos,tareas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setProgramas,setEpisodios,setMovimientos,setTareas,ntf}){
   const empId=empresa?.id;
   const tasksEnabled=hasAddon(empresa,"tareas");
+  const canManagePrograms=!!(_cd&&_cd("programas"));
+  const canManageMoves=!!(_cd&&_cd("movimientos"));
+  const canManageCalendar=!!(_cd&&_cd("calendario"));
   const bal=useBal(movimientos,empId);
   const pg_=(programas||[]).find(x=>x.id===id);if(!pg_) return <Empty text="No encontrado"/>;
   const eps=(episodios||[]).filter(e=>e.pgId===id).sort((a,b)=>a.num-b.num);
@@ -6903,8 +6913,8 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
     return Number(a.num||0)-Number(b.num||0);
   });
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(pg_.crewIds||[]).includes(x.id));
-  const addCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
-  const remCrew=async crId=>{const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};
+  const addCrew=async crId=>{if(!canManagePrograms) return;const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setProgramas(next);};
+  const remCrew=async crId=>{if(!canManagePrograms) return;const next=(programas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setProgramas(next);};
   const cliAsoc=(clientes||[]).find(x=>x.id===pg_.cliId);
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est}/>]} meta={[pg_.can,pg_.fre,pg_.temporada&&`Temp: ${pg_.temporada}`,pg_.conductor&&`🎙 ${pg_.conductor}`,cliAsoc&&`Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
@@ -6925,7 +6935,7 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===2?m.tipo==="ingreso":m.tipo==="gasto"),pg_.nom,empresa,tab===2?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
 
-    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pg_.comentarios||[]} onSave={async comentarios=>{if(!canManagePrograms) return;await setProgramas((programas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{if(!canManagePrograms) return;const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pg_.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pg",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={canManagePrograms} title="Comentarios de la Producción" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={epQ} onChange={v=>{setEpQ(v);setEpPg(1);}} placeholder="Buscar episodio..."/>
@@ -6966,8 +6976,8 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>{_cd&&_cd("auspiciadores")&&<Btn onClick={()=>openM("aus",{pids:[id]})}>+ Auspiciador</Btn>}</div>
       {aus.length?<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>{aus.map(a=><AusCard key={a.id} a={a} pgs={[pg_]} onEdit={_cd&&_cd("auspiciadores")?()=>openM("aus",a):null}/>)}</div>:<Empty text="Sin auspiciadores"/>}
     </div>}
-    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")} onHonorario={m=>{saveMov({eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
-    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pg_.nom}/>}
+    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pg_.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={canManagePrograms} onHonorario={m=>{if(!canManageMoves) return;saveMov({eid:id,et:"pg",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"programa"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{if(!canManageCalendar) return;await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={canManageCalendar} titulo={pg_.nom}/>}
     {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos de la Producción">
         {[["Tipo",pg_.tip],["Canal",pg_.can||"—"],["Frecuencia",pg_.fre||"—"],["Temporada",pg_.temporada||"—"],["Total Ep.",pg_.totalEp||"—"],["Estado",<Badge key={0} label={pg_.est}/>],["Cliente",cliAsoc?.nom||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -6984,6 +6994,9 @@ function ViewPgDet({id,empresa,user,clientes,producciones,programas,piezas,episo
 function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,eventos,tareas,presupuestos,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setPiezas,setMovimientos,setTareas,ntf,producciones,programas}){
   const empId=empresa?.id;
   const tasksEnabled=hasAddon(empresa,"tareas");
+  const canManageContent=!!(_cd&&_cd("contenidos"));
+  const canManageMoves=!!(_cd&&_cd("movimientos"));
+  const canManageCalendar=!!(_cd&&_cd("calendario"));
   const bal=useBal(movimientos,empId);
   const pz=(piezas||[]).find(x=>x.id===id);if(!pz) return <Empty text="No encontrado"/>;
   const cli=(clientes||[]).find(x=>x.id===pz.cliId);
@@ -7012,8 +7025,8 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
   const editorialPendientes=(pz.piezas||[]).filter(pc=>pc.publishDate && pc.publishDate>=today() && pc.est!=="Publicado").sort((a,b)=>(a.publishDate||"").localeCompare(b.publishDate||""));
   const editorialAtrasadas=(pz.piezas||[]).filter(pc=>pc.publishDate && pc.publishDate<today() && pc.est!=="Publicado").sort((a,b)=>(a.publishDate||"").localeCompare(b.publishDate||""));
   const editorialPublicadas=(pz.piezas||[]).filter(pc=>pc.publishedAt || pc.est==="Publicado").sort((a,b)=>(b.publishedAt||b.publishDate||"").localeCompare(a.publishedAt||a.publishDate||""));
-  const addCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
-  const remCrew=async crId=>{const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
+  const addCrew=async crId=>{if(!canManageContent) return;const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setPiezas(next);};
+  const remCrew=async crId=>{if(!canManageContent) return;const next=(piezas||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setPiezas(next);};
   const savePiece=async piece=>{
     const next=(piezas||[]).map(x=>x.id!==id?x:{...x,piezas:(x.piezas||[]).some(p=>p.id===piece.id)?(x.piezas||[]).map(p=>p.id===piece.id?normalizeSocialPiece(piece,x):p):[...(x.piezas||[]),normalizeSocialPiece(piece,x)]});
     await setPiezas(next);
@@ -7044,7 +7057,7 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
       <GBtn sm onClick={()=>exportMovCSV(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom)}>⬇ CSV</GBtn>
       <GBtn sm onClick={()=>exportMovPDF(mv.filter(m=>tab===3?m.tipo==="ingreso":m.tipo==="gasto"),pz.nom,empresa,tab===3?"Ingresos":"Gastos")}>⬇ PDF</GBtn>
     </div>}
-    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={_cd&&_cd("contenidos")} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={pz.comentarios||[]} onSave={async comentarios=>{if(!canManageContent) return;await setPiezas((piezas||[]).map(x=>x.id===id?{...x,comentarios}:x));}} onCreateTask={tasksEnabled?async comment=>{if(!canManageContent) return;const task=normalizeTaskAssignees({id:uid(),empId,cr:today(),titulo:comment.text?.split("\n")[0]?.slice(0,80)||`Seguimiento ${pz.nom}`,desc:comment.text||"",estado:"Pendiente",prioridad:"Media",fechaLimite:"",refTipo:"pz",refId:id,assignedIds:getAssignedIds(comment),asignadoA:getAssignedIds(comment)[0]||""});await setTareas([...(Array.isArray(tareas)?tareas.filter(t=>t&&typeof t==="object"):[]),task]);ntf&&ntf("Comentario guardado y tarea creada ✓");}:null} crewOptions={pCrew} canEdit={canManageContent} title="Comentarios de la Campaña" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
         <div style={{background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Publicadas</div><div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:"#00e08a"}}>{piezasPub}</div></div>
@@ -7131,8 +7144,8 @@ function ViewContenidoDet({id,empresa,user,clientes,piezas,movimientos,crew,even
     </div>}
     {tab===3&&<MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
     {tab===4&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("contenidos")} onHonorario={m=>{saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
-    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={_cd&&_cd("calendario")} titulo={pz.nom}/>}
+    {tab===5&&<CrewTab crew={crew||[]} empId={empId} asignados={pz.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={canManageContent} onHonorario={m=>{if(!canManageMoves) return;saveMov({eid:id,et:"pz",tipo:"gasto",cat:"Honorarios",des:"Honorarios "+m.nom,mon:parseTarifa(m.tarifa),fec:today()});}}/>}
+    {tab===6&&<MiniCal refId={id} eventos={eventos||[]} onAdd={()=>openM("evento",{ref:id,refTipo:"contenido"})} onEdit={ev=>openM("evento",ev)} onDel={async evId=>{if(!canManageCalendar) return;await cSave((eventos||[]).filter(x=>x.id!==evId),()=>{},{});}} canEdit={canManageCalendar} titulo={pz.nom}/>}
     {tab===7&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos de la Campaña">
         {[["Cliente",cli?.nom||"—"],["Plataforma",pz.plataforma||"—"],["Mes",pz.mes||"—"],["Año",pz.ano||"—"],["Estado",<Badge key={0} label={pz.est||"Planificada"}/>],["Piezas creadas",countCampaignPieces(pz)],["Piezas mensuales",pz.plannedPieces||countCampaignPieces(pz)]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -7205,6 +7218,7 @@ function AusCard({a,pgs,onEdit,onDel}){
 // ── EPISODIO DETALLE ──────────────────────────────────────────
 function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos,navTo,openM,canDo:_cd,cSave,cDel,saveMov,delMov,setEpisodios,setMovimientos}){
   const empId=empresa?.id;
+  const canManagePrograms=!!(_cd&&_cd("programas"));
   const bal=useBal(movimientos,empId);
   const ep=(episodios||[]).find(x=>x.id===id);if(!ep) return <Empty text="No encontrado"/>;
   const pg_=(programas||[]).find(x=>x.id===ep.pgId);
@@ -7212,10 +7226,10 @@ function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos
   const [tab,setTab]=useState(0);
   const NEXT={Planificado:"Grabado",Grabado:"En Edición","En Edición":"Programado",Programado:"Publicado"};
   const STATUS=["Planificado","Grabado","En Edición","Programado","Publicado","Cancelado"];
-  const changeStatus=async s=>{const next=(episodios||[]).map(x=>x.id===id?{...x,estado:s}:x);await setEpisodios(next);};
+  const changeStatus=async s=>{if(!canManagePrograms) return;const next=(episodios||[]).map(x=>x.id===id?{...x,estado:s}:x);await setEpisodios(next);};
   const pCrew=(crew||[]).filter(x=>x.empId===empId&&(ep.crewIds||[]).includes(x.id));
-  const addCrew=async crId=>{const next=(episodios||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setEpisodios(next);};
-  const remCrew=async crId=>{const next=(episodios||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setEpisodios(next);};
+  const addCrew=async crId=>{if(!canManagePrograms) return;const next=(episodios||[]).map(x=>x.id===id?{...x,crewIds:[...(x.crewIds||[]),crId]}:x);await setEpisodios(next);};
+  const remCrew=async crId=>{if(!canManagePrograms) return;const next=(episodios||[]).map(x=>x.id===id?{...x,crewIds:(x.crewIds||[]).filter(i=>i!==crId)}:x);await setEpisodios(next);};
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24,flexWrap:"wrap",gap:12}}>
       <div style={{display:"flex",alignItems:"center",gap:16}}>
@@ -7243,7 +7257,7 @@ function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos
       <Stat label="Duración"   value={ep.duracion?ep.duracion+" min":"—"}/>
     </div>
     <Tabs tabs={["Comentarios","Información","Gastos","Crew"]} active={tab} onChange={setTab}/>
-    {tab===0&&<ComentariosBlock items={ep.comentarios||[]} onSave={async comentarios=>{const next=(episodios||[]).map(x=>x.id===id?{...x,comentarios}:x);await setEpisodios(next);}} crewOptions={pCrew} canEdit={_cd&&_cd("programas")} title="Comentarios del Episodio" empresa={empresa} currentUser={user}/>}
+    {tab===0&&<ComentariosBlock items={ep.comentarios||[]} onSave={async comentarios=>{if(!canManagePrograms) return;const next=(episodios||[]).map(x=>x.id===id?{...x,comentarios}:x);await setEpisodios(next);}} crewOptions={pCrew} canEdit={canManagePrograms} title="Comentarios del Episodio" empresa={empresa} currentUser={user}/>}
     {tab===1&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
       <Card title="Datos del Episodio">
         {[["Número","#"+String(ep.num).padStart(2,"0")],["Invitado / Tema",ep.invitado||"—"],["Locación",ep.locacion||"—"],["Descripción",ep.descripcion||"—"],["Notas",ep.notas||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -7256,13 +7270,14 @@ function ViewEpDet({id,empresa,user,episodios,programas,movimientos,crew,eventos
       </Card>
     </div>}
     {tab===2&&<MovBlock movimientos={mv} tipo="gasto" eid={id} etype="ep" onAdd={(eid,et,tipo)=>openM("mov",{eid,et,tipo})} onDel={delMov} canEdit={_cd&&_cd("movimientos")}/>}
-    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={ep.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={_cd&&_cd("programas")}/>}
+    {tab===3&&<CrewTab crew={crew||[]} empId={empId} asignados={ep.crewIds||[]} onAdd={addCrew} onRem={remCrew} canEdit={canManagePrograms}/>}
   </div>;
 }
 
 // ── CREW ──────────────────────────────────────────────────────
 function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSave,cDel,setCrew,listas}){
   const empId=empresa?.id;
+  const canManageCrew=!!(_cd&&_cd("crew"));
   const [q,setQ]=useState("");const [fa,setFa]=useState("");const [sortMode,setSortMode]=useState("az");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const AREAS=listas?.areasCrew||DEFAULT_LISTAS.areasCrew;
   const fd=(crew||[]).filter(x=>x.empId===empId || (!x.empId && x?.managedByUser!==true)).filter(c=>(c.nom.toLowerCase().includes(q.toLowerCase())||(c.rol||"").toLowerCase().includes(q.toLowerCase()))&&(!fa||c.area===fa)).sort((a,b)=>{
@@ -7271,8 +7286,8 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
     if(sortMode==="recent") return String(b.cr||"").localeCompare(String(a.cr||""));
     return String(a.nom||"").localeCompare(String(b.nom||""));
   });
-  const canEditMember=m=>_cd&&_cd("crew");
-  const canDeleteMember=m=>_cd&&_cd("crew")&&!m?.managedByUser;
+  const canEditMember=m=>canManageCrew;
+  const canDeleteMember=m=>canManageCrew&&!m?.managedByUser;
   const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   const exportCSV=()=>{
@@ -7298,11 +7313,12 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
         <option value="Inactivo">Inactivo</option>
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManageCrew) return;
         if(!bulkEstado) return;
         setCrew((crew||[]).map(item=>selectedIds.includes(item.id)?{...item,active:bulkEstado==="Activo"}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {_cd&&_cd("crew")&&<DBtn sm onClick={()=>{
+      {canManageCrew&&<DBtn sm onClick={()=>{
         const removable=(crew||[]).filter(item=>selectedIds.includes(item.id)&&!item?.managedByUser);
         if(!removable.length){ alert("No hay seleccionados eliminables."); return; }
         if(!confirm(`¿Eliminar ${removable.length} miembro${removable.length===1?"":"s"} seleccionado${removable.length===1?"":"s"}?`)) return;
@@ -7378,6 +7394,7 @@ function ViewCrew({empresa,crew,producciones,programas,navTo,openM,canDo:_cd,cSa
 // ── AUSPICIADORES ─────────────────────────────────────────────
 function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,setAuspiciadores,listas}){
   const empId=empresa?.id;
+  const canManageSponsors=!!(_cd&&_cd("auspiciadores"));
   const [q,setQ]=useState("");const [ft,setFt]=useState("");const [fp,setFp]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("cards");const [pg,setPg]=useState(1);const [detailId,setDetailId]=useState("");const PP=9;
   const fd=(auspiciadores||[]).filter(x=>x.empId===empId).filter(a=>(a.nom.toLowerCase().includes(q.toLowerCase())||(a.con||"").toLowerCase().includes(q.toLowerCase()))&&(!ft||a.tip===ft)&&(!fp||(a.pids||[]).includes(fp))).sort((a,b)=>{
     if(sortMode==="az") return String(a.nom||"").localeCompare(String(b.nom||""));
@@ -7407,12 +7424,13 @@ function ViewAus({empresa,auspiciadores,programas,openM,canDo:_cd,cSave,cDel,set
         {(listas?.estadosAus||DEFAULT_LISTAS.estadosAus).map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManageSponsors) return;
         if(!bulkEstado) return;
         setAuspiciadores((auspiciadores||[]).map(item=>selectedIds.includes(item.id)?{...item,est:bulkEstado}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
       <DBtn sm onClick={()=>{
-        if(!_cd||!_cd("auspiciadores")) return;
+        if(!canManageSponsors) return;
         if(!confirm(`¿Eliminar ${selectedIds.length} auspiciador${selectedIds.length===1?"":"es"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
         setAuspiciadores((auspiciadores||[]).filter(item=>!selectedIds.includes(item.id)));
         setSelectedIds([]);
@@ -9180,6 +9198,7 @@ async function generarPDFFactura(fact, entidad, ref, empresa) {
 // ── VIEW PRESUPUESTOS ─────────────────────────────────────────
 function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,contratos,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos}){
   const empId=empresa?.id;
+  const canManageBudgets=!!(_cd&&_cd("presupuestos"));
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const fd=(presupuestos||[]).filter(x=>x.empId===empId).filter(p=>(p.titulo||"").toLowerCase().includes(q.toLowerCase())&&(!fe||p.estado===fe)).sort((a,b)=>{
     if(sortMode==="az") return String(a.titulo||"").localeCompare(String(b.titulo||""));
@@ -9189,7 +9208,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
   });
   const total=fd.reduce((s,p)=>s+Number(p.total||0),0);
   const aceptados=fd.filter(p=>p.estado==="Aceptado").reduce((s,p)=>s+Number(p.total||0),0);
-  const setEstadoRapido=(evt,pres,estado)=>{evt.stopPropagation();cSave(presupuestos,setPresupuestos,{...pres,estado});};
+  const setEstadoRapido=(evt,pres,estado)=>{evt.stopPropagation();if(!canManageBudgets) return;cSave(presupuestos,setPresupuestos,{...pres,estado});};
   const toggleSelected=id=>setSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const toggleAll=checked=>setSelectedIds(checked?fd.slice((pg-1)*PP,pg*PP).map(item=>item.id):[]);
   return <div>
@@ -9211,8 +9230,8 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
         <option value="">Cambiar estado...</option>
         {["Borrador","Enviado","En Revisión","Aceptado","Rechazado"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
-      <GBtn sm onClick={()=>{ if(!bulkEstado) return; setPresupuestos((presupuestos||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item)); setSelectedIds([]); }}>Aplicar estado</GBtn>
-      <DBtn sm onClick={()=>{ if(!confirm(`¿Eliminar ${selectedIds.length} presupuesto${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return; setPresupuestos((presupuestos||[]).filter(item=>!selectedIds.includes(item.id))); setSelectedIds([]); }}>Eliminar seleccionados</DBtn>
+      <GBtn sm onClick={()=>{ if(!canManageBudgets || !bulkEstado) return; setPresupuestos((presupuestos||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item)); setSelectedIds([]); }}>Aplicar estado</GBtn>
+      <DBtn sm onClick={()=>{ if(!canManageBudgets) return; if(!confirm(`¿Eliminar ${selectedIds.length} presupuesto${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return; setPresupuestos((presupuestos||[]).filter(item=>!selectedIds.includes(item.id))); setSelectedIds([]); }}>Eliminar seleccionados</DBtn>
       <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     <Card>
@@ -9250,6 +9269,7 @@ function ViewPres({empresa,presupuestos,clientes,producciones,programas,piezas,c
 
 function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo:_cd,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setMovimientos}){
   const empId=empresa?.id;
+  const canManageBudgets=!!(_cd&&_cd("presupuestos"));
   const p=(presupuestos||[]).find(x=>x.id===id);if(!p) return <Empty text="No encontrado"/>;
   const c=(clientes||[]).find(x=>x.id===p.cliId);
   const contrato=(contratos||[]).find(ct=>ct.id===p.contratoId);
@@ -9261,8 +9281,9 @@ function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,pi
   const [convTipo,setConvTipo]=useState("produccion");
   const [convNom,setConvNom]=useState(p.titulo||"");
   const [itemSort,setItemSort]=useState("desc-asc");
-  const setEstadoPres = estado => cSave(presupuestos,setPresupuestos,{...p,estado});
+  const setEstadoPres = estado => { if(!canManageBudgets) return; cSave(presupuestos,setPresupuestos,{...p,estado}); };
   const convertir=async()=>{
+    if(!canManageBudgets) return;
     if(!convNom.trim()) return;
     const newId=uid();
     if(convTipo==="produccion"){
@@ -9496,6 +9517,7 @@ function MFact({open,data,empresa,clientes,auspiciadores,producciones,programas,
 
 function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,producciones,programas,piezas,presupuestos,contratos,openM,canDo:_cd,cSave,cDel,setFacturas,setMovimientos,saveFacturaDoc,ntf}){
   const empId=empresa?.id;
+  const canManageBilling=!!(_cd&&_cd("facturacion"));
   const [tab,setTab]=useState(0);
   const [q,setQ]=useState("");const [fe,setFe]=useState("");const [fc,setFc]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [bulkCobranza,setBulkCobranza]=useState("");const [pg,setPg]=useState(1);const PP=10;
   const canPres = hasAddon(empresa, "presupuestos");
@@ -9557,6 +9579,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
     };
   }).sort((a,b)=>String(a.nextDate||"9999-12-31").localeCompare(String(b.nextDate||"9999-12-31")));
   const persistSeries = async (nextFacts, removedIds=[])=>{
+    if(!canManageBilling) return;
     await setFacturas(nextFacts);
     if(removedIds.length){
       await setMovimientos((Array.isArray(movimientos)?movimientos:[]).filter(m=>!removedIds.includes(m.facturaId)));
@@ -9666,11 +9689,12 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
         {["Borrador","Emitida","Anulada"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManageBilling) return;
         if(!bulkEstado) return;
         setFacturas((facturas||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {_cd&&_cd("facturacion")&&<DBtn sm onClick={()=>{
+      {canManageBilling&&<DBtn sm onClick={()=>{
         if(!confirm(`¿Eliminar ${selectedIds.length} documento${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
         const removedIds=[...selectedIds];
         setFacturas((facturas||[]).filter(item=>!removedIds.includes(item.id)));
@@ -9733,10 +9757,11 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
           <option value="">Cambiar cobranza...</option>
           {COBRANZA_STATES.map(opt=><option key={opt} value={opt}>{opt}</option>)}
         </FSl>
-        <GBtn sm onClick={()=>{
-          if(!bulkCobranza) return;
-          setFacturas((facturas||[]).map(item=>selectedIds.includes(item.id)?{...item,cobranzaEstado:bulkCobranza,fechaPago:bulkCobranza==="Pagado"?(item.fechaPago||today()):""}:item));
-          setSelectedIds([]);
+      <GBtn sm onClick={()=>{
+        if(!canManageBilling) return;
+        if(!bulkCobranza) return;
+        setFacturas((facturas||[]).map(item=>selectedIds.includes(item.id)?{...item,cobranzaEstado:bulkCobranza,fechaPago:bulkCobranza==="Pagado"?(item.fechaPago||today()):""}:item));
+        setSelectedIds([]);
         }}>Aplicar estado</GBtn>
         <GBtn sm onClick={()=>setSelectedIds([])}>Limpiar selección</GBtn>
       </div>}
@@ -9757,7 +9782,7 @@ function ViewFact({empresa,facturas,movimientos,clientes,auspiciadores,produccio
                 <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>
                 <TD>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                    {_cd&&_cd("facturacion")&&<FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
+                    {canManageBilling&&<FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
                       {COBRANZA_STATES.map(st=><option key={st}>{st}</option>)}
                     </FSl>}
                     <GBtn sm onClick={()=>sendBillingEmail(f,ent)}>✉ Correo</GBtn>
@@ -9820,6 +9845,7 @@ function MActivo({open,data,producciones,listas,onClose,onSave}){
 
 function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,cDel,setActivos}){
   const empId=empresa?.id;
+  const canManageAssets=!!(_cd&&_cd("activos"));
   const [q,setQ]=useState("");const [fc,setFc]=useState("");const [fe,setFe]=useState("");const [sortMode,setSortMode]=useState("recent");const [selectedIds,setSelectedIds]=useState([]);const [bulkEstado,setBulkEstado]=useState("");const [vista,setVista]=useState("list");const [pg,setPg]=useState(1);const PP=10;
   const CATS=listas?.catActivos||DEFAULT_LISTAS.catActivos;
   const ESTADOS=listas?.estadosActivos||DEFAULT_LISTAS.estadosActivos;
@@ -9859,11 +9885,12 @@ function ViewActivos({empresa,activos,producciones,listas,openM,canDo:_cd,cSave,
         {ESTADOS.map(opt=><option key={opt} value={opt}>{opt}</option>)}
       </FSl>
       <GBtn sm onClick={()=>{
+        if(!canManageAssets) return;
         if(!bulkEstado) return;
         setActivos((activos||[]).map(item=>selectedIds.includes(item.id)?{...item,estado:bulkEstado}:item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {_cd&&_cd("activos")&&<DBtn sm onClick={()=>{
+      {canManageAssets&&<DBtn sm onClick={()=>{
         if(!confirm(`¿Eliminar ${selectedIds.length} activo${selectedIds.length===1?"":"s"} seleccionado${selectedIds.length===1?"":"s"}?`)) return;
         setActivos((activos||[]).filter(item=>!selectedIds.includes(item.id)));
         setSelectedIds([]);

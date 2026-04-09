@@ -12,6 +12,14 @@ export const TREASURY_STORE_KEYS = [
   "treasuryDisbursements",
 ];
 
+export function treasuryReleaseEnabled() {
+  try {
+    return String(import.meta.env?.VITE_ENABLE_TREASURY || "false").trim().toLowerCase() === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function buildTreasurySidebarItem(count = 0) {
   return {
     id: TREASURY_MODULE_ID,

@@ -112,6 +112,7 @@ import {
   TREASURY_MODULE_ID,
   TREASURY_MODULE_LABEL,
   TREASURY_STORE_KEYS,
+  treasuryReleaseEnabled,
 } from "./lib/utils/treasury";
 import {
   ADDON_REGISTRY,
@@ -708,6 +709,7 @@ export default function App(){
     setDisbursements:setTreasuryDisbursements,
   };
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
+  const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
   const comentariosBlockComponent = props => <ComentariosBlock {...props} helpers={{ commentAttachmentFromFile, normalizeCommentAttachments, getAssignedIds, uid, today, fmtD, exportComentariosCSV, exportComentariosPDF: (items, nombre, empresa) => exportComentariosPDF(items, nombre, empresa, { companyPrintColor }) }} />;
   const tareasContextoComponent = props => <TareasContexto {...props} TareaCardComponent={TareaCard} helpers={{ uid }} />;
   const movBlockComponent = props => <MovBlockView {...props} fmtM={fmtM} fmtD={fmtD} />;
@@ -720,7 +722,7 @@ export default function App(){
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanelView actorUser={curUser} empresas={empresas||[]} users={users||[]} onSave={saveSuperData} onDeleteEmpresa={deleteEmpresa} releaseMode={LAB_DATA_CONFIG.releaseMode} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} helpers={{dbGet,dbSet,uid,today,nowIso,fmtD,fmtMoney,normalizePrintLayouts,DEFAULT_PRINT_LAYOUTS,buildSupportSettings,normalizeSupportThreads,supportAttachmentFromFile,normalizeEmpresasModel,companyBillingDiscountPct,companyReferralDiscountMonthsPending,companyReferralDiscountHistory,companyBillingBaseNet,companyBillingNet,companyBillingStatus,companyPaymentDayLabel,companyIsUpToDate,companyGoogleCalendarEnabled,nextTenantCode,shouldConsumeReferralDiscountMonth,normalizeEmailValue,sha256Hex,sanitizeAssignableRole,ini,addons:ADDONS,exportActiveClientsCSV:exportActiveClientsCsvHelper,exportActiveClientsPDF:exportActiveClientsPdfHelper,userGoogleCalendar,SYSTEM_MESSAGE_PRESETS,XBtn,RichTextBlock}}/></>;
-    if(LAB_DATA_CONFIG.releaseMode && view===TREASURY_MODULE_ID) return <Card title="Módulo fuera del corte"><Empty text="Tesorería queda fuera del primer release candidate" sub="Lo estamos estabilizando por separado para no mezclar la convergencia core con un módulo financiero nuevo."/></Card>;
+    if(!treasuryEnabled && view===TREASURY_MODULE_ID) return <Card title="Módulo fuera del corte"><Empty text="Tesorería aún no está habilitada en este release" sub="Su entrada se activará con rollout controlado, smoke test financiero y validación de datos."/></Card>;
     if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas} useBal={useBal} fmtM={fmtM}/>;
@@ -810,7 +812,7 @@ export default function App(){
     <StyleTag css={CSS}/>
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={closeMobileSidebar} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile} ini={ini} includeTreasury={!LAB_DATA_CONFIG.releaseMode}/>
+    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile} ini={ini} includeTreasury={treasuryEnabled}/>
     <main className="app-main" style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
       {/* Topbar */}
       <div className="topbar" style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>

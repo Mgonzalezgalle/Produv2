@@ -24,7 +24,7 @@ export function useLabPersistence({
   const saveUsers = useCallback(async nextUsers => {
     const normalized = await normalizeUsersAuth(nextUsers);
     setUsersRaw(normalized);
-    dbSet("produ:users", normalized);
+    await dbSet("produ:users", normalized);
 
     if (curEmp?.id) {
       const scopedUsers = normalized.filter(user => user?.empId === curEmp.id);
@@ -37,7 +37,7 @@ export function useLabPersistence({
   const saveEmpresas = useCallback(nextEmpresas => {
     const normalized = normalizeEmpresasModel(nextEmpresas);
     setEmpresasRaw(normalized);
-    dbSet("produ:empresas", normalized);
+    return dbSet("produ:empresas", normalized);
   }, [normalizeEmpresasModel, setEmpresasRaw, dbSet]);
 
   const savePrintLayouts = useCallback(async layouts => {

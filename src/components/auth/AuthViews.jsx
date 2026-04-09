@@ -428,15 +428,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
       <div className="login-promo" style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
         <div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>{releaseMode ? "Release Candidate" : "Demo gratis"}</div>
-          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>{releaseMode ? "Valida la nueva base de Produ" : "Opera tu productora con una demo real de Produ"}</div>
-          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:16}}>{releaseMode ? "Esta instancia está orientada a estabilización y validación de convergencia antes de actualizar productivo." : "Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido."}</div>
-          {releaseMode && !!authModeLabel && (
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"rgba(8,8,9,.28)",color:"var(--gr3)",fontSize:12,fontWeight:600,marginBottom:22}}>
-              <span style={{color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>Auth</span>
-              <span style={{color:"var(--wh)"}}>{authModeLabel}</span>
-            </div>
-          )}
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Demo gratis</div>
+          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Opera tu productora con una demo real de Produ</div>
+          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:16}}>Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido.</div>
           <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {[["Módulos","Activa solo lo que necesitas"],["Equipo","Invita usuarios y crew"],["Comercial","Presupuestos e invoices"]].map(([title,sub])=><div key={title} style={{padding:"14px 14px",borderRadius:16,background:"rgba(8,8,9,.28)",border:"1px solid var(--bdr2)"}}><div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>{sub}</div></div>)}
           </div>

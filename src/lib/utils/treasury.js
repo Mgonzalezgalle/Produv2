@@ -372,9 +372,10 @@ function emptyArray(value) {
 
 export function buildTreasuryProviders({ providers = [], payables = [], issuedOrders = [], empId = "" } = {}) {
   const map = new Map();
-  const ensure = (name = "", provider = null) => {
+  const ensure = (name = "", provider = null, createIfMissing = true) => {
     const key = String(name || provider?.name || provider?.razonSocial || "Proveedor sin nombre").trim() || "Proveedor sin nombre";
     if (!map.has(key)) {
+      if (!createIfMissing) return null;
       map.set(key, {
         id: provider?.id || key,
         empId,
@@ -415,7 +416,8 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
   emptyArray(payables)
     .filter(item => item?.empId === empId)
     .forEach(item => {
-      const entry = ensure(item.supplier);
+      const entry = ensure(item.supplier, null, false);
+      if (!entry) return;
       entry.payables.push(item);
       entry.totalDebt += Number(item.total || 0);
       entry.paid += Number(item.paid || 0);
@@ -425,7 +427,8 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
   emptyArray(issuedOrders)
     .filter(item => item?.empId === empId)
     .forEach(item => {
-      const entry = ensure(item.supplier);
+      const entry = ensure(item.supplier, null, false);
+      if (!entry) return;
       entry.issuedOrders.push(item);
     });
 

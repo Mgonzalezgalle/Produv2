@@ -1,0 +1,107 @@
+import { removeStoredJson } from "./sessionStorage";
+import { authenticateLocalUser, persistSession, requestLocalPasswordReset, resolveSessionState } from "./localAuthProvider";
+import { activateSupabaseAccount, authenticateSupabaseUser, requestSupabasePasswordReset, restoreSupabaseSession, signInWithSupabaseGoogle, signOutSupabaseUser } from "./supabaseAuthProvider";
+import { LAB_AUTH_CONFIG } from "./authConfig";
+
+export const AUTH_STRATEGIES = {
+  LOCAL: "local",
+  SUPABASE: "supabase",
+};
+
+export function getLabAuthStrategy() {
+  return LAB_AUTH_CONFIG.strategy === AUTH_STRATEGIES.SUPABASE
+    ? AUTH_STRATEGIES.SUPABASE
+    : AUTH_STRATEGIES.LOCAL;
+}
+
+function createLocalGateway() {
+  return {
+    strategy: AUTH_STRATEGIES.LOCAL,
+    async authenticate({ users, email, password }) {
+      return authenticateLocalUser({ users, email, password });
+    },
+    restoreSession({ storedSession, users, empresas, sessionKey }) {
+      return resolveSessionState({ storedSession, users, empresas, sessionKey });
+    },
+    persistSession({ sessionKey, user, empresa, options }) {
+      return persistSession({ sessionKey, user, empresa, options });
+    },
+    clearSession({ sessionKey }) {
+      removeStoredJson(sessionKey);
+    },
+    supportsPasswordReset() {
+      return true;
+    },
+    supportsAccountActivation() {
+      return false;
+    },
+    async activateAccount() {
+      return {
+        ok: false,
+        user: null,
+        empresa: null,
+        message: "La activación de cuenta no aplica para auth local.",
+      };
+    },
+    async requestPasswordReset({ email }) {
+      return requestLocalPasswordReset({ email });
+    },
+    supportsGoogleSignIn() {
+      return false;
+    },
+    async signInWithGoogle() {
+      return {
+        ok: false,
+        message: "Google Sign-In no aplica para auth local.",
+      };
+    },
+    supportsTwoFactorSetup() {
+      return true;
+    },
+  };
+}
+
+function createSupabaseGateway() {
+  return {
+    strategy: AUTH_STRATEGIES.SUPABASE,
+    async authenticate({ users, empresas, email, password }) {
+      return authenticateSupabaseUser({ users, empresas, email, password });
+    },
+    async restoreSession({ storedSession, users, empresas }) {
+      return restoreSupabaseSession({ storedSession, users, empresas });
+    },
+    persistSession({ sessionKey, user, empresa, options }) {
+      return persistSession({ sessionKey, user, empresa, options });
+    },
+    async clearSession({ sessionKey }) {
+      removeStoredJson(sessionKey);
+      await signOutSupabaseUser();
+    },
+    supportsPasswordReset() {
+      return true;
+    },
+    supportsAccountActivation() {
+      return true;
+    },
+    async activateAccount({ users, empresas, email, password }) {
+      return activateSupabaseAccount({ users, empresas, email, password });
+    },
+    async requestPasswordReset({ email }) {
+      return requestSupabasePasswordReset({ email });
+    },
+    supportsGoogleSignIn() {
+      return LAB_AUTH_CONFIG.enableGoogleSignIn;
+    },
+    async signInWithGoogle() {
+      return signInWithSupabaseGoogle();
+    },
+    supportsTwoFactorSetup() {
+      return LAB_AUTH_CONFIG.enableTwoFactorSetup;
+    },
+  };
+}
+
+export function createAuthGateway(strategy = getLabAuthStrategy()) {
+  if (strategy === AUTH_STRATEGIES.SUPABASE) return createSupabaseGateway();
+  return createLocalGateway();
+}

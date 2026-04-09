@@ -23,6 +23,7 @@ function bytesToBase32(bytes = new Uint8Array()) {
     while (bits >= 5) {
       output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
       bits -= 5;
+      value &= (1 << bits) - 1;
     }
   }
   if (bits > 0) output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
@@ -42,6 +43,7 @@ function base32ToBytes(secret = "") {
     if (bits >= 8) {
       out.push((value >>> (bits - 8)) & 255);
       bits -= 8;
+      value &= (1 << bits) - 1;
     }
   }
   return new Uint8Array(out);

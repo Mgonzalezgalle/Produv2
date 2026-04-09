@@ -4782,16 +4782,6 @@ export default function App(){
   const [alertasLeidas,setAlertasLeidas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
-  const perfRef=useRef({id:Date.now(),start:typeof performance!=="undefined"?performance.now():Date.now(),marks:{}});
-  const perfMark=(label,extra={})=>{
-    try{
-      const now=typeof performance!=="undefined"?performance.now():Date.now();
-      const elapsed=Math.round(now-perfRef.current.start);
-      console.log("[PERF]",label,`${elapsed}ms`,extra);
-      perfRef.current.marks[label]={elapsed,...extra};
-    }catch{}
-  };
-  useEffect(()=>{ perfMark("app_mount"); },[]);
 
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
@@ -4852,8 +4842,6 @@ export default function App(){
 
   // Init global data
   useEffect(()=>{
-    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
-    perfMark("global_bootstrap_start");
     Promise.all([
       dbGet("produ:empresas"),
       dbGet("produ:users"),
@@ -4887,24 +4875,14 @@ export default function App(){
       const normalizedSupportThreads = normalizeSupportThreads(supportThreadsDb || [], empresasDb || SEED_EMPRESAS, normalizedUsers, normalizedSupportSettings);
       setSupportThreadsRaw(normalizedSupportThreads);
       if(!supportThreadsDb || JSON.stringify(normalizedSupportThreads)!==JSON.stringify(supportThreadsDb)) dbSet("produ:supportThreads", normalizedSupportThreads);
-      perfMark("global_bootstrap_done",{
-        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
-        empresas:Array.isArray(empresasDb)?empresasDb.length:0,
-        users:Array.isArray(usersDb)?usersDb.length:0,
-      });
     });
     applyTheme(THEME_PRESETS.dark);
     try{
       const s=localStorage.getItem("produ_session");
       if(s){
         setStoredSession(JSON.parse(s));
-        perfMark("session_restored");
-      }else{
-        perfMark("session_missing");
       }
-    }catch{
-      perfMark("session_restore_error");
-    }
+    }catch{}
   },[]);
 
   useEffect(()=>{
@@ -4932,7 +4910,6 @@ export default function App(){
     const freshEmp=sessionEmpId?(empresas||[]).find(e=>e.id===sessionEmpId&&e.active!==false):null;
     setCurUser(freshUser);
     setCurEmp(freshEmp||null);
-    perfMark("session_resolved",{userId:freshUser.id,empId:freshEmp?.id||null});
   },[storedSession,users,empresas]);
 
   useEffect(()=>{
@@ -5006,11 +4983,8 @@ export default function App(){
     const tenantControls=[listasCtl,tareasCtl,clientesCtl,produccionesCtl,programasCtl,piezasCtl,episodiosCtl,auspiciadoresCtl,crmOppsCtl,crmActivitiesCtl,crmStagesCtl,contratosCtl,movimientosCtl,crewCtl,eventosCtl,presupuestosCtl,facturasCtl,activosCtl];
     if(!tenantEnabled){
       tenantControls.forEach(ctl=>ctl?.reset(null));
-      if(eId==="__none__") perfMark("tenant_bootstrap_skipped",{reason:"no_tenant"});
       return;
     }
-    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
-    perfMark("tenant_bootstrap_start",{empId:eId});
     tenantControls.forEach(ctl=>ctl?.begin(null));
     let alive=true;
     Promise.all([
@@ -5054,18 +5028,9 @@ export default function App(){
       presupuestosCtl?.hydrate(presupuestosDb);
       facturasCtl?.hydrate(facturasDb);
       activosCtl?.hydrate(activosDb);
-      perfMark("tenant_bootstrap_done",{
-        empId:eId,
-        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
-        clientes:Array.isArray(clientesDb)?clientesDb.length:0,
-        producciones:Array.isArray(produccionesDb)?produccionesDb.length:0,
-        crmOpps:Array.isArray(crmOppsDb)?crmOppsDb.length:0,
-        facturas:Array.isArray(facturasDb)?facturasDb.length:0,
-      });
     }).catch(()=>{
       if(!alive) return;
       tenantControls.forEach(ctl=>ctl?.reset(null));
-      perfMark("tenant_bootstrap_error",{empId:eId});
     });
     return ()=>{ alive=false; };
   },[tenantEnabled,eId]);
@@ -5073,26 +5038,17 @@ export default function App(){
   // Seed per-empresa data
   useEffect(()=>{
     if(!curEmp) return;
-    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
     const id=curEmp.id;
     const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
     const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
-    let seeded=0;
     Promise.all(keys.map(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
       if(v===null){
         const seed=SEED_DATA(id)[k]||[];
-        seeded+=1;
         dbSet(`produ:${id}:${k}`,seed);
         setters[k]?.(seed);
       }
-    })).then(()=>{
-      perfMark("tenant_seed_done",{
-        empId:id,
-        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
-        seededKeys:seeded,
-      });
-    });
+    }));
   },[curEmp?.id]);
 
   useEffect(()=>{
@@ -5111,20 +5067,6 @@ useEffect(()=>{
     return;
   }
 },[curEmp?.id,ldCrmStages]);
-
-  useEffect(()=>{
-    if(curUser?.id) perfMark("user_ready",{userId:curUser.id,role:curUser.role});
-  },[curUser?.id]);
-
-  useEffect(()=>{
-    if(curEmp?.id) perfMark("tenant_ready",{empId:curEmp.id});
-  },[curEmp?.id]);
-
-  useEffect(()=>{
-    if(curEmp?.id && !isLoading){
-      perfMark("app_ready",{view,empId:curEmp.id});
-    }
-  },[curEmp?.id,isLoading,view]);
 
   useEffect(()=>{
     if(!curEmp?.id || ldCrmOpps) return;

@@ -1321,22 +1321,59 @@ const SEED_DATA = (empId) => ({
 });
 
 // ── DB HOOK ──────────────────────────────────────────────────
-function useDB(key, initial=null) {
+function useDB(key, initial=null, options={}) {
+  const { enabled=true, deferInitialLoad=false } = options;
   const [data,setData]=useState(initial);
   const [loading,setLoading]=useState(true);
   const writingRef=useRef(false);
   const dataRef=useRef(data);
   const loaded=useRef(false);
+  const controlsRef=useRef(null);
+  if(!controlsRef.current){
+    controlsRef.current={
+      begin(nextValue=initial){
+        loaded.current=false;
+        setData(nextValue);
+        setLoading(true);
+      },
+      hydrate(nextValue=initial){
+        loaded.current=true;
+        setData(nextValue==null ? initial : nextValue);
+        setLoading(false);
+      },
+      reset(nextValue=initial){
+        loaded.current=false;
+        setData(nextValue);
+        setLoading(false);
+      },
+    };
+  }
   useEffect(()=>{
     dataRef.current=data;
   },[data]);
   useEffect(()=>{
-    if(!key) return;
-    if(loaded.current) return;
-    loaded.current=true;
+    loaded.current=false;
+    if(!enabled || !key){
+      setLoading(false);
+      return;
+    }
+    if(deferInitialLoad){
+      setLoading(true);
+      return;
+    }
     setLoading(true);
-    dbGet(key).then(v=>{ if(v!==null) setData(v); setLoading(false); });
-  },[key]);
+    let alive=true;
+    dbGet(key).then(v=>{
+      if(!alive) return;
+      loaded.current=true;
+      if(v!==null) setData(v);
+      setLoading(false);
+    }).catch(()=>{
+      if(!alive) return;
+      setLoading(false);
+    });
+    return ()=>{ alive=false; };
+  },[key, enabled, deferInitialLoad]);
   const save=useCallback(async next=>{
     const resolved=typeof next==="function" ? next(dataRef.current) : next;
     writingRef.current=true;
@@ -1345,7 +1382,7 @@ function useDB(key, initial=null) {
     writingRef.current=false;
     return resolved;
   },[key]);
-  return [data,save,save,loading,writingRef];
+  return [data,save,save,loading,writingRef,controlsRef.current];
 }
 function usePoll(key,setter,writingRef,ms=20000){
   useEffect(()=>{
@@ -4745,6 +4782,16 @@ export default function App(){
   const [alertasLeidas,setAlertasLeidas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
+  const perfRef=useRef({id:Date.now(),start:typeof performance!=="undefined"?performance.now():Date.now(),marks:{}});
+  const perfMark=(label,extra={})=>{
+    try{
+      const now=typeof performance!=="undefined"?performance.now():Date.now();
+      const elapsed=Math.round(now-perfRef.current.start);
+      console.log("[PERF]",label,`${elapsed}ms`,extra);
+      perfRef.current.marks[label]={elapsed,...extra};
+    }catch{}
+  };
+  useEffect(()=>{ perfMark("app_mount"); },[]);
 
   // Global data
   const [empresas,setEmpresasRaw,savEmpRef]=useDB("produ:empresas");
@@ -4756,54 +4803,57 @@ export default function App(){
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
-  const [listas,setListas,savLst,ldLst,listasRef]=useDB(`produ:${eId}:listas`);
-  const [tareas,setTareas,savTar,ldTar,tareasRef]=useDB(`produ:${eId}:tareas`);
+  const tenantEnabled=!!curEmp?.id && eId!=="__none__";
+  const [listas,setListas,savLst,ldLst,listasRef,listasCtl]=useDB(`produ:${eId}:listas`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [tareas,setTareas,savTar,ldTar,tareasRef,tareasCtl]=useDB(`produ:${eId}:tareas`, null, { enabled: tenantEnabled, deferInitialLoad: true });
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
-  const [clientes,setClientes,savCli,ldCli,clientesRef]=useDB(`produ:${eId}:clientes`);
-  const [producciones,setProducciones,savPro,ldPro,produccionesRef]=useDB(`produ:${eId}:producciones`);
-  const [programas,setProgramas,savPg,ldPg,programasRef]=useDB(`produ:${eId}:programas`);
-  const [piezas,setPiezas,savPiezas,ldPiezas,piezasRef]=useDB(`produ:${eId}:piezas`);
-  const [episodios,setEpisodios,savEp,ldEp,episodiosRef]=useDB(`produ:${eId}:episodios`);
-  const [auspiciadores,setAuspiciadores,savAus,ldAus,auspiciadoresRef]=useDB(`produ:${eId}:auspiciadores`);
-  const [crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps,crmOppsRef]=useDB(`produ:${eId}:crmOpps`);
-  const [crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities,crmActivitiesRef]=useDB(`produ:${eId}:crmActivities`);
-  const [crmStages,setCrmStages,savCrmStages,ldCrmStages,crmWritingRef]=useDB(`produ:${eId}:crmStages`);
-  const [contratos,setContratos,savCt,ldCt,contratosRef]=useDB(`produ:${eId}:contratos`);
-  const [movimientos,setMovimientos,savMov,ldMov,movimientosRef]=useDB(`produ:${eId}:movimientos`);
-  const [crew,setCrew,savCrew,ldCrew,crewRef]=useDB(`produ:${eId}:crew`);
-  const [eventos,setEventos,savEv,ldEv,eventosRef]=useDB(`produ:${eId}:eventos`);
-  const [presupuestos,setPresupuestos,savPres,ldPres,presupuestosRef]=useDB(`produ:${eId}:presupuestos`);
-  const [facturas,setFacturas,savFact,ldFact,facturasRef]=useDB(`produ:${eId}:facturas`);
-  const [activos,setActivos,savAct,ldAct,activosRef]=useDB(`produ:${eId}:activos`);
+  const [clientes,setClientes,savCli,ldCli,clientesRef,clientesCtl]=useDB(`produ:${eId}:clientes`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [producciones,setProducciones,savPro,ldPro,produccionesRef,produccionesCtl]=useDB(`produ:${eId}:producciones`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [programas,setProgramas,savPg,ldPg,programasRef,programasCtl]=useDB(`produ:${eId}:programas`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [piezas,setPiezas,savPiezas,ldPiezas,piezasRef,piezasCtl]=useDB(`produ:${eId}:piezas`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [episodios,setEpisodios,savEp,ldEp,episodiosRef,episodiosCtl]=useDB(`produ:${eId}:episodios`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [auspiciadores,setAuspiciadores,savAus,ldAus,auspiciadoresRef,auspiciadoresCtl]=useDB(`produ:${eId}:auspiciadores`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps,crmOppsRef,crmOppsCtl]=useDB(`produ:${eId}:crmOpps`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities,crmActivitiesRef,crmActivitiesCtl]=useDB(`produ:${eId}:crmActivities`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [crmStages,setCrmStages,savCrmStages,ldCrmStages,crmWritingRef,crmStagesCtl]=useDB(`produ:${eId}:crmStages`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [contratos,setContratos,savCt,ldCt,contratosRef,contratosCtl]=useDB(`produ:${eId}:contratos`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [movimientos,setMovimientos,savMov,ldMov,movimientosRef,movimientosCtl]=useDB(`produ:${eId}:movimientos`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [crew,setCrew,savCrew,ldCrew,crewRef,crewCtl]=useDB(`produ:${eId}:crew`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [eventos,setEventos,savEv,ldEv,eventosRef,eventosCtl]=useDB(`produ:${eId}:eventos`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [presupuestos,setPresupuestos,savPres,ldPres,presupuestosRef,presupuestosCtl]=useDB(`produ:${eId}:presupuestos`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [facturas,setFacturas,savFact,ldFact,facturasRef,facturasCtl]=useDB(`produ:${eId}:facturas`, null, { enabled: tenantEnabled, deferInitialLoad: true });
+  const [activos,setActivos,savAct,ldAct,activosRef,activosCtl]=useDB(`produ:${eId}:activos`, null, { enabled: tenantEnabled, deferInitialLoad: true });
   const empId = curEmp?.id;
   const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCrmOpps,ldCrmActivities,ldCrmStages,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldAct].some(Boolean);
   const tasksEnabled = hasAddon(curEmp,"tareas");
   const alertas = useAlertas(episodios, programas, eventos||[], tasksEnabled?(tareas||[]):[], facturas||[], contratos||[], empId);
 
   // Polling
-  usePoll(`produ:${eId}:clientes`,setClientes,clientesRef);
-  usePoll(`produ:${eId}:producciones`,setProducciones,produccionesRef);
-  usePoll(`produ:${eId}:programas`,setProgramas,programasRef);
-  usePoll(`produ:${eId}:piezas`,setPiezas,piezasRef);
-  usePoll(`produ:${eId}:episodios`,setEpisodios,episodiosRef);
-  usePoll(`produ:${eId}:auspiciadores`,setAuspiciadores,auspiciadoresRef);
-  usePoll(`produ:${eId}:crmOpps`,setCrmOpps,crmOppsRef);
-  usePoll(`produ:${eId}:crmActivities`,setCrmActivities,crmActivitiesRef);
-  usePoll(`produ:${eId}:crmStages`,setCrmStages,crmWritingRef);
-  usePoll(`produ:${eId}:contratos`,setContratos,contratosRef);
-  usePoll(`produ:${eId}:movimientos`,setMovimientos,movimientosRef);
-  usePoll(`produ:${eId}:eventos`,setEventos,eventosRef);
-  usePoll(`produ:${eId}:presupuestos`,setPresupuestos,presupuestosRef);
-  usePoll(`produ:${eId}:facturas`,setFacturas,facturasRef);
-  usePoll(`produ:${eId}:activos`,setActivos,activosRef);
-  usePoll(`produ:${eId}:crew`,setCrew,crewRef);
-  usePoll(`produ:${eId}:listas`,setListas,listasRef);
-  usePoll(`produ:${eId}:tareas`,setTareas,tareasRef);
+  usePoll(tenantEnabled?`produ:${eId}:clientes`:"",setClientes,clientesRef);
+  usePoll(tenantEnabled?`produ:${eId}:producciones`:"",setProducciones,produccionesRef);
+  usePoll(tenantEnabled?`produ:${eId}:programas`:"",setProgramas,programasRef);
+  usePoll(tenantEnabled?`produ:${eId}:piezas`:"",setPiezas,piezasRef);
+  usePoll(tenantEnabled?`produ:${eId}:episodios`:"",setEpisodios,episodiosRef);
+  usePoll(tenantEnabled?`produ:${eId}:auspiciadores`:"",setAuspiciadores,auspiciadoresRef);
+  usePoll(tenantEnabled?`produ:${eId}:crmOpps`:"",setCrmOpps,crmOppsRef);
+  usePoll(tenantEnabled?`produ:${eId}:crmActivities`:"",setCrmActivities,crmActivitiesRef);
+  usePoll(tenantEnabled?`produ:${eId}:crmStages`:"",setCrmStages,crmWritingRef);
+  usePoll(tenantEnabled?`produ:${eId}:contratos`:"",setContratos,contratosRef);
+  usePoll(tenantEnabled?`produ:${eId}:movimientos`:"",setMovimientos,movimientosRef);
+  usePoll(tenantEnabled?`produ:${eId}:eventos`:"",setEventos,eventosRef);
+  usePoll(tenantEnabled?`produ:${eId}:presupuestos`:"",setPresupuestos,presupuestosRef);
+  usePoll(tenantEnabled?`produ:${eId}:facturas`:"",setFacturas,facturasRef);
+  usePoll(tenantEnabled?`produ:${eId}:activos`:"",setActivos,activosRef);
+  usePoll(tenantEnabled?`produ:${eId}:crew`:"",setCrew,crewRef);
+  usePoll(tenantEnabled?`produ:${eId}:listas`:"",setListas,listasRef);
+  usePoll(tenantEnabled?`produ:${eId}:tareas`:"",setTareas,tareasRef);
   usePoll("produ:supportThreads",setSupportThreadsRaw,supportThreadsRef);
   usePoll("produ:supportSettings",setSupportSettingsRaw,supportSettingsRef);
 
   // Init global data
   useEffect(()=>{
+    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
+    perfMark("global_bootstrap_start");
     Promise.all([
       dbGet("produ:empresas"),
       dbGet("produ:users"),
@@ -4837,9 +4887,24 @@ export default function App(){
       const normalizedSupportThreads = normalizeSupportThreads(supportThreadsDb || [], empresasDb || SEED_EMPRESAS, normalizedUsers, normalizedSupportSettings);
       setSupportThreadsRaw(normalizedSupportThreads);
       if(!supportThreadsDb || JSON.stringify(normalizedSupportThreads)!==JSON.stringify(supportThreadsDb)) dbSet("produ:supportThreads", normalizedSupportThreads);
+      perfMark("global_bootstrap_done",{
+        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
+        empresas:Array.isArray(empresasDb)?empresasDb.length:0,
+        users:Array.isArray(usersDb)?usersDb.length:0,
+      });
     });
     applyTheme(THEME_PRESETS.dark);
-    try{const s=localStorage.getItem("produ_session");if(s){setStoredSession(JSON.parse(s));}}catch{}
+    try{
+      const s=localStorage.getItem("produ_session");
+      if(s){
+        setStoredSession(JSON.parse(s));
+        perfMark("session_restored");
+      }else{
+        perfMark("session_missing");
+      }
+    }catch{
+      perfMark("session_restore_error");
+    }
   },[]);
 
   useEffect(()=>{
@@ -4867,6 +4932,7 @@ export default function App(){
     const freshEmp=sessionEmpId?(empresas||[]).find(e=>e.id===sessionEmpId&&e.active!==false):null;
     setCurUser(freshUser);
     setCurEmp(freshEmp||null);
+    perfMark("session_resolved",{userId:freshUser.id,empId:freshEmp?.id||null});
   },[storedSession,users,empresas]);
 
   useEffect(()=>{
@@ -4936,15 +5002,96 @@ export default function App(){
     }
   },[printLayouts]);
 
+  useEffect(()=>{
+    const tenantControls=[listasCtl,tareasCtl,clientesCtl,produccionesCtl,programasCtl,piezasCtl,episodiosCtl,auspiciadoresCtl,crmOppsCtl,crmActivitiesCtl,crmStagesCtl,contratosCtl,movimientosCtl,crewCtl,eventosCtl,presupuestosCtl,facturasCtl,activosCtl];
+    if(!tenantEnabled){
+      tenantControls.forEach(ctl=>ctl?.reset(null));
+      if(eId==="__none__") perfMark("tenant_bootstrap_skipped",{reason:"no_tenant"});
+      return;
+    }
+    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
+    perfMark("tenant_bootstrap_start",{empId:eId});
+    tenantControls.forEach(ctl=>ctl?.begin(null));
+    let alive=true;
+    Promise.all([
+      dbGet(`produ:${eId}:listas`),
+      dbGet(`produ:${eId}:tareas`),
+      dbGet(`produ:${eId}:clientes`),
+      dbGet(`produ:${eId}:producciones`),
+      dbGet(`produ:${eId}:programas`),
+      dbGet(`produ:${eId}:piezas`),
+      dbGet(`produ:${eId}:episodios`),
+      dbGet(`produ:${eId}:auspiciadores`),
+      dbGet(`produ:${eId}:crmOpps`),
+      dbGet(`produ:${eId}:crmActivities`),
+      dbGet(`produ:${eId}:crmStages`),
+      dbGet(`produ:${eId}:contratos`),
+      dbGet(`produ:${eId}:movimientos`),
+      dbGet(`produ:${eId}:crew`),
+      dbGet(`produ:${eId}:eventos`),
+      dbGet(`produ:${eId}:presupuestos`),
+      dbGet(`produ:${eId}:facturas`),
+      dbGet(`produ:${eId}:activos`),
+    ]).then(([
+      listasDb,tareasDb,clientesDb,produccionesDb,programasDb,piezasDb,episodiosDb,auspiciadoresDb,crmOppsDb,crmActivitiesDb,crmStagesDb,contratosDb,movimientosDb,crewDb,eventosDb,presupuestosDb,facturasDb,activosDb,
+    ])=>{
+      if(!alive) return;
+      listasCtl?.hydrate(listasDb);
+      tareasCtl?.hydrate(tareasDb);
+      clientesCtl?.hydrate(clientesDb);
+      produccionesCtl?.hydrate(produccionesDb);
+      programasCtl?.hydrate(programasDb);
+      piezasCtl?.hydrate(piezasDb);
+      episodiosCtl?.hydrate(episodiosDb);
+      auspiciadoresCtl?.hydrate(auspiciadoresDb);
+      crmOppsCtl?.hydrate(crmOppsDb);
+      crmActivitiesCtl?.hydrate(crmActivitiesDb);
+      crmStagesCtl?.hydrate(crmStagesDb);
+      contratosCtl?.hydrate(contratosDb);
+      movimientosCtl?.hydrate(movimientosDb);
+      crewCtl?.hydrate(crewDb);
+      eventosCtl?.hydrate(eventosDb);
+      presupuestosCtl?.hydrate(presupuestosDb);
+      facturasCtl?.hydrate(facturasDb);
+      activosCtl?.hydrate(activosDb);
+      perfMark("tenant_bootstrap_done",{
+        empId:eId,
+        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
+        clientes:Array.isArray(clientesDb)?clientesDb.length:0,
+        producciones:Array.isArray(produccionesDb)?produccionesDb.length:0,
+        crmOpps:Array.isArray(crmOppsDb)?crmOppsDb.length:0,
+        facturas:Array.isArray(facturasDb)?facturasDb.length:0,
+      });
+    }).catch(()=>{
+      if(!alive) return;
+      tenantControls.forEach(ctl=>ctl?.reset(null));
+      perfMark("tenant_bootstrap_error",{empId:eId});
+    });
+    return ()=>{ alive=false; };
+  },[tenantEnabled,eId]);
+
   // Seed per-empresa data
   useEffect(()=>{
     if(!curEmp) return;
+    const startedAt=typeof performance!=="undefined"?performance.now():Date.now();
     const id=curEmp.id;
     const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas","activos","listas","tareas"];
     const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos};
-    keys.forEach(async k=>{
+    let seeded=0;
+    Promise.all(keys.map(async k=>{
       const v=await dbGet(`produ:${id}:${k}`);
-      if(v===null){const seed=SEED_DATA(id)[k]||[];dbSet(`produ:${id}:${k}`,seed);setters[k]?.(seed);}
+      if(v===null){
+        const seed=SEED_DATA(id)[k]||[];
+        seeded+=1;
+        dbSet(`produ:${id}:${k}`,seed);
+        setters[k]?.(seed);
+      }
+    })).then(()=>{
+      perfMark("tenant_seed_done",{
+        empId:id,
+        durationMs:Math.round((typeof performance!=="undefined"?performance.now():Date.now())-startedAt),
+        seededKeys:seeded,
+      });
     });
   },[curEmp?.id]);
 
@@ -4964,6 +5111,20 @@ useEffect(()=>{
     return;
   }
 },[curEmp?.id,ldCrmStages]);
+
+  useEffect(()=>{
+    if(curUser?.id) perfMark("user_ready",{userId:curUser.id,role:curUser.role});
+  },[curUser?.id]);
+
+  useEffect(()=>{
+    if(curEmp?.id) perfMark("tenant_ready",{empId:curEmp.id});
+  },[curEmp?.id]);
+
+  useEffect(()=>{
+    if(curEmp?.id && !isLoading){
+      perfMark("app_ready",{view,empId:curEmp.id});
+    }
+  },[curEmp?.id,isLoading,view]);
 
   useEffect(()=>{
     if(!curEmp?.id || ldCrmOpps) return;

@@ -49,7 +49,7 @@ export function ViewTareas({
 
   const changeEstado = async (id, nuevoEstado) => {
     if (!canManageTasks) return;
-    const next = normalizedTareas.map(t => t.id === id ? { ...t, estado: nuevoEstado } : t);
+    const next = normalizedTareas.map(t => String(t.id) === String(id) ? { ...t, estado: nuevoEstado } : t);
     await setTareas(next);
   };
 

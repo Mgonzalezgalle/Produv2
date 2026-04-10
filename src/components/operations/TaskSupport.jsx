@@ -16,8 +16,9 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
             ? (crew||[]).find(x=>x.id===tarea.refId)
             : null;
   const asigs = getAssignedIds(tarea).map(id => (crew||[]).find(x=>x.id===id)).filter(Boolean);
+  const isDone = ["Completada", "Finalizada"].includes(tarea.estado);
   const venc = tarea.fechaLimite ? Math.ceil((new Date(tarea.fechaLimite+"T12:00:00") - new Date()) / (1000*60*60*24)) : null;
-  const vencColor = venc===null?"var(--gr2)":venc<0?"#ff5566":venc<=2?"#fbbf24":"var(--gr2)";
+  const vencColor = isDone ? "#00e08a" : venc===null ? "var(--gr2)" : venc<0 ? "#ff5566" : venc<=2 ? "#fbbf24" : "var(--gr2)";
   const refLabel = ref?.nom || ref?.name || ref?.titulo || "Referencia";
   return (
     <div
@@ -53,7 +54,7 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
             </div>
           : <span style={{fontSize:11,color:"var(--gr)",fontStyle:"italic"}}>Sin asignar</span>}
         {venc!==null&&<span style={{fontSize:10,fontWeight:600,color:vencColor}}>
-          {venc<0?`Vencida hace ${Math.abs(venc)}d`:venc===0?"Vence hoy":venc===1?"Vence mañana":`${venc}d`}
+          {isDone ? "Finalizada" : venc<0?`Vencida hace ${Math.abs(venc)}d`:venc===0?"Vence hoy":venc===1?"Vence mañana":`${venc}d`}
         </span>}
       </div>
       {canEdit&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>

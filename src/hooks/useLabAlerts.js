@@ -27,7 +27,7 @@ function calcAlertas(episodios, programas, eventos, tareas, facturas, contratos,
     else if (diff <= 30) pushAlert({ id: ev.id + "_ev", tipo: "info", area: "operacion", icon: "📅", titulo: `Grabación en ${diff} días: ${ev.titulo}`, sub, fecha: ev.fecha, diff });
   });
 
-  (tareas || []).filter(t => t.empId === empId && t.fechaLimite && t.estado !== "Completada").forEach(t => {
+  (tareas || []).filter(t => t.empId === empId && t.fechaLimite && !["Completada", "Finalizada"].includes(t.estado)).forEach(t => {
     const d = new Date(t.fechaLimite + "T12:00:00");
     const diff = Math.ceil((d - hoy) / (1000 * 60 * 60 * 24));
     const tipo = diff < 0 ? "urgente" : diff <= 2 ? "urgente" : diff <= 7 ? "pronto" : "info";

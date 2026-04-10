@@ -304,6 +304,8 @@ export default function App(){
   const [alertasLeidas,setAlertasLeidas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
+  const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
+  const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
 
   // Global data
   const {
@@ -683,7 +685,7 @@ export default function App(){
   const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,crm:ef(crmOpps).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,tes:countPendingTreasury(facturas,empId),act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&t.estado!=="Completada").length:0};
+  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,crm:ef(crmOpps).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,tes:countPendingTreasury(facturas,empId),act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&!["Completada","Finalizada"].includes(t.estado)).length:0};
 
   // Breadcrumb
   const buildBc=()=>{
@@ -777,6 +779,56 @@ export default function App(){
     setSystemLeidas,
     curUser,
   });
+
+  useEffect(() => {
+    if (!alertasReadKey) {
+      setAlertasLeidas([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(alertasReadKey) || sessionStorage.getItem(alertasReadKey) || "[]";
+      const parsed = JSON.parse(raw);
+      setAlertasLeidas(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setAlertasLeidas([]);
+    }
+  }, [alertasReadKey]);
+
+  useEffect(() => {
+    if (!systemReadKey) {
+      setSystemLeidas([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(systemReadKey) || sessionStorage.getItem(systemReadKey) || "[]";
+      const parsed = JSON.parse(raw);
+      setSystemLeidas(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setSystemLeidas([]);
+    }
+  }, [systemReadKey]);
+
+  useEffect(() => {
+    setAlertasLeidas(prev => prev.filter(id => (alertas || []).some(alerta => alerta.id === id)));
+  }, [alertas]);
+
+  useEffect(() => {
+    setSystemLeidas(prev => prev.filter(id => (systemMessages || []).some(message => message.id === id)));
+  }, [systemMessages]);
+
+  useEffect(() => {
+    if (!alertasReadKey) return;
+    const payload = JSON.stringify(Array.isArray(alertasLeidas) ? alertasLeidas : []);
+    try { localStorage.setItem(alertasReadKey, payload); } catch {}
+    try { sessionStorage.setItem(alertasReadKey, payload); } catch {}
+  }, [alertasReadKey, alertasLeidas]);
+
+  useEffect(() => {
+    if (!systemReadKey) return;
+    const payload = JSON.stringify(Array.isArray(systemLeidas) ? systemLeidas : []);
+    try { localStorage.setItem(systemReadKey, payload); } catch {}
+    try { sessionStorage.setItem(systemReadKey, payload); } catch {}
+  }, [systemReadKey, systemLeidas]);
 
   const operationModalComponents = {
     MCli: props => <MCliView {...props} uid={uid} />,

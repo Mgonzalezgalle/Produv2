@@ -28,7 +28,7 @@ export function useLabAdminPanelModule({
   useEffect(() => setLt(theme || {}), [theme]);
   useEffect(() => { dbGet("produ:solicitudes").then(v => setRefSols(v || [])); }, [dbGet]);
 
-  const empUsers = (users || []).filter(u => u.empId === empresa?.id || user?.role === "superadmin");
+  const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const filteredUsers = empUsers.filter(u =>
     (!uq || u.name?.toLowerCase().includes(uq.toLowerCase()) || u.email?.toLowerCase().includes(uq.toLowerCase())) &&
     (!uRole || u.role === uRole) &&

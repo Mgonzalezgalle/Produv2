@@ -372,6 +372,7 @@ export function buildTreasuryDisbursementLog({ disbursements = [], payables = []
         ...item,
         amount: Number(item.amount || 0),
         targetLabel: payable?.folio || payable?.supplier || item.reference || "Cuenta por pagar",
+        counterpartyLabel: payable?.supplier || "—",
       };
     })
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));

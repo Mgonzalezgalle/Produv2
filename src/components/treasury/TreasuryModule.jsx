@@ -767,6 +767,8 @@ export function TreasuryModule(props) {
   const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [portfolioItem, setPortfolioItem] = useState(null);
   const [receiptClientFilter, setReceiptClientFilter] = useState("");
+  const [issuedSupplierFilter, setIssuedSupplierFilter] = useState("");
+  const [disbursementSupplierFilter, setDisbursementSupplierFilter] = useState("");
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
   const {
     tab, setTab, q, setQ, statusFilter, setStatusFilter, filteredReceivables, receivableSummary, portfolio,
@@ -826,8 +828,24 @@ export function TreasuryModule(props) {
   );
   const receiptTable = useTableState(filteredReceiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const payableTable = useTableState(payables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
-  const issuedTable = useTableState(issuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
-  const disbursementTable = useTableState(disbursementLog, { searchFields: [row => row.targetLabel, row => row.reference, row => row.method], pageSize: 6 });
+  const filteredIssuedOrders = useMemo(
+    () => issuedOrders.filter(row => !issuedSupplierFilter || row.supplier === issuedSupplierFilter),
+    [issuedOrders, issuedSupplierFilter],
+  );
+  const issuedSupplierOptions = useMemo(
+    () => Array.from(new Set(issuedOrders.map(row => row.supplier).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [issuedOrders],
+  );
+  const issuedTable = useTableState(filteredIssuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
+  const filteredDisbursementLog = useMemo(
+    () => disbursementLog.filter(row => !disbursementSupplierFilter || row.counterpartyLabel === disbursementSupplierFilter),
+    [disbursementLog, disbursementSupplierFilter],
+  );
+  const disbursementSupplierOptions = useMemo(
+    () => Array.from(new Set(disbursementLog.map(row => row.counterpartyLabel).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [disbursementLog],
+  );
+  const disbursementTable = useTableState(filteredDisbursementLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const providerTable = useTableState(providers, { searchFields: [row => row.name, row => row.razonSocial, row => row.rut], pageSize: 6 });
   const handlePayableUpdate = async (row, patch = {}) => {
     if (!canManageTreasury || !row?.id) return;
@@ -988,13 +1006,33 @@ export function TreasuryModule(props) {
               <MiniKpiCard color="var(--cy)" label="OC emitidas" value={issuedOrderSummary.docs} />
               <MiniKpiCard color="#00e08a" label="Monto emitido" value={fmtM(issuedOrderSummary.total)} />
             </div>
-            <TableToolbar searchValue={issuedTable.query} onSearchChange={issuedTable.setQuery} searchPlaceholder="Buscar OC emitida o proveedor..." selectedCount={issuedTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(issuedTable.selectedIds, deleteIssuedOrder); issuedTable.clearSelection(); } : null} onClearSelection={issuedTable.clearSelection} canManage={canManageTreasury} />
+            <div className="treasury-toolbar">
+              <div style={{ flex: "1 1 320px", minWidth: 260 }}>
+                <SearchBar value={issuedTable.query} onChange={issuedTable.setQuery} placeholder="Buscar OC emitida o proveedor..." />
+              </div>
+              <div style={{ width: 240, maxWidth: "100%" }}>
+                <FilterSel value={issuedSupplierFilter} onChange={setIssuedSupplierFilter} options={issuedSupplierOptions} placeholder="Todos los proveedores" />
+              </div>
+              {issuedTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{issuedTable.selectedIds.length} seleccionado{issuedTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
+              {canManageTreasury && issuedTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(issuedTable.selectedIds, deleteIssuedOrder); issuedTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
+              {issuedTable.selectedIds.length ? <GBtn sm onClick={issuedTable.clearSelection}>Limpiar selección</GBtn> : null}
+            </div>
             <IssuedOrdersTable rows={issuedTable.pageRows} onEdit={canManageTreasury ? openIssuedOrderEdit : () => {}} onDelete={canManageTreasury ? deleteIssuedOrder : () => {}} selectedIds={issuedTable.selectedIds} toggleSelected={issuedTable.toggleSelected} toggleAll={issuedTable.toggleAll} pageIds={issuedTable.pageIds} />
             <Paginator page={issuedTable.page} total={issuedTable.filteredRows.length} perPage={issuedTable.pageSize} onChange={issuedTable.setPage} />
           </SectionCard>
           <SectionCard title="Pagos realizados" subtitle="Registro manual, editable y trazable de egresos y abonos hechos a proveedores">
-            <TableToolbar searchValue={disbursementTable.query} onSearchChange={disbursementTable.setQuery} searchPlaceholder="Buscar pago, referencia o método..." selectedCount={disbursementTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(disbursementTable.selectedIds, deleteDisbursement); disbursementTable.clearSelection(); } : null} onClearSelection={disbursementTable.clearSelection} canManage={canManageTreasury} />
-            <PaymentLogTable rows={disbursementTable.pageRows} emptyText="Sin pagos realizados registrados" targetLabel="Cuenta" onEdit={canManageTreasury ? openDisbursementEdit : null} onDelete={canManageTreasury ? deleteDisbursement : null} selectedIds={disbursementTable.selectedIds} toggleSelected={disbursementTable.toggleSelected} toggleAll={disbursementTable.toggleAll} pageIds={disbursementTable.pageIds} />
+            <div className="treasury-toolbar">
+              <div style={{ flex: "1 1 320px", minWidth: 260 }}>
+                <SearchBar value={disbursementTable.query} onChange={disbursementTable.setQuery} placeholder="Buscar pago, referencia o método..." />
+              </div>
+              <div style={{ width: 240, maxWidth: "100%" }}>
+                <FilterSel value={disbursementSupplierFilter} onChange={setDisbursementSupplierFilter} options={disbursementSupplierOptions} placeholder="Todos los proveedores" />
+              </div>
+              {disbursementTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{disbursementTable.selectedIds.length} seleccionado{disbursementTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
+              {canManageTreasury && disbursementTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(disbursementTable.selectedIds, deleteDisbursement); disbursementTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
+              {disbursementTable.selectedIds.length ? <GBtn sm onClick={disbursementTable.clearSelection}>Limpiar selección</GBtn> : null}
+            </div>
+            <PaymentLogTable rows={disbursementTable.pageRows} emptyText="Sin pagos realizados registrados" targetLabel="Cuenta" counterpartyLabel="Proveedor" onEdit={canManageTreasury ? openDisbursementEdit : null} onDelete={canManageTreasury ? deleteDisbursement : null} selectedIds={disbursementTable.selectedIds} toggleSelected={disbursementTable.toggleSelected} toggleAll={disbursementTable.toggleAll} pageIds={disbursementTable.pageIds} />
             <Paginator page={disbursementTable.page} total={disbursementTable.filteredRows.length} perPage={disbursementTable.pageSize} onChange={disbursementTable.setPage} />
           </SectionCard>
           <TreasuryPayableModal open={payableOpen} data={payableDraft} providers={providers} onClose={closePayable} onSave={savePayable} />

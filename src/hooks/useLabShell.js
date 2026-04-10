@@ -68,9 +68,14 @@ export function useLabShell({
 
   const selectEmp = useCallback((empresa) => {
     if (empresa === "__super__") {
+      setCurEmp(null);
+      const payload = sessionPayload(curUser, null, storedSession || {});
+      saveStoredJson(localLabKey("session"), payload);
+      setStoredSession(JSON.parse(payload));
       setSuperPanel(true);
       return;
     }
+    setSuperPanel(false);
     setCurEmp(empresa);
     const payload = sessionPayload(curUser, empresa, storedSession || {});
     saveStoredJson(localLabKey("session"), payload);

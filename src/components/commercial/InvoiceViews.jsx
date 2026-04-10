@@ -298,7 +298,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     <ModuleHeader
       module="Facturación"
       title="Facturación"
-      description="Emite documentos, controla la cobranza y administra recurrencias dentro del mismo flujo financiero."
+      description="Emite documentos y administra recurrencias. La cobranza operativa vive en Tesorería dentro de Cuentas por Cobrar."
     />
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
@@ -306,9 +306,9 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Emitidos / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`atrasadas: ${vencidas}`}/>
     </div>
-    <Tabs tabs={["Emisión","Cobranza","Recurrencias"]} active={tab} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
+    <Tabs tabs={["Emisión","Recurrencias"]} active={Math.min(tab,1)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
     <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
-      ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners.
+      ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners. El seguimiento de cobranza y pagos ahora se gestiona desde <b>Tesorería → Cuentas por Cobrar</b>.
     </div>
     {tab===0 && <InvoiceIssuanceSection
       q={q} setQ={(v)=>{setQ(v);setPg(1);}}
@@ -329,22 +329,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       onOpenPdf={async(f, ent, ref)=>{await generateBillingPdf(f, ent, ref, empresa, commercialPdfDeps);}}
       canPres={canPres} canContracts={canContracts}
     />}
-    {tab===1 && <InvoiceCollectionSection
-      q={q} setQ={(v)=>{setQ(v);setPg(1);}}
-      fc={fc} setFc={(v)=>{setFc(v);setPg(1);}}
-      sortMode={sortMode} setSortMode={(v)=>{setSortMode(v);setPg(1);}}
-      selectedIds={selectedIds} bulkCobranza={bulkCobranza} setBulkCobranza={setBulkCobranza}
-      applyBulkCobranza={applyBulkCobranza} clearSelection={()=>setSelectedIds([])}
-      currentPageIds={currentPageIds} toggleAll={toggleAll} cobranzaDocs={cobranzaDocs}
-      pg={pg} PP={PP} setPg={setPg} clientes={clientes} auspiciadores={auspiciadores} invoices={invoices}
-      cobranzaState={cobranzaState} fmtD={fmtD} fmtM={fmtM} Badge={Badge}
-      SearchBar={SearchBar} FilterSel={FilterSel} GBtn={GBtn} FSl={FSl} Card={Card} TH={TH} TD={TD} Empty={Empty} Paginator={Paginator}
-      saveFacturaDoc={saveFacturaDoc} canEdit={canEdit}
-      sendBillingEmail={sendBillingEmail} sendBillingWhatsApp={sendBillingWhatsApp}
-      sendStatementEmail={sendStatementEmail} sendStatementWhatsApp={sendStatementWhatsApp}
-      today={today} toggleSelected={toggleSelected}
-    />}
-    {tab===2 && <Card title="Recurrencias" sub="Administra series activas sin mezclar cobro ni pago">
+    {tab===1 && <Card title="Recurrencias" sub="Administra series activas sin mezclar emisión ni cobro">
       {seriesList.length ? <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Serie</TH><TH>Entidad</TH><TH>Estado</TH><TH>Meses</TH><TH>Próximo</TH><TH>Proyección</TH><TH></TH></tr></thead>

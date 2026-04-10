@@ -305,7 +305,12 @@ function PortfolioTable({ rows = [], onOpen, selectedIds = [], toggleSelected, t
   );
 }
 
-function ReceivablesTable({ rows = [], onAddPayment, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function collectionOptions(current = "") {
+  const base = ["Pendiente de pago", "Pagado", "No pagado", "Retrasado de pago"];
+  return current && !base.includes(current) ? [current, ...base] : base;
+}
+
+function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, canManage = false, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   const [openId, setOpenId] = useState("");
   if (!rows.length) return <EmptyInsideCard text="Sin cuentas por cobrar" sub="Emite facturas para comenzar a visualizar la cartera." />;
   return (
@@ -329,7 +334,7 @@ function ReceivablesTable({ rows = [], onAddPayment, selectedIds = [], toggleSel
                   <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{fmtM(row.pending)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}><GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn><GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>
                 </tr>
-                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para este documento" /></div></td></tr> : null}
+                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}><div><div className="treasury-detail-title">Gestión de cobranza</div><div className="treasury-muted" style={{ fontSize:12 }}>Aquí se centraliza el seguimiento operativo del cobro para este documento.</div></div>{canManage && onUpdateCobranza ? <label style={{ minWidth:220 }}><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado de cobranza</div><select value={row.cobranza} onChange={e => onUpdateCobranza(row, e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>{collectionOptions(row.cobranza).map(option => <option key={option} value={option}>{option}</option>)}</select></label> : null}</div><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para este documento" /></div></td></tr> : null}
               </React.Fragment>
             );
           })}
@@ -548,7 +553,7 @@ function ProvidersPanel({
   );
 }
 
-function PortfolioDetailModal({ open, item, onClose }) {
+function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = false }) {
   const [tab, setTab] = useState("documentos");
   if (!item) return null;
   return (
@@ -570,7 +575,7 @@ function PortfolioDetailModal({ open, item, onClose }) {
           <MiniKpiCard color="var(--red)" label="Monto atrasado" value={fmtM(item.overdue || 0)} />
         </div>
         {tab === "documentos" ? <DetailTable columns={[{ key: "correlativo", label: "Número" }, { key: "fecha", label: "Emisión", render: row => row.fecha ? fmtD(row.fecha) : "—" }, { key: "fechaVencimiento", label: "Vencimiento", render: row => row.fechaVencimiento ? fmtD(row.fechaVencimiento) : "—" }, { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> }, { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.bucket === "Vencido" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> }, { key: "cobranza", label: "Estado", render: row => <StatusBadge label={row.cobranza} /> }]} rows={item.documents || []} emptyText="Sin documentos asociados" /> : null}
-        {tab === "ordenes" ? <DetailTable columns={[{ key: "number", label: "Número" }, { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" }, { key: "status", label: "Estado OC", render: row => <StatusBadge label={row.status} /> }, { key: "billingStatus", label: "Estado del pago", render: row => <StatusBadge label={row.billingStatus} /> }, { key: "amount", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.amount)}</span> }, { key: "pendingAmount", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pendingAmount, row.pendingAmount <= 0 ? "paid" : "pending")}`}>{fmtM(row.pendingAmount)}</span> }]} rows={item.purchaseOrders || []} emptyText="Sin órdenes de compra registradas" /> : null}
+        {tab === "ordenes" ? <DetailTable columns={[{ key: "number", label: "Número" }, { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" }, { key: "linkedInvoices", label: "Factura asociada", render: row => row.linkedInvoices?.length ? <div style={{ display:"grid", gap:4 }}>{row.linkedInvoices.map(invoice => <div key={invoice.id} style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}><span style={{ fontWeight:700 }}>{invoice.correlativo}</span><StatusBadge label={invoice.cobranza} /></div>)}</div> : <span className="treasury-muted">Sin factura asociada</span> }, { key: "billingStatus", label: "Estado flujo", render: row => <StatusBadge label={row.billingStatus} /> }, { key: "amount", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.amount)}</span> }, { key: "pendingAmount", label: "Pendiente OC", render: row => <span className={`treasury-mono ${pendingTone(row.pendingAmount, row.pendingAmount <= 0 ? "paid" : "pending")}`}>{fmtM(row.pendingAmount)}</span> }, { key: "edit", label: "", render: row => canManage && onEditOrder ? <GBtn sm onClick={() => onEditOrder(row)}>Asociar factura</GBtn> : null }]} rows={item.purchaseOrders || []} emptyText="Sin órdenes de compra registradas" /> : null}
         {tab === "resumen" ? <div className="treasury-detail"><div className="treasury-detail-grid"><div><div className="treasury-detail-title">Resumen financiero</div><div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}><div><div className="meta-label">Concentración</div><div className="meta-value">{Number(item.concentrationPct || 0).toFixed(1)}%</div></div><div><div className="meta-label">Límite crédito</div><div className="meta-value">{item.creditLimit ? fmtM(item.creditLimit) : "No definido"}</div></div><div><div className="meta-label">Cupo disponible</div><div className={`meta-value ${item.availableCredit != null && item.availableCredit < 0 ? "treasury-pending-overdue" : "treasury-pending-paid"}`}>{item.availableCredit == null ? "—" : fmtM(item.availableCredit)}</div></div><div><div className="meta-label">Monto vencido</div><div className={`meta-value ${item.overdue > 0 ? "treasury-pending-overdue" : "treasury-pending-idle"}`}>{fmtM(item.overdue || 0)}</div></div></div></div><div><div className="treasury-detail-title">Concentración de deuda</div><div className="treasury-progress" style={{ marginTop: 14 }}><div className="treasury-progress-fill" style={{ width: `${Math.max(6, Math.min(Number(item.concentrationPct || 0), 100))}%` }} /></div><div className="treasury-muted" style={{ marginTop: 10, fontSize: 12 }}>La barra representa qué porcentaje de la cartera total está concentrada en este cliente.</div></div></div></div> : null}
       </div>
     </Modal>
@@ -732,6 +737,7 @@ export function TreasuryModule(props) {
     deleteReceipt, deleteDisbursement, closePayable, closePurchaseOrder, closeIssuedOrder, closeReceipt, closeDisbursement, closeProvider,
   } = useLabTreasuryModule(props);
   const { clientes = [], facturas = [] } = props;
+  const saveFacturaDoc = props.saveFacturaDoc;
   const receivableTable = useTableState(filteredReceivables, { searchFields: [row => row.correlativo, row => row.entidad], statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Por vencer", "Vencido"], getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza });
   const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
@@ -758,7 +764,7 @@ export function TreasuryModule(props) {
       <ModuleHeader
         module="Tesorería"
         title="Tesorería"
-        description="Controla la cartera, revisa concentración de deuda, concilia órdenes de compra con facturas y registra pagos manuales recibidos o realizados sin salir del flujo financiero."
+        description="Controla la cartera, revisa concentración de deuda, gestiona la cobranza operativa, concilia órdenes de compra con facturas y registra pagos manuales recibidos o realizados."
       />
       <div className="treasury-kpis">
         <KpiCard color="var(--cy)" label="Cartera total" value={fmtM(receivableSummary.total)} />
@@ -772,7 +778,7 @@ export function TreasuryModule(props) {
       </div>
       {tab === 0 ? (
         <>
-          <SectionCard title="Cuentas por Cobrar" subtitle="Gestiona documentos, pagos manuales y estado real de cobranza">
+          <SectionCard title="Cuentas por Cobrar" subtitle="Gestiona documentos, cobranza, pagos manuales y estado real del cobro desde una sola vista">
             <TableToolbar
               searchValue={receivableTable.query}
               onSearchChange={receivableTable.setQuery}
@@ -781,11 +787,11 @@ export function TreasuryModule(props) {
               onStatusChange={receivableTable.setStatus}
               statusOptions={receivableTable.statusOptions}
               selectedCount={receivableTable.selectedIds.length}
-              onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receivableTable.selectedIds, async id => deleteReceipt(`receipt:${id}`)); receivableTable.clearSelection(); } : null}
+              onDeleteSelected={null}
               onClearSelection={receivableTable.clearSelection}
               canManage={false}
             />
-            <ReceivablesTable rows={receivableTable.pageRows} onAddPayment={canManageTreasury ? openReceiptCreate : () => {}} selectedIds={receivableTable.selectedIds} toggleSelected={receivableTable.toggleSelected} toggleAll={receivableTable.toggleAll} pageIds={receivableTable.pageIds} />
+            <ReceivablesTable rows={receivableTable.pageRows} onAddPayment={canManageTreasury ? openReceiptCreate : () => {}} onUpdateCobranza={canManageTreasury && saveFacturaDoc ? (row, nextState) => saveFacturaDoc({ ...((facturas || []).find(doc => doc.id === row.id) || row), cobranzaEstado: nextState, fechaPago: nextState === "Pagado" ? (((facturas || []).find(doc => doc.id === row.id) || row).fechaPago || new Date().toISOString().slice(0,10)) : "" }) : null} canManage={canManageTreasury} selectedIds={receivableTable.selectedIds} toggleSelected={receivableTable.toggleSelected} toggleAll={receivableTable.toggleAll} pageIds={receivableTable.pageIds} />
             <Paginator page={receivableTable.page} total={receivableTable.filteredRows.length} perPage={receivableTable.pageSize} onChange={receivableTable.setPage} />
           </SectionCard>
           <SectionCard title="Cartera por Cliente" subtitle="Ahora el detalle abre en un modal independiente para revisar deuda, concentración y documentos" emphasis>
@@ -875,7 +881,7 @@ export function TreasuryModule(props) {
           <TreasuryPaymentModal open={disbursementOpen} title="Registrar pago realizado" subtitle="Asocia el pago a la cuenta por pagar correspondiente" data={disbursementDraft} onClose={closeDisbursement} onSave={saveDisbursement} />
         </>
       )}
-      <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} />
+      <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
       <ProviderDetailModal open={providerOpen} provider={providerDraft} onClose={closeProvider} onSave={saveProvider} />
     </div>
   );

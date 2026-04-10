@@ -302,9 +302,11 @@ export default function App(){
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
   const [alertasLeidas,setAlertasLeidas]=useState([]);
+  const [alertasOcultas,setAlertasOcultas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
   const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
+  const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
   const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
 
   // Global data
@@ -809,7 +811,25 @@ export default function App(){
   }, [systemReadKey]);
 
   useEffect(() => {
+    if (!alertasHiddenKey) {
+      setAlertasOcultas([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(alertasHiddenKey) || sessionStorage.getItem(alertasHiddenKey) || "[]";
+      const parsed = JSON.parse(raw);
+      setAlertasOcultas(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setAlertasOcultas([]);
+    }
+  }, [alertasHiddenKey]);
+
+  useEffect(() => {
     setAlertasLeidas(prev => prev.filter(id => (alertas || []).some(alerta => alerta.id === id)));
+  }, [alertas]);
+
+  useEffect(() => {
+    setAlertasOcultas(prev => prev.filter(id => (alertas || []).some(alerta => alerta.id === id)));
   }, [alertas]);
 
   useEffect(() => {
@@ -829,6 +849,13 @@ export default function App(){
     try { localStorage.setItem(systemReadKey, payload); } catch {}
     try { sessionStorage.setItem(systemReadKey, payload); } catch {}
   }, [systemReadKey, systemLeidas]);
+
+  useEffect(() => {
+    if (!alertasHiddenKey) return;
+    const payload = JSON.stringify(Array.isArray(alertasOcultas) ? alertasOcultas : []);
+    try { localStorage.setItem(alertasHiddenKey, payload); } catch {}
+    try { sessionStorage.setItem(alertasHiddenKey, payload); } catch {}
+  }, [alertasHiddenKey, alertasOcultas]);
 
   const operationModalComponents = {
     MCli: props => <MCliView {...props} uid={uid} />,
@@ -893,9 +920,9 @@ export default function App(){
             <span style={{fontSize:16}}>🔔</span>
             <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
               Alertas
-              {alertas.filter(a=>a.tipo==="urgente"&&!alertasLeidas.includes(a.id)).length>0&&<span style={{fontSize:10,color:"#ff5566"}}>Urgente</span>}
+              {alertas.filter(a=>a.tipo==="urgente"&&!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length>0&&<span style={{fontSize:10,color:"#ff5566"}}>Urgente</span>}
             </span>
-            {alertas.filter(a=>!alertasLeidas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)).length}</span>}
+            {alertas.filter(a=>!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length}</span>}
           </button>}
         </div>
       </div>
@@ -909,7 +936,7 @@ export default function App(){
         </div>
       </div>
     </main>
-    {alertasOpen&&<AlertasPanelView alertas={alertas} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>[...p,id])} onMarcarTodas={()=>setAlertasLeidas(alertas.map(a=>a.id))} onClose={()=>setAlertasOpen(false)} fmtD={fmtD}/> }
+    {alertasOpen&&<AlertasPanelView alertas={alertas.filter(a=>!alertasOcultas.includes(a.id))} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>p.includes(id)?p:[...p,id])} onMarcarTodas={()=>setAlertasLeidas(prev=>Array.from(new Set([...(prev||[]), ...alertas.filter(a=>!alertasOcultas.includes(a.id)).map(a=>a.id)])))} onOcultar={id=>{setAlertasOcultas(p=>p.includes(id)?p:[...p,id]);setAlertasLeidas(p=>p.filter(item=>item!==id));}} onOcultarTodas={()=>{const hiddenIds=alertas.filter(a=>alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).map(a=>a.id);setAlertasOcultas(prev=>Array.from(new Set([...(prev||[]), ...hiddenIds])));setAlertasLeidas(prev=>prev.filter(id=>!hiddenIds.includes(id)));}} onClose={()=>setAlertasOpen(false)} fmtD={fmtD}/> }
     {systemOpen&&<SystemMessagesPanelView empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)} fmtD={fmtD} RichTextBlock={RichTextBlock}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<CoreModalRouter modalComponents={operationModalComponents} helpers={{normalizeSocialPiece,crmNormalizeOpportunity}} mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc} uid={uid} today={today}/>}

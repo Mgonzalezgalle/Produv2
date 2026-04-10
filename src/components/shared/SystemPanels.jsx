@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Badge } from "../../lib/ui/components";
 
-export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, onClose, fmtD }) {
+export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, onOcultar, onOcultarTodas, onClose, fmtD }) {
   const noLeidas = alertas.filter(a=>!leidas.includes(a.id));
   const siLeidas = alertas.filter(a=>leidas.includes(a.id));
   const [filtro,setFiltro]=useState("todas");
@@ -23,6 +23,7 @@ export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, on
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {noLeidas.length>0&&<button onClick={onMarcarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>✓ Marcar todas</button>}
+          {siLeidas.length>0&&<button onClick={onOcultarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>🗑 Limpiar leídas</button>}
           <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
         </div>
       </div>
@@ -44,7 +45,10 @@ export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, on
                 <Badge label={a.tipo==="urgente"?"Urgente":a.tipo==="pronto"?"Próxima":"Info"} color={a.tipo==="urgente"?"red":a.tipo==="pronto"?"yellow":"gray"} sm/>
               </div>
             </div>
-            <button onClick={()=>onMarcar(a.id)} title="Marcar como leída" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leída</button>
+            <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+              <button onClick={()=>onMarcar(a.id)} title="Marcar como leída" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",whiteSpace:"nowrap"}}>✓ Leída</button>
+              <button onClick={()=>onOcultar(a.id)} title="Quitar alerta" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",whiteSpace:"nowrap"}}>🗑 Quitar</button>
+            </div>
           </div>;
         })}
         {filteredUnread.length===0&&noLeidas.length>0&&<div style={{padding:18,textAlign:"center",color:"var(--gr2)",fontSize:12}}>No hay alertas en este filtro.</div>}
@@ -55,6 +59,7 @@ export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, on
             <div style={{fontSize:12,color:"var(--gr3)",textDecoration:"line-through"}}>{a.titulo}</div>
             <div style={{fontSize:11,color:"var(--gr2)"}}>{a.sub} · {fmtD(a.fecha)}</div>
           </div>
+          <button onClick={()=>onOcultar(a.id)} title="Quitar alerta" style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🗑 Quitar</button>
         </div>)}</>}
       </div>
       {noLeidas.length===0&&alertas.length>0&&<div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)",textAlign:"center",fontSize:12,color:"var(--gr2)"}}>✓ Todas las alertas están leídas</div>}

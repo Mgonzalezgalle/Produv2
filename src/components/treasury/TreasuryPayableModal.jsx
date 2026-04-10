@@ -26,7 +26,6 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       issueDate: today(),
       dueDate: "",
       total: "",
-      paid: 0,
       status: "Pendiente",
       pdfName: "",
       pdfUrl: "",
@@ -75,19 +74,11 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
         </FG>
       </R2>
       <R2>
-        <FG label="Estado">
-          <FSl value={form.status || "Pendiente"} onChange={e => setField("status", e.target.value)}>
-            {["Pendiente", "Pagada", "Parcial", "Vencida"].map(option => <option key={option}>{option}</option>)}
-          </FSl>
-        </FG>
-      </R2>
-      <R2>
         <FG label="Fecha emisión"><FI type="date" value={form.issueDate || ""} onChange={e => setField("issueDate", e.target.value)} /></FG>
         <FG label="Fecha vencimiento"><FI type="date" value={form.dueDate || ""} onChange={e => setField("dueDate", e.target.value)} /></FG>
       </R2>
       <R2>
         <FG label="Monto total *"><FI type="number" min="0" value={form.total || ""} onChange={e => setField("total", e.target.value)} placeholder="0" /></FG>
-        <FG label="Monto pagado"><FI type="number" min="0" value={form.paid || 0} onChange={e => setField("paid", e.target.value)} placeholder="0" /></FG>
       </R2>
       <FG label="Adjuntar PDF">
         <input ref={fileRef} type="file" accept="application/pdf" onChange={onFileChange} style={{ ...{ width: "100%", color: "var(--gr3)" } }} />
@@ -108,7 +99,8 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
           onSave({
             ...form,
             total: Number(form.total || 0),
-            paid: Number(form.paid || 0),
+            paid: 0,
+            status: "Pendiente",
           });
         }}
       />

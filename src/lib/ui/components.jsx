@@ -209,7 +209,22 @@ export const FG = ({ label, children }) => (
 );
 
 export const FI = props => <input style={FS} {...props} />;
-export const FSl = ({ children, ...props }) => <select style={{ ...FS, cursor: "pointer" }} {...props}>{children}</select>;
+export const FSl = ({ children, onClick, onMouseDown, ...props }) => (
+  <select
+    style={{ ...FS, cursor: "pointer" }}
+    onMouseDown={e => {
+      e.stopPropagation();
+      onMouseDown?.(e);
+    }}
+    onClick={e => {
+      e.stopPropagation();
+      onClick?.(e);
+    }}
+    {...props}
+  >
+    {children}
+  </select>
+);
 export const FTA = forwardRef((props, ref) => <textarea ref={ref} style={{ ...FS, resize: "vertical", minHeight: 80 }} {...props} />);
 export const R2 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 12 }}>{children}</div>;
 export const R3 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 12 }}>{children}</div>;

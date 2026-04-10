@@ -209,9 +209,13 @@ export const FG = ({ label, children }) => (
 );
 
 export const FI = props => <input style={FS} {...props} />;
-export const FSl = ({ children, onClick, onMouseDown, ...props }) => (
+export const FSl = ({ children, onClick, onMouseDown, onPointerDown, ...props }) => (
   <select
     style={{ ...FS, cursor: "pointer" }}
+    onPointerDown={e => {
+      e.stopPropagation();
+      onPointerDown?.(e);
+    }}
     onMouseDown={e => {
       e.stopPropagation();
       onMouseDown?.(e);
@@ -313,13 +317,18 @@ export function SearchBar({ value, onChange, placeholder }) {
   return <div className="search-wrap" style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, padding: "10px 13px", maxWidth: 320, flex: 1, boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ background: "none", border: "none", color: "var(--wh)", fontFamily: "var(--fb)", fontSize: 13, flex: 1, outline: "none", minWidth: 0 }} />{value && <span onClick={() => onChange("")} style={{ cursor: "pointer", color: "var(--gr2)", fontSize: 14 }}>×</span>}</div>;
 }
 
-export function FilterSel({ value, onChange, options, placeholder }) {
+export function FilterSel({ value, onChange, options, placeholder, onPointerDown, ...props }) {
   return <select
     value={value}
+    onPointerDown={e => {
+      e.stopPropagation();
+      onPointerDown?.(e);
+    }}
     onMouseDown={e => e.stopPropagation()}
     onClick={e => e.stopPropagation()}
     onChange={e => onChange(e.target.value)}
     style={{ padding: "10px 12px", background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, color: "var(--gr3)", fontFamily: "var(--fb)", fontSize: 12, cursor: "pointer", outline: "none", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}
+    {...props}
   ><option value="">{placeholder}</option>{options.map(o => typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o}>{o}</option>)}</select>;
 }
 

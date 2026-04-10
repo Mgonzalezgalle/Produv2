@@ -12,6 +12,7 @@ import {
 } from "../../lib/ui/components";
 import { fmtD, fmtM } from "../../lib/utils/helpers";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
+import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
 import { TreasuryPayableModal } from "./TreasuryPayableModal";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
@@ -118,6 +119,20 @@ function pendingTone(value, mode = "pending") {
 
 function getInitials(value = "") {
   return String(value || "").split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "PR";
+}
+
+function ContactActionButton({ tone = "mail", label, onClick }) {
+  const isWhatsApp = tone === "wa";
+  return (
+    <button onClick={onClick} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:10, border:isWhatsApp ? "1px solid #25D36640" : "1px solid var(--cm)", background:isWhatsApp ? "#25D36618" : "var(--cg)", color:isWhatsApp ? "#25D366" : "var(--cy)", cursor:"pointer", fontSize:12, fontWeight:700 }}>
+      {isWhatsApp ? (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      )}
+      {label}
+    </button>
+  );
 }
 
 function makeId(prefix = "id") {
@@ -310,7 +325,7 @@ function collectionOptions(current = "") {
   return current && !base.includes(current) ? [current, ...base] : base;
 }
 
-function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, canManage = false, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, onBillingEmail, onBillingWhatsApp, onStatementEmail, onStatementWhatsApp, canManage = false, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   const [openId, setOpenId] = useState("");
   if (!rows.length) return <EmptyInsideCard text="Sin cuentas por cobrar" sub="Emite facturas para comenzar a visualizar la cartera." />;
   return (
@@ -334,7 +349,7 @@ function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, canManage
                   <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{fmtM(row.pending)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}><GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn><GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>
                 </tr>
-                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}><div><div className="treasury-detail-title">Gestión de cobranza</div><div className="treasury-muted" style={{ fontSize:12 }}>Aquí se centraliza el seguimiento operativo del cobro para este documento.</div></div>{canManage && onUpdateCobranza ? <label style={{ minWidth:220 }}><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado de cobranza</div><select value={row.cobranza} onChange={e => onUpdateCobranza(row, e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>{collectionOptions(row.cobranza).map(option => <option key={option} value={option}>{option}</option>)}</select></label> : null}</div><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para este documento" /></div></td></tr> : null}
+                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}><div><div className="treasury-detail-title">Gestión de cobranza</div><div className="treasury-muted" style={{ fontSize:12 }}>Aquí se centraliza el seguimiento operativo del cobro para este documento.</div></div>{canManage && onUpdateCobranza ? <label style={{ minWidth:220 }}><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado de cobranza</div><select value={row.cobranza} onChange={e => onUpdateCobranza(row, e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>{collectionOptions(row.cobranza).map(option => <option key={option} value={option}>{option}</option>)}</select></label> : null}</div><div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>{onBillingEmail ? <ContactActionButton tone="mail" label="Correo" onClick={() => onBillingEmail(row)} /> : null}{onBillingWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onBillingWhatsApp(row)} /> : null}{onStatementEmail ? <ContactActionButton tone="mail" label="Estado cta." onClick={() => onStatementEmail(row)} /> : null}{onStatementWhatsApp ? <ContactActionButton tone="wa" label="Estado cta." onClick={() => onStatementWhatsApp(row)} /> : null}</div><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para este documento" /></div></td></tr> : null}
               </React.Fragment>
             );
           })}
@@ -738,6 +753,39 @@ export function TreasuryModule(props) {
   } = useLabTreasuryModule(props);
   const { clientes = [], facturas = [] } = props;
   const saveFacturaDoc = props.saveFacturaDoc;
+  const {
+    sendBillingEmail,
+    sendBillingWhatsApp,
+    sendStatementEmail,
+    sendStatementWhatsApp,
+  } = useLabBillingTools({
+    allDocs: (facturas || []).filter(item => item.empId === props.empresa?.id),
+    movimientos: props.movimientos || [],
+    setFacturas: props.setFacturas || (() => {}),
+    setMovimientos: props.setMovimientos || (() => {}),
+    canEdit: canManageTreasury,
+    ntf: props.ntf,
+    empresa: props.empresa,
+    clientes: props.clientes || [],
+    auspiciadores: props.auspiciadores || [],
+    invoiceEntityName: (doc, clientesArg, auspiciadoresArg) => {
+      const entity = doc.tipo === "auspiciador"
+        ? (auspiciadoresArg || []).find(item => item.id === doc.entidadId)
+        : (clientesArg || []).find(item => item.id === doc.entidadId);
+      return entity?.nom || "—";
+    },
+    cobranzaState: doc => doc.cobranzaEstado || "Pendiente de pago",
+    fmtD,
+    fmtM,
+    fmtMonthPeriod: value => value,
+    today: () => new Date().toISOString().slice(0,10),
+    addMonths: (date, months) => {
+      const base = new Date(`${date}T12:00:00`);
+      base.setMonth(base.getMonth() + Number(months || 0));
+      return base.toISOString().slice(0,10);
+    },
+    uid: () => `treasury_${Math.random().toString(36).slice(2,10)}`,
+  });
   const receivableTable = useTableState(filteredReceivables, { searchFields: [row => row.correlativo, row => row.entidad], statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Por vencer", "Vencido"], getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza });
   const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
@@ -791,7 +839,7 @@ export function TreasuryModule(props) {
               onClearSelection={receivableTable.clearSelection}
               canManage={false}
             />
-            <ReceivablesTable rows={receivableTable.pageRows} onAddPayment={canManageTreasury ? openReceiptCreate : () => {}} onUpdateCobranza={canManageTreasury && saveFacturaDoc ? (row, nextState) => saveFacturaDoc({ ...((facturas || []).find(doc => doc.id === row.id) || row), cobranzaEstado: nextState, fechaPago: nextState === "Pagado" ? (((facturas || []).find(doc => doc.id === row.id) || row).fechaPago || new Date().toISOString().slice(0,10)) : "" }) : null} canManage={canManageTreasury} selectedIds={receivableTable.selectedIds} toggleSelected={receivableTable.toggleSelected} toggleAll={receivableTable.toggleAll} pageIds={receivableTable.pageIds} />
+            <ReceivablesTable rows={receivableTable.pageRows} onAddPayment={canManageTreasury ? openReceiptCreate : () => {}} onUpdateCobranza={canManageTreasury && saveFacturaDoc ? (row, nextState) => saveFacturaDoc({ ...((facturas || []).find(doc => doc.id === row.id) || row), cobranzaEstado: nextState, fechaPago: nextState === "Pagado" ? (((facturas || []).find(doc => doc.id === row.id) || row).fechaPago || new Date().toISOString().slice(0,10)) : "" }) : null} onBillingEmail={row => { const doc = (facturas || []).find(item => item.id === row.id); const entity = doc?.tipo === "auspiciador" ? (props.auspiciadores || []).find(item => item.id === doc.entidadId) : (props.clientes || []).find(item => item.id === doc?.entidadId); if (doc) sendBillingEmail(doc, entity); }} onBillingWhatsApp={row => { const doc = (facturas || []).find(item => item.id === row.id); const entity = doc?.tipo === "auspiciador" ? (props.auspiciadores || []).find(item => item.id === doc.entidadId) : (props.clientes || []).find(item => item.id === doc?.entidadId); if (doc) sendBillingWhatsApp(doc, entity); }} onStatementEmail={row => { const doc = (facturas || []).find(item => item.id === row.id); if (!doc) return; const entity = doc.tipo === "auspiciador" ? (props.auspiciadores || []).find(item => item.id === doc.entidadId) : (props.clientes || []).find(item => item.id === doc.entidadId); const entityDocs = (facturas || []).filter(item => item.empId === props.empresa?.id && item.tipo === doc.tipo && item.entidadId === doc.entidadId); sendStatementEmail(entityDocs, entity, doc.tipo); }} onStatementWhatsApp={row => { const doc = (facturas || []).find(item => item.id === row.id); if (!doc) return; const entity = doc.tipo === "auspiciador" ? (props.auspiciadores || []).find(item => item.id === doc.entidadId) : (props.clientes || []).find(item => item.id === doc.entidadId); const entityDocs = (facturas || []).filter(item => item.empId === props.empresa?.id && item.tipo === doc.tipo && item.entidadId === doc.entidadId); sendStatementWhatsApp(entityDocs, entity, doc.tipo); }} canManage={canManageTreasury} selectedIds={receivableTable.selectedIds} toggleSelected={receivableTable.toggleSelected} toggleAll={receivableTable.toggleAll} pageIds={receivableTable.pageIds} />
             <Paginator page={receivableTable.page} total={receivableTable.filteredRows.length} perPage={receivableTable.pageSize} onChange={receivableTable.setPage} />
           </SectionCard>
           <SectionCard title="Cartera por Cliente" subtitle="Ahora el detalle abre en un modal independiente para revisar deuda, concentración y documentos" emphasis>

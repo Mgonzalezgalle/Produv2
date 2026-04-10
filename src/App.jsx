@@ -857,7 +857,7 @@ export default function App(){
     try { sessionStorage.setItem(alertasHiddenKey, payload); } catch {}
   }, [alertasHiddenKey, alertasOcultas]);
 
-  const operationModalComponents = {
+  const operationModalComponents = useMemo(() => ({
     MCli: props => <MCliView {...props} uid={uid} />,
     MPro: MProView,
     MPg: MPgView,
@@ -869,7 +869,7 @@ export default function App(){
     MEvento: MEventoView,
     MActivo: MActivoView,
     MTarea: props => <MTareaView {...props} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />,
-  };
+  }), [today, uid]);
 
   // Screens
   if(!empresas||!users) return <div style={{background:"#080809",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#00d4e8",fontFamily:"monospace"}}><StyleTag css={CSS}/>Iniciando Produ...</div>;

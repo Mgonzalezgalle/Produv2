@@ -587,6 +587,11 @@ export default function App(){
     return ()=>clearInterval(interval);
   },[curUser?.id,storedSession,logout,setToast]);
 
+  useEffect(()=>{
+    if(curEmp) return;
+    setAdminOpen(false);
+  },[curEmp,setAdminOpen]);
+
   // CRUD
   const cSave=async(arr,setArr,item)=>{
     const withEmp=item.empId?item:{...item,empId:curEmp?.id};
@@ -856,7 +861,7 @@ export default function App(){
     {systemOpen&&<SystemMessagesPanelView empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)} fmtD={fmtD} RichTextBlock={RichTextBlock}/>}
         {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     {mOpen&&<CoreModalRouter modalComponents={operationModalComponents} helpers={{normalizeSocialPiece,crmNormalizeOpportunity}} mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc} uid={uid} today={today}/>}
-    {adminOpen&&<AdminPanelView Modal={Modal} open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(LAB_DATA_CONFIG.releaseMode){ntf("La limpieza masiva está bloqueada en release mode","warn");return;} if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k=>dbSet(`${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf} dbGet={dbGet} companyReferralDiscountHistory={companyReferralDiscountHistory} companyReferralDiscountMonthsPending={companyReferralDiscountMonthsPending} assignableRoleOptions={assignableRoleOptions} sanitizeAssignableRole={sanitizeAssignableRole} uid={uid} sha256Hex={sha256Hex} themePresets={THEME_PRESETS} roleOptions={roleOptions} ini={ini} getRoleConfig={getRoleConfig} userGoogleCalendar={userGoogleCalendar} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} addons={ADDONS} defaultListas={DEFAULT_LISTAS} Tabs={Tabs} XBtn={XBtn} releaseMode={LAB_DATA_CONFIG.releaseMode}/>}
+    {adminOpen&&curEmp&&<AdminPanelView Modal={Modal} open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(LAB_DATA_CONFIG.releaseMode){ntf("La limpieza masiva está bloqueada en release mode","warn");return;} if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k=>dbSet(`${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf} dbGet={dbGet} companyReferralDiscountHistory={companyReferralDiscountHistory} companyReferralDiscountMonthsPending={companyReferralDiscountMonthsPending} assignableRoleOptions={assignableRoleOptions} sanitizeAssignableRole={sanitizeAssignableRole} uid={uid} sha256Hex={sha256Hex} themePresets={THEME_PRESETS} roleOptions={roleOptions} ini={ini} getRoleConfig={getRoleConfig} userGoogleCalendar={userGoogleCalendar} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} addons={ADDONS} defaultListas={DEFAULT_LISTAS} Tabs={Tabs} XBtn={XBtn} releaseMode={LAB_DATA_CONFIG.releaseMode}/>}
   </div>;
 }
 

@@ -795,7 +795,7 @@ export default function App(){
   // Screens
   if(!empresas||!users) return <div style={{background:"#080809",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#00d4e8",fontFamily:"monospace"}}><StyleTag css={CSS}/>Iniciando Produ...</div>;
   if(!curUser) return <><StyleTag css={CSS}/><LoginView users={domainUsers} empresas={domainEmpresas} onLogin={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={{uid,today,dbGet,dbSet,nextTenantCode,normalizeEmpresasModel,SEED_EMPRESAS}} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode}/></>;
-  if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag css={CSS}/><EmpresaSelectorView empresas={domainEmpresas} onSelect={selectEmp} BrandLockup={BrandLockup} ini={ini}/></>;
+  if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag css={CSS}/><EmpresaSelectorView empresas={domainEmpresas} onSelect={selectEmp} onSelectSuperAdmin={()=>{setAdminOpen(false);setCurEmp(null);setSuperPanel(true);}} BrandLockup={BrandLockup} ini={ini}/></>;
 
   const closeMobileSidebar=()=>{
     document.querySelector("aside")?.classList.remove("mob-open");

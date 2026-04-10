@@ -14,9 +14,11 @@ export const TREASURY_STORE_KEYS = [
 
 export function treasuryReleaseEnabled() {
   try {
-    return String(import.meta.env?.VITE_ENABLE_TREASURY || "false").trim().toLowerCase() === "true";
+    const configured = String(import.meta.env?.VITE_ENABLE_TREASURY || "").trim().toLowerCase();
+    if (!configured) return true;
+    return configured === "true";
   } catch {
-    return false;
+    return true;
   }
 }
 

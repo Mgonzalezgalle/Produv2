@@ -164,6 +164,30 @@ const fmtMoney = (n, currency="CLP") => {
 };
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const freshdeskFirstName = user => {
+  const fullName = String(user?.name || user?.nom || "").trim();
+  return fullName ? fullName.split(/\s+/)[0] : "";
+};
+const applyFreshdeskIdentity = ({ user, empresa }) => {
+  if (!user || !window.fcWidget) return false;
+  const email = String(user.email || user.ema || "").trim();
+  const externalId = String(user.id || "").trim();
+  const firstName = freshdeskFirstName(user);
+  try {
+    if (externalId && typeof window.fcWidget.setExternalId === "function") window.fcWidget.setExternalId(externalId);
+    if (firstName && window.fcWidget.user?.setFirstName) window.fcWidget.user.setFirstName(firstName);
+    if (email && window.fcWidget.user?.setEmail) window.fcWidget.user.setEmail(email);
+    if (window.fcWidget.user?.setProperties) {
+      window.fcWidget.user.setProperties({
+        cf_plan: String(empresa?.plan || "Starter"),
+        cf_status: empresa?.active === false ? "Inactive" : "Active",
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const ADDONS = ADDON_REGISTRY;
 const SEED_EMPRESAS = BASE_SEED_EMPRESAS(today);
@@ -590,6 +614,20 @@ export default function App(){
     },5000);
     return ()=>clearInterval(interval);
   },[curUser?.id,storedSession,logout,setToast]);
+
+  useEffect(()=>{
+    if(!curUser || curUser.role==="superadmin") return;
+    let cancelled=false;
+    let attempts=0;
+    const syncFreshdesk=()=>{
+      if(cancelled) return;
+      attempts+=1;
+      const applied = applyFreshdeskIdentity({ user: curUser, empresa: curEmp });
+      if(!applied && attempts<20) window.setTimeout(syncFreshdesk,500);
+    };
+    syncFreshdesk();
+    return ()=>{ cancelled=true; };
+  },[curUser?.id,curUser?.email,curUser?.ema,curUser?.name,curUser?.nom,curUser?.role,curEmp?.id,curEmp?.plan,curEmp?.active]);
 
   useEffect(()=>{
     if(curEmp) return;

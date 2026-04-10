@@ -12,9 +12,32 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Produ" />
     <title>Bienvenido a Produ</title>
+    <style>
+      #fc_frame,
+      #fc_frame.fc-widget-normal,
+      #fc_frame iframe,
+      #fc_frame > div {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        color-scheme: light !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener("load", () => {
+        if (document.getElementById("produ-freshdesk-widget")) return;
+        const script = document.createElement("script");
+        script.id = "produ-freshdesk-widget";
+        script.src = "//fw-cdn.com/16062405/7053033.js";
+        script.async = true;
+        script.setAttribute("chat", "true");
+        script.setAttribute("widgetId", "6f4b26da-f45d-4f3b-a9c4-9adac7d048d6");
+        document.body.appendChild(script);
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

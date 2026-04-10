@@ -746,7 +746,7 @@ export default function App(){
     if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
     switch(view){
       case"dashboard":    return <ViewDashboard {...VP} alertas={alertas} useBal={useBal} fmtM={fmtM}/>;
-      case"tareas":       return <ViewTareas {...VP} setTareas={setTareas} openM={openM} canDo={canDo} TareaCard={TareaCard} COLS_TAREAS={COLS_TAREAS} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds}/>;
+      case"tareas":       return <ViewTareas {...VP} setTareas={setTareas} openM={openM} canDo={VP.canDo} TareaCard={TareaCard} COLS_TAREAS={COLS_TAREAS} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds}/>;
       case"clientes":     return <ViewClientes     {...VP} useBal={useBal} ini={ini} fmtM={fmtM}/>;
       case"cli-det":      return <ViewCliDet        {...VP} id={detId} setClientes={setClientes} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ini={ini}/>;
       case"producciones": return <ViewPros          {...VP} setProducciones={setProducciones} useBal={useBal} fmtM={fmtM} fmtD={fmtD}/>;

@@ -346,7 +346,7 @@ export function summarizeIssuedOrders(rows = []) {
   };
 }
 
-export function buildTreasuryReceiptLog({ receipts = [], facturas = [], empId = "" } = {}) {
+export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes = [], auspiciadores = [], empId = "" } = {}) {
   const docs = Array.isArray(facturas) ? facturas : [];
   return (Array.isArray(receipts) ? receipts : [])
     .filter(item => item?.empId === empId)
@@ -356,6 +356,7 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], empId = 
         ...item,
         amount: Number(item.amount || 0),
         targetLabel: invoice?.correlativo || invoice?.tipoDoc || item.reference || "Documento",
+        counterpartyLabel: invoice ? invoiceEntityName(invoice, clientes, auspiciadores) : "—",
       };
     })
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));

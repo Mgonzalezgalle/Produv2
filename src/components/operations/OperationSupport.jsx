@@ -17,8 +17,14 @@ export function MovBlock({ movimientos, tipo, eid, etype, onAdd, onDel, canEdit,
     if (sortMode === "date-asc") return String(a.fec || "").localeCompare(String(b.fec || ""));
     return String(b.fec || "").localeCompare(String(a.fec || ""));
   });
+  const handleAdd = () => onAdd && onAdd(eid, etype, tipo);
 
-  return <Card title={lbl} sub="Total: " action={canEdit ? { label: "+ Agregar", fn: () => onAdd(eid, etype, tipo) } : null}>
+  return <Card title={lbl} sub="Total: ">
+    {canEdit && (
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <GBtn onClick={handleAdd}>+ Agregar</GBtn>
+      </div>
+    )}
     <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: -10, marginBottom: 12 }}>
       Total: <span style={{ color: mc, fontFamily: "var(--fm)" }}>{fmtM(total)}</span>
     </div>

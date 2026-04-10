@@ -26,7 +26,19 @@ export function useLabAdminPanelModule({
   const [refSols, setRefSols] = useState([]);
 
   useEffect(() => setLt(theme || {}), [theme]);
-  useEffect(() => { dbGet("produ:solicitudes").then(v => setRefSols(v || [])); }, [dbGet]);
+  useEffect(() => {
+    let active = true;
+    dbGet("produ:solicitudes")
+      .then(v => {
+        if (!active) return;
+        setRefSols(Array.isArray(v) ? v.filter(item => item && typeof item === "object") : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRefSols([]);
+      });
+    return () => { active = false; };
+  }, [dbGet]);
 
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const filteredUsers = empUsers.filter(u =>
@@ -36,8 +48,8 @@ export function useLabAdminPanelModule({
   );
   const activeUsers = empUsers.filter(u => u.active !== false).length;
   const inactiveUsers = empUsers.filter(u => u.active === false).length;
-  const referredSols = (refSols || []).filter(s => s.referredByEmpId === empresa?.id && s.tipo === "empresa");
-  const referralHistory = companyReferralDiscountHistory(empresa);
+  const referredSols = (Array.isArray(refSols) ? refSols : []).filter(s => s?.referredByEmpId === empresa?.id && s?.tipo === "empresa");
+  const referralHistory = Array.isArray(companyReferralDiscountHistory(empresa)) ? companyReferralDiscountHistory(empresa).filter(Boolean) : [];
   const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Referidos", "Datos"];
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",

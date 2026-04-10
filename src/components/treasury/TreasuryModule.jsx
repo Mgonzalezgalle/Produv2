@@ -393,13 +393,13 @@ function PayablesTable({ rows = [], onEdit, onDelete, onAddPayment, selectedIds 
   );
 }
 
-function PaymentLogTable({ rows = [], emptyText, targetLabel, onEdit, onDelete, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function PaymentLogTable({ rows = [], emptyText, targetLabel, counterpartyLabel = "Referencia", onEdit, onDelete, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   if (!rows.length) return <EmptyInsideCard text={emptyText} sub="Cada registro queda trazado con fecha, monto, método y referencia." />;
   return (
     <div className="treasury-table-wrap">
       <table className="treasury-table">
-        <thead><tr><th style={{ width: 36 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} /></th><th>Fecha</th><th>{targetLabel}</th><th>Método</th><th>Referencia</th><th>Monto</th><th></th></tr></thead>
-        <tbody>{rows.map(row => <tr key={row.id}><td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} /></td><td>{row.date ? fmtD(row.date) : "—"}</td><td>{row.targetLabel}</td><td>{row.method || "—"}</td><td>{row.reference || "—"}</td><td className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</td><td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{onEdit ? <GBtn sm onClick={() => onEdit(row)}>Editar</GBtn> : null}{onDelete ? <DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn> : null}</div></td></tr>)}</tbody>
+        <thead><tr><th style={{ width: 36 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} /></th><th>Fecha</th><th>{targetLabel}</th><th>Método</th><th>{counterpartyLabel}</th><th>Monto</th><th></th></tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id}><td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} /></td><td>{row.date ? fmtD(row.date) : "—"}</td><td>{row.targetLabel}</td><td>{row.method || "—"}</td><td>{row.counterpartyLabel || row.reference || "—"}</td><td className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</td><td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{onEdit ? <GBtn sm onClick={() => onEdit(row)}>Editar</GBtn> : null}{onDelete ? <DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn> : null}</div></td></tr>)}</tbody>
       </table>
     </div>
   );
@@ -789,7 +789,7 @@ export function TreasuryModule(props) {
   const receivableTable = useTableState(filteredReceivables, { searchFields: [row => row.correlativo, row => row.entidad], statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Por vencer", "Vencido"], getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza });
   const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
-  const receiptTable = useTableState(receiptLog, { searchFields: [row => row.targetLabel, row => row.reference, row => row.method], pageSize: 6 });
+  const receiptTable = useTableState(receiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const payableTable = useTableState(payables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
   const issuedTable = useTableState(issuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
   const disbursementTable = useTableState(disbursementLog, { searchFields: [row => row.targetLabel, row => row.reference, row => row.method], pageSize: 6 });
@@ -869,8 +869,8 @@ export function TreasuryModule(props) {
             <Paginator page={poTable.page} total={poTable.filteredRows.length} perPage={poTable.pageSize} onChange={poTable.setPage} />
           </SectionCard>
           <SectionCard title="Pagos recibidos" subtitle="Registro manual y editable de pagos efectivos en cuentas por cobrar">
-            <TableToolbar searchValue={receiptTable.query} onSearchChange={receiptTable.setQuery} searchPlaceholder="Buscar pago, referencia o método..." selectedCount={receiptTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null} onClearSelection={receiptTable.clearSelection} canManage={canManageTreasury} />
-            <PaymentLogTable rows={receiptTable.pageRows} emptyText="Sin pagos recibidos registrados" targetLabel="Documento" onEdit={canManageTreasury ? openReceiptEdit : null} onDelete={canManageTreasury ? deleteReceipt : null} selectedIds={receiptTable.selectedIds} toggleSelected={receiptTable.toggleSelected} toggleAll={receiptTable.toggleAll} pageIds={receiptTable.pageIds} />
+            <TableToolbar searchValue={receiptTable.query} onSearchChange={receiptTable.setQuery} searchPlaceholder="Buscar pago, cliente o método..." selectedCount={receiptTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null} onClearSelection={receiptTable.clearSelection} canManage={canManageTreasury} />
+            <PaymentLogTable rows={receiptTable.pageRows} emptyText="Sin pagos recibidos registrados" targetLabel="Documento" counterpartyLabel="Cliente" onEdit={canManageTreasury ? openReceiptEdit : null} onDelete={canManageTreasury ? deleteReceipt : null} selectedIds={receiptTable.selectedIds} toggleSelected={receiptTable.toggleSelected} toggleAll={receiptTable.toggleAll} pageIds={receiptTable.pageIds} />
             <Paginator page={receiptTable.page} total={receiptTable.filteredRows.length} perPage={receiptTable.pageSize} onChange={receiptTable.setPage} />
           </SectionCard>
           <TreasuryPurchaseOrderModal open={poOpen} data={poDraft} clientes={clientes} facturas={facturas} onClose={closePurchaseOrder} onSave={savePurchaseOrder} />

@@ -26,8 +26,20 @@ export function useLabShell({
   }, [setToast, setSyncPulse]);
 
   const openM = useCallback((key, data = {}) => {
-    setMData(data);
-    setMOpen(key);
+    setMOpen("");
+    setMData({});
+    const nextData = data || {};
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => {
+        setMData(nextData);
+        setMOpen(key);
+      });
+      return;
+    }
+    setTimeout(() => {
+      setMData(nextData);
+      setMOpen(key);
+    }, 0);
   }, [setMData, setMOpen]);
 
   const closeM = useCallback(() => {

@@ -122,8 +122,8 @@ export function useLabTreasuryModule({
   );
 
   const receiptLog = useMemo(
-    () => buildTreasuryReceiptLog({ receipts: treasuryReceipts, facturas, empId }),
-    [treasuryReceipts, facturas, empId],
+    () => buildTreasuryReceiptLog({ receipts: treasuryReceipts, facturas, clientes, auspiciadores, empId }),
+    [treasuryReceipts, facturas, clientes, auspiciadores, empId],
   );
 
   const disbursementLog = useMemo(

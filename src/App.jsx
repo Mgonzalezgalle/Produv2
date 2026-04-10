@@ -795,7 +795,7 @@ export default function App(){
   // Screens
   if(!empresas||!users) return <div style={{background:"#080809",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#00d4e8",fontFamily:"monospace"}}><StyleTag css={CSS}/>Iniciando Produ...</div>;
   if(!curUser) return <><StyleTag css={CSS}/><LoginView users={domainUsers} empresas={domainEmpresas} onLogin={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={{uid,today,dbGet,dbSet,nextTenantCode,normalizeEmpresasModel,SEED_EMPRESAS}} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode}/></>;
-  if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag css={CSS}/><EmpresaSelectorView empresas={domainEmpresas} onSelect={selectEmp} onSelectSuperAdmin={()=>{setAdminOpen(false);setCurEmp(null);setSuperPanel(true);}} BrandLockup={BrandLockup} ini={ini}/></>;
+  if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag css={CSS}/><EmpresaSelectorView empresas={domainEmpresas} onSelect={selectEmp} onSelectSuperAdmin={()=>{setAdminOpen(false);selectEmp("__super__");}} BrandLockup={BrandLockup} ini={ini}/></>;
 
   const closeMobileSidebar=()=>{
     document.querySelector("aside")?.classList.remove("mob-open");
@@ -817,7 +817,7 @@ export default function App(){
     <StyleTag css={CSS}/>
     {/* Mobile overlay */}
     <div id="mob-overlay" onClick={closeMobileSidebar} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile} ini={ini} includeTreasury={treasuryEnabled}/>
+    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);const payload=sessionPayload(curUser,null,storedSession||{});try{sessionStorage.setItem(localLabKey("session"),payload);}catch{}try{localStorage.setItem(localLabKey("session"),payload);}catch{}setStoredSession(JSON.parse(payload));closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile} ini={ini} includeTreasury={treasuryEnabled}/>
     <main className="app-main" style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
       {/* Topbar */}
       <div className="topbar" style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>

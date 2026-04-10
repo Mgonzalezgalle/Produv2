@@ -314,7 +314,13 @@ export function SearchBar({ value, onChange, placeholder }) {
 }
 
 export function FilterSel({ value, onChange, options, placeholder }) {
-  return <select value={value} onChange={e => onChange(e.target.value)} style={{ padding: "10px 12px", background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, color: "var(--gr3)", fontFamily: "var(--fb)", fontSize: 12, cursor: "pointer", outline: "none", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}><option value="">{placeholder}</option>{options.map(o => typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o}>{o}</option>)}</select>;
+  return <select
+    value={value}
+    onMouseDown={e => e.stopPropagation()}
+    onClick={e => e.stopPropagation()}
+    onChange={e => onChange(e.target.value)}
+    style={{ padding: "10px 12px", background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, color: "var(--gr3)", fontFamily: "var(--fb)", fontSize: 12, cursor: "pointer", outline: "none", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}
+  ><option value="">{placeholder}</option>{options.map(o => typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o}>{o}</option>)}</select>;
 }
 
 export function ViewModeToggle({ value, onChange }) {

@@ -719,15 +719,26 @@ export default function App(){
   };
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
   const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
-  const comentariosBlockComponent = props => <ComentariosBlock {...props} helpers={{ commentAttachmentFromFile, normalizeCommentAttachments, getAssignedIds, uid, today, fmtD, exportComentariosCSV, exportComentariosPDF: (items, nombre, empresa) => exportComentariosPDF(items, nombre, empresa, { companyPrintColor }) }} />;
-  const tareasContextoComponent = props => <TareasContexto {...props} TareaCardComponent={TareaCard} helpers={{ uid }} />;
-  const movBlockComponent = props => <MovBlockView {...props} fmtM={fmtM} fmtD={fmtD} />;
-  const miniCalComponent = props => <MiniCalView {...props} fmtD={fmtD} />;
-  const ausCardComponent = props => <AusCardView {...props} ini={ini} fmtM={fmtM} fmtD={fmtD} />;
-  const exportMovCsvHelper = (movs, nombre) => exportMovCSV(movs, nombre);
-  const exportMovPdfHelper = (movs, nombre, empresa, tipo) => exportMovPDF(movs, nombre, empresa, tipo, { companyPrintColor });
-  const exportActiveClientsCsvHelper = items => exportActiveClientsCSV(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, today });
-  const exportActiveClientsPdfHelper = items => exportActiveClientsPDF(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, fmtMoney, fmtD, today, buildSimplePdfBlob });
+  const exportMovCsvHelper = useCallback((movs, nombre) => exportMovCSV(movs, nombre), []);
+  const exportMovPdfHelper = useCallback((movs, nombre, empresa, tipo) => exportMovPDF(movs, nombre, empresa, tipo, { companyPrintColor }), []);
+  const exportActiveClientsCsvHelper = useCallback(items => exportActiveClientsCSV(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, today }), [today]);
+  const exportActiveClientsPdfHelper = useCallback(items => exportActiveClientsPDF(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, fmtMoney, fmtD, today, buildSimplePdfBlob }), [fmtMoney, fmtD, today]);
+  const comentariosBlockHelpers = useMemo(() => ({
+    commentAttachmentFromFile,
+    normalizeCommentAttachments,
+    getAssignedIds,
+    uid,
+    today,
+    fmtD,
+    exportComentariosCSV,
+    exportComentariosPDF: (items, nombre, empresa) => exportComentariosPDF(items, nombre, empresa, { companyPrintColor }),
+  }), [today, fmtD, uid]);
+  const comentariosBlockComponent = useCallback(props => <ComentariosBlock {...props} helpers={comentariosBlockHelpers} />, [comentariosBlockHelpers]);
+  const tareasContextoHelpers = useMemo(() => ({ uid }), [uid]);
+  const tareasContextoComponent = useCallback(props => <TareasContexto {...props} TareaCardComponent={TareaCard} helpers={tareasContextoHelpers} />, [tareasContextoHelpers]);
+  const movBlockComponent = useCallback(props => <MovBlockView {...props} fmtM={fmtM} fmtD={fmtD} />, [fmtM, fmtD]);
+  const miniCalComponent = useCallback(props => <MiniCalView {...props} fmtD={fmtD} />, [fmtD]);
+  const ausCardComponent = useCallback(props => <AusCardView {...props} ini={ini} fmtM={fmtM} fmtD={fmtD} />, [ini, fmtM, fmtD]);
 
   const renderView=()=>{
     if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanelView actorUser={curUser} empresas={empresas||[]} users={users||[]} onSave={saveSuperData} onDeleteEmpresa={deleteEmpresa} releaseMode={LAB_DATA_CONFIG.releaseMode} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} helpers={{dbGet,dbSet,uid,today,nowIso,fmtD,fmtMoney,normalizePrintLayouts,DEFAULT_PRINT_LAYOUTS,buildSupportSettings,normalizeSupportThreads,supportAttachmentFromFile,normalizeEmpresasModel,companyBillingDiscountPct,companyReferralDiscountMonthsPending,companyReferralDiscountHistory,companyBillingBaseNet,companyBillingNet,companyBillingStatus,companyPaymentDayLabel,companyIsUpToDate,companyGoogleCalendarEnabled,nextTenantCode,shouldConsumeReferralDiscountMonth,normalizeEmailValue,sha256Hex,sanitizeAssignableRole,ini,addons:ADDONS,exportActiveClientsCSV:exportActiveClientsCsvHelper,exportActiveClientsPDF:exportActiveClientsPdfHelper,userGoogleCalendar,SYSTEM_MESSAGE_PRESETS,XBtn,RichTextBlock}}/></>;

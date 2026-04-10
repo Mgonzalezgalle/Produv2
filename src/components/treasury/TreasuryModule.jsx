@@ -10,7 +10,7 @@ import {
   SearchBar,
   ViewModeToggle,
 } from "../../lib/ui/components";
-import { fmtD, fmtM } from "../../lib/utils/helpers";
+import { fmtD, fmtM, openMailto, openWhatsApp } from "../../lib/utils/helpers";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
@@ -359,7 +359,21 @@ function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, onBilling
   );
 }
 
-function PayablesTable({ rows = [], onEdit, onDelete, onAddPayment, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function PayablesTable({
+  rows = [],
+  providers = [],
+  onEdit,
+  onDelete,
+  onAddPayment,
+  onUpdatePayable,
+  onSupplierEmail,
+  onSupplierWhatsApp,
+  canManage = false,
+  selectedIds = [],
+  toggleSelected,
+  toggleAll,
+  pageIds = [],
+}) {
   const [openId, setOpenId] = useState("");
   if (!rows.length) return <EmptyInsideCard text="Sin cuentas por pagar registradas" sub="Registra documentos manuales del módulo Tesorería para controlar pagos y vencimientos." />;
   return (
@@ -370,6 +384,10 @@ function PayablesTable({ rows = [], onEdit, onDelete, onAddPayment, selectedIds 
           {rows.map(row => {
             const open = openId === row.id;
             const pendingMode = row.status === "Pagada" ? "paid" : row.status === "Vencida" ? "overdue" : row.pending > 0 ? "pending" : "idle";
+            const provider = (providers || []).find(item => item.name === row.supplier || item.id === row.providerId) || null;
+            const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+            const supplierEmail = primaryContact?.email || primaryContact?.ema || provider?.email || "";
+            const supplierPhone = primaryContact?.telefono || primaryContact?.tel || provider?.telefono || "";
             return (
               <React.Fragment key={row.id}>
                 <tr>
@@ -383,7 +401,7 @@ function PayablesTable({ rows = [], onEdit, onDelete, onAddPayment, selectedIds 
                   <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{fmtM(row.pending)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}><GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn><GBtn sm onClick={() => onEdit(row)}>Editar</GBtn><DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn><GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>
                 </tr>
-                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para esta cuenta" /></div></td></tr> : null}
+                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}><div><div className="treasury-detail-title">Gestión de pago</div><div className="treasury-muted" style={{ fontSize:12 }}>Coordina desde aquí el pago comprometido del documento y el contacto con el proveedor.</div></div>{canManage && onUpdatePayable ? <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(180px,1fr))", gap:10, minWidth:"min(100%,420px)" }}><label><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado del documento</div><select value={row.status || "Pendiente"} onChange={e => onUpdatePayable(row, { status: e.target.value })} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>{["Pendiente", "Parcial", "Pagada", "Vencida"].map(option => <option key={option} value={option}>{option}</option>)}</select></label><label><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Fecha estimada de pago</div><input type="date" value={row.paymentDate || ""} onChange={e => onUpdatePayable(row, { paymentDate: e.target.value })} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }} /></label></div> : null}</div><div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>{supplierEmail && onSupplierEmail ? <ContactActionButton tone="mail" label="Correo" onClick={() => onSupplierEmail(row)} /> : null}{supplierPhone && onSupplierWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onSupplierWhatsApp(row)} /> : null}</div><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText="Todavía no hay pagos manuales registrados para esta cuenta" /></div></td></tr> : null}
               </React.Fragment>
             );
           })}
@@ -811,6 +829,34 @@ export function TreasuryModule(props) {
   const issuedTable = useTableState(issuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
   const disbursementTable = useTableState(disbursementLog, { searchFields: [row => row.targetLabel, row => row.reference, row => row.method], pageSize: 6 });
   const providerTable = useTableState(providers, { searchFields: [row => row.name, row => row.razonSocial, row => row.rut], pageSize: 6 });
+  const handlePayableUpdate = async (row, patch = {}) => {
+    if (!canManageTreasury || !row?.id) return;
+    const source = (payables || []).find(item => item.id === row.id) || row;
+    await savePayable({ ...source, ...patch });
+  };
+  const handleSupplierEmail = row => {
+    const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
+    const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+    const email = primaryContact?.email || primaryContact?.ema || provider?.email || "";
+    if (!email) return;
+    const paymentDateLabel = row?.paymentDate ? fmtD(row.paymentDate) : "por definir";
+    openMailto(
+      email,
+      `Pago documento ${row?.folio || row?.supplier || ""}`,
+      `Hola${primaryContact?.nombre ? ` ${primaryContact.nombre}` : ""},\n\nTe escribimos por el documento ${row?.folio || "sin folio"} asociado a ${row?.supplier || "tu empresa"}.\nFecha estimada de pago: ${paymentDateLabel}.\n\nQuedamos atentos.\n${props.empresa?.nom || "Produ"}`
+    );
+  };
+  const handleSupplierWhatsApp = row => {
+    const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
+    const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+    const phone = primaryContact?.telefono || primaryContact?.tel || provider?.telefono || "";
+    if (!phone) return;
+    const paymentDateLabel = row?.paymentDate ? fmtD(row.paymentDate) : "por definir";
+    openWhatsApp(
+      phone,
+      `Hola${primaryContact?.nombre ? ` ${primaryContact.nombre}` : ""}, te escribimos por el documento ${row?.folio || "sin folio"} de ${row?.supplier || "tu empresa"}. Fecha estimada de pago: ${paymentDateLabel}.`
+    );
+  };
 
   const deleteMany = async (ids = [], deleter) => {
     if (!ids.length || !deleter) return;
@@ -930,7 +976,7 @@ export function TreasuryModule(props) {
                   createAction={canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}
                   canManage={canManageTreasury}
                 />
-                <PayablesTable rows={payableTable.pageRows} onAddPayment={canManageTreasury ? openDisbursementCreate : () => {}} onEdit={canManageTreasury ? openPayableEdit : () => {}} onDelete={canManageTreasury ? deletePayable : () => {}} selectedIds={payableTable.selectedIds} toggleSelected={payableTable.toggleSelected} toggleAll={payableTable.toggleAll} pageIds={payableTable.pageIds} />
+                <PayablesTable rows={payableTable.pageRows} providers={providers} onAddPayment={canManageTreasury ? openDisbursementCreate : () => {}} onEdit={canManageTreasury ? openPayableEdit : () => {}} onDelete={canManageTreasury ? deletePayable : () => {}} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} canManage={canManageTreasury} selectedIds={payableTable.selectedIds} toggleSelected={payableTable.toggleSelected} toggleAll={payableTable.toggleAll} pageIds={payableTable.pageIds} />
                 <Paginator page={payableTable.page} total={payableTable.filteredRows.length} perPage={payableTable.pageSize} onChange={payableTable.setPage} />
               </>
             ) : (

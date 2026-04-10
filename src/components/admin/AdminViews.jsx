@@ -425,6 +425,7 @@ export function ListasEditor({ listas, saveListas, defaultListas }) {
     { key: "impuestos", label: "Impuestos" },
     { key: "estadosFact", label: "Estados de Facturación" },
     { key: "tiposEntidadFact", label: "Tipos de Entidad Factura" },
+    { key: "tiposDocPagar", label: "Tipos de Documento por Pagar" },
     { key: "catActivos", label: "Categorías de Activos" },
     { key: "estadosActivos", label: "Estados de Activos" },
     { key: "prioridadesTarea", label: "Prioridades de Tarea" },

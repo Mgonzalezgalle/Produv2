@@ -176,6 +176,7 @@ export const DEFAULT_LISTAS = {
   estadosFact: ["Borrador","Emitida","Anulada"],
   tiposEntidadFact: ["Cliente","Auspiciador"],
   tiposDocFact: ["Orden de Factura","Factura","Invoice"],
+  tiposDocPagar: ["Factura","Boleta de Honorarios","Factura Exenta"],
   catActivos: ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
   estadosActivos: ["Disponible","Asignado","En Mantención","Baja"],
   prioridadesTarea: ["Alta","Media","Baja"],

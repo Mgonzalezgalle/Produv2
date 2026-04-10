@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
-import { today, uid } from "../../lib/utils/helpers";
+import { DEFAULT_LISTAS, today, uid } from "../../lib/utils/helpers";
 
-export function TreasuryPayableModal({ open, data, providers = [], onClose, onSave }) {
+export function TreasuryPayableModal({ open, data, providers = [], listas = {}, onClose, onSave }) {
   const [form, setForm] = useState({});
   const fileRef = useRef(null);
+  const docTypeOptions = Array.isArray(listas?.tiposDocPagar) && listas.tiposDocPagar.length
+    ? listas.tiposDocPagar
+    : DEFAULT_LISTAS.tiposDocPagar;
   const providerOptions = useMemo(
     () => (Array.isArray(providers) ? providers : [])
       .map(provider => String(provider?.name || "").trim())
@@ -17,6 +20,7 @@ export function TreasuryPayableModal({ open, data, providers = [], onClose, onSa
     setForm(data?.id ? { ...data } : {
       id: uid(),
       supplier: "",
+      docType: docTypeOptions[0] || "Factura",
       folio: "",
       category: "Servicio",
       issueDate: today(),
@@ -29,7 +33,7 @@ export function TreasuryPayableModal({ open, data, providers = [], onClose, onSa
       notes: "",
     });
     if (fileRef.current) fileRef.current.value = "";
-  }, [data, open]);
+  }, [data, open, docTypeOptions]);
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -56,14 +60,21 @@ export function TreasuryPayableModal({ open, data, providers = [], onClose, onSa
             {providerOptions.map(option => <option key={option} value={option}>{option}</option>)}
           </FSl>
         </FG>
-        <FG label="Folio / Documento"><FI value={form.folio || ""} onChange={e => setField("folio", e.target.value)} placeholder="OC-203 / Fact 8821" /></FG>
+        <FG label="Tipo de documento">
+          <FSl value={form.docType || (docTypeOptions[0] || "Factura")} onChange={e => setField("docType", e.target.value)}>
+            {docTypeOptions.map(option => <option key={option} value={option}>{option}</option>)}
+          </FSl>
+        </FG>
       </R2>
       <R2>
+        <FG label="Folio / Documento"><FI value={form.folio || ""} onChange={e => setField("folio", e.target.value)} placeholder="OC-203 / Fact 8821" /></FG>
         <FG label="Categoría">
           <FSl value={form.category || "Servicio"} onChange={e => setField("category", e.target.value)}>
             {["Servicio", "Proveedor", "Arriendo", "Honorarios", "Impuestos", "Producción", "Otro"].map(option => <option key={option}>{option}</option>)}
           </FSl>
         </FG>
+      </R2>
+      <R2>
         <FG label="Estado">
           <FSl value={form.status || "Pendiente"} onChange={e => setField("status", e.target.value)}>
             {["Pendiente", "Pagada", "Parcial", "Vencida"].map(option => <option key={option}>{option}</option>)}

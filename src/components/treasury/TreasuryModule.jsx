@@ -886,9 +886,16 @@ export function TreasuryModule(props) {
             <Paginator page={poTable.page} total={poTable.filteredRows.length} perPage={poTable.pageSize} onChange={poTable.setPage} />
           </SectionCard>
           <SectionCard title="Pagos recibidos" subtitle="Registro manual y editable de pagos efectivos en cuentas por cobrar">
-            <TableToolbar searchValue={receiptTable.query} onSearchChange={receiptTable.setQuery} searchPlaceholder="Buscar pago, cliente o método..." selectedCount={receiptTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null} onClearSelection={receiptTable.clearSelection} canManage={canManageTreasury} />
-            <div className="treasury-toolbar" style={{ marginTop: -4 }}>
-              <FilterSel value={receiptClientFilter} onChange={setReceiptClientFilter} options={receiptClientOptions} placeholder="Todos los clientes" />
+            <div className="treasury-toolbar">
+              <div style={{ flex: "1 1 320px", minWidth: 260 }}>
+                <SearchBar value={receiptTable.query} onChange={receiptTable.setQuery} placeholder="Buscar pago, cliente o método..." />
+              </div>
+              <div style={{ width: 240, maxWidth: "100%" }}>
+                <FilterSel value={receiptClientFilter} onChange={setReceiptClientFilter} options={receiptClientOptions} placeholder="Todos los clientes" />
+              </div>
+              {receiptTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{receiptTable.selectedIds.length} seleccionado{receiptTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
+              {canManageTreasury && receiptTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
+              {receiptTable.selectedIds.length ? <GBtn sm onClick={receiptTable.clearSelection}>Limpiar selección</GBtn> : null}
             </div>
             <PaymentLogTable rows={receiptTable.pageRows} emptyText="Sin pagos recibidos registrados" targetLabel="Documento" counterpartyLabel="Cliente" onEdit={canManageTreasury ? openReceiptEdit : null} onDelete={canManageTreasury ? deleteReceipt : null} selectedIds={receiptTable.selectedIds} toggleSelected={receiptTable.toggleSelected} toggleAll={receiptTable.toggleAll} pageIds={receiptTable.pageIds} />
             <Paginator page={receiptTable.page} total={receiptTable.filteredRows.length} perPage={receiptTable.pageSize} onChange={receiptTable.setPage} />

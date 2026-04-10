@@ -623,7 +623,7 @@ function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = fa
   );
 }
 
-function ProviderDetailModal({ open, provider, paymentRows = [], onClose, onSave }) {
+function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierWhatsApp, onClose, onSave }) {
   const [tab, setTab] = useState("documentos");
   const [draft, setDraft] = useState(null);
 
@@ -697,18 +697,50 @@ function ProviderDetailModal({ open, provider, paymentRows = [], onClose, onSave
           <MiniKpiCard color="var(--red)" label="Monto atrasado" value={fmtM(provider.payables.filter(item => item.status === "Vencida").reduce((acc, item) => acc + Number(item.pending || 0), 0))} />
         </div>
         {tab === "documentos" ? (
-          <DetailTable
-            columns={[
-              { key: "folio", label: "Número" },
-              { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" },
-              { key: "dueDate", label: "Vencimiento", render: row => row.dueDate ? fmtD(row.dueDate) : "—" },
-              { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> },
-              { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.status === "Vencida" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> },
-              { key: "status", label: "Estado", render: row => <StatusBadge label={row.status} /> },
-            ]}
-            rows={provider.payables}
-            emptyText="Sin documentos para este proveedor"
-          />
+          <div style={{ display: "grid", gap: 12 }}>
+            <DetailTable
+              columns={[
+                { key: "folio", label: "Número" },
+                { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" },
+                { key: "dueDate", label: "Vencimiento", render: row => row.dueDate ? fmtD(row.dueDate) : "—" },
+                { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> },
+                { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.status === "Vencida" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> },
+                { key: "status", label: "Estado", render: row => <StatusBadge label={row.status} /> },
+              ]}
+              rows={provider.payables}
+              emptyText="Sin documentos para este proveedor"
+            />
+            {(provider.payables || []).length ? (provider.payables || []).map(row => (
+              <div key={row.id} className="treasury-detail">
+                <div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}>
+                  <div>
+                    <div className="treasury-detail-title">{row.folio || "Documento sin folio"}</div>
+                    <div className="treasury-muted" style={{ fontSize:12 }}>
+                      {row.issueDate ? `Emitido ${fmtD(row.issueDate)}` : "Sin fecha de emisión"} · {row.dueDate ? `Vence ${fmtD(row.dueDate)}` : "Sin vencimiento"}
+                    </div>
+                  </div>
+                  {canManage && onUpdatePayable ? (
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(180px,1fr))", gap:10, minWidth:"min(100%,420px)" }}>
+                      <label>
+                        <div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado del documento</div>
+                        <select value={row.status || "Pendiente"} onChange={e => onUpdatePayable(row, { status: e.target.value })} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>
+                          {["Pendiente", "Parcial", "Pagada", "Vencida"].map(option => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                      <label>
+                        <div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Fecha estimada de pago</div>
+                        <input type="date" value={row.paymentDate || ""} onChange={e => onUpdatePayable(row, { paymentDate: e.target.value })} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }} />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {onSupplierEmail ? <ContactActionButton tone="mail" label="Correo" onClick={() => onSupplierEmail(row)} /> : null}
+                  {onSupplierWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onSupplierWhatsApp(row)} /> : null}
+                </div>
+              </div>
+            )) : null}
+          </div>
         ) : null}
         {tab === "datos" ? (
           <div className="treasury-detail">
@@ -1085,7 +1117,7 @@ export function TreasuryModule(props) {
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
-      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} onClose={closeProvider} onSave={saveProvider} />
+      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} />
     </div>
   );
 }

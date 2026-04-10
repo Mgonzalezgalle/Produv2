@@ -188,6 +188,17 @@ const applyFreshdeskIdentity = ({ user, empresa }) => {
     return false;
   }
 };
+const syncFreshdeskVisibility = ({ user, empresa, superPanel = false }) => {
+  if (!window.fcWidget) return false;
+  const shouldShow = !!(user && empresa && user.role !== "superadmin" && !superPanel);
+  try {
+    if (shouldShow) window.fcWidget.show?.();
+    else window.fcWidget.hide?.();
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const ADDONS = ADDON_REGISTRY;
 const SEED_EMPRESAS = BASE_SEED_EMPRESAS(today);
@@ -616,7 +627,20 @@ export default function App(){
   },[curUser?.id,storedSession,logout,setToast]);
 
   useEffect(()=>{
-    if(!curUser || curUser.role==="superadmin") return;
+    let cancelled=false;
+    let attempts=0;
+    const syncVisibility=()=>{
+      if(cancelled) return;
+      attempts+=1;
+      const applied = syncFreshdeskVisibility({ user: curUser, empresa: curEmp, superPanel });
+      if(!applied && attempts<20) window.setTimeout(syncVisibility,500);
+    };
+    syncVisibility();
+    return ()=>{ cancelled=true; };
+  },[curUser?.id,curUser?.role,curEmp?.id,superPanel]);
+
+  useEffect(()=>{
+    if(!curUser || curUser.role==="superadmin" || !curEmp) return;
     let cancelled=false;
     let attempts=0;
     const syncFreshdesk=()=>{

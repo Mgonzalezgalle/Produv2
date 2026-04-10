@@ -333,7 +333,7 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
   </div>;
 }
 
-export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setMovimientos}){
+export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setPiezas,setMovimientos}){
   const {
     p,
     c,
@@ -342,6 +342,7 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
     canPrograms,
     canContracts,
     canInvoices,
+    canCreateContent,
     convOpen,
     setConvOpen,
     convTipo,
@@ -362,9 +363,11 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
     facturas,
     producciones,
     programas,
+    piezas,
     setPresupuestos,
     setProducciones,
     setProgramas,
+    setPiezas,
     setMovimientos,
     cSave,
     today,
@@ -388,10 +391,10 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Rechazado")}>Rechazado</GBtn>}
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
         {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear orden de factura</Btn>}
-        {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":"Proyecto"}</Btn>}
+        {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":convTipo==="contenido"?"Contenidos":"Proyecto"}</Btn>}
         {canDo&&canDo("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
-    {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"producción":"programa TV"}: <b>{p.convertidoNom}</b></div>}
+    {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"proyecto":p.convertido==="programa"?"producción":"campaña de contenidos"}: <b>{p.convertidoNom}</b></div>}
     {(contrato || linkedInvoices.length) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       {contrato && canContracts && <Card title="Contrato Asociado">
         <KV label="Contrato" value={contrato.nom}/>
@@ -439,10 +442,10 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
       {p.obs&&<div><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Observaciones comerciales</div><p style={{fontSize:12,color:"var(--gr3)",margin:0}}>{p.obs}</p></div>}
     </Card>}
     <Modal open={convOpen} onClose={()=>setConvOpen(false)} title="Convertir presupuesto" sub="Crea el registro operativo correspondiente.">
-      <FG label="Tipo de registro"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nuevo Proyecto</option>{canPrograms&&<option value="programa">📺 Nueva Producción</option>}</FSl></FG>
-      <FG label="Nombre del proyecto"><FI value={convNom} onChange={e=>setConvNom(e.target.value)} placeholder="Nombre del proyecto"/></FG>
-      <div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#00e08a",marginBottom:16}}>Se creará {convTipo==="produccion"?"un proyecto":"una producción"} con los datos del cliente. Podrás editarlo desde el módulo correspondiente.</div>
-      <MFoot onClose={()=>setConvOpen(false)} onSave={()=>convertir(navTo)} label="Crear Proyecto"/>
+      <FG label="Tipo de registro"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nuevo Proyecto</option>{canPrograms&&<option value="programa">📺 Nueva Producción</option>}{canCreateContent&&<option value="contenido">📱 Nueva Campaña de Contenidos</option>}</FSl></FG>
+      <FG label={convTipo==="programa"?"Nombre de la producción":convTipo==="contenido"?"Nombre de la campaña":"Nombre del proyecto"}><FI value={convNom} onChange={e=>setConvNom(e.target.value)} placeholder={convTipo==="programa"?"Nombre de la producción":convTipo==="contenido"?"Nombre de la campaña":"Nombre del proyecto"}/></FG>
+      <div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#00e08a",marginBottom:16}}>Se creará {convTipo==="produccion"?"un proyecto":convTipo==="programa"?"una producción":"una campaña de contenidos"} con los datos del cliente. Podrás editar{convTipo==="contenido"?"la desde Contenidos":"lo desde el módulo correspondiente"}.</div>
+      <MFoot onClose={()=>setConvOpen(false)} onSave={()=>convertir(navTo)} label={convTipo==="programa"?"Crear Producción":convTipo==="contenido"?"Crear Campaña":"Crear Proyecto"}/>
     </Modal>
   </div>;
 }

@@ -9,9 +9,11 @@ export function useLabBudgetDetail({
   facturas,
   producciones,
   programas,
+  piezas,
   setPresupuestos,
   setProducciones,
   setProgramas,
+  setPiezas,
   setMovimientos,
   cSave,
   today,
@@ -30,6 +32,7 @@ export function useLabBudgetDetail({
   const canEditBudgets = !!(canDo && canDo("presupuestos"));
   const canCreateProjects = !!(canDo && canDo("producciones"));
   const canCreatePrograms = !!(canDo && canDo("programas"));
+  const canCreateContent = !!(canDo && canDo("contenidos")) && hasAddon(empresa, "social");
   const canCreateMovements = !!(canDo && canDo("movimientos"));
   const [convOpen, setConvOpen] = useState(false);
   const [convTipo, setConvTipo] = useState("produccion");
@@ -46,21 +49,43 @@ export function useLabBudgetDetail({
     if (!convNom.trim() || !p) return;
     if (convTipo === "produccion" && !canCreateProjects) return;
     if (convTipo === "programa" && !canCreatePrograms) return;
+    if (convTipo === "contenido" && !canCreateContent) return;
     const newId = uid();
     if (convTipo === "produccion") {
       const nuevo = { id: newId, empId, nom: convNom, cliId: p.cliId, tip: "Contenido Audiovisual", est: "Pre-Producción", ini: today(), fin: "", des: p.titulo, crewIds: [] };
       await setProducciones([...(producciones || []), nuevo]);
-    } else {
+    } else if (convTipo === "programa") {
       const nuevo = { id: newId, empId, nom: convNom, tip: "Producción", can: "", est: "En Desarrollo", totalEp: "", fre: "Semanal", temporada: "", conductor: "", prodEjec: "", des: p.titulo, cliId: p.cliId || "", crewIds: [] };
       await setProgramas([...(programas || []), nuevo]);
+    } else {
+      const now = new Date();
+      const fin = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const nuevo = {
+        id: newId,
+        empId,
+        nom: convNom,
+        cliId: p.cliId || "",
+        mes: now.toLocaleDateString("es-CL", { month: "long" }).replace(/^./, x => x.toUpperCase()),
+        ano: now.getFullYear(),
+        est: "Planificada",
+        plataforma: "Instagram",
+        ini: today(),
+        fin: fin.toISOString().split("T")[0],
+        des: p.titulo,
+        crewIds: [],
+        comentarios: [],
+        plannedPieces: Number(p?.pieceLines?.length || p?.items?.length || 0),
+        piezas: [],
+      };
+      await setPiezas([...(piezas || []), nuevo]);
     }
     if (p.total && canCreateMovements) {
-      const ingresoAuto = { id: uid(), empId, eid: newId, et: convTipo === "produccion" ? "pro" : "pg", tipo: "ingreso", cat: "Producción", desc: `Ingreso desde presupuesto: ${p.titulo}`, monto: p.total, fecha: today() };
+      const ingresoAuto = { id: uid(), empId, eid: newId, et: convTipo === "produccion" ? "pro" : convTipo === "programa" ? "pg" : "pz", tipo: "ingreso", cat: convTipo === "contenido" ? "Contenidos" : "Producción", desc: `Ingreso desde presupuesto: ${p.titulo}`, monto: p.total, fecha: today() };
       await setMovimientos((prev) => [...(prev || []), ingresoAuto]);
     }
     await cSave(presupuestos, setPresupuestos, { ...p, convertido: convTipo, convertidoNom: convNom });
     setConvOpen(false);
-    navTo(convTipo === "produccion" ? "producciones" : "programas");
+    navTo(convTipo === "produccion" ? "producciones" : convTipo === "programa" ? "programas" : "contenidos");
   };
 
   const sortedItems = useMemo(() => ([...(p?.items || [])].sort((a, b) => {
@@ -86,6 +111,7 @@ export function useLabBudgetDetail({
     canEditBudgets,
     canCreateProjects,
     canCreatePrograms,
+    canCreateContent,
     convOpen,
     setConvOpen,
     convTipo,

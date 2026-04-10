@@ -751,7 +751,7 @@ export default function App(){
       case"auspiciadores":return <ViewAus           {...VP} setAuspiciadores={setAuspiciadores} AusCard={ausCardComponent}/>;
       case"contratos":    return <ViewCts           {...VP} setContratos={setContratos}/>;
       case"presupuestos": return <ViewPres          {...VP} setPresupuestos={setPresupuestos}/>;
-      case"pres-det":     return <ViewPresDet       {...VP} id={detId} setPresupuestos={setPresupuestos} setProducciones={setProducciones} setProgramas={setProgramas} setMovimientos={setMovimientos}/>;
+      case"pres-det":     return <ViewPresDet       {...VP} id={detId} setPresupuestos={setPresupuestos} setProducciones={setProducciones} setProgramas={setProgramas} setPiezas={setPiezas} setMovimientos={setMovimientos}/>;
       case"facturacion":  return <ViewFact          {...VP} setFacturas={setFacturas} setMovimientos={setMovimientos}/>;
       case TREASURY_MODULE_ID: return <TreasuryModule {...VP} treasury={treasuryProps} />;
       case"activos":      return <ViewActivos       {...VP} setActivos={setActivos} fmtM={fmtM} fmtD={fmtD}/>;

@@ -575,7 +575,7 @@ export default function App(){
       lastTouch = now;
       refreshSessionActivity({ lastActivityAt: now });
     };
-    const events = ["mousedown","keydown","scroll","touchstart"];
+    const events = ["mousemove","keydown","scroll","touchstart"];
     events.forEach(evt=>window.addEventListener(evt,onActivity,{passive:true}));
     return ()=>events.forEach(evt=>window.removeEventListener(evt,onActivity));
   },[curUser?.id,storedSession?.lastActivityAt,refreshSessionActivity]);

@@ -571,6 +571,12 @@ function ProvidersPanel({
 function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = false }) {
   const [tab, setTab] = useState("documentos");
   if (!item) return null;
+  const clientPayments = (item.documents || [])
+    .flatMap(doc => (doc.paymentHistory || []).map(payment => ({
+      ...payment,
+      targetLabel: doc.correlativo || "Documento",
+    })))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   return (
     <Modal open={open} onClose={onClose} title="" sub="" wide>
       <div className="treasury-modal-shell">
@@ -582,6 +588,7 @@ function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = fa
         <div className="treasury-modal-tabs">
           <button className={`treasury-modal-tab ${tab === "documentos" ? "active" : ""}`} onClick={() => setTab("documentos")}>Documentos</button>
           <button className={`treasury-modal-tab ${tab === "ordenes" ? "active" : ""}`} onClick={() => setTab("ordenes")}>Órdenes de compra</button>
+          <button className={`treasury-modal-tab ${tab === "pagos" ? "active" : ""}`} onClick={() => setTab("pagos")}>Pagos</button>
           <button className={`treasury-modal-tab ${tab === "resumen" ? "active" : ""}`} onClick={() => setTab("resumen")}>Resumen</button>
         </div>
         <div className="treasury-modal-summary">
@@ -591,6 +598,7 @@ function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = fa
         </div>
         {tab === "documentos" ? <DetailTable columns={[{ key: "correlativo", label: "Número" }, { key: "fecha", label: "Emisión", render: row => row.fecha ? fmtD(row.fecha) : "—" }, { key: "fechaVencimiento", label: "Vencimiento", render: row => row.fechaVencimiento ? fmtD(row.fechaVencimiento) : "—" }, { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> }, { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.bucket === "Vencido" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> }, { key: "cobranza", label: "Estado", render: row => <StatusBadge label={row.cobranza} /> }]} rows={item.documents || []} emptyText="Sin documentos asociados" /> : null}
         {tab === "ordenes" ? <DetailTable columns={[{ key: "number", label: "Número" }, { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" }, { key: "linkedInvoices", label: "Factura asociada", render: row => row.linkedInvoices?.length ? <div style={{ display:"grid", gap:4 }}>{row.linkedInvoices.map(invoice => <div key={invoice.id} style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}><span style={{ fontWeight:700 }}>{invoice.correlativo}</span><StatusBadge label={invoice.cobranza} /></div>)}</div> : <span className="treasury-muted">Sin factura asociada</span> }, { key: "billingStatus", label: "Estado flujo", render: row => <StatusBadge label={row.billingStatus} /> }, { key: "amount", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.amount)}</span> }, { key: "pendingAmount", label: "Pendiente OC", render: row => <span className={`treasury-mono ${pendingTone(row.pendingAmount, row.pendingAmount <= 0 ? "paid" : "pending")}`}>{fmtM(row.pendingAmount)}</span> }, { key: "edit", label: "", render: row => canManage && onEditOrder ? <GBtn sm onClick={() => onEditOrder(row)}>Asociar factura</GBtn> : null }]} rows={item.purchaseOrders || []} emptyText="Sin órdenes de compra registradas" /> : null}
+        {tab === "pagos" ? <DetailTable columns={[{ key: "date", label: "Fecha", render: row => row.date ? fmtD(row.date) : "—" }, { key: "targetLabel", label: "Factura" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: row => <span className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</span> }]} rows={clientPayments} emptyText="Todavía no hay pagos registrados para este cliente" /> : null}
         {tab === "resumen" ? <div className="treasury-detail"><div className="treasury-detail-grid"><div><div className="treasury-detail-title">Resumen financiero</div><div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}><div><div className="meta-label">Concentración</div><div className="meta-value">{Number(item.concentrationPct || 0).toFixed(1)}%</div></div><div><div className="meta-label">Límite crédito</div><div className="meta-value">{item.creditLimit ? fmtM(item.creditLimit) : "No definido"}</div></div><div><div className="meta-label">Cupo disponible</div><div className={`meta-value ${item.availableCredit != null && item.availableCredit < 0 ? "treasury-pending-overdue" : "treasury-pending-paid"}`}>{item.availableCredit == null ? "—" : fmtM(item.availableCredit)}</div></div><div><div className="meta-label">Monto vencido</div><div className={`meta-value ${item.overdue > 0 ? "treasury-pending-overdue" : "treasury-pending-idle"}`}>{fmtM(item.overdue || 0)}</div></div></div></div><div><div className="treasury-detail-title">Concentración de deuda</div><div className="treasury-progress" style={{ marginTop: 14 }}><div className="treasury-progress-fill" style={{ width: `${Math.max(6, Math.min(Number(item.concentrationPct || 0), 100))}%` }} /></div><div className="treasury-muted" style={{ marginTop: 10, fontSize: 12 }}>La barra representa qué porcentaje de la cartera total está concentrada en este cliente.</div></div></div></div> : null}
       </div>
     </Modal>
@@ -740,6 +748,7 @@ export function TreasuryModule(props) {
   const [payablesTab, setPayablesTab] = useState("documentos");
   const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [portfolioItem, setPortfolioItem] = useState(null);
+  const [receiptClientFilter, setReceiptClientFilter] = useState("");
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
   const {
     tab, setTab, q, setQ, statusFilter, setStatusFilter, filteredReceivables, receivableSummary, portfolio,
@@ -789,7 +798,15 @@ export function TreasuryModule(props) {
   const receivableTable = useTableState(filteredReceivables, { searchFields: [row => row.correlativo, row => row.entidad], statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Por vencer", "Vencido"], getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza });
   const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
-  const receiptTable = useTableState(receiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
+  const filteredReceiptLog = useMemo(
+    () => receiptLog.filter(row => !receiptClientFilter || row.counterpartyLabel === receiptClientFilter),
+    [receiptLog, receiptClientFilter],
+  );
+  const receiptClientOptions = useMemo(
+    () => Array.from(new Set(receiptLog.map(row => row.counterpartyLabel).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [receiptLog],
+  );
+  const receiptTable = useTableState(filteredReceiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const payableTable = useTableState(payables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
   const issuedTable = useTableState(issuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
   const disbursementTable = useTableState(disbursementLog, { searchFields: [row => row.targetLabel, row => row.reference, row => row.method], pageSize: 6 });
@@ -870,6 +887,9 @@ export function TreasuryModule(props) {
           </SectionCard>
           <SectionCard title="Pagos recibidos" subtitle="Registro manual y editable de pagos efectivos en cuentas por cobrar">
             <TableToolbar searchValue={receiptTable.query} onSearchChange={receiptTable.setQuery} searchPlaceholder="Buscar pago, cliente o método..." selectedCount={receiptTable.selectedIds.length} onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null} onClearSelection={receiptTable.clearSelection} canManage={canManageTreasury} />
+            <div className="treasury-toolbar" style={{ marginTop: -4 }}>
+              <FilterSel value={receiptClientFilter} onChange={setReceiptClientFilter} options={receiptClientOptions} placeholder="Todos los clientes" />
+            </div>
             <PaymentLogTable rows={receiptTable.pageRows} emptyText="Sin pagos recibidos registrados" targetLabel="Documento" counterpartyLabel="Cliente" onEdit={canManageTreasury ? openReceiptEdit : null} onDelete={canManageTreasury ? deleteReceipt : null} selectedIds={receiptTable.selectedIds} toggleSelected={receiptTable.toggleSelected} toggleAll={receiptTable.toggleAll} pageIds={receiptTable.pageIds} />
             <Paginator page={receiptTable.page} total={receiptTable.filteredRows.length} perPage={receiptTable.pageSize} onChange={receiptTable.setPage} />
           </SectionCard>

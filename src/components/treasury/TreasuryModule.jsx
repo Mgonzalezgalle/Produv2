@@ -10,7 +10,7 @@ import {
   SearchBar,
   ViewModeToggle,
 } from "../../lib/ui/components";
-import { fmtD, fmtM, openMailto, openWhatsApp } from "../../lib/utils/helpers";
+import { fmtD, fmtM, fmtMonthPeriod, openMailto, openWhatsApp } from "../../lib/utils/helpers";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
@@ -623,7 +623,7 @@ function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = fa
   );
 }
 
-function ProviderDetailModal({ open, provider, onClose, onSave }) {
+function ProviderDetailModal({ open, provider, paymentRows = [], onClose, onSave }) {
   const [tab, setTab] = useState("documentos");
   const [draft, setDraft] = useState(null);
 
@@ -739,6 +739,20 @@ function ProviderDetailModal({ open, provider, onClose, onSave }) {
         {tab === "pagos" ? (
           <div className="treasury-detail">
             <div className="treasury-section-head" style={{ marginBottom: 10 }}>
+              <div><div className="treasury-detail-title">Historial de pagos</div><div className="treasury-muted" style={{ fontSize: 12 }}>Pagos realizados asociados a los documentos del proveedor.</div></div>
+            </div>
+            <DetailTable
+              columns={[
+                { key: "date", label: "Fecha", render: row => row.date ? fmtD(row.date) : "—" },
+                { key: "targetLabel", label: "Documento" },
+                { key: "method", label: "Método" },
+                { key: "reference", label: "Referencia" },
+                { key: "amount", label: "Monto", render: row => <span className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</span> },
+              ]}
+              rows={paymentRows}
+              emptyText="Todavía no hay pagos registrados para este proveedor"
+            />
+            <div className="treasury-section-head" style={{ marginBottom: 10 }}>
               <div><div className="treasury-detail-title">Datos bancarios</div><div className="treasury-muted" style={{ fontSize: 12 }}>Aquí dejas solo la información bancaria del proveedor. Puedes guardar más de una cuenta.</div></div>
               <GBtn sm onClick={addBank}>+ Agregar cuenta</GBtn>
             </div>
@@ -767,8 +781,10 @@ export function TreasuryModule(props) {
   const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [portfolioItem, setPortfolioItem] = useState(null);
   const [receiptClientFilter, setReceiptClientFilter] = useState("");
+  const [receiptPeriodFilter, setReceiptPeriodFilter] = useState("");
   const [issuedSupplierFilter, setIssuedSupplierFilter] = useState("");
   const [disbursementSupplierFilter, setDisbursementSupplierFilter] = useState("");
+  const [disbursementPeriodFilter, setDisbursementPeriodFilter] = useState("");
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
   const {
     tab, setTab, q, setQ, statusFilter, setStatusFilter, filteredReceivables, receivableSummary, portfolio,
@@ -819,11 +835,20 @@ export function TreasuryModule(props) {
   const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
   const filteredReceiptLog = useMemo(
-    () => receiptLog.filter(row => !receiptClientFilter || row.counterpartyLabel === receiptClientFilter),
-    [receiptLog, receiptClientFilter],
+    () => receiptLog.filter(row => {
+      const rowPeriod = String(row.date || "").slice(0, 7);
+      const matchesClient = !receiptClientFilter || row.counterpartyLabel === receiptClientFilter;
+      const matchesPeriod = !receiptPeriodFilter || rowPeriod === receiptPeriodFilter;
+      return matchesClient && matchesPeriod;
+    }),
+    [receiptLog, receiptClientFilter, receiptPeriodFilter],
   );
   const receiptClientOptions = useMemo(
     () => Array.from(new Set(receiptLog.map(row => row.counterpartyLabel).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [receiptLog],
+  );
+  const receiptPeriodOptions = useMemo(
+    () => Array.from(new Set(receiptLog.map(row => String(row.date || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
     [receiptLog],
   );
   const receiptTable = useTableState(filteredReceiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
@@ -838,15 +863,28 @@ export function TreasuryModule(props) {
   );
   const issuedTable = useTableState(filteredIssuedOrders, { searchFields: [row => row.supplier, row => row.number], pageSize: 6 });
   const filteredDisbursementLog = useMemo(
-    () => disbursementLog.filter(row => !disbursementSupplierFilter || row.counterpartyLabel === disbursementSupplierFilter),
-    [disbursementLog, disbursementSupplierFilter],
+    () => disbursementLog.filter(row => {
+      const rowPeriod = String(row.date || "").slice(0, 7);
+      const matchesSupplier = !disbursementSupplierFilter || row.counterpartyLabel === disbursementSupplierFilter;
+      const matchesPeriod = !disbursementPeriodFilter || rowPeriod === disbursementPeriodFilter;
+      return matchesSupplier && matchesPeriod;
+    }),
+    [disbursementLog, disbursementSupplierFilter, disbursementPeriodFilter],
   );
   const disbursementSupplierOptions = useMemo(
     () => Array.from(new Set(disbursementLog.map(row => row.counterpartyLabel).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
     [disbursementLog],
   );
+  const disbursementPeriodOptions = useMemo(
+    () => Array.from(new Set(disbursementLog.map(row => String(row.date || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
+    [disbursementLog],
+  );
   const disbursementTable = useTableState(filteredDisbursementLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const providerTable = useTableState(providers, { searchFields: [row => row.name, row => row.razonSocial, row => row.rut], pageSize: 6 });
+  const providerPaymentRows = useMemo(() => {
+    if (!providerDraft?.name) return [];
+    return (disbursementLog || []).filter(row => row.counterpartyLabel === providerDraft.name);
+  }, [disbursementLog, providerDraft?.name]);
   const handlePayableUpdate = async (row, patch = {}) => {
     if (!canManageTreasury || !row?.id) return;
     const source = (payables || []).find(item => item.id === row.id) || row;
@@ -957,6 +995,9 @@ export function TreasuryModule(props) {
               <div style={{ width: 240, maxWidth: "100%" }}>
                 <FilterSel value={receiptClientFilter} onChange={setReceiptClientFilter} options={receiptClientOptions} placeholder="Todos los clientes" />
               </div>
+              <div style={{ width: 220, maxWidth: "100%" }}>
+                <FilterSel value={receiptPeriodFilter} onChange={setReceiptPeriodFilter} options={receiptPeriodOptions} placeholder="Todos los períodos" />
+              </div>
               {receiptTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{receiptTable.selectedIds.length} seleccionado{receiptTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
               {canManageTreasury && receiptTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
               {receiptTable.selectedIds.length ? <GBtn sm onClick={receiptTable.clearSelection}>Limpiar selección</GBtn> : null}
@@ -1028,6 +1069,9 @@ export function TreasuryModule(props) {
               <div style={{ width: 240, maxWidth: "100%" }}>
                 <FilterSel value={disbursementSupplierFilter} onChange={setDisbursementSupplierFilter} options={disbursementSupplierOptions} placeholder="Todos los proveedores" />
               </div>
+              <div style={{ width: 220, maxWidth: "100%" }}>
+                <FilterSel value={disbursementPeriodFilter} onChange={setDisbursementPeriodFilter} options={disbursementPeriodOptions} placeholder="Todos los períodos" />
+              </div>
               {disbursementTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{disbursementTable.selectedIds.length} seleccionado{disbursementTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
               {canManageTreasury && disbursementTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(disbursementTable.selectedIds, deleteDisbursement); disbursementTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
               {disbursementTable.selectedIds.length ? <GBtn sm onClick={disbursementTable.clearSelection}>Limpiar selección</GBtn> : null}
@@ -1041,7 +1085,7 @@ export function TreasuryModule(props) {
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
-      <ProviderDetailModal open={providerOpen} provider={providerDraft} onClose={closeProvider} onSave={saveProvider} />
+      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} onClose={closeProvider} onSave={saveProvider} />
     </div>
   );
 }

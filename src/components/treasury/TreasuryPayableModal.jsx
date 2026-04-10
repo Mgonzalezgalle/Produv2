@@ -1,10 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 
-export function TreasuryPayableModal({ open, data, onClose, onSave }) {
+export function TreasuryPayableModal({ open, data, providers = [], onClose, onSave }) {
   const [form, setForm] = useState({});
   const fileRef = useRef(null);
+  const providerOptions = useMemo(
+    () => (Array.isArray(providers) ? providers : [])
+      .map(provider => String(provider?.name || "").trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b)),
+    [providers],
+  );
 
   useEffect(() => {
     setForm(data?.id ? { ...data } : {
@@ -43,7 +50,12 @@ export function TreasuryPayableModal({ open, data, onClose, onSave }) {
   return (
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar cuenta por pagar" : "Nueva cuenta por pagar"} sub="Registra un documento manual y adjunta su respaldo PDF">
       <R2>
-        <FG label="Proveedor *"><FI value={form.supplier || ""} onChange={e => setField("supplier", e.target.value)} placeholder="Nombre proveedor" /></FG>
+        <FG label="Proveedor *">
+          <FSl value={form.supplier || ""} onChange={e => setField("supplier", e.target.value)}>
+            <option value="">Seleccionar proveedor...</option>
+            {providerOptions.map(option => <option key={option} value={option}>{option}</option>)}
+          </FSl>
+        </FG>
         <FG label="Folio / Documento"><FI value={form.folio || ""} onChange={e => setField("folio", e.target.value)} placeholder="OC-203 / Fact 8821" /></FG>
       </R2>
       <R2>

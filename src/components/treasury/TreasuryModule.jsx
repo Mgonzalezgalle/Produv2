@@ -951,7 +951,7 @@ export function TreasuryModule(props) {
             <PaymentLogTable rows={disbursementTable.pageRows} emptyText="Sin pagos realizados registrados" targetLabel="Cuenta" onEdit={canManageTreasury ? openDisbursementEdit : null} onDelete={canManageTreasury ? deleteDisbursement : null} selectedIds={disbursementTable.selectedIds} toggleSelected={disbursementTable.toggleSelected} toggleAll={disbursementTable.toggleAll} pageIds={disbursementTable.pageIds} />
             <Paginator page={disbursementTable.page} total={disbursementTable.filteredRows.length} perPage={disbursementTable.pageSize} onChange={disbursementTable.setPage} />
           </SectionCard>
-          <TreasuryPayableModal open={payableOpen} data={payableDraft} onClose={closePayable} onSave={savePayable} />
+          <TreasuryPayableModal open={payableOpen} data={payableDraft} providers={providers} onClose={closePayable} onSave={savePayable} />
           <TreasuryIssuedOrderModal open={issuedOpen} data={issuedDraft} onClose={closeIssuedOrder} onSave={saveIssuedOrder} />
           <TreasuryPaymentModal open={disbursementOpen} title="Registrar pago realizado" subtitle="Asocia el pago a la cuenta por pagar correspondiente" data={disbursementDraft} onClose={closeDisbursement} onSave={saveDisbursement} />
         </>

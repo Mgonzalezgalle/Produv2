@@ -313,7 +313,7 @@ export function buildTreasuryPurchaseOrders({ orders = [], facturas = [], client
               ? "Facturado parcial"
               : "Facturado pendiente"
           : "Sin facturar",
-        status: pendingAmount <= 0 ? "Conciliada" : linkedInvoices.length ? "Parcial" : "Pendiente",
+        reconciliationStatus: pendingAmount <= 0 ? "Conciliada" : linkedInvoices.length ? "Parcial" : "Pendiente",
       };
     })
     .sort((a, b) => String(a.issueDate || "9999-99-99").localeCompare(String(b.issueDate || "9999-99-99")));

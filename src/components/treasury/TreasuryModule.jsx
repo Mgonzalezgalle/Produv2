@@ -579,7 +579,7 @@ function ProvidersPanel({
         <>
           <div className="treasury-list">
             <div className="treasury-list-row treasury-list-head">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} />Proveedor</div><div>Documentos</div><div>OC emitidas</div><div>Total deuda</div><div>Pendiente</div><div></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} />Proveedor</div><div>Documentos</div><div>OC emitidas</div><div>Cartera Proveedor</div><div>Pendiente</div><div></div>
             </div>
             {pageRows.map(provider => (
               <div key={provider.id} className="treasury-list-row" onClick={() => onOpen(provider)}>

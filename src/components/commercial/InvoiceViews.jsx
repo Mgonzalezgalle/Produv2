@@ -61,6 +61,8 @@ import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
 import { useLabInvoiceList } from "../../hooks/useLabInvoiceList";
 import { dbGet } from "../../hooks/useLabDataStore";
+import { buildTreasuryPurchaseOrders, summarizePurchaseOrders } from "../../lib/utils/treasury";
+import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderModal";
 
 const commercialPdfDeps = createCommercialPdfDeps({
   dbGet,
@@ -207,7 +209,7 @@ export function InvoiceCollectionSection({
   </Card>;
 }
 
-export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, ntf }) {
+export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, ntf, treasury = {} }) {
   const canEdit = canDo && canDo("facturacion");
   const canPres = Array.isArray(empresa?.addons) && empresa.addons.includes("presupuestos");
   const canContracts = Array.isArray(empresa?.addons) && empresa.addons.includes("contratos");
@@ -244,6 +246,62 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   });
 
   const cobranzaSourceDocs = allDocs.filter(f => ["Invoice", "Factura"].includes(f.tipoDoc || "Orden de Factura"));
+  const purchaseOrders = React.useMemo(
+    () => buildTreasuryPurchaseOrders({
+      orders: treasury.purchaseOrders || [],
+      facturas: allDocs,
+      clientes,
+      receipts: treasury.receipts || [],
+      empId: empresa?.id,
+    }),
+    [treasury.purchaseOrders, allDocs, clientes, treasury.receipts, empresa?.id],
+  );
+  const purchaseOrderSummary = React.useMemo(() => summarizePurchaseOrders(purchaseOrders), [purchaseOrders]);
+  const [poOpen, setPoOpen] = React.useState(false);
+  const [poDraft, setPoDraft] = React.useState(null);
+  const [poQuery, setPoQuery] = React.useState("");
+  const [poStatus, setPoStatus] = React.useState("");
+  const [poDocTarget, setPoDocTarget] = React.useState(null);
+  const [poDocType, setPoDocType] = React.useState("Factura");
+  const filteredPurchaseOrders = React.useMemo(() => {
+    const term = String(poQuery || "").trim().toLowerCase();
+    return purchaseOrders.filter(row => {
+      const matchesTerm = !term || [row.clientName, row.number].some(value => String(value || "").toLowerCase().includes(term));
+      const matchesStatus = !poStatus || row.status === poStatus;
+      return matchesTerm && matchesStatus;
+    });
+  }, [purchaseOrders, poQuery, poStatus]);
+  const savePurchaseOrder = async next => {
+    if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
+    const list = Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : [];
+    const exists = list.some(item => item.id === next.id);
+    const updated = exists ? list.map(item => item.id === next.id ? { ...next, empId: empresa?.id } : item) : [...list, { ...next, empId: empresa?.id }];
+    await treasury.setPurchaseOrders(updated);
+    setPoOpen(false);
+    setPoDraft(null);
+    return true;
+  };
+  const deletePurchaseOrder = async id => {
+    if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
+    await treasury.setPurchaseOrders((Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : []).filter(item => item.id !== id));
+    return true;
+  };
+  const createDocFromPurchaseOrder = () => {
+    if (!poDocTarget) return;
+    openM("fact", {
+      tipoDoc: poDocType,
+      tipo: "cliente",
+      entidadId: poDocTarget.clientId || "",
+      montoNeto: Number(poDocTarget.amount || 0),
+      fechaEmision: today(),
+      fechaVencimiento: "",
+      estado: "Emitida",
+      cobranzaEstado: "Pendiente de pago",
+      obs: `Documento creado desde OC ${poDocTarget.number || ""}`.trim(),
+      treasuryPurchaseOrderId: poDocTarget.id,
+    });
+    setPoDocTarget(null);
+  };
 
   const {
     tab,
@@ -306,7 +364,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Emitidos / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`atrasadas: ${vencidas}`}/>
     </div>
-    <Tabs tabs={["Emisión","Recurrencias"]} active={Math.min(tab,1)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
+    <Tabs tabs={["Emisión","Órdenes de Compra Recibidas","Recurrencias"]} active={Math.min(tab,2)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
     <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
       ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners. El seguimiento de cobranza y pagos ahora se gestiona desde <b>Tesorería → Cuentas por Cobrar</b>.
     </div>
@@ -329,7 +387,52 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       onOpenPdf={async(f, ent, ref)=>{await generateBillingPdf(f, ent, ref, empresa, commercialPdfDeps);}}
       canPres={canPres} canContracts={canContracts}
     />}
-    {tab===1 && <Card title="Recurrencias" sub="Administra series activas sin mezclar emisión ni cobro">
+    {tab===1 && <Card title="Órdenes de Compra Recibidas" sub="Gestiona las OC del cliente desde Facturación y crea el documento comercial cuando la OC esté aceptada">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:18}}>
+        <Stat label="OC recibidas" value={purchaseOrderSummary.docs} accent="var(--cy)" vc="var(--cy)"/>
+        <Stat label="Monto OC" value={fmtM(purchaseOrderSummary.total)} accent="#00e08a" vc="#00e08a"/>
+        <Stat label="Pendiente Match" value={fmtM(purchaseOrderSummary.pending)} accent="#ffcc44" vc="#ffcc44"/>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={poQuery} onChange={setPoQuery} placeholder="Buscar OC o cliente..." />
+        <FilterSel value={poStatus} onChange={setPoStatus} options={["Pendiente","Aceptada","Rechazada","Parcial","Conciliada"]} placeholder="Todos los estados OC" />
+        {canEdit && <button onClick={()=>{setPoDraft(null);setPoOpen(true);}} style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--cy)",background:"var(--cy)",color:"#051018",fontWeight:800,cursor:"pointer"}}>+ Nueva OC</button>}
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Cliente</TH><TH>OC</TH><TH>Fecha</TH><TH>Estado OC</TH><TH>Estado factura</TH><TH>Monto</TH><TH>Pendiente</TH><TH></TH></tr></thead>
+          <tbody>
+            {filteredPurchaseOrders.map(row => <tr key={row.id}>
+              <TD style={{fontWeight:700}}>{row.clientName}</TD>
+              <TD>{row.number}</TD>
+              <TD>{row.issueDate ? fmtD(row.issueDate) : "—"}</TD>
+              <TD><Badge label={row.status || "Pendiente"} /></TD>
+              <TD><Badge label={row.billingStatus} /></TD>
+              <TD style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(row.amount)}</TD>
+              <TD style={{fontFamily:"var(--fm)",color:row.pendingAmount>0?"#ffcc44":"#00e08a"}}>{fmtM(row.pendingAmount)}</TD>
+              <TD>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                  {canEdit && <GBtn sm onClick={()=>{setPoDraft(row);setPoOpen(true);}}>Editar</GBtn>}
+                  {canEdit && <DBtn sm onClick={()=>deletePurchaseOrder(row.id)}>Eliminar</DBtn>}
+                  {canEdit && row.status === "Aceptada" && <GBtn sm onClick={()=>{setPoDocTarget(row);setPoDocType("Factura");}}>Crear documento</GBtn>}
+                </div>
+              </TD>
+            </tr>)}
+            {!filteredPurchaseOrders.length && <tr><td colSpan={8}><Empty text="Sin órdenes de compra recibidas" sub="Registra una OC y, cuando esté aceptada, podrás crear Factura, Orden de Factura o Invoice." /></td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <TreasuryPurchaseOrderModal open={poOpen} data={poDraft} clientes={clientes} facturas={allDocs} onClose={()=>{setPoOpen(false);setPoDraft(null);}} onSave={savePurchaseOrder} />
+      <Modal open={!!poDocTarget} onClose={()=>setPoDocTarget(null)} title="Crear documento desde OC" sub={poDocTarget ? `OC ${poDocTarget.number}` : ""}>
+        <FG label="Tipo de documento">
+          <FSl value={poDocType} onChange={e=>setPoDocType(e.target.value)}>
+            {["Factura","Orden de Factura","Invoice"].map(type => <option key={type} value={type}>{type}</option>)}
+          </FSl>
+        </FG>
+        <MFoot onClose={()=>setPoDocTarget(null)} onSave={createDocFromPurchaseOrder} label="Crear documento" />
+      </Modal>
+    </Card>}
+    {tab===2 && <Card title="Recurrencias" sub="Administra series activas sin mezclar emisión ni cobro">
       {seriesList.length ? <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Serie</TH><TH>Entidad</TH><TH>Estado</TH><TH>Meses</TH><TH>Próximo</TH><TH>Proyección</TH><TH></TH></tr></thead>

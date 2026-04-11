@@ -6,6 +6,8 @@ export function useLabCommercialDocs({
   movimientos,
   setFacturas,
   setMovimientos,
+  treasuryPurchaseOrders,
+  setTreasuryPurchaseOrders,
   closeM,
   ntf,
   cobranzaState,
@@ -93,6 +95,23 @@ export function useLabCommercialDocs({
     const nextFacts = Array.from(itemsById.values());
     await setFacturas(nextFacts);
 
+    const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
+    if (createdItems.length && typeof setTreasuryPurchaseOrders === "function") {
+      const createdByOrder = createdItems.reduce((acc, item) => {
+        const key = item.treasuryPurchaseOrderId;
+        if (!key) return acc;
+        acc.set(key, [...(acc.get(key) || []), item.id]);
+        return acc;
+      }, new Map());
+      const nextOrders = (Array.isArray(treasuryPurchaseOrders) ? treasuryPurchaseOrders : []).map(order => {
+        const extraIds = createdByOrder.get(order.id);
+        if (!extraIds?.length) return order;
+        const linkedInvoiceIds = Array.from(new Set([...(Array.isArray(order.linkedInvoiceIds) ? order.linkedInvoiceIds : []), ...extraIds]));
+        return { ...order, linkedInvoiceIds };
+      });
+      await setTreasuryPurchaseOrders(nextOrders);
+    }
+
     let nextMovs = Array.isArray(movimientos) ? [...movimientos] : [];
     series.forEach((item) => {
       const targetEt = item.tipoRef === "produccion" ? "pro" : item.tipoRef === "programa" ? "pg" : item.tipoRef === "contenido" ? "pz" : "";
@@ -132,7 +151,9 @@ export function useLabCommercialDocs({
     ntf,
     setFacturas,
     setMovimientos,
+    setTreasuryPurchaseOrders,
     today,
+    treasuryPurchaseOrders,
     uid,
   ]);
 

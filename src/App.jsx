@@ -676,6 +676,8 @@ export default function App(){
     movimientos,
     setFacturas,
     setMovimientos,
+    treasuryPurchaseOrders,
+    setTreasuryPurchaseOrders,
     closeM,
     ntf,
     cobranzaState,
@@ -764,7 +766,7 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:domainUsers,empresas:domainEmpresas,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,fmtM,fmtD,canDo:(a)=>canDo(curUser,a,curEmp)};
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:domainUsers,empresas:domainEmpresas,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,fmtM,fmtD,canDo:(a)=>canDo(curUser,a,curEmp),treasury:treasuryProps};
   const treasuryProps={
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,

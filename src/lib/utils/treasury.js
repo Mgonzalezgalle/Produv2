@@ -72,8 +72,8 @@ export function buildSeedTreasuryData(empId = "") {
       { id: "tp2", empId, supplier: "Servicios Post Uno", folio: "SPU-882", category: "Servicio", issueDate: "2026-03-20", dueDate: "2026-04-02", total: 720000, paid: 220000, status: "Parcial", pdfName: "post-marzo.pdf", pdfUrl: "", notes: "Saldo pendiente edición final" },
     ] : [],
     treasuryPurchaseOrders: empId === "emp1" ? [
-      { id: "po1", empId, clientId: "c1", number: "OC-BS-2026-14", issueDate: "2026-04-02", amount: 4200000, linkedInvoiceIds: [], pdfName: "oc-bancoseguro.pdf", pdfUrl: "", notes: "Campaña invierno 2026" },
-      { id: "po2", empId, clientId: "c3", number: "OC-EF-2026-03", issueDate: "2026-03-28", amount: 1800000, linkedInvoiceIds: [], pdfName: "oc-edufutura.pdf", pdfUrl: "", notes: "Servicio contenido mensual" },
+      { id: "po1", empId, clientId: "c1", number: "OC-BS-2026-14", issueDate: "2026-04-02", amount: 4200000, status: "Aceptada", linkedInvoiceIds: [], pdfName: "oc-bancoseguro.pdf", pdfUrl: "", notes: "Campaña invierno 2026" },
+      { id: "po2", empId, clientId: "c3", number: "OC-EF-2026-03", issueDate: "2026-03-28", amount: 1800000, status: "Pendiente", linkedInvoiceIds: [], pdfName: "oc-edufutura.pdf", pdfUrl: "", notes: "Servicio contenido mensual" },
     ] : [],
     treasuryIssuedOrders: empId === "emp1" ? [
       { id: "io1", empId, supplier: "Arriendos Providencia", number: "OC-AP-2026-05", issueDate: "2026-04-05", amount: 450000, pdfName: "oc-arriendo.pdf", pdfUrl: "", notes: "Arriendo abril" },
@@ -298,6 +298,7 @@ export function buildTreasuryPurchaseOrders({ orders = [], facturas = [], client
       return {
         ...item,
         amount,
+        status: item.status || "Pendiente",
         clientName: client?.nom || item.clientName || "Cliente no encontrado",
         linkedInvoiceIds,
         linkedInvoices: linkedInvoicesDetailed,

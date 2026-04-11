@@ -1030,27 +1030,6 @@ export function TreasuryModule(props) {
             <PortfolioTable rows={portfolioTable.pageRows} onOpen={openPortfolioDetail} selectedIds={portfolioTable.selectedIds} toggleSelected={portfolioTable.toggleSelected} toggleAll={portfolioTable.toggleAll} pageIds={portfolioTable.pageIds} />
             <Paginator page={portfolioTable.page} total={portfolioTable.filteredRows.length} perPage={portfolioTable.pageSize} onChange={portfolioTable.setPage} />
           </SectionCard>
-          <SectionCard title="Órdenes de Compra Recibidas" subtitle="Aquí ves si la OC fue facturada, qué factura quedó ligada y si esa factura ya fue pagada" action={canManageTreasury ? <GBtn onClick={openPurchaseOrderCreate}>+ Nueva OC</GBtn> : null} withTopBorder>
-            <div className="treasury-compact-grid">
-              <MiniKpiCard color="var(--cy)" label="OC recibidas" value={purchaseOrderSummary.docs} />
-              <MiniKpiCard color="#00e08a" label="Monto OC" value={fmtM(purchaseOrderSummary.total)} />
-              <MiniKpiCard color="#ffcc44" label="Pendiente Match ⚠" value={fmtM(purchaseOrderSummary.pending)} />
-            </div>
-            <TableToolbar
-              searchValue={poTable.query}
-              onSearchChange={poTable.setQuery}
-              searchPlaceholder="Buscar OC o cliente..."
-              statusValue={poTable.status}
-              onStatusChange={poTable.setStatus}
-              statusOptions={poTable.statusOptions}
-              selectedCount={poTable.selectedIds.length}
-              onDeleteSelected={canManageTreasury ? async () => { await deleteMany(poTable.selectedIds, deletePurchaseOrder); poTable.clearSelection(); } : null}
-              onClearSelection={poTable.clearSelection}
-              canManage={canManageTreasury}
-            />
-            <PurchaseOrdersTable rows={poTable.pageRows} onEdit={canManageTreasury ? openPurchaseOrderEdit : () => {}} onDelete={canManageTreasury ? deletePurchaseOrder : () => {}} selectedIds={poTable.selectedIds} toggleSelected={poTable.toggleSelected} toggleAll={poTable.toggleAll} pageIds={poTable.pageIds} />
-            <Paginator page={poTable.page} total={poTable.filteredRows.length} perPage={poTable.pageSize} onChange={poTable.setPage} />
-          </SectionCard>
           <SectionCard title="Pagos recibidos" subtitle="Registro manual y editable de pagos efectivos en cuentas por cobrar">
             <div className="treasury-toolbar">
               <div style={{ flex: "1 1 320px", minWidth: 260 }}>

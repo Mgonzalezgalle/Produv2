@@ -26,12 +26,11 @@ export function useLabCommercialDocs({
       des: d?.des ?? d?.desc ?? "",
       fec: d?.fec ?? d?.fecha ?? today(),
     };
-    const next = [...(movimientos || []), item];
+    await setMovimientos(prev => [...(Array.isArray(prev) ? prev : []), item]);
     closeM();
     ntf("Registrado ✓");
-    await setMovimientos(next);
     return true;
-  }, [canManageMovements, closeM, curEmp?.id, movimientos, ntf, setMovimientos, today, uid]);
+  }, [canManageMovements, closeM, curEmp?.id, ntf, setMovimientos, today, uid]);
 
   const delMov = useCallback(async (id) => {
     if (!canManageMovements) return false;

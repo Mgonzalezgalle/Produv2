@@ -816,6 +816,8 @@ export function TreasuryModule(props) {
   const [portfolioItem, setPortfolioItem] = useState(null);
   const [receiptClientFilter, setReceiptClientFilter] = useState("");
   const [receiptPeriodFilter, setReceiptPeriodFilter] = useState("");
+  const [payableSupplierFilter, setPayableSupplierFilter] = useState("");
+  const [payablePeriodFilter, setPayablePeriodFilter] = useState("");
   const [issuedSupplierFilter, setIssuedSupplierFilter] = useState("");
   const [disbursementSupplierFilter, setDisbursementSupplierFilter] = useState("");
   const [disbursementPeriodFilter, setDisbursementPeriodFilter] = useState("");
@@ -886,7 +888,24 @@ export function TreasuryModule(props) {
     [receiptLog],
   );
   const receiptTable = useTableState(filteredReceiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
-  const payableTable = useTableState(payables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
+  const filteredPayables = useMemo(
+    () => payables.filter(row => {
+      const rowPeriod = String(row.issueDate || row.dueDate || "").slice(0, 7);
+      const matchesSupplier = !payableSupplierFilter || row.supplier === payableSupplierFilter;
+      const matchesPeriod = !payablePeriodFilter || rowPeriod === payablePeriodFilter;
+      return matchesSupplier && matchesPeriod;
+    }),
+    [payables, payableSupplierFilter, payablePeriodFilter],
+  );
+  const payableSupplierOptions = useMemo(
+    () => Array.from(new Set(payables.map(row => row.supplier).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [payables],
+  );
+  const payablePeriodOptions = useMemo(
+    () => Array.from(new Set(payables.map(row => String(row.issueDate || row.dueDate || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
+    [payables],
+  );
+  const payableTable = useTableState(filteredPayables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
   const filteredIssuedOrders = useMemo(
     () => issuedOrders.filter(row => !issuedSupplierFilter || row.supplier === issuedSupplierFilter),
     [issuedOrders, issuedSupplierFilter],
@@ -1069,6 +1088,14 @@ export function TreasuryModule(props) {
                   createAction={<div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{<GBtn onClick={() => exportTreasuryPayablesCSV(payableTable.filteredRows, `cuentas_por_pagar_${props.empresa?.nom || "produ"}`)}>⬇ Excel / CSV</GBtn>}{canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}</div>}
                   canManage={canManageTreasury}
                 />
+                <div className="treasury-toolbar" style={{ marginTop: -6 }}>
+                  <div style={{ width: 240, maxWidth: "100%" }}>
+                    <FilterSel value={payableSupplierFilter} onChange={setPayableSupplierFilter} options={payableSupplierOptions} placeholder="Todos los proveedores" />
+                  </div>
+                  <div style={{ width: 220, maxWidth: "100%" }}>
+                    <FilterSel value={payablePeriodFilter} onChange={setPayablePeriodFilter} options={payablePeriodOptions} placeholder="Todos los períodos" />
+                  </div>
+                </div>
                 <PayablesTable rows={payableTable.pageRows} providers={providers} onAddPayment={canManageTreasury ? openDisbursementCreate : () => {}} onEdit={canManageTreasury ? openPayableEdit : () => {}} onDelete={canManageTreasury ? deletePayable : () => {}} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} canManage={canManageTreasury} selectedIds={payableTable.selectedIds} toggleSelected={payableTable.toggleSelected} toggleAll={payableTable.toggleAll} pageIds={payableTable.pageIds} />
                 <Paginator page={payableTable.page} total={payableTable.filteredRows.length} perPage={payableTable.pageSize} onChange={payableTable.setPage} />
               </>

@@ -285,6 +285,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     if (!row || !status) return false;
     return savePurchaseOrder({ ...row, status });
   };
+  const isAcceptedPurchaseOrder = row => String(row?.status || "").trim().toLowerCase() === "aceptada";
   const deletePurchaseOrder = async id => {
     if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
     await treasury.setPurchaseOrders((Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : []).filter(item => item.id !== id));
@@ -424,7 +425,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                   {canEdit && <GBtn sm onClick={()=>{setPoDraft(row);setPoOpen(true);}}>Editar</GBtn>}
                   {canEdit && <DBtn sm onClick={()=>deletePurchaseOrder(row.id)}>Eliminar</DBtn>}
-                  {canEdit && row.status === "Aceptada" && <GBtn sm onClick={()=>{setPoDocTarget(row);setPoDocType("Factura");}}>Crear documento</GBtn>}
+                  {canEdit && isAcceptedPurchaseOrder(row) && <GBtn sm onClick={()=>{setPoDocTarget(row);setPoDocType("Factura");}}>Crear documento</GBtn>}
                 </div>
               </TD>
             </tr>)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2 } from "../../lib/ui/components";
+import { FG, FI, FTA, MFoot, Modal, MultiSelect, R2 } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 
 export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onClose, onSave }) {
@@ -60,13 +60,6 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
         <FG label="Fecha OC"><FI type="date" value={form.issueDate || ""} onChange={e => setField("issueDate", e.target.value)} /></FG>
         <FG label="Monto total *"><FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" /></FG>
       </R2>
-      <FG label="Estado OC">
-        <FSl value={form.status || "Pendiente"} onChange={e => setField("status", e.target.value)}>
-          <option value="Pendiente">Pendiente</option>
-          <option value="Aceptada">Aceptada</option>
-          <option value="Rechazada">Rechazada</option>
-        </FSl>
-      </FG>
       <FG label="Facturas asociadas">
         <MultiSelect
           options={invoiceOptions}
@@ -92,6 +85,7 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
           if (!Number(form.amount || 0)) return;
           onSave({
             ...form,
+            status: data?.id ? (form.status || "Pendiente") : "Pendiente",
             amount: Number(form.amount || 0),
           });
         }}

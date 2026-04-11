@@ -32,9 +32,11 @@ function parseTarifa(t) {
 }
 
 function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, ini, fmtM }) {
-  const todos = (crew || []).filter(x => x.empId === empId);
-  const asig = todos.filter(x => asignados.includes(x.id));
-  const disp = todos.filter(x => !asignados.includes(x.id) && x.active !== false);
+  const safeCrew = (Array.isArray(crew) ? crew : []).filter(x => x && typeof x === "object" && x.id);
+  const safeAssigned = Array.isArray(asignados) ? asignados.filter(Boolean) : [];
+  const todos = safeCrew.filter(x => x.empId === empId);
+  const asig = todos.filter(x => safeAssigned.includes(x.id));
+  const disp = todos.filter(x => !safeAssigned.includes(x.id) && x.active !== false);
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
     <Card title={`Crew Asignado (${asig.length})`}>
       {asig.length ? asig.map(m => <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}>

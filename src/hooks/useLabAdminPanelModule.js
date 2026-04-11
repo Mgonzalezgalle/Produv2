@@ -85,14 +85,13 @@ export function useLabAdminPanelModule({
   const referralHistory = Array.isArray(safeCompanyReferralDiscountHistory(empresa))
     ? safeCompanyReferralDiscountHistory(empresa).filter(Boolean)
     : [];
-  const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Referidos", "Datos"];
+  const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Datos"];
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",
     "Usuarios": "Gestiona usuarios del tenant, accesos, roles base y pertenencia al crew interno.",
     "Empresa": "Actualiza branding, datos societarios, bancarios y configuración general de la empresa.",
     "Listas": "Administra opciones desplegables y taxonomías visibles en formularios operativos.",
     "Roles y Permisos": "Crea roles propios por empresa y define acceso granular por módulo.",
-    "Referidos": "Comparte tu código, monitorea activaciones y revisa meses bonificados.",
     "Datos": "Acciones críticas sobre la data del tenant y restauración controlada.",
   };
   const activeAdminTab = ADMIN_TABS[tab];

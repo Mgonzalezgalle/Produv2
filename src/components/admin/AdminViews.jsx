@@ -978,7 +978,7 @@ export function AdminPanel({
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "var(--cy)" }}>{activeUsers}</div></div>
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Plan</div><div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800, color: "var(--wh)" }}>{String(empresa?.plan || "—").toUpperCase()}</div></div>
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Addons</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#00e08a" }}>{(empresa?.addons || []).length}</div></div>
-          <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Referidos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#a855f7" }}>{Array.isArray(referredSols) ? referredSols.length : 0}</div></div>
+          <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios inactivos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#ffcc44" }}>{inactiveUsers}</div></div>
         </div>
       </div>
       <div style={{ padding: 10, borderRadius: 18, border: "1px solid var(--bdr2)", background: "var(--sur)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)" }}>
@@ -1070,80 +1070,7 @@ export function AdminPanel({
     {tab===2&&empresa&&<EmpresaEdit empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} addons={addons} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} canManageAdmin={canManageAdmin}/>}
     {tab===3&&<ListasEditor listas={listas} saveListas={saveListas} defaultListas={defaultListas}/>}
     {tab===4&&empresa&&<RolesEditor empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} uid={uid} canManageAdmin={canManageAdmin}/>}
-    {tab===5&&<TaskErrorBoundary title="Referidos">
-    <div>
-      <div style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16}}>
-        <Card title="Programa de referidos" sub="Comparte tu código y acumula meses de descuento">
-          <div style={{padding:14,borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:14}}>
-            <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Tu código</div>
-            <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
-              <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:800,color:"var(--cy)"}}>{empresa?.referralCode||"—"}</div>
-              <GBtn sm onClick={() => {
-                try {
-                  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(empresa?.referralCode || "");
-                  ntf("Código copiado ✓");
-                } catch {}
-              }}>Copiar</GBtn>
-            </div>
-            <div style={{fontSize:12,color:"var(--gr2)",marginTop:8,lineHeight:1.6}}>Cada empresa activada con tu código suma 1 mes de descuento potencial para tu mensualidad en Produ.</div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
-            <Stat label="Créditos" value={Number(empresa?.referralCredits || 0)} sub="Meses acumulados" accent="var(--cy)"/>
-            <Stat label="Pendientes" value={Number(safeCompanyReferralDiscountMonthsPending(empresa) || 0)} sub="Meses por aplicar" accent="#60a5fa" vc="#60a5fa"/>
-            <Stat label="Referidos" value={Array.isArray(referredSols) ? referredSols.length : 0} sub="Solicitudes asociadas" accent="#a855f7" vc="#a855f7"/>
-            <Stat label="Activados" value={Array.isArray(referredSols) ? referredSols.filter(sol=>referralStatus(sol)==="Activado").length : 0} sub="Ya operativos" accent="#00e08a" vc="#00e08a"/>
-          </div>
-        </Card>
-        <Card title="Cómo funciona" sub="Simple y visible para tu equipo admin">
-          <div style={{display:"grid",gap:10,fontSize:12,color:"var(--gr3)",lineHeight:1.7}}>
-            <div>1. Comparte tu código de referido con otra empresa interesada.</div>
-            <div>2. Esa empresa solicita acceso desde el login de Produ.</div>
-            <div>3. Cuando el Super Admin la activa, se acredita 1 mes de descuento en tu cuenta.</div>
-          </div>
-        </Card>
-      </div>
-      <Card title="Seguimiento de referidos" sub="Estado de cada empresa referida" style={{marginTop:16}}>
-        <div style={{display:"grid",gap:8}}>
-          {(Array.isArray(referredSols) ? referredSols : []).map(sol=>{
-            const status=referralStatus(sol);
-            const tone=status==="Activado"?"green":status==="Tenant creado"?"cyan":"yellow";
-            return <div key={sol.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700}}>{String(sol.emp || "Empresa sin nombre")}</div>
-                <div style={{fontSize:11,color:"var(--gr2)"}}>{[String(sol.nom || "Sin contacto"), String(sol.ema || "Sin correo")].join(" · ")}</div>
-                <div style={{fontSize:11,color:"var(--gr3)",marginTop:4}}>{sol.fecha ? String(fmtD(sol.fecha)) : "Sin fecha"} · {String(sol.customerType || "productora")} · {String(sol.teamSize || "—")}</div>
-              </div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                <Badge label="Referido" color="purple" sm/>
-                <Badge label={status} color={tone} sm/>
-              </div>
-            </div>;
-          })}
-          {!(Array.isArray(referredSols) ? referredSols.length : 0)&&<Empty text="Todavía no tienes referidos registrados" sub="Comparte tu código desde esta vista para comenzar a generar descuentos."/>}
-        </div>
-      </Card>
-      <Card title="Historial de descuentos" sub="Trazabilidad de meses acreditados y aplicados" style={{marginTop:16}}>
-        <div style={{display:"grid",gap:8}}>
-          {(Array.isArray(referralHistory) ? referralHistory : []).map(item=>{
-            const earned=item.type==="earned";
-            return <div key={item.id||`${item.type}-${item.date}-${item.sourceEmpId||""}`} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:"var(--wh)"}}>{earned ? "Mes gratis acreditado" : "Mes gratis aplicado"}</div>
-                <div style={{fontSize:11,color:"var(--gr2)",marginTop:4,lineHeight:1.6}}>{String(item.note || (earned ? "Se acreditó un beneficio por referido." : "Se aplicó un beneficio de referido al cobro mensual."))}</div>
-                {earned && item.sourceEmpName && <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Referido: {String(item.sourceEmpName)}</div>}
-              </div>
-              <div style={{display:"grid",justifyItems:"end",gap:6,flexShrink:0}}>
-                <Badge label={earned ? "Acreditado" : "Aplicado"} color={earned ? "cyan" : "green"} sm/>
-                <div style={{fontSize:11,color:"var(--gr2)"}}>{item.date ? String(fmtD(item.date)) : "Sin fecha"}</div>
-              </div>
-            </div>;
-          })}
-          {!(Array.isArray(referralHistory) ? referralHistory.length : 0)&&<Empty text="Todavía no hay movimientos de descuento" sub="Aquí verás cuándo se acredita y cuándo se consume cada mes gratis por referidos."/>}
-        </div>
-      </Card>
-    </div>
-    </TaskErrorBoundary>}
-    {tab===6&&<div>
+    {tab===5&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Acciones sobre la base de datos de esta empresa.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         {!releaseMode

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   FG,
   FI,
@@ -62,12 +62,34 @@ export function MCt({open,data,empresa,clientes,producciones,programas,piezas,pr
 
 export function MMov({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
+  const formRef = useRef(null);
   useEffect(()=>{setF({tipo:data?.tipo||"ingreso",mon:"",des:"",cat:"General",fec:today(),not:"",eid:data?.eid||"",et:data?.et||""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  const handleSave = () => {
+    const formData = formRef.current ? new FormData(formRef.current) : null;
+    const tipo = String(formData?.get("tipo") ?? f.tipo ?? data?.tipo ?? "ingreso");
+    const monRaw = String(formData?.get("mon") ?? f.mon ?? "");
+    const des = String(formData?.get("des") ?? f.des ?? "");
+    const cat = String(formData?.get("cat") ?? f.cat ?? "General");
+    const fec = String(formData?.get("fec") ?? f.fec ?? today());
+    if (!monRaw || !des.trim()) return;
+    onSave({
+      ...f,
+      tipo,
+      mon: Number(monRaw),
+      des,
+      cat,
+      fec,
+      eid: f.eid || data?.eid || "",
+      et: f.et || data?.et || "",
+    });
+  };
   return <Modal open={open} onClose={onClose} title="Registrar Movimiento" sub="Ingreso o gasto">
-    <R2><FG label="Tipo *"><FSl value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option></FSl></FG><FG label="Monto (CLP) *"><FI type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
-    <FG label="Descripción *"><FI value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Ej: Pago cuota 1, Arriendo..."/></FG>
-    <R2><FG label="Categoría"><FSl value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
-    <MFoot onClose={onClose} onSave={()=>{if(!f.mon||!f.des?.trim())return;onSave({...f,mon:Number(f.mon)});}} label="Registrar"/>
+    <form ref={formRef} onSubmit={e => { e.preventDefault(); handleSave(); }}>
+      <R2><FG label="Tipo *"><FSl name="tipo" value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option></FSl></FG><FG label="Monto (CLP) *"><FI name="mon" type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
+      <FG label="Descripción *"><FI name="des" value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Ej: Pago cuota 1, Arriendo..."/></FG>
+      <R2><FG label="Categoría"><FSl name="cat" value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI name="fec" type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
+      <MFoot onClose={onClose} onSave={handleSave} label="Registrar"/>
+    </form>
   </Modal>;
 }

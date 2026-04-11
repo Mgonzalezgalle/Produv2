@@ -766,7 +766,6 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:domainUsers,empresas:domainEmpresas,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,fmtM,fmtD,canDo:(a)=>canDo(curUser,a,curEmp),treasury:treasuryProps};
   const treasuryProps={
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,
@@ -781,6 +780,7 @@ export default function App(){
     disbursements:treasuryDisbursements||[],
     setDisbursements:setTreasuryDisbursements,
   };
+  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:domainUsers,empresas:domainEmpresas,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,fmtM,fmtD,canDo:(a)=>canDo(curUser,a,curEmp),treasury:treasuryProps};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
   const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
   const exportMovCsvHelper = useCallback((movs, nombre) => exportMovCSV(movs, nombre), []);

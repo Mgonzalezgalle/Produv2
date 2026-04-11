@@ -136,6 +136,7 @@ export function EmpresaEdit({
       ema: empresa.ema || "",
       tel: empresa.tel || "",
       dir: empresa.dir || "",
+      logo: empresa.logo || "",
       bankInfo: empresa.bankInfo || "",
       paymentHolder: payment.holder || "",
       paymentRut: payment.rut || "",
@@ -196,6 +197,32 @@ export function EmpresaEdit({
         <FG label="Nombre empresa"><FI value={ef.nombre} onChange={e=>setEf(p=>({...p,nombre:e.target.value}))} placeholder="Mi Productora SpA"/></FG>
         <FG label="RUT"><FI value={ef.rut} onChange={e=>setEf(p=>({...p,rut:e.target.value}))} placeholder="78.118.348-2"/></FG>
       </R2>
+      <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)",marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:10}}>Logo de la empresa</div>
+        <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+          <div style={{width:68,height:68,borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+            {ef.logo
+              ? <img src={ef.logo} alt={ef.nombre || empresa?.nombre || "Logo empresa"} style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+              : <span style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,color:"var(--gr2)"}}>{(ef.nombre || empresa?.nombre || "?").slice(0,1).toUpperCase()}</span>}
+          </div>
+          <div style={{display:"grid",gap:8,flex:1,minWidth:220}}>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => setEf(p => ({ ...p, logo: String(reader.result || "") }));
+                reader.readAsDataURL(file);
+              }}
+              style={{fontSize:12,color:"var(--gr3)"}}
+            />
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Sube un logo en PNG, JPG, WEBP o SVG. Se usará en la identidad visual y en documentos.</div>
+            {!!ef.logo && <div><GBtn sm onClick={() => setEf(p => ({ ...p, logo: "" }))}>Quitar logo</GBtn></div>}
+          </div>
+        </div>
+      </div>
       <R2>
         <FG label="Email"><FI value={ef.ema} onChange={e=>setEf(p=>({...p,ema:e.target.value}))} placeholder="contacto@empresa.cl"/></FG>
         <FG label="Teléfono"><FI value={ef.tel} onChange={e=>setEf(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678"/></FG>

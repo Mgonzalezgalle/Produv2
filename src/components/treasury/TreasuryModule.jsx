@@ -1075,26 +1075,26 @@ export function TreasuryModule(props) {
                   <MiniKpiCard color="#ffcc44" label="Pendiente" value={fmtM(payablesSummary.pending)} />
                   <MiniKpiCard color="var(--red)" label="Vencido" value={fmtM(payablesSummary.overdue)} />
                 </div>
-                <TableToolbar
-                  searchValue={payableTable.query}
-                  onSearchChange={payableTable.setQuery}
-                  searchPlaceholder="Buscar proveedor o documento..."
-                  statusValue={payableTable.status}
-                  onStatusChange={payableTable.setStatus}
-                  statusOptions={payableTable.statusOptions}
-                  selectedCount={payableTable.selectedIds.length}
-                  onDeleteSelected={canManageTreasury ? async () => { await deleteMany(payableTable.selectedIds, deletePayable); payableTable.clearSelection(); } : null}
-                  onClearSelection={payableTable.clearSelection}
-                  createAction={<div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{<GBtn onClick={() => exportTreasuryPayablesCSV(payableTable.filteredRows, `cuentas_por_pagar_${props.empresa?.nom || "produ"}`)}>⬇ Excel / CSV</GBtn>}{canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}</div>}
-                  canManage={canManageTreasury}
-                />
-                <div className="treasury-toolbar" style={{ marginTop: -6 }}>
+                <div className="treasury-toolbar">
+                  <div style={{ flex: "1 1 320px", minWidth: 260 }}>
+                    <SearchBar value={payableTable.query} onChange={payableTable.setQuery} placeholder="Buscar proveedor o documento..." />
+                  </div>
                   <div style={{ width: 240, maxWidth: "100%" }}>
                     <FilterSel value={payableSupplierFilter} onChange={setPayableSupplierFilter} options={payableSupplierOptions} placeholder="Todos los proveedores" />
                   </div>
                   <div style={{ width: 220, maxWidth: "100%" }}>
                     <FilterSel value={payablePeriodFilter} onChange={setPayablePeriodFilter} options={payablePeriodOptions} placeholder="Todos los períodos" />
                   </div>
+                  <div style={{ width: 220, maxWidth: "100%" }}>
+                    <FilterSel value={payableTable.status} onChange={payableTable.setStatus} options={payableTable.statusOptions} placeholder="Todos los estados" />
+                  </div>
+                  <div style={{ marginLeft: "auto", display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <GBtn onClick={() => exportTreasuryPayablesCSV(payableTable.filteredRows, `cuentas_por_pagar_${props.empresa?.nom || "produ"}`)}>⬇ Excel / CSV</GBtn>
+                    {canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}
+                  </div>
+                  {payableTable.selectedIds.length ? <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{payableTable.selectedIds.length} seleccionado{payableTable.selectedIds.length === 1 ? "" : "s"}</div> : null}
+                  {canManageTreasury && payableTable.selectedIds.length ? <DBtn sm onClick={async () => { await deleteMany(payableTable.selectedIds, deletePayable); payableTable.clearSelection(); }}>Eliminar seleccionados</DBtn> : null}
+                  {payableTable.selectedIds.length ? <GBtn sm onClick={payableTable.clearSelection}>Limpiar selección</GBtn> : null}
                 </div>
                 <PayablesTable rows={payableTable.pageRows} providers={providers} onAddPayment={canManageTreasury ? openDisbursementCreate : () => {}} onEdit={canManageTreasury ? openPayableEdit : () => {}} onDelete={canManageTreasury ? deletePayable : () => {}} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} canManage={canManageTreasury} selectedIds={payableTable.selectedIds} toggleSelected={payableTable.toggleSelected} toggleAll={payableTable.toggleAll} pageIds={payableTable.pageIds} />
                 <Paginator page={payableTable.page} total={payableTable.filteredRows.length} perPage={payableTable.pageSize} onChange={payableTable.setPage} />

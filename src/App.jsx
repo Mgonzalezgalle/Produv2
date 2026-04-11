@@ -467,7 +467,12 @@ export default function App(){
     const sessionEmpId=freshUser.role==="superadmin" ? storedSession.empId : freshUser.empId;
     const freshEmp=sessionEmpId?(empresas||[]).find(e=>e.id===sessionEmpId&&e.active!==false):null;
     setCurUser(prev => prev?.id === freshUser.id ? prev : freshUser);
-    setCurEmp(prev => prev?.id === (freshEmp?.id || null) ? prev : (freshEmp||null));
+    setCurEmp(prev => {
+      const nextId = freshEmp?.id || null;
+      if (prev?.id !== nextId) return freshEmp || null;
+      if (!prev && !freshEmp) return null;
+      return JSON.stringify(prev) === JSON.stringify(freshEmp || null) ? prev : (freshEmp || null);
+    });
   },[storedSession,users,empresas]);
 
   useEffect(()=>{

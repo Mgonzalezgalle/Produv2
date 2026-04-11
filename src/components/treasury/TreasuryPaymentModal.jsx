@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 
 export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onSave }) {
   const [form, setForm] = useState({});
+  const fileRef = useRef(null);
 
   useEffect(() => {
     setForm({
@@ -13,11 +14,27 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
       method: "Transferencia",
       reference: "",
       notes: "",
+      receiptName: "",
+      receiptUrl: "",
       ...(data || {}),
     });
+    if (fileRef.current) fileRef.current.value = "";
   }, [data, open]);
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const onFileChange = event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm(prev => ({
+        ...prev,
+        receiptName: file.name,
+        receiptUrl: typeof reader.result === "string" ? reader.result : "",
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <Modal open={open} onClose={onClose} title={title} sub={subtitle}>
@@ -33,6 +50,10 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
         </FG>
         <FG label="Referencia"><FI value={form.reference || ""} onChange={e => setField("reference", e.target.value)} placeholder="N° comprobante / banco" /></FG>
       </R2>
+      <FG label="Adjuntar comprobante (PDF o PNG)">
+        <input ref={fileRef} type="file" accept="application/pdf,image/png" onChange={onFileChange} style={{ width: "100%", color: "var(--gr3)" }} />
+        {!!form.receiptName && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 6 }}>Adjunto: {form.receiptName}</div>}
+      </FG>
       <FG label="Notas"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Observaciones del pago." /></FG>
       <MFoot
         onClose={onClose}

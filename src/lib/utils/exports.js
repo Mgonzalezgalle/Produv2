@@ -208,4 +208,29 @@ tbody td.r{text-align:right;font-family:monospace}
   w.document.close();
   setTimeout(() => w.print(), 600);
 }
+
+export function exportTreasuryPayablesCSV(rows = [], nombre = "cuentas_por_pagar") {
+  const headers = ["Proveedor", "Tipo documento", "Folio", "Categoria", "Fecha emision", "Fecha vencimiento", "Fecha estimada pago", "Estado", "Total", "Pagado", "Pendiente"];
+  const safeRows = (Array.isArray(rows) ? rows : []).map(row => [
+    String(row?.supplier || "—").replace(/,/g, " "),
+    String(row?.docType || "—").replace(/,/g, " "),
+    String(row?.folio || "—").replace(/,/g, " "),
+    String(row?.category || "—").replace(/,/g, " "),
+    String(row?.issueDate || "—"),
+    String(row?.dueDate || "—"),
+    String(row?.paymentDate || "—"),
+    String(row?.status || "Pendiente").replace(/,/g, " "),
+    Number(row?.total || 0),
+    Number(row?.paid || 0),
+    Number(row?.pending || 0),
+  ]);
+  const csv = [headers, ...safeRows].map(r => r.join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${String(nombre || "cuentas_por_pagar").replace(/\s+/g, "_").toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 import { buildSimplePdfBlob } from "./pdf";

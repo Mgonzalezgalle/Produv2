@@ -11,6 +11,7 @@ import {
   ViewModeToggle,
 } from "../../lib/ui/components";
 import { fmtD, fmtM, fmtMonthPeriod, openMailto, openWhatsApp } from "../../lib/utils/helpers";
+import { exportTreasuryPayablesCSV } from "../../lib/utils/exports";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
@@ -413,11 +414,12 @@ function PayablesTable({
 
 function PaymentLogTable({ rows = [], emptyText, targetLabel, counterpartyLabel = "Referencia", onEdit, onDelete, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   if (!rows.length) return <EmptyInsideCard text={emptyText} sub="Cada registro queda trazado con fecha, monto, método y referencia." />;
+  const showReceipt = rows.some(row => row?.receiptUrl);
   return (
     <div className="treasury-table-wrap">
       <table className="treasury-table">
-        <thead><tr><th style={{ width: 36 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} /></th><th>Fecha</th><th>{targetLabel}</th><th>Método</th><th>{counterpartyLabel}</th><th>Monto</th><th></th></tr></thead>
-        <tbody>{rows.map(row => <tr key={row.id}><td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} /></td><td>{row.date ? fmtD(row.date) : "—"}</td><td>{row.targetLabel}</td><td>{row.method || "—"}</td><td>{row.counterpartyLabel || row.reference || "—"}</td><td className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</td><td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{onEdit ? <GBtn sm onClick={() => onEdit(row)}>Editar</GBtn> : null}{onDelete ? <DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn> : null}</div></td></tr>)}</tbody>
+        <thead><tr><th style={{ width: 36 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} /></th><th>Fecha</th><th>{targetLabel}</th><th>Método</th><th>{counterpartyLabel}</th>{showReceipt ? <th>Comprobante</th> : null}<th>Monto</th><th></th></tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id}><td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} /></td><td>{row.date ? fmtD(row.date) : "—"}</td><td>{row.targetLabel}</td><td>{row.method || "—"}</td><td>{row.counterpartyLabel || row.reference || "—"}</td>{showReceipt ? <td>{row.receiptUrl ? <a href={row.receiptUrl} target="_blank" rel="noreferrer" download={row.receiptName || true} style={{ color:"var(--cy)", textDecoration:"none", fontWeight:700 }}>{row.receiptName || "Ver archivo"}</a> : <span className="treasury-muted">—</span>}</td> : null}<td className="treasury-mono treasury-pending-paid">{fmtM(row.amount)}</td><td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{onEdit ? <GBtn sm onClick={() => onEdit(row)}>Editar</GBtn> : null}{onDelete ? <DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn> : null}</div></td></tr>)}</tbody>
       </table>
     </div>
   );
@@ -1064,7 +1066,7 @@ export function TreasuryModule(props) {
                   selectedCount={payableTable.selectedIds.length}
                   onDeleteSelected={canManageTreasury ? async () => { await deleteMany(payableTable.selectedIds, deletePayable); payableTable.clearSelection(); } : null}
                   onClearSelection={payableTable.clearSelection}
-                  createAction={canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}
+                  createAction={<div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{<GBtn onClick={() => exportTreasuryPayablesCSV(payableTable.filteredRows, `cuentas_por_pagar_${props.empresa?.nom || "produ"}`)}>⬇ Excel / CSV</GBtn>}{canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}</div>}
                   canManage={canManageTreasury}
                 />
                 <PayablesTable rows={payableTable.pageRows} providers={providers} onAddPayment={canManageTreasury ? openDisbursementCreate : () => {}} onEdit={canManageTreasury ? openPayableEdit : () => {}} onDelete={canManageTreasury ? deletePayable : () => {}} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} canManage={canManageTreasury} selectedIds={payableTable.selectedIds} toggleSelected={payableTable.toggleSelected} toggleAll={payableTable.toggleAll} pageIds={payableTable.pageIds} />

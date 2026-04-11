@@ -1099,9 +1099,9 @@ export function AdminPanel({
             const tone=status==="Activado"?"green":status==="Tenant creado"?"cyan":"yellow";
             return <div key={sol.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
               <div style={{minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700}}>{sol.emp}</div>
-                <div style={{fontSize:11,color:"var(--gr2)"}}>{sol.nom} · {sol.ema}</div>
-                <div style={{fontSize:11,color:"var(--gr3)",marginTop:4}}>{fmtD(sol.fecha)} · {sol.customerType||"productora"} · {sol.teamSize||"—"}</div>
+                <div style={{fontSize:13,fontWeight:700}}>{sol.emp || "Empresa sin nombre"}</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{[sol.nom || "Sin contacto", sol.ema || "Sin correo"].join(" · ")}</div>
+                <div style={{fontSize:11,color:"var(--gr3)",marginTop:4}}>{sol.fecha ? fmtD(sol.fecha) : "Sin fecha"} · {sol.customerType||"productora"} · {sol.teamSize||"—"}</div>
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                 <Badge label="Referido" color="purple" sm/>

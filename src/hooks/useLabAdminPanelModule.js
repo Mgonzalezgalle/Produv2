@@ -31,7 +31,31 @@ export function useLabAdminPanelModule({
     dbGet("produ:solicitudes")
       .then(v => {
         if (!active) return;
-        setRefSols(Array.isArray(v) ? v.filter(item => item && typeof item === "object") : []);
+        const normalized = Array.isArray(v)
+          ? v
+              .filter(item => item && typeof item === "object")
+              .map(item => ({
+                id: item.id || uid(),
+                tipo: item.tipo || "",
+                nom: item.nom || item.nombre || "",
+                ema: item.ema || item.email || "",
+                tel: item.tel || "",
+                emp: item.emp || item.empresa || item.companyName || "",
+                rol: item.rol || "admin",
+                msg: item.msg || "",
+                fecha: item.fecha || item.cr || "",
+                estado: item.estado || "pendiente",
+                empresaId: item.empresaId || "",
+                customerType: item.customerType || "productora",
+                teamSize: item.teamSize || "—",
+                requestedModules: Array.isArray(item.requestedModules) ? item.requestedModules : [],
+                referred: !!item.referred,
+                referredByEmpId: item.referredByEmpId || "",
+                referredByName: item.referredByName || "",
+                referralCode: item.referralCode || "",
+              }))
+          : [];
+        setRefSols(normalized);
       })
       .catch(() => {
         if (!active) return;
@@ -48,7 +72,12 @@ export function useLabAdminPanelModule({
   );
   const activeUsers = empUsers.filter(u => u.active !== false).length;
   const inactiveUsers = empUsers.filter(u => u.active === false).length;
-  const referredSols = (Array.isArray(refSols) ? refSols : []).filter(s => s?.referredByEmpId === empresa?.id && s?.tipo === "empresa");
+  const referredSols = (Array.isArray(refSols) ? refSols : []).filter(s =>
+    s?.tipo === "empresa" && (
+      s?.referredByEmpId === empresa?.id ||
+      (!!empresa?.referralCode && s?.referralCode === empresa.referralCode)
+    )
+  );
   const referralHistory = Array.isArray(companyReferralDiscountHistory(empresa)) ? companyReferralDiscountHistory(empresa).filter(Boolean) : [];
   const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Referidos", "Datos"];
   const ADMIN_TAB_META = {
@@ -64,6 +93,7 @@ export function useLabAdminPanelModule({
   const editableRoleOptions = assignableRoleOptions(empresa, user);
 
   const referralStatus = sol => {
+    if (!sol || typeof sol !== "object") return "Pendiente";
     const targetEmp = (empresas || []).find(e => e.id === sol.empresaId);
     const hasActiveUser = (users || []).some(u => u.empId === sol.empresaId && u.active !== false);
     if (hasActiveUser || targetEmp?.pendingActivation === false) return "Activado";

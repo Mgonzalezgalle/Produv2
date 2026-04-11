@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FTA, FilterSel, GBtn, KV, MultiSelect, R2, R3, SearchBar, Stat, Tabs } from "../../lib/ui/components";
 import { useLabAdminPanelModule } from "../../hooks/useLabAdminPanelModule";
 import { useLabSuperAdminModule } from "../../hooks/useLabSuperAdminModule";
@@ -275,7 +275,15 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, ntf, uid, 
   const [activeKey,setActiveKey]=useState("");
   const [draft,setDraft]=useState({label:"",color:"#7c7c8a",badge:"gray",permissions:[]});
   const customRoles=getCustomRoles(empresa);
-  const roleList=[...Object.entries(ROLES).filter(([k])=>k!=="superadmin").map(([key,val])=>({key,base:true,label:val.label,color:val.color,badge:ROLE_COLOR_MAP[key]||"gray",permissions:PERMS[key]||[]})),...customRoles.map(r=>({...r,base:false}))];
+  const roleList=useMemo(
+    ()=>[
+      ...Object.entries(ROLES)
+        .filter(([k])=>k!=="superadmin")
+        .map(([key,val])=>({key,base:true,label:val.label,color:val.color,badge:ROLE_COLOR_MAP[key]||"gray",permissions:PERMS[key]||[]})),
+      ...customRoles.map(r=>({...r,base:false})),
+    ],
+    [customRoles],
+  );
   useEffect(()=>{
     const first=roleList[0]?.key||"";
     if(!activeKey && first) setActiveKey(first);
@@ -1079,7 +1087,7 @@ export function AdminPanel({
       </div>
       <div style={{marginBottom:14}}>
         {filteredUsers.map(u=>{
-          const restrictedBySuper = user?.role!=="superadmin" && ["admin","superadmin"].includes(u.role);
+          const restrictedBySuper = u.role==="superadmin";
           return <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
             <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
             <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>

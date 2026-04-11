@@ -68,6 +68,7 @@ export function roleOptions(empresa, includeSuperadmin = false) {
 export function assignableRoleOptions(empresa, actor, includeSuperadmin = false) {
   const options = roleOptions(empresa, includeSuperadmin);
   if (actor?.role === "superadmin") return options;
+  if (actor?.role === "admin") return options.filter(o => o.value !== "superadmin");
   return options.filter(o => !["admin", "superadmin"].includes(o.value));
 }
 

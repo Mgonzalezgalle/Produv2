@@ -228,17 +228,13 @@ export function EmpresaEdit({
       </div>
       <FG label="Información bancaria adicional"><FTA value={ef.bankInfo||""} onChange={e=>setEf(p=>({...p,bankInfo:e.target.value}))} placeholder="Texto adicional opcional que también quieras mostrar en documentos."/></FG>
       <div style={{marginTop:12}}>
-        <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Addons activos</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {Object.entries(addons).map(([key,val])=>{
-            const checked=(ef.addons||[]).includes(key);
-            return <label key={key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--card)",border:`1px solid ${checked?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,cursor:"pointer"}}>
-              <input type="checkbox" checked={checked} onChange={e=>setEf(p=>({...p,addons:e.target.checked?[...(p.addons||[]),key]:(p.addons||[]).filter(x=>x!==key)}))}/>
-              <span style={{fontSize:16}}>{val.icon}</span>
-              <span style={{fontSize:12,color:"var(--wh)"}}>{val.label}</span>
-            </label>;
-          })}
+        <div style={{fontSize:11,fontWeight:600,color:"var(--gr3)",marginBottom:8}}>Módulos activos</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {(empresa.addons||[]).length
+            ? (empresa.addons||[]).map(a=><Badge key={a} label={addons[a]?.label||a} color="gray" sm/>)
+            : <span style={{fontSize:11,color:"var(--gr2)"}}>Sin módulos activos</span>}
         </div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginTop:8}}>La activación o desactivación de módulos se gestiona solo desde Super Admin.</div>
       </div>
       <div style={{ display:"flex", gap:8, marginTop:8 }}>
         <Btn onClick={save}>✓ Guardar</Btn>

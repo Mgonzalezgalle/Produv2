@@ -22,7 +22,8 @@ export function useLabPersistence({
   ntf,
 }) {
   const saveUsers = useCallback(async nextUsers => {
-    const normalized = await normalizeUsersAuth(nextUsers);
+    const resolvedUsers = typeof nextUsers === "function" ? nextUsers(users || []) : nextUsers;
+    const normalized = await normalizeUsersAuth(resolvedUsers);
     setUsersRaw(normalized);
     await dbSet("produ:users", normalized);
 
@@ -32,13 +33,14 @@ export function useLabPersistence({
       const syncedCrew = syncCrewWithUsers(scopedUsers, currentCrew);
       await setCrew(syncedCrew);
     }
-  }, [normalizeUsersAuth, setUsersRaw, dbSet, curEmp?.id, crew, syncCrewWithUsers, setCrew]);
+  }, [normalizeUsersAuth, setUsersRaw, dbSet, curEmp?.id, crew, syncCrewWithUsers, setCrew, users]);
 
   const saveEmpresas = useCallback(nextEmpresas => {
-    const normalized = normalizeEmpresasModel(nextEmpresas);
+    const resolvedEmpresas = typeof nextEmpresas === "function" ? nextEmpresas(empresas || []) : nextEmpresas;
+    const normalized = normalizeEmpresasModel(resolvedEmpresas);
     setEmpresasRaw(normalized);
     return dbSet("produ:empresas", normalized);
-  }, [normalizeEmpresasModel, setEmpresasRaw, dbSet]);
+  }, [normalizeEmpresasModel, setEmpresasRaw, dbSet, empresas]);
 
   const savePrintLayouts = useCallback(async layouts => {
     const normalized = normalizePrintLayouts(layouts);

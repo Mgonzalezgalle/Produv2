@@ -271,7 +271,7 @@ export function EmpresaEdit({
   );
 }
 
-export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canManageAdmin=true }) {
+export function RolesEditor({ empresa, empresas, users, saveEmpresas, ntf, uid, canManageAdmin=true }) {
   const [activeKey,setActiveKey]=useState("");
   const [draft,setDraft]=useState({label:"",color:"#7c7c8a",badge:"gray",permissions:[]});
   const customRoles=getCustomRoles(empresa);
@@ -285,6 +285,8 @@ export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canMana
     if(selected) setDraft({label:selected.label||"",color:selected.color||"#7c7c8a",badge:selected.badge||"gray",permissions:[...(selected.permissions||[])]});
   },[activeKey, roleList]);
   const selected=roleList.find(r=>r.key===activeKey);
+  const tenantUsers=(users||[]).filter(u=>u.empId===empresa?.id);
+  const selectedAssignedUsers=tenantUsers.filter(u=>u.role===selected?.key);
   const persistRoles=nextCustomRoles=>{
     if(!canManageAdmin) return;
     saveEmpresas((empresas||[]).map(em=>em.id===empresa.id?{...em,customRoles:nextCustomRoles}:em));
@@ -303,6 +305,10 @@ export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canMana
   };
   const deleteRole=()=>{
     if(!selected || selected.base) return;
+    if(selectedAssignedUsers.length) {
+      ntf("No puedes eliminar un rol asignado a usuarios activos","warn");
+      return;
+    }
     if(!confirm("¿Eliminar este rol personalizado?")) return;
     persistRoles((customRoles||[]).filter(r=>r.key!==selected.key));
     setActiveKey(roleList.find(r=>r.key!==selected.key)?.key||"");
@@ -316,7 +322,10 @@ export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canMana
         {roleList.map(role=><div key={role.key} onClick={()=>setActiveKey(role.key)} style={{padding:"11px 14px",cursor:"pointer",borderBottom:"1px solid var(--bdr)",background:activeKey===role.key?"var(--cg)":"transparent",borderLeft:activeKey===role.key?"3px solid var(--cy)":"3px solid transparent"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
             <span style={{fontSize:12,fontWeight:700,color:activeKey===role.key?"var(--cy)":"var(--gr3)"}}>{role.label}</span>
-            {role.base?<Badge label="Base" color="gray" sm/>:<Badge label="Custom" color="cyan" sm/>}
+            <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+              <Badge label={`${tenantUsers.filter(u=>u.role===role.key).length} usuarios`} color="gray" sm/>
+              {role.base?<Badge label="Base" color="gray" sm/>:<Badge label="Custom" color="cyan" sm/>}
+            </div>
           </div>
           <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{(role.permissions||[]).length} permisos</div>
         </div>)}
@@ -324,8 +333,21 @@ export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canMana
       </div>
       {selected?<div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:10,padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700}}>Rol: {selected.label}</div>
-          {!selected.base&&<DBtn onClick={deleteRole} sm>Eliminar</DBtn>}
+          <div>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:4}}>Rol: {selected.label}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Badge label={selected.base?"Rol base":"Rol personalizado"} color={selected.base?"gray":"cyan"} sm/>
+              <Badge label={`${selectedAssignedUsers.length} usuario${selectedAssignedUsers.length===1?"":"s"} asignado${selectedAssignedUsers.length===1?"":"s"}`} color="gray" sm/>
+            </div>
+          </div>
+          {!selected.base&&<DBtn onClick={deleteRole} sm>Eliminar rol</DBtn>}
+        </div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:14}}>
+          {selected.base
+            ? "Los roles base se pueden revisar, pero no editar ni eliminar desde el tenant."
+            : selectedAssignedUsers.length
+              ? "Este rol está asignado a usuarios. Puedes editarlo, pero para eliminarlo primero debes reasignar esos usuarios a otro rol."
+              : "Puedes editar permisos, renombrar este rol o eliminarlo si ya no lo necesitas."}
         </div>
         <R3>
           <FG label="Nombre del rol"><FI value={draft.label||""} onChange={e=>setDraft(p=>({...p,label:e.target.value}))} disabled={selected.base}/></FG>
@@ -344,7 +366,7 @@ export function RolesEditor({ empresa, empresas, saveEmpresas, ntf, uid, canMana
           </div>)}
         </div>
         <div style={{display:"flex",gap:8,marginTop:16}}>
-          {!selected.base&&<Btn onClick={saveRole}>Guardar rol</Btn>}
+          {!selected.base&&<Btn onClick={saveRole}>Guardar cambios del rol</Btn>}
           {selected.base&&<div style={{fontSize:11,color:"var(--gr2)"}}>Los roles base se usan como referencia y no se editan desde aquí.</div>}
         </div>
       </div>:<Empty text="Selecciona un rol para editar"/>}
@@ -1066,17 +1088,27 @@ export function AdminPanel({
             <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
             <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
             {restrictedBySuper ? <Badge label="Gestiona Super Admin" color="purple" sm/> : <>
-              <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}}>✏</GBtn>
+              <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} s={{minWidth:74}}>Editar</GBtn>
               <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
               <GBtn sm onClick={()=>toggleUserActive(u)}>{u.active?"Desactivar":"Activar"}</GBtn>
-              {u.role!=="superadmin"&&<XBtn onClick={()=>{ if(!confirm("¿Eliminar usuario?")) return; deleteUser(u); }}/>}
+              {u.role!=="superadmin"&&<DBtn onClick={()=>{ if(!confirm(`¿Eliminar a ${u.name || "este usuario"}?`)) return; deleteUser(u); }} sm>Eliminar</DBtn>}
             </>}
           </div>;
         })}
         {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
       </div>
       <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:14}}>{uid2?"Editar":"Agregar"} Usuario</div>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:14,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:4}}>{uid2?"Editar usuario":"Agregar usuario"}</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>
+              {uid2
+                ? "Modifica nombre, correo, rol, estado o acceso de este usuario del tenant."
+                : "Crea un nuevo usuario para esta empresa y asígnale un rol disponible dentro del tenant."}
+            </div>
+          </div>
+          {uid2&&<Badge label={`Editando ${uf.name || "usuario"}`} color="cyan" sm/>}
+        </div>
         <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
         <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={editableRoleOptions.some(o=>o.value===(uf.role||"viewer"))?(uf.role||"viewer"):(editableRoleOptions[0]?.value||"viewer")} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{editableRoleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
@@ -1087,12 +1119,12 @@ export function AdminPanel({
           {uf.isCrew===true&&<FG label="Cargo en crew"><FI value={uf.crewRole||""} onChange={e=>setUf(p=>({...p,crewRole:e.target.value}))} placeholder="Ej: Productor Ejecutivo, Editor, Community Manager"/></FG>}
         </div>
         <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso. Las cuentas `Admin` y `Super Admin` solo se crean o gestionan desde `Super Admin &gt; Usuarios del sistema`.</div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={saveUser}>Guardar Usuario</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar</GBtn>}</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Btn onClick={saveUser}>{uid2?"Guardar cambios":"Crear usuario"}</Btn>{uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar edición</GBtn>}</div>
       </div>
     </div>}
     {tab===2&&empresa&&<EmpresaEdit empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} addons={addons} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} canManageAdmin={canManageAdmin}/>}
     {tab===3&&<ListasEditor listas={listas} saveListas={saveListas} defaultListas={defaultListas}/>}
-    {tab===4&&empresa&&<RolesEditor empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} uid={uid} canManageAdmin={canManageAdmin}/>}
+    {tab===4&&empresa&&<RolesEditor empresa={empresa} empresas={empresas} users={users} saveEmpresas={saveEmpresas} ntf={ntf} uid={uid} canManageAdmin={canManageAdmin}/>}
     {tab===5&&<div>
       <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Acciones sobre la base de datos de esta empresa.</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>

@@ -934,6 +934,14 @@ export function AdminPanel({
   XBtn,
   releaseMode = false,
 }) {
+  const safeCompanyReferralDiscountHistory =
+    typeof companyReferralDiscountHistory === "function"
+      ? companyReferralDiscountHistory
+      : () => [];
+  const safeCompanyReferralDiscountMonthsPending =
+    typeof companyReferralDiscountMonthsPending === "function"
+      ? companyReferralDiscountMonthsPending
+      : () => 0;
   const {
     tab, setTab, lt, setLt, uf, setUf, uid2, setUid2, uq, setUq, uRole, setURole, uState, setUState,
     filteredUsers, activeUsers, inactiveUsers, referredSols, referralHistory, ADMIN_TABS, ADMIN_TAB_META,
@@ -947,7 +955,7 @@ export function AdminPanel({
     saveUsers,
     ntf,
     dbGet,
-    companyReferralDiscountHistory,
+    companyReferralDiscountHistory: safeCompanyReferralDiscountHistory,
     assignableRoleOptions,
     sanitizeAssignableRole,
     uid,
@@ -1079,7 +1087,7 @@ export function AdminPanel({
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
             <Stat label="Créditos" value={Number(empresa?.referralCredits||0)} sub="Meses acumulados" accent="var(--cy)"/>
-            <Stat label="Pendientes" value={companyReferralDiscountMonthsPending(empresa)} sub="Meses por aplicar" accent="#60a5fa" vc="#60a5fa"/>
+            <Stat label="Pendientes" value={safeCompanyReferralDiscountMonthsPending(empresa)} sub="Meses por aplicar" accent="#60a5fa" vc="#60a5fa"/>
             <Stat label="Referidos" value={(Array.isArray(referredSols) ? referredSols.length : 0)} sub="Solicitudes asociadas" accent="#a855f7" vc="#a855f7"/>
             <Stat label="Activados" value={(Array.isArray(referredSols) ? referredSols.filter(sol=>referralStatus(sol)==="Activado").length : 0)} sub="Ya operativos" accent="#00e08a" vc="#00e08a"/>
           </div>

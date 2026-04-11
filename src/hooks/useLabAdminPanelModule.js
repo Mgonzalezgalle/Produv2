@@ -15,6 +15,10 @@ export function useLabAdminPanelModule({
   uid,
   sha256Hex,
 }) {
+  const safeCompanyReferralDiscountHistory =
+    typeof companyReferralDiscountHistory === "function"
+      ? companyReferralDiscountHistory
+      : () => [];
   const canManageAdmin = ["admin", "superadmin"].includes(user?.role || "");
   const [tab, setTab] = useState(0);
   const [lt, setLt] = useState(theme || {});
@@ -78,7 +82,9 @@ export function useLabAdminPanelModule({
       (!!empresa?.referralCode && s?.referralCode === empresa.referralCode)
     )
   );
-  const referralHistory = Array.isArray(companyReferralDiscountHistory(empresa)) ? companyReferralDiscountHistory(empresa).filter(Boolean) : [];
+  const referralHistory = Array.isArray(safeCompanyReferralDiscountHistory(empresa))
+    ? safeCompanyReferralDiscountHistory(empresa).filter(Boolean)
+    : [];
   const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Referidos", "Datos"];
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",

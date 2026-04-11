@@ -164,6 +164,9 @@ export function Modal({ open, onClose, title, sub, children, wide, extraWide }) 
     >
       <div
         className="modal-box"
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onPointerDown={e => e.stopPropagation()}
         style={{
           background: "var(--card)",
           border: "1px solid var(--bdr2)",
@@ -208,7 +211,24 @@ export const FG = ({ label, children }) => (
   </div>
 );
 
-export const FI = props => <input style={FS} {...props} />;
+export const FI = ({ onClick, onMouseDown, onPointerDown, ...props }) => (
+  <input
+    style={FS}
+    onPointerDown={e => {
+      e.stopPropagation();
+      onPointerDown?.(e);
+    }}
+    onMouseDown={e => {
+      e.stopPropagation();
+      onMouseDown?.(e);
+    }}
+    onClick={e => {
+      e.stopPropagation();
+      onClick?.(e);
+    }}
+    {...props}
+  />
+);
 export const FSl = ({ children, onClick, onMouseDown, onPointerDown, ...props }) => (
   <select
     style={{ ...FS, cursor: "pointer" }}
@@ -229,14 +249,50 @@ export const FSl = ({ children, onClick, onMouseDown, onPointerDown, ...props })
     {children}
   </select>
 );
-export const FTA = forwardRef((props, ref) => <textarea ref={ref} style={{ ...FS, resize: "vertical", minHeight: 80 }} {...props} />);
+export const FTA = forwardRef(({ onClick, onMouseDown, onPointerDown, ...props }, ref) => (
+  <textarea
+    ref={ref}
+    style={{ ...FS, resize: "vertical", minHeight: 80 }}
+    onPointerDown={e => {
+      e.stopPropagation();
+      onPointerDown?.(e);
+    }}
+    onMouseDown={e => {
+      e.stopPropagation();
+      onMouseDown?.(e);
+    }}
+    onClick={e => {
+      e.stopPropagation();
+      onClick?.(e);
+    }}
+    {...props}
+  />
+));
 export const R2 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 12 }}>{children}</div>;
 export const R3 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 12 }}>{children}</div>;
 
 export const MFoot = ({ onClose, onSave, label = "Guardar" }) => (
   <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--bdr)" }}>
-    <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr3)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Cancelar</button>
-    <button onClick={onSave} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "var(--cy)", color: "var(--bg)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>{label}</button>
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation();
+        onClose?.();
+      }}
+      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr3)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+    >
+      Cancelar
+    </button>
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation();
+        onSave?.();
+      }}
+      style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "var(--cy)", color: "var(--bg)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+    >
+      {label}
+    </button>
   </div>
 );
 

@@ -26,7 +26,9 @@ function TreasuryStyles() {
       .treasury-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
       .treasury-kpi{position:relative;border-radius:14px;border:1px solid var(--bdr);background:linear-gradient(180deg,var(--card),var(--card2));box-shadow:0 10px 30px rgba(0,0,0,.12);padding:18px 18px 16px;overflow:hidden}
       .treasury-kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--kpi-color,var(--cy))}
-      .treasury-kpi-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.5px;font-size:10px;font-weight:700;margin-bottom:12px}
+      .treasury-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+      .treasury-kpi-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.5px;font-size:10px;font-weight:700}
+      .treasury-kpi-scope{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid var(--bdr2);background:var(--sur);color:var(--gr2);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
       .treasury-kpi-value{color:var(--wh);font-family:var(--fm);font-size:28px;line-height:1}
       .treasury-kpi-sub{margin-top:10px;color:var(--gr3);font-size:11px}
       .treasury-tabs,.treasury-subtabs,.treasury-modal-tabs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -168,8 +170,17 @@ function SectionCard({ title, subtitle, action, children, emphasis = false, with
   );
 }
 
-function KpiCard({ color, label, value, sub }) {
-  return <div className="treasury-kpi" style={{ "--kpi-color": color }}><div className="treasury-kpi-label">{label}</div><div className="treasury-kpi-value">{value}</div>{sub ? <div className="treasury-kpi-sub">{sub}</div> : null}</div>;
+function KpiCard({ color, label, value, sub, scope }) {
+  return (
+    <div className="treasury-kpi" style={{ "--kpi-color": color }}>
+      <div className="treasury-kpi-head">
+        <div className="treasury-kpi-label">{label}</div>
+        {scope ? <div className="treasury-kpi-scope" title={scope === "CxC" ? "Cuentas por Cobrar" : "Cuentas por Pagar"}>{scope}</div> : null}
+      </div>
+      <div className="treasury-kpi-value">{value}</div>
+      {sub ? <div className="treasury-kpi-sub">{sub}</div> : null}
+    </div>
+  );
 }
 
 function MiniKpiCard({ color, label, value, sub }) {
@@ -987,10 +998,10 @@ export function TreasuryModule(props) {
         description="Controla la cartera, revisa concentración de deuda, gestiona la cobranza operativa, concilia órdenes de compra con facturas y registra pagos manuales recibidos o realizados."
       />
       <div className="treasury-kpis">
-        <KpiCard color="var(--cy)" label="Cartera total" value={fmtM(receivableSummary.total)} />
-        <KpiCard color="#ffcc44" label="Pendiente" value={fmtM(receivableSummary.pending)} />
-        <KpiCard color="var(--red)" label="Vencido" value={fmtM(receivableSummary.overdue)} sub={`${receivableSummary.overdueDocs} docs con atraso`} />
-        <KpiCard color="#a78bfa" label="Egresos" value={fmtM(payablesSummary.total)} sub={`${payablesSummary.docs} documentos registrados`} />
+        <KpiCard color="var(--cy)" label="Cartera total" value={fmtM(receivableSummary.total)} scope="CxC" />
+        <KpiCard color="#ffcc44" label="Pendiente" value={fmtM(receivableSummary.pending)} scope="CxC" />
+        <KpiCard color="var(--red)" label="Vencido" value={fmtM(receivableSummary.overdue)} sub={`${receivableSummary.overdueDocs} docs con atraso`} scope="CxC" />
+        <KpiCard color="#a78bfa" label="Egresos" value={fmtM(payablesSummary.total)} sub={`${payablesSummary.docs} documentos registrados`} scope="CxP" />
       </div>
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>

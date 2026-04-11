@@ -281,6 +281,10 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     setPoDraft(null);
     return true;
   };
+  const updatePurchaseOrderStatus = async (row, status) => {
+    if (!row || !status) return false;
+    return savePurchaseOrder({ ...row, status });
+  };
   const deletePurchaseOrder = async id => {
     if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
     await treasury.setPurchaseOrders((Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : []).filter(item => item.id !== id));
@@ -406,7 +410,13 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
               <TD style={{fontWeight:700}}>{row.clientName}</TD>
               <TD>{row.number}</TD>
               <TD>{row.issueDate ? fmtD(row.issueDate) : "—"}</TD>
-              <TD><Badge label={row.status || "Pendiente"} /></TD>
+              <TD>
+                {canEdit ? (
+                  <FSl value={row.status || "Pendiente"} onChange={e=>updatePurchaseOrderStatus(row, e.target.value)} style={{minWidth:140}}>
+                    {["Pendiente","Aceptada","Rechazada"].map(status => <option key={status} value={status}>{status}</option>)}
+                  </FSl>
+                ) : <Badge label={row.status || "Pendiente"} />}
+              </TD>
               <TD><Badge label={row.billingStatus} /></TD>
               <TD style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtM(row.amount)}</TD>
               <TD style={{fontFamily:"var(--fm)",color:row.pendingAmount>0?"#ffcc44":"#00e08a"}}>{fmtM(row.pendingAmount)}</TD>

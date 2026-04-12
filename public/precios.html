@@ -9,172 +9,109 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:'Manrope',sans-serif;color:#1a1a2e;background:#fff;-webkit-font-smoothing:antialiased}
+body{font-family:'Manrope',sans-serif;background:#f6f8fc;color:#11203a;-webkit-font-smoothing:antialiased}
 a{text-decoration:none;color:inherit}
+:root{
+  --ink:#101a33;
+  --muted:#63708a;
+  --line:#dce3ef;
+  --card:#fff;
+  --accent:#2f6fed;
+  --accent-soft:#e9f0ff;
+  --dark:#0f172b;
+}
+nav{position:sticky;top:0;z-index:100;background:rgba(246,248,252,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(220,227,239,.7);padding:0 5%}
+.nav-inner{max-width:1220px;height:74px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.nav-logo,.footer-logo{display:flex;align-items:center;gap:12px}
+.nav-logo-icon,.footer-logo-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3f8cff,#1f3c88);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(47,111,237,.25)}
+.brand-stack,.footer-logo-copy{display:flex;flex-direction:column;line-height:1}
+.nav-logo-text,.footer-logo-text{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-1px;color:var(--ink)}
+.nav-logo-sub,.footer-logo-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.nav-links{display:flex;align-items:center;gap:28px}
+.nav-links a{font-size:14px;font-weight:600;color:var(--muted)}
+.nav-links a.active,.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;gap:12px}
+.btn-outline,.btn-primary,.btn-dark,.btn-light{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;font-weight:700;transition:.18s ease;cursor:pointer}
+.btn-outline{padding:10px 18px;border:1.5px solid var(--ink);color:var(--ink);font-size:14px}
+.btn-outline:hover{background:var(--ink);color:#fff}
+.btn-primary{padding:12px 20px;background:var(--ink);color:#fff;font-size:14px;border:none}
+.btn-dark{padding:14px 22px;background:var(--ink);color:#fff;font-size:15px;border:none}
+.btn-light{padding:14px 22px;background:#fff;color:var(--ink);font-size:15px;border:none}
 
-/* NAV */
-nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-bottom:1px solid #f0f0f0;padding:0 5%}
-.nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px;max-width:1200px;margin:0 auto}
-.nav-logo{display:flex;align-items:center;gap:10px}
-.nav-logo-icon{width:36px;height:36px;background:#1a1a2e;border-radius:9px;display:flex;align-items:center;justify-content:center}
-.brand-stack{display:flex;flex-direction:column;align-items:flex-start;line-height:1;width:fit-content}
-.nav-logo-text{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#1a1a2e;letterSpacing:-1px;letter-spacing:-1px;line-height:.92}
-.nav-logo-sub{font-size:10.6px;color:#7f8594;letter-spacing:0;font-weight:500;margin-top:4px;white-space:nowrap}
-.nav-links{display:flex;align-items:center;gap:32px}
-.nav-links a{font-size:14px;font-weight:500;color:#555;transition:.15s}
-.nav-links a:hover,.nav-links a.active{color:#1a1a2e;font-weight:600}
-.btn-outline{padding:9px 20px;border-radius:8px;border:1.5px solid #1a1a2e;font-size:14px;font-weight:600;color:#1a1a2e;cursor:pointer;transition:.15s}
-.btn-outline:hover{background:#1a1a2e;color:#fff}
-.btn-primary{padding:9px 20px;border-radius:8px;border:none;font-size:14px;font-weight:700;color:#fff;background:#1a1a2e;cursor:pointer;transition:.15s}
-.btn-primary:hover{background:#2d2d4e}
+.hero-wrap{padding:40px 5% 20px}
+.hero{max-width:1220px;margin:0 auto;border-radius:32px;background:linear-gradient(135deg,#0f172b 0%,#163062 100%);color:#fff;padding:64px 52px;box-shadow:0 36px 90px rgba(8,15,32,.22)}
+.hero-badge{display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:18px}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(34px,5vw,58px);line-height:1.03;letter-spacing:-2px;margin-bottom:18px;max-width:760px}
+.hero p{font-size:18px;line-height:1.7;color:#d0daef;max-width:760px}
+.hero-note{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.hero-note span{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.08);font-size:12px;font-weight:700;color:#d7def0}
 
-/* HERO */
-.hero{padding:80px 5% 60px;text-align:center;max-width:1200px;margin:0 auto}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;background:#f0f0f8;border:1px solid #e0e0f0;font-size:13px;font-weight:600;color:#555;margin-bottom:24px}
-.hero h1{font-family:'Syne',sans-serif;font-size:clamp(34px,5vw,56px);font-weight:800;letter-spacing:-2px;line-height:1.1;margin-bottom:16px}
-.hero p{font-size:18px;color:#666;max-width:520px;margin:0 auto;line-height:1.6}
+.section{max-width:1220px;margin:0 auto;padding:78px 5%}
+.section-head{max-width:780px;margin-bottom:34px}
+.section-tag{display:inline-flex;align-items:center;padding:7px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-1.4px;margin-bottom:12px}
+.section-desc{font-size:17px;line-height:1.7;color:var(--muted)}
 
-/* PLANS */
-.plans-section{padding:48px 5% 80px;max-width:1200px;margin:0 auto}
-.plans-toggle{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:48px}
-.toggle-label{font-size:14px;font-weight:600;color:#555}
-.toggle-badge{background:#1a1a2e;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;margin-left:6px}
-.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start}
-.plan-card{border-radius:16px;border:1.5px solid #eee;padding:32px;transition:.2s;position:relative}
-.plan-card:hover{border-color:#1a1a2e;box-shadow:0 8px 32px rgba(0,0,0,.07)}
-.plan-card.featured{border-color:#1a1a2e;background:#1a1a2e;color:#fff}
-.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;white-space:nowrap;letter-spacing:.5px}
-.plan-card.featured .plan-badge{background:#fff;color:#1a1a2e}
-.plan-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px}
-.plan-desc{font-size:14px;color:#888;margin-bottom:28px;line-height:1.5}
-.plan-card.featured .plan-desc{color:#888}
-.plan-price{display:flex;align-items:baseline;gap:4px;margin-bottom:6px}
-.plan-price-num{font-family:'Syne',sans-serif;font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1}
-.plan-price-currency{font-size:20px;font-weight:700;color:#888;margin-bottom:4px}
-.plan-card.featured .plan-price-currency{color:#aaa}
-.plan-price-period{font-size:13px;color:#888;margin-left:4px}
-.plan-card.featured .plan-price-period{color:#aaa}
-.plan-price-sub{font-size:12px;color:#aaa;margin-bottom:28px}
-.plan-btn{width:100%;padding:13px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Manrope',sans-serif;border:none;margin-bottom:28px}
-.plan-btn-dark{background:#1a1a2e;color:#fff}
-.plan-btn-dark:hover{background:#2d2d4e}
-.plan-btn-light{background:#fff;color:#1a1a2e}
-.plan-btn-light:hover{background:#f5f5f5}
-.plan-btn-outline{background:transparent;color:#1a1a2e;border:1.5px solid #e0e0e0}
-.plan-btn-outline:hover{border-color:#1a1a2e}
-.plan-divider{height:1px;background:#f0f0f0;margin-bottom:24px}
-.plan-card.featured .plan-divider{background:#ffffff20}
-.plan-features-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;margin-bottom:16px}
-.plan-feature{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;font-size:14px}
-.plan-feature-check{width:18px;height:18px;border-radius:50%;background:#1a1a2e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.plan-card.featured .plan-feature-check{background:#fff}
-.plan-feature-check svg{width:10px;height:10px}
-.plan-feature span{color:#444;line-height:1.4}
-.plan-card.featured .plan-feature span{color:#ccc}
-.plan-feature-sub{font-size:12px;color:#aaa;display:block;margin-top:2px}
-.plan-card.featured .plan-feature-sub{color:#666}
+.base-card,.stack-card,.faq-item,.scenario-card,.faq-item,.pricing-note{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 16px 42px rgba(16,26,51,.06)}
+.base-card{display:grid;grid-template-columns:1.2fr .8fr;gap:24px;align-items:start}
+.price-row{display:flex;align-items:flex-end;gap:6px;font-family:'Syne',sans-serif;color:var(--ink)}
+.price-row strong{font-size:54px;letter-spacing:-2px}
+.price-row span{font-size:16px;color:var(--muted);margin-bottom:9px}
+.base-list,.stack-list,.faq-answer ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.base-list li,.stack-list li,.faq-answer li{font-size:14px;line-height:1.6;color:var(--ink)}
+.base-list li::before,.stack-list li::before,.faq-answer li::before{content:"✓ ";color:var(--accent)}
 
-/* ADDONS */
-.addons-section{padding:80px 5%;background:#f8f8fc;margin:0}
-.addons-inner{max-width:1200px;margin:0 auto}
-.addons-header{text-align:center;margin-bottom:48px}
-.section-tag{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:12px}
-.section-title{font-family:'Syne',sans-serif;font-size:clamp(26px,3.5vw,40px);font-weight:800;letter-spacing:-1px;line-height:1.1;margin-bottom:12px}
-.addons-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.addon-card{background:#fff;border-radius:14px;padding:24px;border:1.5px solid #eee;transition:.2s}
-.addon-card:hover{border-color:#1a1a2e;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
-.addon-icon{font-size:28px;margin-bottom:14px}
-.addon-card h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:6px}
-.addon-card p{font-size:13px;color:#666;line-height:1.6;margin-bottom:16px}
-.addon-price{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#1a1a2e}
-.addon-price span{font-size:13px;font-weight:500;color:#888}
-.addon-features{margin-top:14px;padding-top:14px;border-top:1px solid #f0f0f0}
-.addon-feature{display:flex;align-items:center;gap:8px;font-size:13px;color:#555;margin-bottom:8px}
-.addon-feature::before{content:"✓";color:#1a1a2e;font-weight:700;flex-shrink:0}
+.stack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.stack-card h3,.scenario-card h3,.faq-question strong{font-family:'Syne',sans-serif;font-size:24px;letter-spacing:-.6px}
+.stack-card p,.scenario-card p,.pricing-note p,.faq-answer{font-size:14px;line-height:1.7;color:var(--muted);margin-top:10px}
+.stack-price{font-family:'Syne',sans-serif;font-size:30px;letter-spacing:-1px;margin:16px 0 8px}
+.stack-eyebrow{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
 
-/* COMPARE */
-.compare-section{padding:80px 5%;max-width:1200px;margin:0 auto}
-.compare-table{width:100%;border-collapse:collapse;margin-top:40px}
-.compare-table th{padding:16px 20px;text-align:left;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee}
-.compare-table th:not(:first-child){text-align:center}
-.compare-table td{padding:14px 20px;font-size:14px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
-.compare-table td:not(:first-child){text-align:center}
-.compare-table tr:hover td{background:#fafafa}
-.compare-table .feature-name{font-weight:600;color:#1a1a2e}
-.compare-table .feature-sub{font-size:12px;color:#aaa;display:block;font-weight:400;margin-top:2px}
-.check-yes{color:#1a1a2e;font-size:18px;font-weight:700}
-.check-no{color:#ddd;font-size:18px}
-.check-partial{font-size:12px;font-weight:600;color:#888}
-.plan-col-header{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:#1a1a2e;letter-spacing:-.3px}
-.plan-col-header.featured-col{color:#fff;background:#1a1a2e;border-radius:8px;padding:8px 16px;display:inline-block}
+.scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.scenario-price{font-family:'Syne',sans-serif;font-size:30px;letter-spacing:-1px;margin-top:18px}
 
-/* FAQ */
-.faq-section{padding:80px 5%;background:#f8f8fc;margin:0}
-.faq-inner{max-width:800px;margin:0 auto}
-.faq-header{text-align:center;margin-bottom:48px}
-.faq-item{background:#fff;border-radius:12px;margin-bottom:12px;border:1px solid #eee;overflow:hidden}
-.faq-question{padding:20px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:.15s}
-.faq-question:hover{background:#fafafa}
-.faq-arrow{font-size:18px;color:#aaa;transition:.25s}
-.faq-answer{padding:0 24px 20px;font-size:14px;color:#666;line-height:1.7;display:none}
+.pricing-note{background:linear-gradient(180deg,#eef3fb 0%,#f8faff 100%)}
+.pricing-note strong{display:block;font-size:14px;color:var(--ink);margin-bottom:8px}
+
+.faq-grid{display:grid;gap:14px}
+.faq-item{padding:0;overflow:hidden}
+.faq-question{padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;cursor:pointer}
+.faq-question span{font-size:20px;color:#95a4c7;transition:.2s ease}
+.faq-answer{display:none;padding:0 24px 22px}
 .faq-item.open .faq-answer{display:block}
-.faq-item.open .faq-arrow{transform:rotate(180deg)}
+.faq-item.open .faq-question span{transform:rotate(180deg)}
 
-/* CTA */
-.cta-section{padding:80px 5%;text-align:center;max-width:1200px;margin:0 auto}
-.cta-box{background:#1a1a2e;border-radius:24px;padding:64px 48px}
-.cta-box h2{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,42px);font-weight:800;color:#fff;margin-bottom:14px;letter-spacing:-1px}
-.cta-box p{font-size:17px;color:#888;margin-bottom:32px}
-.cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.btn-cta-primary{padding:14px 28px;border-radius:10px;border:none;font-size:15px;font-weight:700;color:#1a1a2e;background:#fff;cursor:pointer;transition:.15s;font-family:'Manrope',sans-serif}
-.btn-cta-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.btn-cta-outline{padding:14px 28px;border-radius:10px;border:1.5px solid #ffffff30;font-size:15px;font-weight:600;color:#fff;cursor:pointer;transition:.15s;background:transparent;font-family:'Manrope',sans-serif}
-.btn-cta-outline:hover{border-color:#fff}
+.cta{max-width:1220px;margin:0 auto 88px;padding:0 5%}
+.cta-box{border-radius:30px;background:linear-gradient(135deg,#0f172b 0%,#132447 100%);padding:56px 42px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap;box-shadow:0 28px 80px rgba(10,20,38,.22)}
+.cta-copy h2{font-family:'Syne',sans-serif;font-size:clamp(28px,4vw,44px);letter-spacing:-1px;margin-bottom:12px}
+.cta-copy p{font-size:17px;line-height:1.7;color:#cfd8ee;max-width:640px}
+.cta-actions{display:flex;gap:12px;flex-wrap:wrap}
 
-/* FOOTER */
-footer{background:#1a1a2e;padding:48px 5% 32px;border-top:1px solid #ffffff10}
-.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.footer-logo{display:flex;align-items:center;gap:10px}
-.footer-logo-icon{width:30px;height:30px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center}
-.footer-logo-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1;width:fit-content}
-.footer-logo-text{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;letter-spacing:-.8px;line-height:.92}
-.footer-logo-sub{font-size:8.8px;color:#8e96ab;font-weight:500;margin-top:4px;white-space:nowrap}
-.footer-links{display:flex;gap:24px;flex-wrap:wrap}
-.footer-links a{font-size:13px;color:#555;transition:.15s}
+footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
+.footer-inner{max-width:1220px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.footer-links{display:flex;gap:22px;flex-wrap:wrap}
+.footer-links a,.footer-copy{font-size:13px;color:#8ea0c6}
+.footer-affiliate{display:inline-flex;align-items:center;gap:10px}
+.footer-affiliate img{height:32px;width:auto;display:block;opacity:.9}
 .footer-links a:hover{color:#fff}
-.footer-copy{font-size:13px;color:#555}
 
-/* MODAL */
-.modal-wrap{display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px}
-.modal-box{background:#fff;border-radius:20px;width:100%;max-width:480px;padding:40px;box-shadow:0 24px 80px rgba(0,0,0,.2);position:relative;animation:fadeUp .25s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;color:#aaa;cursor:pointer}
-label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:6px;letter-spacing:.3px}
-input{width:100%;padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'Manrope',sans-serif;outline:none;transition:.15s;margin-bottom:16px}
-input:focus{border-color:#1a1a2e}
-.form-submit{width:100%;padding:14px;border-radius:10px;border:none;background:#1a1a2e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Manrope',sans-serif;transition:.15s;margin-top:8px}
-.form-submit:hover{background:#2d2d4e}
-.form-msg{display:none;padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:14px}
-
-/* MOBILE */
-@media(max-width:768px){
-  .nav-links{display:none}
-  .plans-grid{grid-template-columns:1fr}
-  .addons-grid{grid-template-columns:1fr}
-  .compare-section{overflow-x:auto}
-  .cta-box{padding:40px 24px}
-  .footer-inner{flex-direction:column;text-align:center}
+@media (max-width: 980px){
+  .base-card,.stack-grid,.scenario-grid{grid-template-columns:1fr}
+}
+@media (max-width: 760px){
+  .nav-links,.nav-cta .btn-outline{display:none}
+  .hero{padding:42px 24px}
+  .section,.hero-wrap,.cta{padding-left:20px;padding-right:20px}
+  .cta-box{padding:36px 24px}
 }
 </style>
 </head>
 <body>
-
-<!-- NAV -->
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
       <div class="nav-logo-icon">
-        <svg viewBox="0 0 24 24" fill="#fff" width="14" height="14"><polygon points="5,3 20,12 5,21"/></svg>
+        <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
       </div>
       <div class="brand-stack">
         <div class="nav-logo-text">produ</div>
@@ -183,412 +120,212 @@ input:focus{border-color:#1a1a2e}
     </a>
     <div class="nav-links">
       <a href="index.html#modulos">Módulos</a>
-      <a href="index.html#funciones">Funcionalidades</a>
-      <a href="index.html#testimonios">Clientes</a>
+      <a href="integraciones.html">Integraciones</a>
+      <a href="index.html#pricing">Pricing</a>
       <a href="#" class="active">Precios</a>
     </div>
-    <div style="display:flex;gap:12px">
+    <div class="nav-cta">
       <a href="https://portal.produ.cl" target="_blank" class="btn-outline">Iniciar sesión</a>
       <a href="https://portal.produ.cl/" target="_blank" class="btn-primary">Solicitar demo</a>
     </div>
   </div>
 </nav>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-badge">💰 Precios simples y transparentes</div>
-  <h1>Produ crece<br>con tu productora</h1>
-  <p>Planes flexibles con módulos activables según el tipo y tamaño de tu productora. Operación, comercial y administración en un solo lugar.</p>
-</section>
-
-<!-- PLANS -->
-<section class="plans-section">
-  <div class="plans-grid">
-
-    <!-- STARTER -->
-    <div class="plan-card">
-      <div class="plan-name">Starter</div>
-      <div class="plan-desc">Para productoras que están comenzando a ordenar su operación comercial y de proyectos.</div>
-      <div class="plan-price">
-        <span class="plan-price-currency"></span>
-        <span class="plan-price-num">1</span>
-        <span class="plan-price-period">UF/mes</span>
-      </div>
-      <div class="plan-price-sub">Facturado mensualmente · 1 empresa</div>
-      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-outline" style="display:block;text-align:center;text-decoration:none">Empezar gratis 14 días</a>
-      <div class="plan-divider"></div>
-      <div class="plan-features-title">Incluye</div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Dashboard y Calendario</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Clientes y Proyectos<span class="plan-feature-sub">Hasta 10 proyectos activos</span></span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Control financiero básico</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Hasta 3 usuarios</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Alertas y seguimiento operativo</span>
-      </div>
+<div class="hero-wrap">
+  <section class="hero">
+    <div class="hero-badge">Pricing comercial actualizado</div>
+    <h1>Produ ya no se vende como un plan fijo. <br>Se vende como <span style="color:#8db7ff">base + módulos</span>.</h1>
+    <p>Eso calza mejor con el producto real, con la forma en que compra una productora y con una conversación comercial más clara. Partes con una base seria y activas solo las capacidades que sí vas a usar.</p>
+    <div class="hero-note">
+      <span>Base Produ desde 1 UF / mes</span>
+      <span>Módulos activables desde 0,3 UF / mes</span>
+      <span>Implementación guiada</span>
     </div>
-
-    <!-- PRO (FEATURED) -->
-    <div class="plan-card featured">
-      <div class="plan-badge">Más popular</div>
-      <div class="plan-name">Pro</div>
-      <div class="plan-desc">Para productoras con operación activa que necesitan control total sobre ejecución, documentos y equipo.</div>
-      <div class="plan-price">
-        <span class="plan-price-currency"></span>
-        <span class="plan-price-num">1,5</span>
-        <span class="plan-price-period">UF</span>
-      </div>
-      <div class="plan-price-sub">Facturado mensualmente · 1 empresa</div>
-      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-light" style="display:block;text-align:center;text-decoration:none">Solicitar demo →</a>
-      <div class="plan-divider"></div>
-      <div class="plan-features-title">Todo en Starter, más:</div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Proyectos ilimitados</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Presupuestos con PDF<span class="plan-feature-sub">Con logo y firma de empresa</span></span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Producciones<span class="plan-feature-sub">Programas, episodios y auspiciadores</span></span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Equipo / Crew</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Contratos y Activos</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Hasta 10 usuarios</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>WhatsApp y Email integrado</span>
-      </div>
-    </div>
-
-    <!-- ENTERPRISE -->
-    <div class="plan-card">
-      <div class="plan-name">Enterprise</div>
-      <div class="plan-desc">Para grupos de productoras o empresas con múltiples marcas, canales o unidades de negocio.</div>
-      <div class="plan-price">
-        <span class="plan-price-num" style="font-size:36px">A consultar</span>
-      </div>
-      <div class="plan-price-sub">Precio según número de empresas y usuarios</div>
-      <a href="https://portal.produ.cl/" target="_blank" class="plan-btn plan-btn-dark" style="display:block;text-align:center;text-decoration:none">Hablar con ventas</a>
-      <div class="plan-divider"></div>
-      <div class="plan-features-title">Todo en Pro, más:</div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Múltiples empresas<span class="plan-feature-sub">Panel SuperAdmin centralizado</span></span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Usuarios ilimitados</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Addons por empresa<span class="plan-feature-sub">Activa módulos según necesidad</span></span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Soporte prioritario</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Onboarding personalizado</span>
-      </div>
-      <div class="plan-feature">
-        <div class="plan-feature-check"><svg viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <span>Listas administrables por empresa</span>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ADDONS -->
-<div class="addons-section">
-  <div class="addons-inner">
-    <div class="addons-header">
-      <p class="section-tag">Addons</p>
-      <h2 class="section-title">Activa solo lo que necesitas</h2>
-      <p style="color:#666;font-size:16px;max-width:500px;margin:0 auto">Los addons se activan por empresa desde el Panel SuperAdmin. Paga solo por los módulos que realmente usas.</p>
-    </div>
-    <div class="addons-grid">
-      <div class="addon-card">
-        <div class="addon-icon">📺</div>
-        <h3>Producciones</h3>
-        <p>Programas de TV, podcast y web series. Gestión de episodios, auspiciadores comerciales y facturación vinculada.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Programas y episodios ilimitados</div>
-          <div class="addon-feature">Auspiciadores con montos y vigencia</div>
-          <div class="addon-feature">Alertas de grabacion integradas</div>
-          <div class="addon-feature">Calendario de emisiones</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">📱</div>
-        <h3>Contenidos</h3>
-        <p>Campañas y piezas para redes sociales con estados, fechas, plataformas, responsables y seguimiento por cliente.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Campañas mensuales por cliente</div>
-          <div class="addon-feature">Piezas para Instagram, TikTok y más</div>
-          <div class="addon-feature">Estados y responsables por pieza</div>
-          <div class="addon-feature">Relación con presupuestos y operación</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">📋</div>
-        <h3>Presupuestos</h3>
-        <p>Genera cotizaciones profesionales con logo de empresa, ítems, IVA y descarga en PDF listo para enviar.</p>
-        <div class="addon-features">
-          <div class="addon-feature">PDF con logo de tu empresa</div>
-          <div class="addon-feature">Correlativo automático</div>
-          <div class="addon-feature">Doble firma cliente/emisor</div>
-          <div class="addon-feature">Estados: borrador, enviado, aceptado</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">🧾</div>
-        <h3>Facturación</h3>
-        <p>Órdenes de cobro vinculadas a clientes, auspiciadores y proyectos. PDF descargable con datos bancarios.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Vinculada a proyectos</div>
-          <div class="addon-feature">PDF con datos de pago</div>
-          <div class="addon-feature">Estados de pago</div>
-          <div class="addon-feature">Control de vencimientos</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">🎬</div>
-        <h3>Equipo / Crew</h3>
-        <p>Registro del equipo técnico y creativo. Asigna miembros a proyectos, producciones y contenidos.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Roles y áreas por persona</div>
-          <div class="addon-feature">Asignación a proyectos y producciones</div>
-          <div class="addon-feature">Tarifas y datos de contacto</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">📄</div>
-        <h3>Contratos</h3>
-        <p>Registra contratos con clientes y proveedores. Vincula a proyectos y lleva control de vencimientos.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Contratos por proyecto</div>
-          <div class="addon-feature">Fechas de inicio y término</div>
-          <div class="addon-feature">Estados y montos</div>
-        </div>
-      </div>
-      <div class="addon-card">
-        <div class="addon-icon">📦</div>
-        <h3>Activos</h3>
-        <p>Inventario del equipamiento de tu productora. Categorías, estado, valor y asignación a proyectos.</p>
-        <div class="addon-features">
-          <div class="addon-feature">Cámaras, lentes, sonido y más</div>
-          <div class="addon-feature">Estado y valorización</div>
-          <div class="addon-feature">Categorías administrables</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  </section>
 </div>
 
-<!-- COMPARE TABLE -->
-<section class="compare-section">
-  <div style="text-align:center;margin-bottom:40px">
-    <p class="section-tag">Comparativa</p>
-    <h2 class="section-title">¿Qué incluye cada plan?</h2>
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Base comercial</div>
+    <h2 class="section-title">La entrada correcta hoy es una base única para cualquier cliente.</h2>
+    <p class="section-desc">No tiene sentido seguir ofreciendo una estructura vieja de Starter / Pro / Enterprise cuando el valor actual de Produ está en el core SaaS y en la activación modular.</p>
   </div>
-  <div style="overflow-x:auto">
-  <table class="compare-table">
-    <thead>
-      <tr>
-        <th style="width:40%">Funcionalidad</th>
-        <th><span class="plan-col-header">Starter</span></th>
-        <th><span class="plan-col-header featured-col">Pro</span></th>
-        <th><span class="plan-col-header">Enterprise</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="4" style="padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;background:#fafafa">Módulos base</td></tr>
-      <tr><td><span class="feature-name">Dashboard</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Calendario</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Clientes</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Proyectos</span><span class="feature-sub">Número de proyectos activos</span></td><td><span class="check-partial">Hasta 10</span></td><td><span class="check-yes">✓ Ilimitados</span></td><td><span class="check-yes">✓ Ilimitados</span></td></tr>
-      <tr><td><span class="feature-name">Control financiero</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Alertas de grabación</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">WhatsApp y Email</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td colspan="4" style="padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;background:#fafafa">Addons</td></tr>
-      <tr><td><span class="feature-name">Producciones</span><span class="feature-sub">Programas, episodios, auspiciadores</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Contenidos</span><span class="feature-sub">Campañas, piezas y plataformas</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Presupuestos con PDF</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Facturación</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Equipo / Crew</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Contratos y Activos</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td colspan="4" style="padding:10px 20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;background:#fafafa">Administración</td></tr>
-      <tr><td><span class="feature-name">Usuarios</span></td><td><span class="check-partial">Hasta 3</span></td><td><span class="check-partial">Hasta 10</span></td><td><span class="check-yes">✓ Ilimitados</span></td></tr>
-      <tr><td><span class="feature-name">Empresas</span></td><td><span class="check-partial">1</span></td><td><span class="check-partial">1</span></td><td><span class="check-yes">✓ Múltiples</span></td></tr>
-      <tr><td><span class="feature-name">Panel SuperAdmin</span></td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Listas administrables</span></td><td><span class="check-no">—</span></td><td><span class="check-yes">✓</span></td><td><span class="check-yes">✓</span></td></tr>
-      <tr><td><span class="feature-name">Soporte</span></td><td><span class="check-partial">Email</span></td><td><span class="check-partial">Email + Chat</span></td><td><span class="check-yes">✓ Prioritario</span></td></tr>
-    </tbody>
-  </table>
+  <div class="base-card">
+    <div>
+      <h3 style="font-family:'Syne',sans-serif;font-size:28px;letter-spacing:-.8px">Base Produ</h3>
+      <p style="margin-top:10px;font-size:15px;line-height:1.75;color:var(--muted)">La base instala la estructura mínima que toda empresa necesita para operar dentro de Produ sin sobre-comprar módulos desde el día uno.</p>
+      <ul class="base-list" style="margin-top:18px">
+        <li>Dashboard y calendario operativo</li>
+        <li>Clientes y proyectos</li>
+        <li>Usuarios, permisos y estructura base</li>
+        <li>1 tenant operativo</li>
+      </ul>
+    </div>
+    <div>
+      <div class="price-row"><strong>1</strong><span>UF / mes</span></div>
+      <p style="margin-top:10px;font-size:13px;color:var(--muted)">Ideal para productoras que necesitan ordenar su base operativa y luego crecer por módulos.</p>
+      <div style="margin-top:18px">
+        <a href="https://portal.produ.cl/" target="_blank" class="btn-dark" style="width:100%">Solicitar demo</a>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- FAQ -->
-<div class="faq-section">
-  <div class="faq-inner">
-    <div class="faq-header">
-      <p class="section-tag">Preguntas frecuentes</p>
-      <h2 class="section-title">Todo lo que necesitas saber</h2>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Puedo cambiar de plan en cualquier momento? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Sí. Puedes subir o bajar de plan cuando quieras. Los cambios se aplican al inicio del siguiente período de facturación.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Los datos son seguros y privados? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Completamente. Cada empresa tiene sus datos aislados — ninguna productora puede ver la información de otra. Usamos Supabase con cifrado en tránsito (HTTPS) y en reposo.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Necesito instalar algo? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">No. Produ funciona 100% desde el navegador, en cualquier dispositivo: computador, tablet o celular. Sin instalaciones ni actualizaciones manuales.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Qué pasa con mis datos si cancelo? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Tienes acceso a tus datos durante 30 días después de la cancelación para que puedas exportarlos. Nunca eliminamos información sin aviso previo.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Hay período de prueba gratuito? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Sí. Ofrecemos 14 días de prueba gratuita en el plan Starter sin necesidad de tarjeta de crédito. Para probar el plan Pro, solicita una demo personalizada con nuestro equipo.</div>
-    </div>
-    <div class="faq-item">
-      <div class="faq-question" onclick="toggleFaq(this)">¿Puedo tener varias productoras en la misma cuenta? <span class="faq-arrow">▾</span></div>
-      <div class="faq-answer">Sí, con el plan Enterprise. Incluye un Panel SuperAdmin desde donde puedes administrar múltiples empresas con datos completamente separados, branding independiente y addons por empresa.</div>
-    </div>
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Módulos activables</div>
+    <h2 class="section-title">El pricing ahora se arma por capacidad real de negocio.</h2>
+    <p class="section-desc">Cada cliente compra lo que usa. Eso hace el pricing más claro y también facilita el upsell natural cuando madura la operación.</p>
   </div>
-</div>
+  <div class="stack-grid">
+    <article class="stack-card">
+      <div class="stack-eyebrow">Comercial</div>
+      <h3>CRM + Presupuestos + Facturación</h3>
+      <div class="stack-price">+0,5 UF / mes</div>
+      <p>Para ordenar oportunidades, auspiciadores, presupuestos, invoices y documentos tributarios.</p>
+      <ul class="stack-list" style="margin-top:16px">
+        <li>CRM comercial</li>
+        <li>Presupuestos con PDF</li>
+        <li>Facturación e integración tributaria</li>
+      </ul>
+    </article>
+    <article class="stack-card">
+      <div class="stack-eyebrow">Finanzas</div>
+      <h3>Tesorería</h3>
+      <div class="stack-price">+0,5 UF / mes</div>
+      <p>Para visibilidad de CxC, CxP, cobranza, pagos y trazabilidad financiera.</p>
+      <ul class="stack-list" style="margin-top:16px">
+        <li>Cuentas por cobrar</li>
+        <li>Cuentas por pagar</li>
+        <li>Conciliación y seguimiento de cobro</li>
+      </ul>
+    </article>
+    <article class="stack-card">
+      <div class="stack-eyebrow">Operación</div>
+      <h3>Producciones y contenidos</h3>
+      <div class="stack-price">+0,5 UF / mes</div>
+      <p>Para productoras con ejecución activa, programas, episodios, piezas y coordinación operativa.</p>
+      <ul class="stack-list" style="margin-top:16px">
+        <li>Producciones, programas y episodios</li>
+        <li>Contenidos y calendario</li>
+        <li>Seguimiento operativo</li>
+      </ul>
+    </article>
+    <article class="stack-card">
+      <div class="stack-eyebrow">Recursos</div>
+      <h3>Equipo, contratos y activos</h3>
+      <div class="stack-price">+0,3 UF / mes</div>
+      <p>Para empresas que quieren bajar fricción administrativa y ordenar recursos internos.</p>
+      <ul class="stack-list" style="margin-top:16px">
+        <li>Equipo / Crew</li>
+        <li>Contratos</li>
+        <li>Activos</li>
+      </ul>
+    </article>
+  </div>
+</section>
 
-<!-- CTA -->
-<section class="cta-section">
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Escenarios de venta</div>
+    <h2 class="section-title">Tres configuraciones comerciales que hoy hacen mucho más sentido que los planes antiguos.</h2>
+    <p class="section-desc">Esto le da a ventas una conversación concreta, fácil de defender y alineada con el producto real.</p>
+  </div>
+  <div class="scenario-grid">
+    <article class="scenario-card">
+      <h3>Base + Comercial</h3>
+      <p>Para productoras que hoy necesitan ordenar clientes, pipeline, presupuestos y documentos emitidos.</p>
+      <div class="scenario-price">Desde 1,5 UF / mes</div>
+    </article>
+    <article class="scenario-card">
+      <h3>Base + Comercial + Finanzas</h3>
+      <p>Para empresas que ya necesitan visibilidad real de cobranza, tesorería y flujo financiero.</p>
+      <div class="scenario-price">Desde 2 UF / mes</div>
+    </article>
+    <article class="scenario-card">
+      <h3>Operación integral</h3>
+      <p>Base + Comercial + Finanzas + Operación + Recursos para empresas que quieren correr su operación completa en Produ.</p>
+      <div class="scenario-price">Desde 2,8 UF / mes</div>
+    </article>
+  </div>
+</section>
+
+<section class="section">
+  <div class="pricing-note">
+    <strong>La implementación guiada puede cotizarse aparte.</strong>
+    <p>Cuando el cliente necesita una activación más acompañada, configuración inicial más profunda o una puesta en marcha más consultiva, conviene tratarlo como servicio de implementación y no como parte automática del ticket base.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Preguntas comerciales</div>
+    <h2 class="section-title">Lo que conviene responder con claridad en una venta.</h2>
+  </div>
+  <div class="faq-grid">
+    <article class="faq-item open">
+      <div class="faq-question"><strong>¿Produ obliga a contratar todos los módulos?</strong><span>⌄</span></div>
+      <div class="faq-answer">No. Esa es justamente la mejora del modelo actual. El cliente parte con una base y luego activa comercial, finanzas, operación o recursos según su necesidad real.</div>
+    </article>
+    <article class="faq-item">
+      <div class="faq-question"><strong>¿La facturación electrónica viene incluida en la base?</strong><span>⌄</span></div>
+      <div class="faq-answer">No. Va dentro del carril comercial, porque corresponde a una necesidad más específica de emisión documental y operación administrativa.</div>
+    </article>
+    <article class="faq-item">
+      <div class="faq-question"><strong>¿Tesorería se vende por separado?</strong><span>⌄</span></div>
+      <div class="faq-answer">Sí. Hoy tiene sentido comercializarla como módulo financiero, especialmente para clientes que ya necesitan trazabilidad de cobranza, pagos y CxC / CxP.</div>
+    </article>
+    <article class="faq-item">
+      <div class="faq-question"><strong>¿La implementación guiada aplica para todos?</strong><span>⌄</span></div>
+      <div class="faq-answer">No siempre. Para algunos clientes basta una activación estándar. Para otros conviene incluir acompañamiento adicional y eso se cotiza de forma consultiva.</div>
+    </article>
+  </div>
+</section>
+
+<section class="cta">
   <div class="cta-box">
-    <h2>¿Listo para empezar?</h2>
-    <p>14 días gratis, sin tarjeta de crédito. Cancela cuando quieras.</p>
-    <div class="cta-btns">
-      <a href="https://portal.produ.cl/" target="_blank" class="btn-cta-primary" style="display:inline-block;text-decoration:none">Solicitar demo gratuita</a>
-      <a href="https://portal.produ.cl" target="_blank" class="btn-cta-outline">Iniciar sesión →</a>
+    <div class="cta-copy">
+      <h2>¿Quieres ajustar esta oferta a tu tipo de cliente?</h2>
+      <p>Te ayudamos a definir la combinación exacta, el ticket de entrada y la narrativa comercial correcta para cada segmento de productora.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-light">Solicitar demo</a>
+      <a href="index.html" class="btn-outline" style="border-color:rgba(255,255,255,.24);color:#fff">Volver al sitio</a>
     </div>
   </div>
 </section>
 
-<!-- FOOTER -->
 <footer>
   <div class="footer-inner">
     <div class="footer-logo">
       <div class="footer-logo-icon">
-        <svg viewBox="0 0 24 24" fill="#1a1a2e" width="12" height="12"><polygon points="5,3 20,12 5,21"/></svg>
+        <svg viewBox="0 0 24 24" fill="#fff" width="15" height="15"><polygon points="5,3 20,12 5,21"/></svg>
       </div>
       <div class="footer-logo-copy">
-        <span class="footer-logo-text">produ</span>
+        <span class="footer-logo-text" style="color:#fff">produ</span>
         <span class="footer-logo-sub">Gestión de Productoras</span>
       </div>
     </div>
     <div class="footer-links">
       <a href="index.html">Inicio</a>
+      <a href="integraciones.html">Integraciones</a>
       <a href="index.html#modulos">Módulos</a>
-      <a href="#">Precios</a>
-      <a href="index.html#contacto">Contacto</a>
       <a href="https://portal.produ.cl" target="_blank">Portal</a>
     </div>
-    <p class="footer-copy">© 2026 Produ. Todos los derechos reservados.</p>
+    <div class="footer-affiliate">
+      <div class="footer-copy">© 2026 Produ. Pricing comercial actualizado para el modelo modular.</div>
+      <img src="/assets/chile-partner.png" alt="Chile partner" />
+    </div>
   </div>
 </footer>
 
-<!-- MODAL CONTACTO -->
-<div id="modal-contacto" class="modal-wrap">
-  <div class="modal-box">
-    <button class="modal-close" onclick="cerrarModal()">✕</button>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
-      <div style="width:36px;height:36px;background:#1a1a2e;border-radius:9px;display:flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" fill="#fff" width="14" height="14"><polygon points="5,3 20,12 5,21"/></svg>
-      </div>
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#1a1a2e">Solicitar demo</div>
-        <div style="font-size:12px;color:#888">Te contactamos en menos de 24 horas</div>
-      </div>
-    </div>
-    <form onsubmit="enviarFormulario(event)">
-      <label>Nombre completo *</label>
-      <input type="text" id="f-nombre" required placeholder="Juan Pérez">
-      <label>Correo electrónico *</label>
-      <input type="email" id="f-email" required placeholder="juan@productora.cl">
-      <label>Teléfono *</label>
-      <input type="tel" id="f-tel" required placeholder="+56 9 1234 5678">
-      <label>Nombre de la productora</label>
-      <input type="text" id="f-empresa" placeholder="Mi Productora SpA">
-      <div id="form-msg" class="form-msg"></div>
-      <button type="submit" id="btn-enviar" class="form-submit">Enviar solicitud →</button>
-      <p style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">Al enviar aceptas que nos contactemos contigo.</p>
-    </form>
-  </div>
-</div>
-
 <script>
-function abrirModal(){
-  const m=document.getElementById('modal-contacto');
-  m.style.display='flex';
-  document.body.style.overflow='hidden';
-}
-function cerrarModal(){
-  document.getElementById('modal-contacto').style.display='none';
-  document.body.style.overflow='';
-}
-document.getElementById('modal-contacto').addEventListener('click',function(e){if(e.target===this)cerrarModal();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape')cerrarModal();});
-
-function enviarFormulario(e){
-  e.preventDefault();
-  const btn=document.getElementById('btn-enviar');
-  const msg=document.getElementById('form-msg');
-  const nombre=document.getElementById('f-nombre').value;
-  const email=document.getElementById('f-email').value;
-  const tel=document.getElementById('f-tel').value;
-  const empresa=document.getElementById('f-empresa').value;
-  btn.textContent='Enviando...';btn.style.opacity='.7';btn.disabled=true;
-  const asunto=encodeURIComponent('Solicitud de Demo Produ — '+(empresa||nombre));
-  const cuerpo=encodeURIComponent('Nueva solicitud de demo desde produ.cl\n\nNombre: '+nombre+'\nEmail: '+email+'\nTeléfono: '+tel+'\nProductora: '+(empresa||'—')+'\n\nContactar a la brevedad.');
-  window.location.href='mailto:playmedia@grupogonzalez.co?subject='+asunto+'&body='+cuerpo;
-  setTimeout(()=>{
-    msg.style.display='block';msg.style.background='#f0fdf4';msg.style.border='1px solid #bbf7d0';msg.style.color='#15803d';
-    msg.innerHTML='✓ ¡Listo! Se abrió tu cliente de correo. Si no, escríbenos a <strong>playmedia@grupogonzalez.co</strong>';
-    btn.textContent='✓ Enviado';btn.style.background='#15803d';btn.style.opacity='1';
-  },800);
-}
-
-function toggleFaq(el){
-  const item=el.parentElement;
-  item.classList.toggle('open');
-}
+document.querySelectorAll('.faq-question').forEach((button) => {
+  button.addEventListener('click', () => {
+    const item = button.parentElement;
+    item.classList.toggle('open');
+  });
+});
 </script>
-
 </body>
 </html>

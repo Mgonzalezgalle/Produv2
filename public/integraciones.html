@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/favicon.png">
+<title>Integraciones y partners — Produ</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Manrope',sans-serif;background:#f6f8fc;color:#11203a;-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+:root{--ink:#101a33;--muted:#63708a;--line:#dce3ef;--card:#fff;--accent:#2f6fed;--accent-soft:#e9f0ff}
+nav{position:sticky;top:0;z-index:100;background:rgba(246,248,252,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(220,227,239,.7);padding:0 5%}
+.nav-inner{max-width:1220px;height:74px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.nav-logo,.footer-logo{display:flex;align-items:center;gap:12px}
+.nav-logo-icon,.footer-logo-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3f8cff,#1f3c88);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(47,111,237,.25)}
+.brand-stack,.footer-logo-copy{display:flex;flex-direction:column;line-height:1}
+.nav-logo-text,.footer-logo-text{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-1px;color:var(--ink)}
+.nav-logo-sub,.footer-logo-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.nav-links{display:flex;align-items:center;gap:28px}
+.nav-links a{font-size:14px;font-weight:600;color:var(--muted)}
+.nav-links a.active,.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;gap:12px}
+.btn-outline,.btn-primary{display:inline-flex;align-items:center;justify-content:center;border-radius:12px;font-weight:700;transition:.18s ease;cursor:pointer}
+.btn-outline{padding:10px 18px;border:1.5px solid var(--ink);color:var(--ink);font-size:14px}
+.btn-primary{padding:12px 20px;background:var(--ink);color:#fff;font-size:14px;border:none}
+.hero-wrap{padding:40px 5% 22px}
+.hero{max-width:1220px;margin:0 auto;border-radius:32px;background:linear-gradient(135deg,#0f172b 0%,#163062 100%);color:#fff;padding:62px 52px;box-shadow:0 36px 90px rgba(8,15,32,.22)}
+.hero-badge{display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:18px}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(34px,5vw,58px);line-height:1.03;letter-spacing:-2px;margin-bottom:18px;max-width:780px}
+.hero p{font-size:18px;line-height:1.7;color:#d0daef;max-width:760px}
+.section{max-width:1220px;margin:0 auto;padding:78px 5%}
+.section-head{max-width:760px;margin-bottom:34px}
+.section-tag{display:inline-flex;align-items:center;padding:7px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-1.4px;margin-bottom:12px}
+.section-desc{font-size:17px;line-height:1.7;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 16px 42px rgba(16,26,51,.06)}
+.pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef7f4;color:#0e8b74;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
+.card h3{font-family:'Syne',sans-serif;font-size:24px;letter-spacing:-.6px}
+.card p{font-size:14px;line-height:1.7;color:var(--muted);margin-top:10px}
+.card ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.card li{font-size:14px;line-height:1.6;color:var(--ink)}
+.card li::before{content:"✓ ";color:var(--accent)}
+.cta{max-width:1220px;margin:0 auto 88px;padding:0 5%}
+.cta-box{border-radius:30px;background:linear-gradient(135deg,#0f172b 0%,#132447 100%);padding:56px 42px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap;box-shadow:0 28px 80px rgba(10,20,38,.22)}
+.cta-copy h2{font-family:'Syne',sans-serif;font-size:clamp(28px,4vw,44px);letter-spacing:-1px;margin-bottom:12px}
+.cta-copy p{font-size:17px;line-height:1.7;color:#cfd8ee;max-width:640px}
+.cta-actions{display:flex;gap:12px;flex-wrap:wrap}
+footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
+.footer-inner{max-width:1220px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.footer-links{display:flex;gap:22px;flex-wrap:wrap}
+.footer-links a,.footer-copy{font-size:13px;color:#8ea0c6}
+.footer-affiliate{display:inline-flex;align-items:center;gap:10px}
+.footer-affiliate img{height:32px;width:auto;display:block;opacity:.9}
+@media (max-width: 980px){.grid{grid-template-columns:1fr 1fr}}
+@media (max-width: 760px){.nav-links,.nav-cta .btn-outline{display:none}.hero{padding:42px 24px}.section,.hero-wrap,.cta{padding-left:20px;padding-right:20px}.grid{grid-template-columns:1fr}.cta-box{padding:36px 24px}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="nav-logo-icon">
+        <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
+      </div>
+      <div class="brand-stack">
+        <div class="nav-logo-text">produ</div>
+        <div class="nav-logo-sub">Gestión de Productoras</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="index.html#modulos">Módulos</a>
+      <a href="#" class="active">Integraciones</a>
+      <a href="precios.html">Precios</a>
+    </div>
+    <div class="nav-cta">
+      <a href="https://portal.produ.cl" target="_blank" class="btn-outline">Iniciar sesión</a>
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-primary">Solicitar demo</a>
+    </div>
+  </div>
+</nav>
+
+<div class="hero-wrap">
+  <section class="hero">
+    <div class="hero-badge">Integraciones y partners</div>
+    <h1>Produ conecta la operación con partners que resuelven capas específicas del negocio.</h1>
+    <p>El cliente compra Produ. Las integraciones existen para reforzar capacidades puntuales como facturación electrónica, no para reemplazar la experiencia central del producto.</p>
+  </section>
+</div>
+
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Partner activo</div>
+    <h2 class="section-title">Bsale queda como partner de facturación electrónica.</h2>
+    <p class="section-desc">En Produ, la experiencia de facturación vive dentro del producto. Bsale opera como motor tributario para emitir, consultar estado y obtener recursos del documento electrónico.</p>
+  </div>
+  <div class="grid">
+    <article class="card">
+      <div class="pill">Facturación electrónica</div>
+      <h3>Bsale</h3>
+      <p>Partner de emisión tributaria para documentos electrónicos desde Produ.</p>
+      <ul>
+        <li>Emisión de facturas y boletas</li>
+        <li>Notas de crédito y débito</li>
+        <li>PDF tributario y estado documental</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="pill">Rol dentro de Produ</div>
+      <h3>Motor integrado</h3>
+      <p>Bsale no se presenta como producto visible al cliente final. La operación sigue siendo Produ; el partner resuelve la capa tributaria por detrás.</p>
+      <ul>
+        <li>Produ crea y gobierna el documento</li>
+        <li>Bsale emite y devuelve estado</li>
+        <li>Tesorería y cobranza siguen viviendo en Produ</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="pill">Implementación</div>
+      <h3>Activación por cliente</h3>
+      <p>La integración se habilita según necesidad comercial y operativa. No todos los clientes necesitan activarla desde el día uno.</p>
+      <ul>
+        <li>Configuración guiada</li>
+        <li>Validación de datos tributarios</li>
+        <li>Activación progresiva</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div class="section-tag">Próximamente</div>
+    <h2 class="section-title">Partners e integraciones futuras se incorporan cuando agregan valor real al flujo.</h2>
+    <p class="section-desc">No llenamos el producto de logos. Cada integración debe reforzar una necesidad operativa o financiera clara dentro de Produ.</p>
+  </div>
+  <div class="grid">
+    <article class="card">
+      <div class="pill">Calendario</div>
+      <h3>Google Calendar</h3>
+      <p>Potencial integración para agenda operativa y sincronización de eventos cuando el flujo lo requiera.</p>
+    </article>
+    <article class="card">
+      <div class="pill">Pagos</div>
+      <h3>Capas financieras</h3>
+      <p>Futuras integraciones financieras se evalúan según el nivel de trazabilidad y valor que sumen al producto.</p>
+    </article>
+    <article class="card">
+      <div class="pill">Ecosistema</div>
+      <h3>Partners selectivos</h3>
+      <p>Produ se integra con criterio: menos ruido, más valor real en la operación del cliente.</p>
+    </article>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="cta-box">
+    <div class="cta-copy">
+      <h2>¿Quieres evaluar si tu operación necesita facturación electrónica integrada?</h2>
+      <p>Te ayudamos a definir si conviene activar este partner desde el inicio o dejarlo para una segunda fase de implementación.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="https://portal.produ.cl/" target="_blank" class="btn-primary" style="background:#fff;color:#101a33">Solicitar demo</a>
+      <a href="precios.html" class="btn-outline" style="border-color:rgba(255,255,255,.24);color:#fff">Ver precios</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="footer-logo-icon">
+        <svg viewBox="0 0 24 24" fill="#fff" width="15" height="15"><polygon points="5,3 20,12 5,21"/></svg>
+      </div>
+      <div class="footer-logo-copy">
+        <span class="footer-logo-text" style="color:#fff">produ</span>
+        <span class="footer-logo-sub">Gestión de Productoras</span>
+      </div>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Inicio</a>
+      <a href="precios.html">Precios</a>
+      <a href="https://portal.produ.cl" target="_blank">Portal</a>
+    </div>
+    <div class="footer-affiliate">
+      <div class="footer-copy">© 2026 Produ. Integraciones y partners actualizados.</div>
+      <img src="/assets/chile-partner.png" alt="Chile partner" />
+    </div>
+  </div>
+</footer>
+</body>
+</html>

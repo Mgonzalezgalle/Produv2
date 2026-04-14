@@ -12,9 +12,13 @@ function normalizeLabDataMode(value = "") {
 
 function readLabDataMode() {
   try {
-    return normalizeLabDataMode(import.meta.env?.VITE_LAB_DATA_MODE);
+    const configured = import.meta.env?.VITE_LAB_DATA_MODE;
+    if (configured == null || String(configured).trim() === "") {
+      return LAB_DATA_MODES.RELEASE;
+    }
+    return normalizeLabDataMode(configured);
   } catch {
-    return LAB_DATA_MODES.ISOLATED;
+    return LAB_DATA_MODES.RELEASE;
   }
 }
 

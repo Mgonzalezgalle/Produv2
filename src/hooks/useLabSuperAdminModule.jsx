@@ -1,9 +1,72 @@
 import { useEffect, useRef, useState } from "react";
 
+const isSameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function sanitizeTenantSnapshotForFoundation(tenantSnapshot = {}) {
+  const integrationConfigs = tenantSnapshot?.integrationConfigs || {};
+  const bsale = integrationConfigs?.bsale || {};
+  const bsaleSandbox = bsale?.sandbox || {};
+  return {
+    ...tenantSnapshot,
+    integrationConfigs: {
+      ...integrationConfigs,
+      bsale: {
+        ...bsale,
+        sandbox: {
+          status: bsaleSandbox.status || "draft",
+          officeId: bsaleSandbox.officeId || "",
+          documentTypeId: bsaleSandbox.documentTypeId || "",
+          priceListId: bsaleSandbox.priceListId || "",
+          tokenConfigured: Boolean(bsaleSandbox.token),
+        },
+      },
+    },
+  };
+}
+
+function buildAccessEmailPayload({
+  tenant = null,
+  user = null,
+  password = "",
+  mode = "access_updated",
+} = {}) {
+  const safeName = user?.name || user?.email || "equipo";
+  const tenantName = tenant?.nombre || "Produ";
+  const intro = mode === "tenant_activated"
+    ? `Tu acceso a ${tenantName} ya fue activado en Produ.`
+    : "Actualizamos tu acceso en Produ.";
+  const text = [
+    `Hola ${safeName},`,
+    "",
+    intro,
+    "",
+    `Email: ${user?.email || ""}`,
+    `Contraseña temporal: ${password || ""}`,
+    "",
+    "Te recomendamos cambiarla al ingresar.",
+  ].join("\n").trim();
+  return {
+    tenantId: tenant?.id || user?.empId || "",
+    templateKey: mode,
+    subject: mode === "tenant_activated" ? `Acceso activado en ${tenantName}` : `Acceso actualizado en ${tenantName}`,
+    to: user?.email ? [user.email] : [],
+    text,
+    html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
+    entityType: "user_access",
+    entityId: user?.id || "",
+    metadata: {
+      tenantName,
+      userName: user?.name || "",
+      mode,
+    },
+  };
+}
+
 export function useLabSuperAdminModule({
   actorUser,
   empresas,
   users,
+  platformServices,
   printLayouts,
   savePrintLayouts,
   supportThreads = [],
@@ -18,9 +81,9 @@ export function useLabSuperAdminModule({
   fmtMoney,
   normalizePrintLayouts,
   DEFAULT_PRINT_LAYOUTS,
-  buildSupportSettings,
-  normalizeSupportThreads,
-  supportAttachmentFromFile,
+  buildSupportSettings = (settings = {}) => settings || {},
+  normalizeSupportThreads = (threads = []) => threads || [],
+  supportAttachmentFromFile = async () => null,
   normalizeEmpresasModel,
   companyBillingDiscountPct,
   companyReferralDiscountMonthsPending,
@@ -41,15 +104,14 @@ export function useLabSuperAdminModule({
   const [ef, setEf] = useState({});
   const [eid, setEid] = useState(null);
   const [sysUf, setSysUf] = useState({ active: true, role: "admin", empId: "", password: "" });
+  const [sysUid, setSysUid] = useState(null);
   const [integrationEmpId, setIntegrationEmpId] = useState("");
   const [commEmpId, setCommEmpId] = useState("");
   const [sysMsg, setSysMsg] = useState({ title: "", body: "" });
   const [bannerForm, setBannerForm] = useState({ active: false, tone: "info", text: "" });
   const [q, setQ] = useState("");
-  const [planF, setPlanF] = useState("");
   const [stateF, setStateF] = useState("");
   const [portfolioQ, setPortfolioQ] = useState("");
-  const [portfolioPlan, setPortfolioPlan] = useState("");
   const [portfolioStatus, setPortfolioStatus] = useState("");
   const [portfolioEmpId, setPortfolioEmpId] = useState("");
   const [uq, setUQ] = useState("");
@@ -64,6 +126,7 @@ export function useLabSuperAdminModule({
   const sysMsgBodyRef = useRef(null);
   const [supportAttachments, setSupportAttachments] = useState([]);
   const [supportForm, setSupportForm] = useState(() => buildSupportSettings(supportSettings, users));
+  const [lastGovernanceSync, setLastGovernanceSync] = useState(null);
   const isSuperAdmin = actorUser?.role === "superadmin";
   const canWriteGlobal = () => isSuperAdmin;
   const guardedOnSave = (key, next) => {
@@ -71,10 +134,60 @@ export function useLabSuperAdminModule({
     onSave(key, next);
     return true;
   };
+  const appendGovernanceLog = async (tenantId, action, payload = {}) => {
+    if (!tenantId || !platformServices?.appendSyncAuditLog) return { ok: false, source: "degraded" };
+    try {
+      return await platformServices.appendSyncAuditLog(
+        tenantId,
+        action,
+        "tower_of_control",
+        tenantId,
+        {
+          actorUserId: actorUser?.id || "",
+          actorUserEmail: actorUser?.email || "",
+          ...payload,
+        },
+      );
+    } catch {
+      return { ok: false, source: "degraded" };
+    }
+  };
+  const syncTenantFoundationSnapshot = async tenantSnapshot => {
+    if (!tenantSnapshot?.id || !platformServices?.syncLegacyTenant) return { ok: false, source: "degraded" };
+    try {
+      return await platformServices.syncLegacyTenant({
+        legacyEmpId: tenantSnapshot.id,
+        empresa: sanitizeTenantSnapshotForFoundation(tenantSnapshot),
+      });
+    } catch {
+      return { ok: false, source: "degraded" };
+    }
+  };
+  const recordGovernanceOutcome = ({ tenantId = "", action = "", auditResult = null, syncResult = null } = {}) => {
+    setLastGovernanceSync({
+      tenantId,
+      action,
+      auditSource: auditResult?.source || "degraded",
+      syncSource: syncResult?.source || "degraded",
+      ok: Boolean(syncResult?.ok !== false),
+      updatedAt: nowIso(),
+    });
+  };
+  const runGovernanceAction = ({ tenantId = "", action = "", payload = {}, tenantSnapshot = null } = {}) => {
+    void (async () => {
+      const auditResult = await appendGovernanceLog(tenantId, action, payload);
+      const syncResult = tenantSnapshot ? await syncTenantFoundationSnapshot(tenantSnapshot) : { ok: false, source: "degraded" };
+      recordGovernanceOutcome({
+        tenantId,
+        action,
+        auditResult,
+        syncResult,
+      });
+    })();
+  };
 
   const totalEmp = (empresas || []).length;
   const activeEmp = (empresas || []).filter(e => e.active !== false).length;
-  const proEmp = (empresas || []).filter(e => e.plan === "pro" || e.plan === "enterprise").length;
   const totalUsers = (users || []).filter(u => u.role !== "superadmin").length;
   const carteraEmp = (empresas || []).map(emp => ({
     ...emp,
@@ -90,10 +203,9 @@ export function useLabSuperAdminModule({
   const totalDiscountMRR = Math.max(0, grossMRR - netMRR);
   const overdueEmp = carteraEmp.filter(emp => ["Vencido", "Mora", "Suspendido"].includes(emp.payStatus)).length;
   const activePortfolioClients = carteraEmp.filter(emp => emp.active !== false);
-  const filteredEmp = (empresas || []).filter(emp => (!q || emp.nombre?.toLowerCase().includes(q.toLowerCase()) || emp.rut?.toLowerCase().includes(q.toLowerCase())) && (!planF || emp.plan === planF) && (!stateF || (stateF === "Activa" ? emp.active !== false : emp.active === false)));
+  const filteredEmp = (empresas || []).filter(emp => (!q || emp.nombre?.toLowerCase().includes(q.toLowerCase()) || emp.rut?.toLowerCase().includes(q.toLowerCase())) && (!stateF || (stateF === "Activa" ? emp.active !== false : emp.active === false)));
   const filteredPortfolio = carteraEmp.filter(emp =>
     (!portfolioQ || emp.nombre?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.contractOwner?.toLowerCase().includes(portfolioQ.toLowerCase()) || emp.rut?.toLowerCase().includes(portfolioQ.toLowerCase())) &&
-    (!portfolioPlan || emp.plan === portfolioPlan) &&
     (!portfolioStatus || emp.payStatus === portfolioStatus),
   );
   const selectedPortfolioEmp = filteredPortfolio.find(emp => emp.id === portfolioEmpId) || filteredPortfolio[0] || null;
@@ -112,19 +224,28 @@ export function useLabSuperAdminModule({
   const supportThreadsForEmp = normalizedSupportThreads.filter(thread => !selectedSupportEmp || thread.empId === selectedSupportEmp.id);
   const selectedSupportThread = supportThreadsForEmp.find(thread => thread.id === supportThreadId) || supportThreadsForEmp[0] || null;
 
-  useEffect(() => { setPrintForm(normalizePrintLayouts(printLayouts)); }, [printLayouts, normalizePrintLayouts]);
-  useEffect(() => { setSupportForm(buildSupportSettings(supportSettings, users)); }, [supportSettings, users, buildSupportSettings]);
+  useEffect(() => {
+    const next = normalizePrintLayouts(printLayouts);
+    setPrintForm(prev => (isSameJson(prev, next) ? prev : next));
+  }, [printLayouts, normalizePrintLayouts]);
+
+  useEffect(() => {
+    const next = buildSupportSettings(supportSettings, users);
+    setSupportForm(prev => (isSameJson(prev, next) ? prev : next));
+  }, [supportSettings, users, buildSupportSettings]);
 
   const saveSystemUser = async () => {
     if (!canWriteGlobal()) return false;
-    if (!sysUf.name?.trim() || !sysUf.email?.trim() || !sysUf.password?.trim()) return;
+    if (!sysUf.name?.trim() || !sysUf.email?.trim() || (!sysUid && !sysUf.password?.trim())) return;
     const normalizedEmail = normalizeEmailValue(sysUf.email);
-    const existing = (users || []).find(u => normalizeEmailValue(u.email) === normalizedEmail);
+    const existing = (users || []).find(u => u.id === sysUid) || (users || []).find(u => normalizeEmailValue(u.email) === normalizedEmail);
+    const duplicateByEmail = (users || []).find(u => normalizeEmailValue(u.email) === normalizedEmail && u.id !== existing?.id);
+    if (duplicateByEmail) return false;
     const payload = {
       id: existing?.id || uid(),
       name: sysUf.name.trim(),
       email: normalizedEmail,
-      passwordHash: await sha256Hex(sysUf.password),
+      passwordHash: sysUf.password?.trim() ? await sha256Hex(sysUf.password) : existing?.passwordHash,
       role: sanitizeAssignableRole(sysUf.role, null, { role: "superadmin" }, "admin"),
       empId: sysUf.role === "superadmin" ? null : (sysUf.empId || null),
       active: sysUf.active !== false,
@@ -135,7 +256,65 @@ export function useLabSuperAdminModule({
       ? (users || []).map(u => u.id === existing.id ? { ...u, ...payload } : u)
       : [...(users || []), payload];
     guardedOnSave("users", next);
+    setSysUid(null);
     setSysUf({ active: true, role: "admin", empId: "", password: "" });
+  };
+
+  const editSystemUser = user => {
+    if (!canWriteGlobal() || !user) return false;
+    setSysUid(user.id);
+    setSysUf({
+      name: user.name || "",
+      email: user.email || "",
+      password: "",
+      role: user.role || "admin",
+      empId: user.empId || "",
+      active: user.active !== false,
+    });
+    return true;
+  };
+
+  const resetSystemUserAccess = async user => {
+    if (!canWriteGlobal() || !user) return false;
+    const tempPassword = window.prompt(`Nueva contraseña temporal para ${user.name || user.email}:`, "produ2026");
+    if (!tempPassword?.trim()) return false;
+    const nextHash = await sha256Hex(tempPassword.trim());
+    const next = (users || []).map(u => u.id === user.id ? { ...u, passwordHash: nextHash } : u);
+    guardedOnSave("users", next);
+    const tenant = (empresas || []).find(emp => emp.id === user.empId) || null;
+    const emailResult = await sendAccessEmail({
+      tenant,
+      user,
+      password: tempPassword.trim(),
+      mode: "access_updated",
+    });
+    window.alert(`Acceso actualizado para ${user.email}. Contraseña temporal: ${tempPassword.trim()}${emailResult?.ok ? " / Correo enviado." : ""}`);
+    return true;
+  };
+
+  const deleteSystemUser = user => {
+    if (!canWriteGlobal() || !user || user.role === "superadmin") return false;
+    if (!window.confirm(`¿Eliminar a ${user.name || user.email} del sistema?`)) return false;
+    guardedOnSave("users", (users || []).filter(u => u.id !== user.id));
+    if (sysUid === user.id) {
+      setSysUid(null);
+      setSysUf({ active: true, role: "admin", empId: "", password: "" });
+    }
+    return true;
+  };
+
+  const sendAccessEmail = async ({ tenant = null, user = null, password = "", mode = "access_updated" } = {}) => {
+    if (!user?.email || !password || !platformServices?.sendTransactionalEmail) return { ok: false, source: "degraded" };
+    try {
+      return await platformServices.sendTransactionalEmail(buildAccessEmailPayload({
+        tenant,
+        user,
+        password,
+        mode,
+      }));
+    } catch {
+      return { ok: false, source: "degraded" };
+    }
   };
 
   const updatePrint = (doc, key, value) => setPrintForm(prev => ({
@@ -275,7 +454,7 @@ export function useLabSuperAdminModule({
 
   const SUPER_TABS = ["Empresas", "Cartera", "Usuarios del sistema", "Integraciones", "Comunicaciones", "Solicitudes", "Impresos"];
   const SUPER_TAB_META = {
-    "Empresas": { eyebrow: "Estructura", desc: "Administra tenants, planes, addons y configuración base de cada instancia." },
+    "Empresas": { eyebrow: "Estructura", desc: "Administra tenants, niveles, módulos y configuración base de cada instancia." },
     "Cartera": { eyebrow: "Control comercial", desc: "Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants." },
     "Usuarios del sistema": { eyebrow: "Accesos", desc: "Revisa usuarios creados, roles y conectividad operativa por empresa." },
     "Integraciones": { eyebrow: "Base técnica", desc: "Activa o desactiva integraciones preparadas por tenant sin exponer funciones incompletas." },
@@ -291,14 +470,27 @@ export function useLabSuperAdminModule({
     const id = eid || `emp_${uid().slice(1, 7)}`;
     const prev = empresas.find(e => e.id === eid) || {};
     const obj = { id, tenantCode: prev.tenantCode || nextTenantCode(empresas), nombre: ef.nombre, rut: ef.rut || "", dir: ef.dir || "", tel: ef.tel || "", ema: ef.ema || "", logo: ef.logo || prev.logo || "", color: ef.color || "#00d4e8", addons: ef.addons || [], active: ef.active !== false, plan: ef.plan || "starter", theme: ef.theme || prev.theme || null, googleCalendarEnabled: prev.googleCalendarEnabled === true, freshdeskEnabled: false, migratedTasksAddon: prev.migratedTasksAddon ?? true, supportChatEnabled: false, systemMessages: prev.systemMessages || [], systemBanner: prev.systemBanner || { active: false, tone: "info", text: "" }, billingCurrency: prev.billingCurrency || "UF", billingMonthly: Number(prev.billingMonthly || 0), billingDiscountPct: companyBillingDiscountPct(prev), billingDiscountNote: prev.billingDiscountNote || "", billingStatus: prev.billingStatus || "Pendiente", billingDueDay: Number(prev.billingDueDay || 0), billingLastPaidAt: prev.billingLastPaidAt || "", referralDiscountMonthsPending: companyReferralDiscountMonthsPending(prev), referralDiscountHistory: companyReferralDiscountHistory(prev), contractOwner: prev.contractOwner || "", clientPortalUrl: prev.clientPortalUrl || "", paymentDetails: prev.paymentDetails || null, bankInfo: prev.bankInfo || "", cr: eid ? (empresas.find(e => e.id === eid)?.cr || today()) : today() };
-    guardedOnSave("empresas", eid ? empresas.map(e => e.id === eid ? obj : e) : [...empresas, obj]);
+    const nextEmpresas = eid ? empresas.map(e => e.id === eid ? obj : e) : [...empresas, obj];
+    guardedOnSave("empresas", nextEmpresas);
+    runGovernanceAction({
+      tenantId: id,
+      action: eid ? "tenant_profile_updated" : "tenant_created",
+      payload: {
+        tenantCode: obj.tenantCode,
+        tenantName: obj.nombre,
+        active: obj.active !== false,
+        addons: Array.isArray(obj.addons) ? obj.addons : [],
+      },
+      tenantSnapshot: obj,
+    });
     setEf({});
     setEid(null);
   };
 
   const savePortfolio = (empId, patch = {}) => {
     if (!canWriteGlobal()) return false;
-    guardedOnSave("empresas", (empresas || []).map(e => {
+    let nextTenant = null;
+    const nextEmpresas = (empresas || []).map(e => {
       if (e.id !== empId) return e;
       const consumeReferralMonth = shouldConsumeReferralDiscountMonth(e, patch);
       const nextHistory = consumeReferralMonth
@@ -309,7 +501,7 @@ export function useLabSuperAdminModule({
             note: "Se aplicó 1 mes gratis por referido al registrar un nuevo pago.",
           }, ...companyReferralDiscountHistory(e)]
         : companyReferralDiscountHistory(e);
-      return {
+      nextTenant = {
         ...e,
         ...patch,
         billingCurrency: patch.billingCurrency ?? e.billingCurrency ?? "UF",
@@ -322,7 +514,41 @@ export function useLabSuperAdminModule({
         ) || 0),
         referralDiscountHistory: Array.isArray(patch.referralDiscountHistory) ? patch.referralDiscountHistory : nextHistory,
       };
-    }));
+      return nextTenant;
+    });
+    guardedOnSave("empresas", nextEmpresas);
+    runGovernanceAction({
+      tenantId: empId,
+      action: "tenant_billing_updated",
+      payload: {
+        patch: Object.fromEntries(Object.entries(patch || {}).filter(([, value]) => value !== undefined)),
+      },
+      tenantSnapshot: nextTenant,
+    });
+    return true;
+  };
+
+  const saveIntegrationProvisioning = (empId, updater, audit = {}) => {
+    if (!canWriteGlobal()) return false;
+    const current = (empresas || []).find(emp => emp.id === empId);
+    if (!current) return false;
+    const nextEmpresas = (empresas || []).map(emp => {
+      if (emp.id !== empId) return emp;
+      return typeof updater === "function" ? updater(emp) : { ...emp, ...updater };
+    });
+    guardedOnSave("empresas", nextEmpresas);
+    const nextTenant = nextEmpresas.find(emp => emp.id === empId);
+    runGovernanceAction({
+      tenantId: empId,
+      action: audit.action || "tenant_integration_updated",
+      payload: {
+        integration: audit.integration || "platform",
+        field: audit.field || "",
+        value: audit.value,
+        tenantName: current.nombre || "",
+      },
+      tenantSnapshot: nextTenant,
+    });
     return true;
   };
 
@@ -331,6 +557,13 @@ export function useLabSuperAdminModule({
     if (!selectedCommEmp || !sysMsg.title?.trim() || !sysMsg.body?.trim()) return;
     const next = (empresas || []).map(e => e.id === selectedCommEmp.id ? { ...e, systemMessages: [{ id: uid(), title: sysMsg.title.trim(), body: sysMsg.body.trim(), createdAt: today() }, ...(e.systemMessages || [])] } : e);
     guardedOnSave("empresas", next);
+    const nextTenant = next.find(e => e.id === selectedCommEmp.id);
+    runGovernanceAction({
+      tenantId: selectedCommEmp.id,
+      action: "tenant_system_message_published",
+      payload: { title: sysMsg.title.trim() },
+      tenantSnapshot: nextTenant,
+    });
     setSysMsg({ title: "", body: "" });
   };
   const updateSystemBody = updater => {
@@ -382,18 +615,43 @@ export function useLabSuperAdminModule({
     const payload = { active: !!bannerForm.active, tone: bannerForm.tone || "info", text: bannerForm.text || "", updatedAt: today() };
     const next = (empresas || []).map(e => e.id === selectedCommEmp.id ? { ...e, systemBanner: payload } : e);
     guardedOnSave("empresas", next);
+    const nextTenant = next.find(e => e.id === selectedCommEmp.id);
+    runGovernanceAction({
+      tenantId: selectedCommEmp.id,
+      action: "tenant_system_banner_updated",
+      payload: {
+        active: payload.active,
+        tone: payload.tone,
+      },
+      tenantSnapshot: nextTenant,
+    });
   };
   const removeSystemMessage = msgId => {
     if (!canWriteGlobal()) return false;
     if (!selectedCommEmp) return;
     const next = (empresas || []).map(e => e.id === selectedCommEmp.id ? { ...e, systemMessages: (e.systemMessages || []).filter(m => m.id !== msgId) } : e);
     guardedOnSave("empresas", next);
+    const nextTenant = next.find(e => e.id === selectedCommEmp.id);
+    runGovernanceAction({
+      tenantId: selectedCommEmp.id,
+      action: "tenant_system_message_removed",
+      payload: { messageId: msgId },
+      tenantSnapshot: nextTenant,
+    });
   };
 
   const toggleSupportForEmp = enabled => {
     if (!canWriteGlobal()) return false;
     if (!selectedSupportEmp) return;
-    guardedOnSave("empresas", (empresas || []).map(emp => emp.id === selectedSupportEmp.id ? { ...emp, supportChatEnabled: enabled } : emp));
+    const next = (empresas || []).map(emp => emp.id === selectedSupportEmp.id ? { ...emp, supportChatEnabled: enabled } : emp);
+    guardedOnSave("empresas", next);
+    const nextTenant = next.find(emp => emp.id === selectedSupportEmp.id);
+    runGovernanceAction({
+      tenantId: selectedSupportEmp.id,
+      action: "tenant_support_chat_updated",
+      payload: { enabled: !!enabled },
+      tenantSnapshot: nextTenant,
+    });
   };
   const persistSupportSettings = () => {
     if (!canWriteGlobal()) return false;
@@ -528,14 +786,31 @@ export function useLabSuperAdminModule({
       guardedOnSave("empresas", nextEmpresas);
       const nextSols = cur.map(s => s.id === sol.id ? { ...s, estado: "aprobada", approvedAt: today() } : s);
       await dbSet("produ:solicitudes", nextSols);
-      alert("Empresa activada. Email: " + sol.ema + (alreadyExists ? "" : " / Contrasena temporal: " + tempPassword) + (sol.referred ? " / Se acreditó 1 mes de descuento al referido." : ""));
+      const targetTenant = nextEmpresas.find(e => e.id === targetEmpId) || null;
+      const targetUser = (nextUsers || []).find(u => u.email?.toLowerCase() === sol.ema?.toLowerCase() && u.empId === targetEmpId) || null;
+      const emailResult = alreadyExists
+        ? { ok: false, source: "degraded" }
+        : await sendAccessEmail({
+            tenant: targetTenant,
+            user: targetUser,
+            password: tempPassword,
+            mode: "tenant_activated",
+          });
+      alert("Empresa activada. Email: " + sol.ema + (alreadyExists ? "" : " / Contrasena temporal: " + tempPassword) + (emailResult?.ok ? " / Correo enviado." : "") + (sol.referred ? " / Se acreditó 1 mes de descuento al referido." : ""));
       return;
     }
     const tempPassword = uid().slice(1, 9);
     const newUser = { id: uid(), name: sol.nom, email: sol.ema, passwordHash: await sha256Hex(tempPassword), role: sol.rol || "productor", empId: empId || "", active: true };
     guardedOnSave("users", [...(users || []), newUser]);
     await dbSet("produ:solicitudes", cur.filter(s => s.id !== sol.id));
-    alert("Usuario creado. Email: " + sol.ema + " / Contrasena temporal: " + tempPassword);
+    const tenant = (empresas || []).find(e => e.id === (empId || "")) || null;
+    const emailResult = await sendAccessEmail({
+      tenant,
+      user: newUser,
+      password: tempPassword,
+      mode: "tenant_activated",
+    });
+    alert("Usuario creado. Email: " + sol.ema + " / Contrasena temporal: " + tempPassword + (emailResult?.ok ? " / Correo enviado." : ""));
   };
 
   const handleRechazarSolicitud = async sol => {
@@ -556,14 +831,10 @@ export function useLabSuperAdminModule({
     setTab,
     q,
     setQ,
-    planF,
-    setPlanF,
     stateF,
     setStateF,
     portfolioQ,
     setPortfolioQ,
-    portfolioPlan,
-    setPortfolioPlan,
     portfolioStatus,
     setPortfolioStatus,
     portfolioEmpId,
@@ -582,6 +853,8 @@ export function useLabSuperAdminModule({
     setEid,
     sysUf,
     setSysUf,
+    sysUid,
+    setSysUid,
     integrationEmpId,
     setIntegrationEmpId,
     commEmpId,
@@ -606,7 +879,6 @@ export function useLabSuperAdminModule({
     setSupportForm,
     totalEmp,
     activeEmp,
-    proEmp,
     totalUsers,
     carteraEmp,
     grossMRR,
@@ -625,9 +897,13 @@ export function useLabSuperAdminModule({
     selectedSupportEmp,
     supportThreadsForEmp,
     selectedSupportThread,
+    lastGovernanceSync,
     isSuperAdmin,
     guardedOnSave,
     saveSystemUser,
+    editSystemUser,
+    resetSystemUserAccess,
+    deleteSystemUser,
     updatePrint,
     resetPrintLayouts,
     persistPrintLayouts,
@@ -638,6 +914,7 @@ export function useLabSuperAdminModule({
     activeSuperTab,
     saveEmp,
     savePortfolio,
+    saveIntegrationProvisioning,
     publishSystemMessage,
     wrapSystemSelection,
     insertSystemBlock,

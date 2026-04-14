@@ -1,67 +1,10 @@
-export const LAB_NS = "produ-lab";
-export const PROD_NS = "produ";
-export const LAB_DATA_MODES = {
-  ISOLATED: "isolated",
-  RELEASE: "release",
-};
-
-function normalizeLabDataMode(value = "") {
-  const next = String(value || "").trim().toLowerCase();
-  return next === LAB_DATA_MODES.RELEASE ? LAB_DATA_MODES.RELEASE : LAB_DATA_MODES.ISOLATED;
-}
-
-function readLabDataMode() {
-  try {
-    const configured = import.meta.env?.VITE_LAB_DATA_MODE;
-    if (configured == null || String(configured).trim() === "") {
-      return LAB_DATA_MODES.RELEASE;
-    }
-    return normalizeLabDataMode(configured);
-  } catch {
-    return LAB_DATA_MODES.RELEASE;
-  }
-}
-
-export const LAB_DATA_CONFIG = {
-  mode: readLabDataMode(),
-  releaseMode: readLabDataMode() === LAB_DATA_MODES.RELEASE,
-};
-
-function activeDataNamespace() {
-  return LAB_DATA_CONFIG.releaseMode ? PROD_NS : LAB_NS;
-}
-
-export function labStorageKey(key = "") {
-  const targetNs = activeDataNamespace();
-  return String(key || "").startsWith(`${PROD_NS}:`)
-    ? key.replace(`${PROD_NS}:`, `${targetNs}:`)
-    : `${targetNs}:${key}`;
-}
-
-export function prodStorageKey(key = "") {
-  return String(key || "").startsWith(`${LAB_NS}:`)
-    ? key.replace(`${LAB_NS}:`, `${PROD_NS}:`)
-    : key;
-}
-
-export function localLabKey(key = "") {
-  return `${activeDataNamespace()}:${key}`;
-}
-
-export function createLabDb(rawDbGet, rawDbSet) {
-  const dbGet = key => {
-    return rawDbGet(labStorageKey(key));
-  };
-  const dbSet = async (key, val) => {
-    const namespacedKey = labStorageKey(key);
-    return rawDbSet(namespacedKey, val);
-  };
-  const dbCloneFromProd = async (key, fallback = null) => {
-    if (LAB_DATA_CONFIG.releaseMode) return fallback;
-    const source = await rawDbGet(prodStorageKey(key));
-    const data = source === null ? fallback : source;
-    if (data !== null) await dbSet(key, data);
-    return data;
-  };
-  return { dbGet, dbSet, dbCloneFromProd };
-}
+export {
+  LAB_NS,
+  PROD_NS,
+  LAB_DATA_MODES,
+  LAB_DATA_CONFIG,
+  labStorageKey,
+  prodStorageKey,
+  localLabKey,
+} from "./labStorageConfig";
+export { createLabDb } from "./labDb";

@@ -32,7 +32,9 @@ import {
   budgetPaymentDateValue,
   budgetPaymentMethodValue,
   budgetPaymentNotesValue,
+  billingContact,
   cobranzaState,
+  commentAttachmentFromFile,
   companyPaymentInfoText,
   companyPrintColor,
   fmtD,
@@ -45,224 +47,96 @@ import {
   today,
   uid,
 } from "../../lib/utils/helpers";
-import {
-  createCommercialPdfDeps,
-  drawDocumentSectionBox,
-  drawLegalDocStamp,
-  drawRightAlignedPdfText,
-  drawRoundedPdfBox,
-  drawSummaryPanel,
-  generateBillingPdf,
-  hexToRgb,
-  measurePdfTextBlock,
-  wrapPdfText,
-} from "../../lib/lab/commercialPdf";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
 import { useLabInvoiceList } from "../../hooks/useLabInvoiceList";
 import { dbGet } from "../../hooks/useLabDataStore";
 import { buildTreasuryPurchaseOrders, summarizePurchaseOrders } from "../../lib/utils/treasury";
+import {
+  buildProduBillingReferenceSummary,
+  canProduBillingDocumentBeReferenced,
+  evaluateProduBillingBsaleReadiness,
+  getDefaultProduBillingReferenceReason,
+  getProduBillingReferenceCodeLabel,
+  getProduBillingReferenceCodeOptions,
+  getProduBillingDocumentTypeLabel,
+  getProduBillingReferenceReasonOptions,
+  getProduBillingDocumentTypeOptions,
+  requiresProduBillingReferences,
+  requiresProduCollectionTracking,
+  resolveProduBillingDocumentType,
+  supportsProduDocumentHonorarios,
+  supportsProduDocumentVat,
+} from "../../lib/integrations/billingDomain";
 import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderModal";
+import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
+import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+export { MFact } from "./InvoiceModal";
+let commercialPdfRuntimePromise = null;
 
-const commercialPdfDeps = createCommercialPdfDeps({
-  dbGet,
-  DEFAULT_PRINT_LAYOUTS,
-  normalizePrintLayouts,
-  hexToRgb,
-  companyPaymentInfoText,
-  budgetPaymentMethodValue,
-  budgetPaymentDateValue,
-  budgetPaymentNotesValue,
-  budgetObservationValue,
-  drawLegalDocStamp,
-  drawDocumentSectionBox,
-  drawRoundedPdfBox,
-  drawRightAlignedPdfText,
-  drawSummaryPanel,
-  measurePdfTextBlock,
-  wrapPdfText,
-  recurringSummary,
-  fmtD,
-  fmtM,
-  today,
-  companyPrintColor,
-  cobranzaState,
-});
-
-export function InvoiceIssuanceSection({
-  q, setQ, fe, setFe, sortMode, setSortMode, openM, canEdit,
-  selectedIds, bulkEstado, setBulkEstado, applyBulkEstado, deleteSelected, clearSelection,
-  currentPageIds, toggleAll, fd, pg, PP, clientes, auspiciadores, producciones, programas, piezas,
-  presupuestos, contratos, recurringSummary, today, invoiceEntityName, fmtM, fmtD, Badge,
-  SearchBar, FilterSel, GBtn, DBtn, FSl, Card, TH, TD, Empty, Paginator, setPg, toggleSelected, onEditDoc, onDeleteDoc,
-  onOpenPdf, canPres, canContracts,
-}) {
-  return <>
-    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={q} onChange={v=>{setQ(v);}} placeholder="Buscar invoice o entidad..."/>
-      <FilterSel value={fe} onChange={v=>{setFe(v);}} options={["Borrador","Emitida","Anulada"]} placeholder="Todo estados"/>
-      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
-      {canEdit&&<button onClick={()=>openM("fact",{tipoDoc:"Factura"})} style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--cy)",background:"var(--cy)",color:"#051018",fontWeight:800,cursor:"pointer"}}>+ Nuevo documento</button>}
-    </div>
-    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
-      <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:180}}>
-        <option value="">Cambiar estado...</option>
-        {["Borrador","Emitida","Anulada"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
-      </FSl>
-      <GBtn sm onClick={applyBulkEstado}>Aplicar estado</GBtn>
-      {canEdit&&<DBtn sm onClick={deleteSelected}>Eliminar seleccionados</DBtn>}
-      <GBtn sm onClick={clearSelection}>Limpiar selección</GBtn>
-    </div>}
-    <Card>
-      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Total</TH><TH>Origen</TH><TH>Contrato</TH><TH>Fechas</TH><TH></TH></tr></thead>
-        <tbody>
-          {fd.slice((pg-1)*PP,pg*PP).map(f=>{
-            const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
-            const ref=f.tipoRef==="produccion"
-              ? (producciones||[]).find(x=>x.id===f.proId)
-              : (f.tipoRef==="contenido" ? (piezas||[]).find(x=>x.id===f.proId) : (programas||[]).find(x=>x.id===f.proId));
-            const pres=(presupuestos||[]).find(x=>x.id===f.presupuestoId);
-            const ct=(contratos||[]).find(x=>x.id===f.contratoId);
-            return<tr key={f.id}>
-              <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)}/></TD>
-              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipoDoc||"Invoice"}</div><div style={{fontSize:10,color:f.recurring?"#00e08a":"var(--gr2)",marginTop:4}}>{recurringSummary(f, f.fechaEmision || today())}</div></TD>
-              <TD><div>{invoiceEntityName(f, clientes, auspiciadores)}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div></TD>
-              <TD style={{fontSize:11}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
-              <TD><Badge label={f.estado||"Emitida"}/></TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
-              <TD style={{fontSize:11,color:"var(--gr2)"}}>{canPres?(pres?.correlativo||pres?.titulo||"—"):"—"}</TD>
-              <TD style={{fontSize:11,color:"var(--gr2)"}}>{canContracts?(ct?.nom||"—"):"—"}</TD>
-              <TD style={{fontSize:11}}>
-                <div>{f.fechaEmision?fmtD(f.fechaEmision):"—"}</div>
-                <div style={{color:"var(--gr2)"}}>{f.fechaVencimiento?`Vence ${fmtD(f.fechaVencimiento)}`:"Sin venc."}</div>
-              </TD>
-              <TD><div style={{display:"flex",gap:4}}>
-                {canEdit&&<><GBtn sm onClick={()=>onEditDoc(f)}>✏</GBtn><button onClick={()=>onDeleteDoc(f.id)} style={{padding:"6px 8px",borderRadius:8,border:"1px solid #f66",background:"transparent",color:"#f88",cursor:"pointer"}}>×</button></>}
-                <GBtn sm onClick={()=>onOpenPdf(f,ent,ref)}>⬇ PDF</GBtn>
-              </div></TD>
-            </tr>;
-          })}
-          {!fd.length&&<tr><td colSpan={10}><Empty text="Sin órdenes de factura"/></td></tr>}
-        </tbody>
-      </table></div>
-      <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
-    </Card>
-  </>;
+async function getCommercialPdfRuntime() {
+  if (!commercialPdfRuntimePromise) {
+    commercialPdfRuntimePromise = Promise.all([
+      import("../../lib/lab/commercialPdfBase"),
+      import("../../lib/lab/commercialBillingPdf"),
+    ]).then(([baseModule, billingModule]) => ({
+      generateBillingPdf: billingModule.generateBillingPdf,
+      buildFactPdfFile: billingModule.buildFactPdfFile,
+      commercialPdfDeps: baseModule.createCommercialPdfDeps({
+        dbGet,
+        DEFAULT_PRINT_LAYOUTS,
+        normalizePrintLayouts,
+        hexToRgb: baseModule.hexToRgb,
+        companyPaymentInfoText,
+        budgetPaymentMethodValue,
+        budgetPaymentDateValue,
+        budgetPaymentNotesValue,
+        budgetObservationValue,
+        drawLegalDocStamp: baseModule.drawLegalDocStamp,
+        drawDocumentSectionBox: baseModule.drawDocumentSectionBox,
+        drawRoundedPdfBox: baseModule.drawRoundedPdfBox,
+        drawRightAlignedPdfText: baseModule.drawRightAlignedPdfText,
+        drawSummaryPanel: baseModule.drawSummaryPanel,
+        measurePdfTextBlock: baseModule.measurePdfTextBlock,
+        wrapPdfText: baseModule.wrapPdfText,
+        recurringSummary,
+        fmtD,
+        fmtM,
+        today,
+        companyPrintColor,
+        cobranzaState,
+      }),
+    }));
+  }
+  return commercialPdfRuntimePromise;
 }
 
-export function InvoiceCollectionSection({
-  q, setQ, fc, setFc, sortMode, setSortMode, selectedIds, bulkCobranza, setBulkCobranza, applyBulkCobranza,
-  clearSelection, currentPageIds, toggleAll, cobranzaDocs, pg, PP, clientes, auspiciadores, invoices,
-  cobranzaState, fmtD, fmtM, Badge, SearchBar, FilterSel, GBtn, FSl, Card, TH, TD, Empty, Paginator,
-  saveFacturaDoc, canEdit, sendBillingEmail, sendBillingWhatsApp, sendStatementEmail, sendStatementWhatsApp,
-  today, toggleSelected, setPg,
-}) {
-  return <Card title="Cobranza" sub="Cuentas por cobrar por factura o invoice emitido">
-    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={q} onChange={v=>{setQ(v);}} placeholder="Buscar documento o entidad..."/>
-      <FilterSel value={fc} onChange={v=>{setFc(v);}} options={["Pendiente de pago","Pagado","No pagado","Retrasado de pago"]} placeholder="Todo cobro"/>
-      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
-    </div>
-    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
-      <FSl value={bulkCobranza} onChange={e=>setBulkCobranza(e.target.value)} style={{minWidth:180}}>
-        <option value="">Cambiar cobranza...</option>
-        {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
-      </FSl>
-      <GBtn sm onClick={applyBulkCobranza}>Aplicar estado</GBtn>
-      <GBtn sm onClick={clearSelection}>Limpiar selección</GBtn>
-    </div>}
-    <div style={{overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPageIds.length>0 && currentPageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
-        <tbody>
-          {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
-            const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
-            const cobro=cobranzaState(f);
-            const entityDocs=invoices.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
-            return <tr key={f.id}>
-              <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)}/></TD>
-              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?"Recurrente":"Único"}</div></TD>
-              <TD>{ent?.nom||"—"}</TD>
-              <TD style={{fontSize:11,color:cobro==="Retrasado de pago"?"#ff5566":"var(--gr2)"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"Sin vencimiento"}</TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
-              <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>
-              <TD>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                  {canEdit&&<FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
-                    {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(st=><option key={st}>{st}</option>)}
-                  </FSl>}
-                  <GBtn sm onClick={()=>sendBillingEmail(f,ent)}>✉ Correo</GBtn>
-                  <GBtn sm onClick={()=>sendBillingWhatsApp(f,ent)}>WhatsApp</GBtn>
-                  <GBtn sm onClick={()=>sendStatementEmail(entityDocs,ent,f.tipo)}>Estado cta. correo</GBtn>
-                  <GBtn sm onClick={()=>sendStatementWhatsApp(entityDocs,ent,f.tipo)}>Estado cta. WA</GBtn>
-                </div>
-              </TD>
-            </tr>;
-          }) : <tr><td colSpan={7}><Empty text="Sin documentos en cobranza" sub="Emite una factura o un invoice para empezar a gestionar su cobranza."/></td></tr>}
-        </tbody>
-      </table>
-    </div>
-    <Paginator page={pg} total={cobranzaDocs.length} perPage={PP} onChange={setPg}/>
-  </Card>;
-}
-
-export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, ntf, treasury = {} }) {
+export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, ntf, treasury = {}, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync, platformApi, user }) {
   const canEdit = canDo && canDo("facturacion");
   const canPres = Array.isArray(empresa?.addons) && empresa.addons.includes("presupuestos");
   const canContracts = Array.isArray(empresa?.addons) && empresa.addons.includes("contratos");
   const allDocs = (facturas || []).filter((x) => x.empId === empresa?.id);
-
-  const {
-    invoices,
-    seriesList,
-    pauseSeries,
-    cutSeries,
-    regenerateSeries,
-    sendBillingEmail,
-    sendBillingWhatsApp,
-    sendStatementEmail,
-    sendStatementWhatsApp,
-  } = useLabBillingTools({
-    allDocs,
-    movimientos,
-    setFacturas,
-    setMovimientos,
-    canEdit,
-    ntf,
-    empresa,
+  const purchaseOrders = React.useMemo(() => buildTreasuryPurchaseOrders({
+    orders: treasury.purchaseOrders || [],
+    facturas: allDocs,
     clientes,
-    auspiciadores,
-    invoiceEntityName,
-    cobranzaState,
-    fmtD,
-    fmtM,
-    fmtMonthPeriod,
-    today,
-    addMonths,
-    uid,
-  });
-
-  const cobranzaSourceDocs = allDocs.filter(f => ["Invoice", "Factura"].includes(f.tipoDoc || "Orden de Factura"));
-  const purchaseOrders = React.useMemo(
-    () => buildTreasuryPurchaseOrders({
-      orders: treasury.purchaseOrders || [],
-      facturas: allDocs,
-      clientes,
-      receipts: treasury.receipts || [],
-      empId: empresa?.id,
-    }),
-    [treasury.purchaseOrders, allDocs, clientes, treasury.receipts, empresa?.id],
-  );
+    receipts: treasury.receipts || [],
+    empId: empresa?.id,
+  }), [allDocs, clientes, empresa?.id, treasury.purchaseOrders, treasury.receipts]);
   const purchaseOrderSummary = React.useMemo(() => summarizePurchaseOrders(purchaseOrders), [purchaseOrders]);
   const [poOpen, setPoOpen] = React.useState(false);
   const [poDraft, setPoDraft] = React.useState(null);
   const [poQuery, setPoQuery] = React.useState("");
   const [poStatus, setPoStatus] = React.useState("");
   const [poDocTarget, setPoDocTarget] = React.useState(null);
-  const [poDocType, setPoDocType] = React.useState("Factura");
+  const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
+  const [emailComposerSending, setEmailComposerSending] = React.useState(false);
+  const [poDocType, setPoDocType] = React.useState("Factura Afecta");
+  const [bsaleSyncTarget, setBsaleSyncTarget] = React.useState(null);
+  const [bsaleSyncSessions, setBsaleSyncSessions] = React.useState([]);
+  const [bsaleSyncLoading, setBsaleSyncLoading] = React.useState(false);
   const filteredPurchaseOrders = React.useMemo(() => {
     const term = String(poQuery || "").trim().toLowerCase();
     return purchaseOrders.filter(row => {
@@ -293,8 +167,11 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   };
   const createDocFromPurchaseOrder = () => {
     if (!poDocTarget) return;
+    const targetDocType = resolveProduBillingDocumentType(poDocType);
     openM("fact", {
-      tipoDoc: poDocType,
+      tipoDoc: targetDocType.label,
+      documentTypeCode: targetDocType.code,
+      tipoDocumento: targetDocType.code,
       tipo: "cliente",
       entidadId: poDocTarget.clientId || "",
       montoNeto: Number(poDocTarget.amount || 0),
@@ -303,9 +180,92 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       estado: "Emitida",
       cobranzaEstado: "Pendiente de pago",
       obs: `Documento creado desde OC ${poDocTarget.number || ""}`.trim(),
+      referenceKind: "purchase_order",
       treasuryPurchaseOrderId: poDocTarget.id,
+      relatedDocumentFolio: poDocTarget.number || "",
+      relatedDocumentTypeCode: "orden_compra",
+      relatedDocumentDate: poDocTarget.issueDate || "",
+      relatedDocumentReason: poDocTarget.number ? `Orden de Compra ${poDocTarget.number}` : "Orden de Compra",
     });
     setPoDocTarget(null);
+  };
+
+  const {
+    invoices,
+    seriesList,
+    pauseSeries,
+    cutSeries,
+    regenerateSeries,
+    createBillingEmailDraft,
+    createStatementEmailDraft,
+    deliverEmailDraft,
+    sendBillingEmail,
+    sendBillingWhatsApp,
+    sendStatementEmail,
+    sendStatementWhatsApp,
+  } = useLabBillingTools({
+    allDocs,
+    movimientos,
+    setFacturas,
+    setMovimientos,
+    canEdit,
+    ntf,
+    empresa,
+    clientes,
+    auspiciadores,
+    invoiceEntityName,
+    cobranzaState,
+    fmtD,
+    fmtM,
+    fmtMonthPeriod,
+    today,
+    addMonths,
+    uid,
+    platformApi,
+    senderReplyTo: user?.email || "",
+  });
+
+  const openEmailComposer = React.useCallback((builderResult) => {
+    if (!builderResult?.ok || !builderResult?.draft) {
+      window.alert(builderResult?.message || "No pudimos preparar el correo.");
+      return;
+    }
+    setEmailComposerDraft(builderResult.draft);
+    setEmailComposerOpen(true);
+  }, []);
+
+  const closeEmailComposer = React.useCallback(() => {
+    if (emailComposerSending) return;
+    setEmailComposerOpen(false);
+    setEmailComposerDraft(null);
+  }, [emailComposerSending]);
+
+  const handleSendComposedEmail = React.useCallback(async (draft) => {
+    setEmailComposerSending(true);
+    try {
+      const result = await deliverEmailDraft(draft);
+      if (!result?.ok) {
+        window.alert(result?.message || "No pudimos enviar el correo.");
+        return;
+      }
+      setEmailComposerOpen(false);
+      setEmailComposerDraft(null);
+    } finally {
+      setEmailComposerSending(false);
+    }
+  }, [deliverEmailDraft]);
+
+  const cobranzaSourceDocs = allDocs.filter(f => requiresProduCollectionTracking(f.documentTypeCode || f.tipoDocumento || f.tipoDoc));
+  const openBsaleSyncDetail = async (factura) => {
+    if (!factura?.id) return;
+    setBsaleSyncTarget(factura);
+    setBsaleSyncLoading(true);
+    try {
+      const sessions = await inspectFacturaBsaleSync?.(factura);
+      setBsaleSyncSessions(Array.isArray(sessions) ? sessions : []);
+    } finally {
+      setBsaleSyncLoading(false);
+    }
   };
 
   const {
@@ -331,6 +291,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     fd,
     cobranzaDocs,
     currentPageIds,
+    selectablePageIds,
     toggleSelected,
     toggleAll,
     cuentasPorCobrar,
@@ -357,6 +318,59 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     today,
   });
 
+  const openBillingEmailComposer = React.useCallback((doc, entity) => {
+    openEmailComposer(createBillingEmailDraft(doc, entity));
+  }, [createBillingEmailDraft, openEmailComposer]);
+
+  const openStatementEmailComposer = React.useCallback((docs, entity, type) => {
+    openEmailComposer(createStatementEmailDraft(docs, entity, type));
+  }, [createStatementEmailDraft, openEmailComposer]);
+  const openInvoiceManualEmailComposer = React.useCallback(async (fact, entity, ref) => {
+    const contact = billingContact(entity, fact?.tipo);
+    if (!contact.email) {
+      window.alert("La entidad no tiene email registrado para enviar la factura.");
+      return;
+    }
+    const resolved = resolveTransactionalEmailTemplate(empresa, "invoice_manual_delivery", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      entityLabel: contact.entidad || "cliente",
+      issueDate: fact?.fechaEmision ? fmtD(fact.fechaEmision) : "sin fecha",
+      documentNumber: fact?.correlativo || "",
+      totalFormatted: fmtM(fact?.total || 0),
+      pendingFormatted: fmtM(fact?.saldo ?? fact?.total ?? 0),
+      dueDate: fact?.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "sin fecha de vencimiento",
+      currency: fact?.moneda || empresa?.moneda || "CLP",
+    });
+    let attachments = [];
+    try {
+      const { buildFactPdfFile, commercialPdfDeps } = await getCommercialPdfRuntime();
+      const file = await buildFactPdfFile(fact, entity, ref, empresa, commercialPdfDeps);
+      const attachment = await commentAttachmentFromFile(file);
+      if (attachment) attachments = [attachment];
+    } catch {
+      window.alert("No pudimos adjuntar automáticamente el PDF de la factura. El correo se abrirá igual para revisión.");
+    }
+    openEmailComposer({
+      ok: true,
+      draft: {
+        tenantId: empresa?.id || "",
+        templateKey: "invoice_manual_delivery",
+        subject: `Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`,
+        to: contact.email,
+        body: resolved.body,
+        attachments,
+        entityType: "invoice",
+        entityId: fact?.id || "",
+        metadata: {
+          companyName: empresa?.nombre || empresa?.nom || "Produ",
+          entityLabel: contact.entidad || "",
+          contactName: contact.nombre || "",
+          documentNumber: fact?.correlativo || "",
+        },
+      },
+    });
+  }, [commentAttachmentFromFile, empresa, fmtD, fmtM, openEmailComposer]);
+
   return <div>
     <ModuleHeader
       module="Facturación"
@@ -380,16 +394,81 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       openM={openM} canEdit={canEdit}
       selectedIds={selectedIds} bulkEstado={bulkEstado} setBulkEstado={setBulkEstado}
       applyBulkEstado={applyBulkEstado} deleteSelected={deleteSelected} clearSelection={()=>setSelectedIds([])}
-      currentPageIds={currentPageIds} toggleAll={toggleAll} toggleSelected={toggleSelected}
+      currentPageIds={currentPageIds} selectablePageIds={selectablePageIds} toggleAll={toggleAll} toggleSelected={toggleSelected}
       fd={fd} pg={pg} PP={PP} setPg={setPg}
       clientes={clientes} auspiciadores={auspiciadores} producciones={producciones} programas={programas} piezas={piezas}
       presupuestos={presupuestos} contratos={contratos}
       recurringSummary={recurringSummary} today={today} invoiceEntityName={invoiceEntityName}
       fmtM={fmtM} fmtD={fmtD} Badge={Badge}
       SearchBar={SearchBar} FilterSel={FilterSel} GBtn={GBtn} DBtn={DBtn} FSl={FSl} Card={Card} TH={TH} TD={TD} Empty={Empty} Paginator={Paginator}
+      sendBillingEmail={openBillingEmailComposer}
+      sendStatementEmail={openStatementEmailComposer}
+      sendBillingWhatsApp={sendBillingWhatsApp}
+      sendStatementWhatsApp={sendStatementWhatsApp}
       onEditDoc={(f)=>openM("fact",f)}
       onDeleteDoc={(id)=>{if(!canEdit) return; cDel(facturas,setFacturas,id,null,"Eliminada");}}
-      onOpenPdf={async(f, ent, ref)=>{await generateBillingPdf(f, ent, ref, empresa, commercialPdfDeps);}}
+      onOpenPdf={async(f, ent, ref)=>{
+        const { generateBillingPdf, commercialPdfDeps } = await getCommercialPdfRuntime();
+        await generateBillingPdf(f, ent, ref, empresa, commercialPdfDeps);
+      }}
+      sendInvoiceManualEmail={openInvoiceManualEmailComposer}
+      onEmitBsale={emitFacturaToBsale}
+      onSyncBsale={syncFacturaWithBsale}
+      onInspectBsale={openBsaleSyncDetail}
+      onCreateCreditNote={(factura)=>{
+        const sourceType = resolveProduBillingDocumentType(
+          factura.documentTypeCode || factura.tipoDocumento || factura.tipoDoc || "factura_afecta",
+        );
+        openM("fact", {
+          tipoDoc: "Nota de Crédito",
+          documentTypeCode: "nota_credito",
+          tipoDocumento: "nota_credito",
+          tipo: factura.tipo || "cliente",
+          entidadId: factura.entidadId || "",
+          tipoRef: factura.tipoRef || "",
+          proId: factura.proId || "",
+          presupuestoId: factura.presupuestoId || "",
+          contratoId: factura.contratoId || "",
+          relatedDocumentId: factura.id,
+          relatedDocumentFolio: factura.correlativo || "",
+          relatedDocumentTypeCode: sourceType?.code || "",
+          relatedDocumentDate: factura.fechaEmision || factura.fecha || "",
+          relatedDocumentReason: "Corrige monto del documento",
+          relatedExternalDocumentId: factura.externalSync?.externalDocumentId || "",
+          montoNeto: Number(factura.montoNeto || factura.subtotal || factura.neto || factura.total || 0),
+          iva: false,
+          honorarios: false,
+          fechaEmision: today(),
+          fechaVencimiento: "",
+          obs: `Ajuste sobre ${factura.correlativo || "documento"}`,
+        });
+      }}
+      onCreateDebitNote={(factura)=>{
+        openM("fact", {
+          tipoDoc: "Nota de Débito",
+          documentTypeCode: "nota_debito",
+          tipoDocumento: "nota_debito",
+          tipo: factura.tipo || "cliente",
+          entidadId: factura.entidadId || "",
+          tipoRef: factura.tipoRef || "",
+          proId: factura.proId || "",
+          presupuestoId: factura.presupuestoId || "",
+          contratoId: factura.contratoId || "",
+          relatedDocumentId: factura.id,
+          relatedDocumentFolio: factura.correlativo || "",
+          relatedDocumentTypeCode: "nota_credito",
+          relatedDocumentDate: factura.fechaEmision || factura.fecha || "",
+          relatedDocumentReason: "Ajuste de monto",
+          relatedExternalDocumentId: factura.externalSync?.externalDocumentId || "",
+          relatedExternalReturnId: factura.externalSync?.externalReturnId || "",
+          montoNeto: Number(factura.montoNeto || factura.subtotal || factura.neto || factura.total || 0),
+          iva: false,
+          honorarios: false,
+          fechaEmision: today(),
+          fechaVencimiento: "",
+          obs: `Reversa sobre ${factura.correlativo || "nota de crédito"}`,
+        });
+      }}
       canPres={canPres} canContracts={canContracts}
     />}
     {tab===1 && <Card title="Órdenes de Compra Recibidas" sub="Gestiona las OC del cliente desde Facturación y crea el documento comercial cuando la OC esté aceptada">
@@ -425,7 +504,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                   {canEdit && <GBtn sm onClick={()=>{setPoDraft(row);setPoOpen(true);}}>Editar</GBtn>}
                   {canEdit && <DBtn sm onClick={()=>deletePurchaseOrder(row.id)}>Eliminar</DBtn>}
-                  {canEdit && isAcceptedPurchaseOrder(row) && <GBtn sm onClick={()=>{setPoDocTarget(row);setPoDocType("Factura");}}>Crear documento</GBtn>}
+                  {canEdit && isAcceptedPurchaseOrder(row) && <GBtn sm onClick={()=>{setPoDocTarget(row);setPoDocType("Factura Afecta");}}>Crear documento</GBtn>}
                 </div>
               </TD>
             </tr>)}
@@ -437,7 +516,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       <Modal open={!!poDocTarget} onClose={()=>setPoDocTarget(null)} title="Crear documento desde OC" sub={poDocTarget ? `OC ${poDocTarget.number}` : ""}>
         <FG label="Tipo de documento">
           <FSl value={poDocType} onChange={e=>setPoDocType(e.target.value)}>
-            {["Factura","Orden de Factura","Invoice"].map(type => <option key={type} value={type}>{type}</option>)}
+            {["Factura Afecta","Factura Exenta","Orden de Factura","Invoice"].map(type => <option key={type} value={type}>{type}</option>)}
           </FSl>
         </FG>
         <MFoot onClose={()=>setPoDocTarget(null)} onSave={createDocFromPurchaseOrder} label="Crear documento" />
@@ -465,144 +544,102 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
         </table>
       </div> : <Empty text="Sin recurrencias activas" sub="Crea un documento recurrente desde el botón de nuevo documento."/>}
     </Card>}
-  </div>;
-}
-
-export function MFact({
-  open,
-  data,
-  empresa,
-  clientes,
-  auspiciadores,
-  producciones,
-  programas,
-  piezas,
-  presupuestos,
-  contratos,
-  listas,
-  onClose,
-  onSave,
-}) {
-  const {
-    f,
-    setF,
-    u,
-    canPrograms,
-    canPres,
-    canContracts,
-    applyPresupuesto,
-    total,
-    projectedTotal,
-    ausValidos,
-    contratosEntidad,
-    buildPayload,
-  } = useLabInvoiceForm({
-    open,
-    data,
-    empresa,
-    clientes,
-    auspiciadores,
-    producciones,
-    programas,
-    piezas,
-    presupuestos,
-    contratos,
-    today,
-    hasAddon,
-  });
-
-  return <Modal open={open} onClose={onClose} title={data?.id?`Editar ${f.tipoDoc||"Documento"}`:`Nuevo ${f.tipoDoc||"Documento"}`} sub="Registro de cobro y documento comercial">
-    {canPres && <FG label="Presupuesto origen">
-      <FSl value={f.presupuestoId||""} onChange={(e)=>applyPresupuesto(e.target.value)}>
-        <option value="">— Sin presupuesto asociado —</option>
-        {(presupuestos||[]).map((p)=><option key={p.id} value={p.id}>{p.correlativo||p.titulo} · {fmtM(p.total||0)}</option>)}
-      </FSl>
-    </FG>}
-    <R3>
-      <FG label="Tipo de documento">
-        <FSl value={f.recurring?"Invoice":(f.tipoDoc||"Factura")} onChange={(e)=>setF((prev)=>({...prev,tipoDoc:e.target.value,iva:e.target.value==="Invoice"?false:prev.iva,honorarios:e.target.value==="Invoice"?false:prev.honorarios}))} disabled={!!f.recurring}>
-          {(listas?.tiposDocFact||DEFAULT_LISTAS.tiposDocFact).map((o)=><option key={o}>{o}</option>)}
-        </FSl>
-      </FG>
-      <FG label="Correlativo Interno"><FI value={f.correlativo||""} onChange={(e)=>u("correlativo",e.target.value)} placeholder="OC-2025-001"/></FG>
-      <FG label="Estado del documento"><FSl value={f.estado||"Emitida"} onChange={(e)=>u("estado",e.target.value)}>{(listas?.estadosFact||DEFAULT_LISTAS.estadosFact).map((o)=><option key={o}>{o}</option>)}</FSl></FG>
-    </R3>
-    <R2>
-      <FG label="Tipo Entidad"><FSl value={f.tipo||"cliente"} onChange={(e)=>u("tipo",e.target.value)}>{(listas?.tiposEntidadFact||DEFAULT_LISTAS.tiposEntidadFact).map((o)=><option key={o} value={o==="Auspiciador"?"auspiciador":"cliente"}>{o}</option>)}</FSl></FG>
-      <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={(e)=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
-    </R2>
-    <FG label={f.tipo==="auspiciador"?"Auspiciador (Principal o Secundario) *":"Cliente *"}>
-      <FSl value={f.entidadId||""} onChange={(e)=>u("entidadId",e.target.value)}>
-        <option value="">— Seleccionar —</option>
-        {f.tipo==="auspiciador"
-          ? ausValidos.map((a)=><option key={a.id} value={a.id}>{a.nom} · {a.tip}</option>)
-          : (clientes||[]).map((c)=><option key={c.id} value={c.id}>{c.nom}</option>)}
-      </FSl>
-    </FG>
-    <R2>
-      <FG label="Proyecto / Producción / Campaña">
-        <FSl value={f.proId||""} onChange={(e)=>u("proId",e.target.value)}>
-          <option value="">— Seleccionar —</option>
-          <optgroup label="Proyectos">{(producciones||[]).map((p)=><option key={p.id} value={p.id}>📽 {p.nom}</option>)}</optgroup>
-          {canPrograms&&<optgroup label="Producciones">{(programas||[]).map((p)=><option key={p.id} value={p.id}>📺 {p.nom}</option>)}</optgroup>}
-          {hasAddon(empresa,"social")&&<optgroup label="Campañas">{(piezas||[]).map((p)=><option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>}
-        </FSl>
-      </FG>
-    </R2>
-    {canContracts && <FG label="Contrato asociado">
-      <FSl value={f.contratoId||""} onChange={(e)=>u("contratoId",e.target.value)}>
-        <option value="">— Sin contrato asociado —</option>
-        {contratosEntidad.map((ct)=><option key={ct.id} value={ct.id}>{ct.nom}</option>)}
-      </FSl>
-    </FG>}
-    <R3>
-      <FG label="Monto Neto *"><FI type="number" value={f.montoNeto||""} onChange={(e)=>u("montoNeto",e.target.value)} placeholder="0" min="0"/></FG>
-      <FG label="Impuesto">
-        <FSl
-          value={f.tipoDoc==="Invoice"?"none":f.honorarios?"hon":f.iva?"iva":"none"}
-          onChange={(e)=>{
-            const value=e.target.value;
-            u("iva", value==="iva");
-            u("honorarios", value==="hon");
-          }}
-          disabled={f.tipoDoc==="Invoice"}
-        >
-          {(listas?.impuestos||DEFAULT_LISTAS.impuestos).map((o)=>{
-            const value=o==="IVA 19%"?"iva":o==="Boleta Honorarios 15,25%"?"hon":"none";
-            return <option key={o} value={value}>{f.tipoDoc==="Invoice"&&value!=="none" ? `${o} (solo Factura / OF)` : o}</option>;
-          })}
-        </FSl>
-      </FG>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"9px 12px"}}>
-        <div style={{fontSize:10,color:"var(--gr2)",marginBottom:4,fontWeight:600}}>TOTAL</div>
-        <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</div>
-      </div>
-    </R3>
-    <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:f.recurring?12:0}}>
-        <div>
-          <div style={{fontSize:12,fontWeight:700}}>Facturación recurrente</div>
-          <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>La recurrencia siempre se crea desde un Invoice y luego se administra aparte del cobro.</div>
+    <Modal
+      open={!!bsaleSyncTarget}
+      onClose={() => {
+        setBsaleSyncTarget(null);
+        setBsaleSyncSessions([]);
+      }}
+      title={`Detalle tributario · ${bsaleSyncTarget?.correlativo || "Documento"}`}
+      sub={bsaleSyncTarget ? getProduBillingDocumentTypeLabel(bsaleSyncTarget.documentTypeCode || bsaleSyncTarget.tipoDocumento || bsaleSyncTarget.tipoDoc) : ""}
+    >
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:16}}>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>ESTADO</div>
+          <div style={{fontWeight:700,color:"var(--cy)"}}>{bsaleSyncTarget?.externalSync?.status || "draft"}</div>
         </div>
-        <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
-          <input type="checkbox" checked={!!f.recurring} onChange={(e)=>setF((prev)=>({...prev,recurring:e.target.checked,tipoDoc:e.target.checked?"Invoice":prev.tipoDoc,iva:e.target.checked?false:prev.iva,honorarios:e.target.checked?false:prev.honorarios}))}/>
-          Activar mensualidad
-        </label>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>FOLIO EXTERNO</div>
+          <div style={{fontWeight:700,color:"var(--wh)"}}>{bsaleSyncTarget?.externalSync?.externalFolio || "—"}</div>
+        </div>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>ORIGEN</div>
+          <div style={{fontWeight:700,color:"var(--wh)"}}>{bsaleSyncTarget?.externalSync?.source === "mock" ? "Motor de respaldo" : bsaleSyncTarget?.externalSync?.source === "bsale" ? "Motor tributario" : "Sin definir"}</div>
+        </div>
+        {bsaleSyncTarget?.externalSync?.externalReturnId && (
+          <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>DEVOLUCIÓN</div>
+            <div style={{fontWeight:700,color:"var(--wh)"}}>#{bsaleSyncTarget.externalSync.externalReturnId}{bsaleSyncTarget.externalSync.returnCode ? ` · ${bsaleSyncTarget.externalSync.returnCode}` : ""}</div>
+          </div>
+        )}
+        {bsaleSyncTarget?.externalSync?.externalAnnulmentId && (
+          <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+            <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>ANULACIÓN</div>
+            <div style={{fontWeight:700,color:"var(--wh)"}}>#{bsaleSyncTarget.externalSync.externalAnnulmentId}</div>
+          </div>
+        )}
       </div>
-      {f.recurring && <R2>
-        <FG label="Inicio de serie"><FI type="date" value={f.recStart||f.fechaEmision||today()} onChange={(e)=>{u("recStart",e.target.value); if(!f.fechaEmision) u("fechaEmision",e.target.value);}}/></FG>
-        <FG label="Cantidad de meses"><FSl value={String(f.recMonths||"6")} onChange={(e)=>u("recMonths",e.target.value)}>
-          {Array.from({length:24},(_,i)=>String(i+1)).map((m)=><option key={m} value={m}>{m} mes{m==="1"?"":"es"}</option>)}
-        </FSl></FG>
-      </R2>}
-      {f.recurring && <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>Proyección de la serie: <span style={{fontFamily:"var(--fm)",color:"#00e08a"}}>{fmtM(projectedTotal)}</span></div>}
-    </div>
-    <R2>
-      <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={(e)=>u("fechaEmision",e.target.value)}/></FG>
-      <FG label="Fecha Vencimiento"><FI type="date" value={f.fechaVencimiento||""} onChange={(e)=>u("fechaVencimiento",e.target.value)}/></FG>
-    </R2>
-    <FG label="Observación comercial"><FTA value={f.obs||""} onChange={(e)=>u("obs",e.target.value)} placeholder="Glosa comercial visible para el documento o contexto del cobro..."/></FG>
-    <FG label="Observaciones adicionales"><FTA value={f.obs2||""} onChange={(e)=>u("obs2",e.target.value)} placeholder="Notas internas, condiciones o aclaraciones extra..."/></FG>
-    <MFoot onClose={onClose} onSave={()=>{if(!f.entidadId||!f.montoNeto)return;onSave(buildPayload(cobranzaState));}}/>
-  </Modal>;
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>NETO</div>
+          <div style={{fontWeight:800,color:"var(--wh)",fontFamily:"var(--fm)"}}>{fmtM(Number(bsaleSyncTarget?.externalSync?.netAmount ?? bsaleSyncTarget?.montoNeto ?? bsaleSyncTarget?.subtotal ?? bsaleSyncTarget?.neto ?? 0))}</div>
+        </div>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>IMPUESTO</div>
+          <div style={{fontWeight:800,color:"var(--wh)",fontFamily:"var(--fm)"}}>{fmtM(Number(bsaleSyncTarget?.externalSync?.taxAmount ?? bsaleSyncTarget?.ivaVal ?? 0))}</div>
+        </div>
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>TOTAL</div>
+          <div style={{fontWeight:800,color:"var(--cy)",fontFamily:"var(--fm)"}}>{fmtM(Number(bsaleSyncTarget?.externalSync?.totalAmount ?? bsaleSyncTarget?.total ?? 0))}</div>
+        </div>
+      </div>
+      {buildProduBillingReferenceSummary(bsaleSyncTarget || {}) && (
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:16}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>REFERENCIA TRIBUTARIA</div>
+          <div style={{fontSize:12,color:"var(--wh)"}}>{buildProduBillingReferenceSummary(bsaleSyncTarget || {})}</div>
+        </div>
+      )}
+      {(bsaleSyncTarget?.externalSync?.pdfUrl || bsaleSyncTarget?.externalSync?.publicViewUrl || bsaleSyncTarget?.externalSync?.providerMessage) && (
+        <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:16}}>
+          <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:8}}>RECURSOS TRIBUTARIOS</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:bsaleSyncTarget?.externalSync?.providerMessage ? 10 : 0}}>
+            {bsaleSyncTarget?.externalSync?.pdfUrl && <a href={bsaleSyncTarget.externalSync.pdfUrl} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 10px",borderRadius:8,border:"1px solid var(--bdr2)",textDecoration:"none",color:"var(--wh)",fontSize:12,fontWeight:700}}>PDF tributario <span>⇱</span></a>}
+            {bsaleSyncTarget?.externalSync?.publicViewUrl && <a href={bsaleSyncTarget.externalSync.publicViewUrl} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 10px",borderRadius:8,border:"1px solid var(--bdr2)",textDecoration:"none",color:"var(--wh)",fontSize:12,fontWeight:700}}>Ver documento <span>⇱</span></a>}
+          </div>
+          {bsaleSyncTarget?.externalSync?.providerMessage && <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.45}}>{bsaleSyncTarget.externalSync.providerMessage}</div>}
+        </div>
+      )}
+      {bsaleSyncLoading ? (
+        <div style={{fontSize:12,color:"var(--gr2)"}}>Cargando sesiones de sincronización...</div>
+      ) : bsaleSyncSessions.length ? (
+        <div style={{display:"grid",gap:12,maxHeight:"55vh",overflowY:"auto"}}>
+          {bsaleSyncSessions.map((session, index) => (
+            <div key={session.id || session.session_key || `${session.external_document_id || "session"}-${index}`} style={{padding:"12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:8,flexWrap:"wrap"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{session.status || "draft"}</div>
+                <div style={{fontSize:11,color:"var(--gr2)"}}>{(session.updated_at || session.updatedAt || "").slice(0, 19) || "Sin marca temporal"}</div>
+              </div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginBottom:8}}>Documento externo: {session.external_document_id || session.externalDocumentId || "—"} · Folio: {session.external_folio || session.externalFolio || "—"}</div>
+              <pre style={{margin:0,whiteSpace:"pre-wrap",fontSize:11,lineHeight:1.45,padding:"10px 12px",borderRadius:10,background:"#09111f",color:"#dbeafe",overflowX:"auto"}}>{JSON.stringify(session.response_payload_data || session.response || session.metadata_data || session.metadata || {}, null, 2)}</pre>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty text="Sin detalle tributario" sub="Cuando emitas o actualices este documento, aquí verás la respuesta del motor tributario." />
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--bdr)" }}>
+        <GBtn sm onClick={() => {
+          setBsaleSyncTarget(null);
+          setBsaleSyncSessions([]);
+        }}>Cerrar</GBtn>
+      </div>
+    </Modal>
+    <TransactionalEmailComposerModal
+      open={emailComposerOpen}
+      draft={emailComposerDraft}
+      sending={emailComposerSending}
+      onClose={closeEmailComposer}
+      onSend={handleSendComposedEmail}
+    />
+  </div>;
 }

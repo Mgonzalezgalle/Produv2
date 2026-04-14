@@ -1,5 +1,5 @@
 import { isStoredSessionExpired, removeStoredJson, saveStoredJson, sessionPayload } from "./sessionStorage";
-import { sha256Hex } from "./clientAuth";
+import { sha256Hex } from "./authCrypto";
 import { findActiveDomainUserByEmail, findActiveDomainUserById, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 import { requiresLocalTwoFactor } from "./localTwoFactor";
 

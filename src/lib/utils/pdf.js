@@ -4,7 +4,7 @@ import {
   drawRoundedPdfBox,
   hexToRgb,
   wrapPdfText,
-} from "../lab/commercialPdf";
+} from "../lab/commercialPdfBase";
 
 export function pdfEscape(text = "") {
   return String(text)

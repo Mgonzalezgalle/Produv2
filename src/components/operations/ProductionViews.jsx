@@ -84,7 +84,7 @@ export function ViewPros({
   });
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <ModuleHeader
       module="Proyectos"
       title="Proyectos"
@@ -189,7 +189,7 @@ export function ViewProDet(props) {
   const [tab, setTab] = useState(0);
   const addCrew = async crId => { if (!canManageProjects) return; const next = (producciones || []).map(x => x.id === id ? { ...x, crewIds: [...(x.crewIds || []), crId] } : x); await setProducciones(next); };
   const remCrew = async crId => { if (!canManageProjects) return; const next = (producciones || []).map(x => x.id === id ? { ...x, crewIds: (x.crewIds || []).filter(i => i !== crId) } : x); await setProducciones(next); };
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est} />]} meta={[c && `Cliente: ${c.nom}`, p.ini && `Inicio: ${fmtD(p.ini)}`, p.fin && `Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
       actions={canManageProjects && <><GBtn onClick={() => openM("pro", p)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageProjects) return; if (!confirm("¿Eliminar?")) return; cDel(producciones, setProducciones, id, () => navTo("producciones"), "Proyecto eliminado"); }}>🗑</DBtn></>} />
     {cContacto && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 8, marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
@@ -249,7 +249,7 @@ export function ViewPgs({
   });
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <ModuleHeader
       module="Producciones"
       title="Producciones"

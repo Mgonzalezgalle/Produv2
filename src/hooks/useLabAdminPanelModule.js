@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
+import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
 
 export function useLabAdminPanelModule({
   theme,
@@ -7,6 +9,8 @@ export function useLabAdminPanelModule({
   users,
   empresas,
   saveUsers,
+  saveEmpresas,
+  platformServices,
   ntf,
   dbGet,
   companyReferralDiscountHistory,
@@ -15,11 +19,8 @@ export function useLabAdminPanelModule({
   uid,
   sha256Hex,
 }) {
-  const safeCompanyReferralDiscountHistory =
-    typeof companyReferralDiscountHistory === "function"
-      ? companyReferralDiscountHistory
-      : () => [];
   const canManageAdmin = ["admin", "superadmin"].includes(user?.role || "");
+  const isSuperAdmin = user?.role === "superadmin";
   const [tab, setTab] = useState(0);
   const [lt, setLt] = useState(theme || {});
   const [uf, setUf] = useState({});
@@ -28,45 +29,44 @@ export function useLabAdminPanelModule({
   const [uRole, setURole] = useState("");
   const [uState, setUState] = useState("");
   const [refSols, setRefSols] = useState([]);
+  const [platformSnapshot, setPlatformSnapshot] = useState(null);
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const [platformPlanning, setPlatformPlanning] = useState(false);
+  const [platformPreparingMemberships, setPlatformPreparingMemberships] = useState(false);
+  const [platformQueueingMemberships, setPlatformQueueingMemberships] = useState(false);
+  const [tenantBsaleConfig, setTenantBsaleConfig] = useState({
+    mode: "sandbox",
+    status: "draft",
+    token: "",
+    officeId: "",
+    documentTypeId: "",
+    priceListId: "",
+  });
+  const [tenantBsaleSaving, setTenantBsaleSaving] = useState(false);
+  const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
+  const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
+  const tenantCanEditBsaleConfig = bsaleGovernance.allowTenantConfig === true;
 
   useEffect(() => setLt(theme || {}), [theme]);
+  useEffect(() => { dbGet("produ:solicitudes").then(v => setRefSols(v || [])); }, [dbGet]);
   useEffect(() => {
-    let active = true;
-    dbGet("produ:solicitudes")
-      .then(v => {
-        if (!active) return;
-        const normalized = Array.isArray(v)
-          ? v
-              .filter(item => item && typeof item === "object")
-              .map(item => ({
-                id: item.id || uid(),
-                tipo: item.tipo || "",
-                nom: item.nom || item.nombre || "",
-                ema: item.ema || item.email || "",
-                tel: item.tel || "",
-                emp: item.emp || item.empresa || item.companyName || "",
-                rol: item.rol || "admin",
-                msg: item.msg || "",
-                fecha: item.fecha || item.cr || "",
-                estado: item.estado || "pendiente",
-                empresaId: item.empresaId || "",
-                customerType: item.customerType || "productora",
-                teamSize: item.teamSize || "—",
-                requestedModules: Array.isArray(item.requestedModules) ? item.requestedModules : [],
-                referred: !!item.referred,
-                referredByEmpId: item.referredByEmpId || "",
-                referredByName: item.referredByName || "",
-                referralCode: item.referralCode || "",
-              }))
-          : [];
-        setRefSols(normalized);
-      })
-      .catch(() => {
-        if (!active) return;
-        setRefSols([]);
-      });
-    return () => { active = false; };
-  }, [dbGet]);
+    const envConfig = getBsaleBillingConfig();
+    const current = empresa?.integrationConfigs?.bsale?.sandbox || {};
+    const source = current.token
+      ? (tenantCanEditBsaleConfig ? "tenant" : "governed")
+      : (envConfig.token ? "environment" : "unset");
+    setTenantBsaleConfig({
+      mode: bsaleGovernanceMode,
+      status: current.status || "draft",
+      token: current.token || "",
+      officeId: current.officeId || "",
+      documentTypeId: current.documentTypeId || "",
+      priceListId: current.priceListId || "",
+      source,
+      governed: bsaleGovernanceMode !== "disabled",
+      tenantCanEdit: tenantCanEditBsaleConfig,
+    });
+  }, [empresa, bsaleGovernanceMode, tenantCanEditBsaleConfig]);
 
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const filteredUsers = empUsers.filter(u =>
@@ -76,29 +76,47 @@ export function useLabAdminPanelModule({
   );
   const activeUsers = empUsers.filter(u => u.active !== false).length;
   const inactiveUsers = empUsers.filter(u => u.active === false).length;
-  const referredSols = (Array.isArray(refSols) ? refSols : []).filter(s =>
-    s?.tipo === "empresa" && (
-      s?.referredByEmpId === empresa?.id ||
-      (!!empresa?.referralCode && s?.referralCode === empresa.referralCode)
-    )
-  );
-  const referralHistory = Array.isArray(safeCompanyReferralDiscountHistory(empresa))
-    ? safeCompanyReferralDiscountHistory(empresa).filter(Boolean)
-    : [];
-  const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", "Datos"];
+  const referredSols = (refSols || []).filter(s => s.referredByEmpId === empresa?.id && s.tipo === "empresa");
+  const referralHistory = companyReferralDiscountHistory(empresa);
+  const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", ...(canManageAdmin ? ["Plataforma"] : []), "Correo"];
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",
     "Usuarios": "Gestiona usuarios del tenant, accesos, roles base y pertenencia al crew interno.",
     "Empresa": "Actualiza branding, datos societarios, bancarios y configuración general de la empresa.",
     "Listas": "Administra opciones desplegables y taxonomías visibles en formularios operativos.",
     "Roles y Permisos": "Crea roles propios por empresa y define acceso granular por módulo.",
-    "Datos": "Acciones críticas sobre la data del tenant y restauración controlada.",
+    "Plataforma": "Inspecciona el estado remoto de foundation en Supabase para este tenant.",
+    "Correo": "Gestiona templates base de correo transaccional visibles para este tenant.",
   };
   const activeAdminTab = ADMIN_TABS[tab];
+  useEffect(() => {
+    if (tab >= ADMIN_TABS.length) setTab(0);
+  }, [tab, ADMIN_TABS.length]);
   const editableRoleOptions = assignableRoleOptions(empresa, user);
+  const remoteBsaleSnapshot = getRemoteBsaleSnapshot(platformSnapshot);
+  const remoteProvisionedModules = getRemoteProvisionedModules(platformSnapshot);
+
+  useEffect(() => {
+    if (ADMIN_TABS[tab] !== "Plataforma") return;
+    if (!empresa?.id || !platformServices?.getTenantPlatformSnapshot) return;
+    let cancelled = false;
+    setPlatformLoading(true);
+    Promise.resolve(platformServices.getTenantPlatformSnapshot(empresa.id))
+      .then(snapshot => {
+        if (!cancelled) setPlatformSnapshot(snapshot || null);
+      })
+      .catch(() => {
+        if (!cancelled) setPlatformSnapshot(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPlatformLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, empresa?.id, platformServices]);
 
   const referralStatus = sol => {
-    if (!sol || typeof sol !== "object") return "Pendiente";
     const targetEmp = (empresas || []).find(e => e.id === sol.empresaId);
     const hasActiveUser = (users || []).some(u => u.empId === sol.empresaId && u.active !== false);
     if (hasActiveUser || targetEmp?.pendingActivation === false) return "Activado";
@@ -109,7 +127,11 @@ export function useLabAdminPanelModule({
   const resetAccess = async target => {
     if (!canManageAdmin || !target?.id) return;
     const temp = uid().slice(1, 9);
-    await saveUsers((users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u));
+    if (platformServices?.updateTenantUser) {
+      await platformServices.updateTenantUser(target.id, { password: temp });
+    } else {
+      await saveUsers((users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u));
+    }
     ntf("Acceso temporal generado ✓");
     alert(`Acceso temporal para ${target.email}: ${temp}`);
   };
@@ -139,7 +161,24 @@ export function useLabAdminPanelModule({
       isCrew: uf.isCrew === true,
       crewRole: uf.isCrew === true ? (uf.crewRole || "Crew interno") : "",
     };
-    saveUsers(uid2 ? (users || []).map(u => u.id === uid2 ? obj : u) : [...(users || []), obj]);
+    if (platformServices?.updateTenantUser && platformServices?.createTenantUser) {
+      if (uid2) {
+        await platformServices.updateTenantUser(uid2, { ...obj, password: uf.password || "" });
+      } else {
+        await platformServices.createTenantUser({
+          tenantId: empresa?.id || null,
+          name: obj.name,
+          email: obj.email,
+          role: obj.role,
+          active: obj.active,
+          password: uf.password || "",
+          isCrew: obj.isCrew,
+          crewRole: obj.crewRole,
+        });
+      }
+    } else {
+      await saveUsers(uid2 ? (users || []).map(u => u.id === uid2 ? obj : u) : [...(users || []), obj]);
+    }
     setUf({});
     setUid2(null);
     ntf("Usuario guardado");
@@ -147,18 +186,127 @@ export function useLabAdminPanelModule({
 
   const toggleUserActive = async target => {
     if (!canManageAdmin || !target?.id) return;
-    await saveUsers((users || []).map(u => u.id === target.id ? { ...u, active: !u.active } : u));
+    if (platformServices?.updateTenantUser) {
+      await platformServices.updateTenantUser(target.id, { active: !target.active });
+    } else {
+      await saveUsers((users || []).map(u => u.id === target.id ? { ...u, active: !u.active } : u));
+    }
     ntf(target.active ? "Usuario desactivado" : "Usuario activado");
   };
 
   const deleteUser = async target => {
     if (!canManageAdmin || !target?.id || target.role === "superadmin") return;
-    await saveUsers((users || []).filter(u => u.id !== target.id));
+    if (platformServices?.deleteTenantUser) {
+      await platformServices.deleteTenantUser(target.id);
+    } else {
+      await saveUsers((users || []).filter(u => u.id !== target.id));
+    }
     ntf("Usuario eliminado", "warn");
+  };
+
+  const refreshPlatformSnapshot = async () => {
+    if (!empresa?.id || !platformServices?.getTenantPlatformSnapshot) return;
+    setPlatformLoading(true);
+    try {
+      const snapshot = await platformServices.getTenantPlatformSnapshot(empresa.id);
+      setPlatformSnapshot(snapshot || null);
+      return snapshot || null;
+    } catch {
+      setPlatformSnapshot(null);
+      return null;
+    } finally {
+      setPlatformLoading(false);
+    }
+  };
+
+  const planIdentityPromotions = async () => {
+    if (!empresa?.id || !platformServices?.planIdentityPromotions) return;
+    setPlatformPlanning(true);
+    try {
+      const nextPlans = await platformServices.planIdentityPromotions(empresa.id);
+      const nextSnapshot = await refreshPlatformSnapshot();
+      if ((!nextSnapshot?.promotionPlans || !nextSnapshot.promotionPlans.length) && Array.isArray(nextPlans) && nextPlans.length) {
+        setPlatformSnapshot(prev => ({ ...(prev || {}), promotionPlans: nextPlans }));
+      }
+      ntf("Plan de promoción generado ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos generar el plan de promoción.", "warn");
+    } finally {
+      setPlatformPlanning(false);
+    }
+  };
+
+  const prepareIdentityMembershipBlueprints = async () => {
+    if (!empresa?.id || !platformServices?.prepareIdentityMembershipBlueprints) return;
+    setPlatformPreparingMemberships(true);
+    try {
+      const nextBlueprints = await platformServices.prepareIdentityMembershipBlueprints(empresa.id);
+      const nextSnapshot = await refreshPlatformSnapshot();
+      if ((!nextSnapshot?.membershipBlueprints || !nextSnapshot.membershipBlueprints.length) && Array.isArray(nextBlueprints) && nextBlueprints.length) {
+        setPlatformSnapshot(prev => ({ ...(prev || {}), membershipBlueprints: nextBlueprints }));
+      }
+      ntf("Blueprints de membresía preparados ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos preparar las membresías.", "warn");
+    } finally {
+      setPlatformPreparingMemberships(false);
+    }
+  };
+
+  const prepareMembershipTransitionQueue = async () => {
+    if (!empresa?.id || !platformServices?.prepareMembershipTransitionQueue) return;
+    setPlatformQueueingMemberships(true);
+    try {
+      const nextQueue = await platformServices.prepareMembershipTransitionQueue(empresa.id);
+      const nextSnapshot = await refreshPlatformSnapshot();
+      if ((!nextSnapshot?.membershipTransitionQueue || !nextSnapshot.membershipTransitionQueue.length) && Array.isArray(nextQueue) && nextQueue.length) {
+        setPlatformSnapshot(prev => ({ ...(prev || {}), membershipTransitionQueue: nextQueue }));
+      }
+      ntf("Cola de transición preparada ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos preparar la cola de transición.", "warn");
+    } finally {
+      setPlatformQueueingMemberships(false);
+    }
+  };
+
+  const saveTenantBsaleConfig = async () => {
+    if (!empresa?.id) return;
+    if (!tenantCanEditBsaleConfig) {
+      ntf("La configuración de Bsale se gobierna desde Torre de Control.", "warn");
+      return;
+    }
+    setTenantBsaleSaving(true);
+    try {
+      const nextIntegrationConfigs = {
+        ...(empresa?.integrationConfigs || {}),
+        bsale: {
+          ...((empresa?.integrationConfigs || {}).bsale || {}),
+          sandbox: {
+            status: tenantBsaleConfig.status || "draft",
+            token: String(tenantBsaleConfig.token || "").trim(),
+            officeId: String(tenantBsaleConfig.officeId || "").trim(),
+            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
+            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
+          },
+        },
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
+      setTenantBsaleConfig(prev => ({ ...prev, source: prev.token ? "tenant" : "unset", tenantCanEdit: true }));
+      if (platformServices?.getTenantPlatformSnapshot) {
+        refreshPlatformSnapshot();
+      }
+      ntf("Configuración Bsale del tenant guardada ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos guardar la configuración Bsale del tenant.", "warn");
+    } finally {
+      setTenantBsaleSaving(false);
+    }
   };
 
   return {
     canManageAdmin,
+    isSuperAdmin,
     tab,
     setTab,
     lt,
@@ -184,10 +332,27 @@ export function useLabAdminPanelModule({
     ADMIN_TAB_META,
     activeAdminTab,
     editableRoleOptions,
+    platformSnapshot,
+    platformLoading,
+    platformPlanning,
+    platformPreparingMemberships,
+    platformQueueingMemberships,
+    remoteBsaleSnapshot,
+    remoteProvisionedModules,
+    bsaleGovernanceMode,
+    tenantCanEditBsaleConfig,
+    tenantBsaleConfig,
+    setTenantBsaleConfig,
+    tenantBsaleSaving,
     referralStatus,
     resetAccess,
     saveUser,
     toggleUserActive,
     deleteUser,
+    refreshPlatformSnapshot,
+    planIdentityPromotions,
+    prepareIdentityMembershipBlueprints,
+    prepareMembershipTransitionQueue,
+    saveTenantBsaleConfig,
   };
 }

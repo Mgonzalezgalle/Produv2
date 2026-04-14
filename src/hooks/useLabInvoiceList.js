@@ -1,4 +1,8 @@
 import { useMemo, useState } from "react";
+import {
+  requiresProduCollectionTracking,
+  resolveProduBillingDocumentType,
+} from "../lib/integrations/billingDomain";
 
 export function useLabInvoiceList({
   empresa,
@@ -58,8 +62,29 @@ export function useLabInvoiceList({
     [cobranzaDocs, fd, pg, tab],
   );
 
-  const toggleSelected = (id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const toggleAll = (checked) => setSelectedIds(checked ? currentPageIds : []);
+  const isProtectedElectronicDocument = (item) => !!item?.externalSync;
+  const supportsCollectionTracking = (item) => requiresProduCollectionTracking(
+    resolveProduBillingDocumentType(item?.documentTypeCode || item?.tipoDocumento || item?.tipoDoc || "factura_afecta")?.code,
+  );
+  const currentPageDocs = useMemo(
+    () => (tab === 1 ? cobranzaDocs : fd).slice((pg - 1) * PP, pg * PP),
+    [cobranzaDocs, fd, pg, tab],
+  );
+  const selectablePageIds = useMemo(
+    () => currentPageDocs
+      .filter((item) => (tab === 1 ? supportsCollectionTracking(item) : !isProtectedElectronicDocument(item)))
+      .map((item) => item.id),
+    [currentPageDocs, tab],
+  );
+
+  const toggleSelected = (id) => {
+    const sourceList = tab === 1 ? cobranzaDocs : fd;
+    const target = sourceList.find((item) => item.id === id);
+    if (!target) return;
+    if (tab === 1 ? !supportsCollectionTracking(target) : isProtectedElectronicDocument(target)) return;
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+  const toggleAll = (checked) => setSelectedIds(checked ? selectablePageIds : []);
 
   const cuentasPorCobrar = useMemo(() => (invoices || []).filter((f) => cobranzaState(f) !== "Pagado"), [cobranzaState, invoices]);
   const pendiente = cuentasPorCobrar.reduce((s, f) => s + Number(f.total || 0), 0);
@@ -71,16 +96,24 @@ export function useLabInvoiceList({
   const applyBulkEstado = () => {
     if (!canEdit) return false;
     if (!bulkEstado) return;
-    setFacturas((facturas || []).map((item) => (selectedIds.includes(item.id) ? { ...item, estado: bulkEstado } : item)));
+    setFacturas((facturas || []).map((item) => (
+      selectedIds.includes(item.id) && !isProtectedElectronicDocument(item)
+        ? { ...item, estado: bulkEstado }
+        : item
+    )));
     setSelectedIds([]);
   };
 
   const deleteSelected = () => {
     if (!canEdit) return false;
     if (!confirm(`¿Eliminar ${selectedIds.length} documento${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
-    const removedIds = [...selectedIds];
-    setFacturas((facturas || []).filter((item) => !removedIds.includes(item.id)));
-    setMovimientos((Array.isArray(movimientos) ? movimientos : []).filter((m) => !removedIds.includes(m.facturaId)));
+    const removableIds = new Set(
+      (facturas || [])
+        .filter((item) => selectedIds.includes(item.id) && !isProtectedElectronicDocument(item))
+        .map((item) => item.id),
+    );
+    setFacturas((facturas || []).filter((item) => !removableIds.has(item.id)));
+    setMovimientos((Array.isArray(movimientos) ? movimientos : []).filter((m) => !removableIds.has(m.facturaId)));
     setSelectedIds([]);
   };
 
@@ -88,7 +121,7 @@ export function useLabInvoiceList({
     if (!canEdit) return false;
     if (!bulkCobranza) return;
     setFacturas((facturas || []).map((item) => (
-      selectedIds.includes(item.id)
+      selectedIds.includes(item.id) && supportsCollectionTracking(item)
         ? { ...item, cobranzaEstado: bulkCobranza, fechaPago: bulkCobranza === "Pagado" ? (item.fechaPago || today()) : "" }
         : item
     )));
@@ -118,6 +151,7 @@ export function useLabInvoiceList({
     fd,
     cobranzaDocs,
     currentPageIds,
+    selectablePageIds,
     toggleSelected,
     toggleAll,
     cuentasPorCobrar,

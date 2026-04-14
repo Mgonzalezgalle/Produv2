@@ -17,6 +17,7 @@ export function CommercialModalRouter({
   contratos,
   presupuestos,
   facturas,
+  purchaseOrders,
   currentUser,
   onSaveContrato,
   onSaveMovimiento,
@@ -70,6 +71,8 @@ export function CommercialModalRouter({
       piezas={piezas}
       presupuestos={presupuestos}
       contratos={contratos}
+      facturas={facturas}
+      purchaseOrders={purchaseOrders}
       listas={listas}
       onClose={closeM}
       onSave={onSaveFactura}

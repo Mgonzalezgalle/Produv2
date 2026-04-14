@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, Card, Empty, Stat } from "../../lib/ui/components";
 import { fmtD, hasAddon, invoiceEntityName, today } from "../../lib/utils/helpers";
+import { getProduBillingFinancialMultiplier, requiresProduCollectionTracking } from "../../lib/integrations/billingDomain";
 
 function daysUntil(date) {
   if (!date) return null;
@@ -42,12 +43,13 @@ export function ViewDashboard({
   const campaigns = (piezas || []).filter(x => x.empId === empId);
   const pres = (presupuestos || []).filter(x => x.empId === empId);
   const facts = (facturas || []).filter(x => x.empId === empId);
+  const cobrableFacts = facts.filter(f => requiresProduCollectionTracking(f.documentTypeCode || f.tipoDocumento || f.tipoDoc));
   const canContracts = hasAddon(empresa, "contratos");
   const canBudgets = hasAddon(empresa, "presupuestos") && canDo?.("presupuestos");
   const canInvoices = hasAddon(empresa, "facturacion") && canDo?.("facturacion");
   const canSocial = hasAddon(empresa, "social");
-  const overdueFacts = facts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
-  const payableSoon = facts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && daysUntil(f.fechaVencimiento) != null && daysUntil(f.fechaVencimiento) >= 0 && daysUntil(f.fechaVencimiento) <= 7);
+  const overdueFacts = cobrableFacts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
+  const payableSoon = cobrableFacts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && daysUntil(f.fechaVencimiento) != null && daysUntil(f.fechaVencimiento) >= 0 && daysUntil(f.fechaVencimiento) <= 7);
   const contractsExpiring = cts.filter(ct => daysUntil(ct.vig) != null && daysUntil(ct.vig) >= 0 && daysUntil(ct.vig) <= 30);
   const acceptedBudgets = pres.filter(p => p.estado === "Aceptado");
   const recurringBudgets = pres.filter(p => p.recurring);
@@ -65,7 +67,7 @@ export function ViewDashboard({
         : "Operación estable";
   const commercialPulse = [
     canBudgets ? `${acceptedBudgets.length} presupuestos aceptados` : null,
-    canInvoices ? `${overdueFacts.length} facturas vencidas` : null,
+    canInvoices ? `${overdueFacts.length} documentos vencidos` : null,
     canContracts ? `${contractsExpiring.length} contratos por vencer` : null,
   ].filter(Boolean);
   const overviewStats = [
@@ -75,7 +77,7 @@ export function ViewDashboard({
       ? { label: "Campañas", value: activeCampaigns.length, sub: `${campaigns.length} piezas registradas`, accent: "#00e08a", vc: "#00e08a" }
       : { label: "Clientes", value: clis.length, sub: "cartera activa", accent: "#00e08a", vc: "#00e08a" },
     canInvoices
-      ? { label: "Cobranza", value: overdueFacts.length, sub: overdueFacts.length ? `${fmtM(overdueFacts.reduce((s, f) => s + Number(f.total || 0), 0))} vencido` : "Sin vencidos", accent: overdueFacts.length ? "#ff5566" : "#ffcc44", vc: overdueFacts.length ? "#ff5566" : "#ffcc44" }
+      ? { label: "Cobranza", value: overdueFacts.length, sub: overdueFacts.length ? `${fmtM(overdueFacts.reduce((s, f) => s + (Number(f.total || 0) * getProduBillingFinancialMultiplier(f.documentTypeCode || f.tipoDocumento || f.tipoDoc)), 0))} vencido` : "Sin vencidos", accent: overdueFacts.length ? "#ff5566" : "#ffcc44", vc: overdueFacts.length ? "#ff5566" : "#ffcc44" }
       : { label: "Balance", value: fmtM(ti - tg), sub: ti - tg >= 0 ? "resultado positivo" : "requiere atención", accent: ti - tg >= 0 ? "#00e08a" : "#ff5566", vc: ti - tg >= 0 ? "#00e08a" : "#ff5566" },
   ];
   const focusItems = [
@@ -136,7 +138,7 @@ export function ViewDashboard({
   const summaryValueStyle = { fontFamily: "var(--fb)", fontSize: 28, fontWeight: 700, letterSpacing: -0.02, color: "var(--wh)", lineHeight: 1.05 };
   const summaryTextStyle = { fontFamily: "var(--fb)", fontSize: 18, fontWeight: 700, letterSpacing: -0.01, color: "var(--wh)", lineHeight: 1.15 };
 
-  return <div className="va">
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
         <div>

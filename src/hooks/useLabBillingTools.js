@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { billingContact, openMailto, openWhatsApp } from "../lib/utils/helpers";
+import { resolveTransactionalEmailTemplate } from "../lib/integrations/transactionalEmailTemplates";
 
 export function useLabBillingTools({
   allDocs,
@@ -19,6 +20,8 @@ export function useLabBillingTools({
   today,
   addMonths,
   uid,
+  platformApi = null,
+  senderReplyTo = "",
 }) {
   const invoices = useMemo(() => allDocs.filter((f) => f.tipoDoc === "Invoice"), [allDocs]);
 
@@ -112,23 +115,156 @@ export function useLabBillingTools({
   const billingMessage = useCallback((doc, entity) => {
     const contact = billingContact(entity, doc.tipo);
     const due = doc.fechaVencimiento ? fmtD(doc.fechaVencimiento) : "sin vencimiento definido";
-    return `Hola ${contact.nombre || ""}, te escribimos desde ${empresa?.nombre || "Produ"} por el invoice ${doc.correlativo || ""} por ${fmtM(doc.total || 0)}, con vencimiento ${due}. Quedamos atentos a tu confirmación de pago.\n\n${empresa?.bankInfo || ""}`.trim();
-  }, [billingContact, empresa?.bankInfo, empresa?.nombre, fmtD, fmtM]);
+    return resolveTransactionalEmailTemplate(empresa, "billing_invoice_collection", {
+      contactName: contact.nombre || "",
+      companyName: empresa?.nombre || "Produ",
+      documentNumber: doc.correlativo || "",
+      totalFormatted: fmtM(doc.total || 0),
+      dueDate: due,
+      bankInfo: empresa?.bankInfo || "",
+      entityLabel: contact.entidad || "",
+    }).body;
+  }, [billingContact, empresa, fmtD, fmtM]);
 
   const statementMessage = useCallback((docs, entity, type) => {
     const contact = billingContact(entity, type);
     const lines = docs.map((doc) => `- ${doc.correlativo || "Invoice"} · ${fmtM(doc.total || 0)} · ${cobranzaState(doc)}${doc.fechaVencimiento ? ` · vence ${fmtD(doc.fechaVencimiento)}` : ""}`);
-    return `Hola ${contact.nombre || ""}, te compartimos tu estado de cuenta con ${empresa?.nombre || "Produ"}.\n\n${lines.join("\n")}\n\nTotal pendiente: ${fmtM(docs.filter((doc) => cobranzaState(doc) !== "Pagado").reduce((s, doc) => s + Number(doc.total || 0), 0))}\n\n${empresa?.bankInfo || ""}`.trim();
-  }, [billingContact, cobranzaState, empresa?.bankInfo, empresa?.nombre, fmtD, fmtM]);
+    return resolveTransactionalEmailTemplate(empresa, "billing_statement", {
+      contactName: contact.nombre || "",
+      entityLabel: contact.entidad || "",
+      companyName: empresa?.nombre || "Produ",
+      documentLines: lines.join("\n"),
+      pendingTotalFormatted: fmtM(docs.filter((doc) => cobranzaState(doc) !== "Pagado").reduce((s, doc) => s + Number(doc.total || 0), 0)),
+      bankInfo: empresa?.bankInfo || "",
+    }).body;
+  }, [billingContact, cobranzaState, empresa, fmtD, fmtM]);
+
+  const createBillingEmailDraft = useCallback((doc, entity) => {
+    const contact = billingContact(entity, doc?.tipo);
+    if (!contact.email) {
+      return { ok: false, message: "La entidad no tiene email de cobranza registrado." };
+    }
+    const resolved = resolveTransactionalEmailTemplate(empresa, "billing_invoice_collection", {
+      contactName: contact.nombre || "",
+      companyName: empresa?.nombre || "Produ",
+      documentNumber: doc?.correlativo || "",
+      totalFormatted: fmtM(doc?.total || 0),
+      dueDate: doc?.fechaVencimiento ? fmtD(doc.fechaVencimiento) : "sin vencimiento definido",
+      bankInfo: empresa?.bankInfo || "",
+      entityLabel: contact.entidad || "",
+    });
+    const subject = resolved.subject;
+    const body = resolved.body;
+    return {
+      ok: true,
+      draft: {
+        tenantId: empresa?.id || "",
+        templateKey: "billing_invoice_collection",
+        subject,
+        to: contact.email,
+        body,
+        entityType: "invoice",
+        entityId: doc?.id || "",
+        metadata: {
+          companyName: empresa?.nombre || empresa?.nom || "Produ",
+          contactName: contact.nombre || "",
+          entityLabel: contact.entidad || "",
+          documentNumber: doc?.correlativo || "",
+          documentType: doc?.tipoDoc || doc?.documentTypeCode || "Invoice",
+        },
+      },
+    };
+  }, [billingContact, empresa, fmtD, fmtM]);
+
+  const createStatementEmailDraft = useCallback((docs, entity, type) => {
+    const contact = billingContact(entity, type);
+    if (!contact.email) {
+      return { ok: false, message: "La entidad no tiene email de cobranza registrado." };
+    }
+    const lines = docs.map((doc) => `- ${doc.correlativo || "Invoice"} · ${fmtM(doc.total || 0)} · ${cobranzaState(doc)}${doc.fechaVencimiento ? ` · vence ${fmtD(doc.fechaVencimiento)}` : ""}`);
+    const resolved = resolveTransactionalEmailTemplate(empresa, "billing_statement", {
+      contactName: contact.nombre || "",
+      entityLabel: contact.entidad || "",
+      companyName: empresa?.nombre || "Produ",
+      documentLines: lines.join("\n"),
+      pendingTotalFormatted: fmtM(docs.filter((doc) => cobranzaState(doc) !== "Pagado").reduce((s, doc) => s + Number(doc.total || 0), 0)),
+      bankInfo: empresa?.bankInfo || "",
+    });
+    const subject = resolved.subject;
+    const body = resolved.body;
+    return {
+      ok: true,
+      draft: {
+        tenantId: empresa?.id || "",
+        templateKey: "billing_statement",
+        subject,
+        to: contact.email,
+        body,
+        entityType: "statement",
+        entityId: entity?.id || "",
+        metadata: {
+          companyName: empresa?.nombre || empresa?.nom || "Produ",
+          contactName: contact.nombre || "",
+          entityLabel: contact.entidad || "",
+          documentCount: Array.isArray(docs) ? docs.length : 0,
+          type: type || "",
+        },
+      },
+    };
+  }, [billingContact, cobranzaState, empresa, fmtD, fmtM]);
+
+  const deliverEmailDraft = useCallback(async (draft = {}) => {
+    const recipients = String(draft?.to || "")
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+    if (!recipients.length) {
+      return { ok: false, message: "Debes indicar al menos un destinatario." };
+    }
+    const subject = String(draft?.subject || "").trim();
+    const body = String(draft?.body || "").trim();
+    if (!subject || !body) {
+      return { ok: false, message: "El asunto y el cuerpo del correo son obligatorios." };
+    }
+    const payload = {
+      tenantId: draft?.tenantId || empresa?.id || "",
+      templateKey: draft?.templateKey || "generic_notification",
+      subject,
+      to: recipients,
+      text: body,
+      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      replyTo: String(draft?.replyTo || senderReplyTo || "").trim() || undefined,
+      attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+      entityType: draft?.entityType || "",
+      entityId: draft?.entityId || "",
+      metadata: draft?.metadata || {},
+    };
+    try {
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (remoteResult?.ok) {
+        ntf?.(`Correo enviado a ${recipients.join(", ")} ✓`);
+        return remoteResult;
+      }
+      if (remoteResult?.message) {
+        window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+      }
+    } catch {}
+    if (Array.isArray(draft?.attachments) && draft.attachments.length) {
+      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+    }
+    openMailto(recipients.join(","), subject, body);
+    ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);
+    return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
+  }, [empresa?.id, ntf, openMailto, platformApi, senderReplyTo]);
 
   const sendBillingEmail = useCallback((doc, entity) => {
-    const contact = billingContact(entity, doc.tipo);
-    if (!contact.email) {
-      alert("La entidad no tiene email de cobranza registrado.");
+    const built = createBillingEmailDraft(doc, entity);
+    if (!built.ok) {
+      alert(built.message || "No pudimos preparar el correo.");
       return;
     }
-    openMailto(contact.email, `Cobranza invoice ${doc.correlativo || ""}`, billingMessage(doc, entity));
-  }, [billingContact, billingMessage, openMailto]);
+    void deliverEmailDraft(built.draft);
+  }, [createBillingEmailDraft, deliverEmailDraft]);
 
   const sendBillingWhatsApp = useCallback((doc, entity) => {
     const contact = billingContact(entity, doc.tipo);
@@ -140,13 +276,13 @@ export function useLabBillingTools({
   }, [billingContact, billingMessage, openWhatsApp]);
 
   const sendStatementEmail = useCallback((docs, entity, type) => {
-    const contact = billingContact(entity, type);
-    if (!contact.email) {
-      alert("La entidad no tiene email de cobranza registrado.");
+    const built = createStatementEmailDraft(docs, entity, type);
+    if (!built.ok) {
+      alert(built.message || "No pudimos preparar el correo.");
       return;
     }
-    openMailto(contact.email, `Estado de cuenta ${contact.entidad || ""}`.trim(), statementMessage(docs, entity, type));
-  }, [billingContact, openMailto, statementMessage]);
+    void deliverEmailDraft(built.draft);
+  }, [createStatementEmailDraft, deliverEmailDraft]);
 
   const sendStatementWhatsApp = useCallback((docs, entity, type) => {
     const contact = billingContact(entity, type);
@@ -163,6 +299,9 @@ export function useLabBillingTools({
     pauseSeries,
     cutSeries,
     regenerateSeries,
+    createBillingEmailDraft,
+    createStatementEmailDraft,
+    deliverEmailDraft,
     sendBillingEmail,
     sendBillingWhatsApp,
     sendStatementEmail,

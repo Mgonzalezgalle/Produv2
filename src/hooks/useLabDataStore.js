@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dbGet as rawDbGet, dbSet as rawDbSet } from "../lib/auth/clientAuth";
-import { createLabDb } from "../lib/lab/storageNamespace";
+import { dbGet, dbSet, dbCloneFromProd } from "../lib/lab/labDb";
 
-export const { dbGet, dbSet, dbCloneFromProd } = createLabDb(rawDbGet, rawDbSet);
+export { dbGet, dbSet, dbCloneFromProd };
 
 function useDB(key, initial = null, options = {}) {
   const { enabled = true, deferInitialLoad = false } = options;
@@ -113,29 +112,23 @@ export function useGlobalLabData() {
   const [empresas, setEmpresasRaw, savEmpRef, , , empresasCtl] = useDB("produ:empresas", null, { deferInitialLoad: true });
   const [users, setUsersRaw, savUsrRef, , , usersCtl] = useDB("produ:users", null, { deferInitialLoad: true });
   const [printLayouts, setPrintLayoutsRaw, , , , printLayoutsCtl] = useDB("produ:printLayouts", null, { deferInitialLoad: true });
-  const [supportThreads, setSupportThreadsRaw, savSupportThreads, , supportThreadsWritingRef, supportThreadsCtl] = useDB("produ:supportThreads", null, { deferInitialLoad: true });
-  const [supportSettings, setSupportSettingsRaw, savSupportSettings, , supportSettingsWritingRef, supportSettingsCtl] = useDB("produ:supportSettings", null, { deferInitialLoad: true });
   const [, setThemeDB, , , , themeCtl] = useDB("produ:theme", null, { deferInitialLoad: true });
 
   useEffect(() => {
     let alive = true;
-    const controls = [empresasCtl, usersCtl, printLayoutsCtl, supportThreadsCtl, supportSettingsCtl, themeCtl];
+    const controls = [empresasCtl, usersCtl, printLayoutsCtl, themeCtl];
     controls.forEach(control => control.startLoading());
     Promise.all([
       dbGet("produ:empresas"),
       dbGet("produ:users"),
       dbGet("produ:printLayouts"),
-      dbGet("produ:supportThreads"),
-      dbGet("produ:supportSettings"),
       dbGet("produ:theme"),
     ])
-      .then(([empresasValue, usersValue, printLayoutsValue, supportThreadsValue, supportSettingsValue, themeValue]) => {
+      .then(([empresasValue, usersValue, printLayoutsValue, themeValue]) => {
         if (!alive) return;
         empresasCtl.hydrate(empresasValue);
         usersCtl.hydrate(usersValue);
         printLayoutsCtl.hydrate(printLayoutsValue);
-        supportThreadsCtl.hydrate(supportThreadsValue);
-        supportSettingsCtl.hydrate(supportSettingsValue);
         themeCtl.hydrate(themeValue);
       })
       .catch(() => {
@@ -145,10 +138,7 @@ export function useGlobalLabData() {
     return () => {
       alive = false;
     };
-  }, [empresasCtl, usersCtl, printLayoutsCtl, supportThreadsCtl, supportSettingsCtl, themeCtl]);
-
-  usePoll("produ:supportThreads", setSupportThreadsRaw, savSupportThreads, supportThreadsWritingRef);
-  usePoll("produ:supportSettings", setSupportSettingsRaw, savSupportSettings, supportSettingsWritingRef);
+  }, [empresasCtl, usersCtl, printLayoutsCtl, themeCtl]);
 
   return {
     empresas,
@@ -159,12 +149,6 @@ export function useGlobalLabData() {
     savUsrRef,
     printLayouts,
     setPrintLayoutsRaw,
-    supportThreads,
-    setSupportThreadsRaw,
-    savSupportThreads,
-    supportSettings,
-    setSupportSettingsRaw,
-    savSupportSettings,
     setThemeDB,
   };
 }

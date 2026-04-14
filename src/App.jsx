@@ -2,30 +2,20 @@
 //  PRODU — Gestión de Productoras
 //  src/App.jsx  |  Parte 1 de 4: Core + Auth + Layout
 // ============================================================
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { dbGet as rawDbGet, dbSet as rawDbSet, normalizeUsersAuth, sb, sha256Hex } from "./lib/auth/clientAuth";
-import { ViewCts, ViewPres, ViewPresDet } from "./components/commercial/BudgetViews";
-import { ViewCalendario } from "./components/calendar/CalendarView";
-import { CoreModalRouter } from "./components/CoreModalRouter";
-import { ViewCliDet, ViewClientes } from "./components/clients/ClientViews";
-import { AdminPanel as AdminPanelView, SuperAdminPanel as SuperAdminPanelView } from "./components/admin/AdminViews";
-import { EmpresaSelector as EmpresaSelectorView, Login as LoginView } from "./components/auth/AuthViews";
-import { CrmModule } from "./components/crm/CrmModule";
-import { ViewFact } from "./components/commercial/InvoiceViews";
-import { MActivo as MActivoView, MAus as MAusView, MCampanaContenido as MCampanaContenidoView, MCli as MCliView, MCrew as MCrewView, MEvento as MEventoView, MEp as MEpView, MPg as MPgView, MPiezaContenido as MPiezaContenidoView, MPro as MProView, MTarea as MTareaView } from "./components/operations/OperationModals";
-import { AusCard as AusCardView, MiniCal as MiniCalView, MovBlock as MovBlockView } from "./components/operations/OperationSupport";
-import { ViewActivos, ViewAus, ViewContenidos, ViewContenidoDet, ViewCrew, ViewEpDet, ViewPgs, ViewPgDet, ViewPros, ViewProDet } from "./components/operations/ProductionViews";
-import { ComentariosBlock, TareaCard, TareasContexto } from "./components/operations/TaskSupport";
-import { ViewTareas } from "./components/operations/TaskViews";
+import { Suspense, lazy, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { normalizeUsersAuth, sha256Hex } from "./lib/auth/authCrypto";
+import { buildAppOperationHelpers, useAppOperationModalComponents } from "./components/shared/AppOperationComposition";
 import { RichTextBlock, StyleTag } from "./components/shared/AppCore";
-import { ContactBtns } from "./components/shared/ContactButtons";
-import { TaskErrorBoundary, Toast } from "./components/shared/CoreFeedback";
-import { BrandLockup, LoadingScreen, Sidebar } from "./components/shared/ShellLayout";
-import { AlertasPanel as AlertasPanelView, SystemMessagesPanel as SystemMessagesPanelView } from "./components/shared/SystemPanels";
-import { TreasuryModule } from "./components/treasury/TreasuryModule";
-import { ModuleHeader } from "./lib/ui/components";
-import { ViewDashboard } from "./components/dashboard/DashboardView";
+import { AppBootScreen, AppLoginScreen, AppSuperAdminSelectorScreen } from "./components/shared/AppEntryScreens";
+import { AppOverlays } from "./components/shared/AppOverlays";
+import { AppShellFrame } from "./components/shared/AppShellFrame";
+import { AppTopbarActions } from "./components/shared/AppTopbarActions";
+import { AppViewRenderer } from "./components/shared/AppViewRenderer";
+import { APP_SHELL_CSS } from "./components/shared/appShellCss";
+import { BrandLockup, LoadingScreen } from "./components/shared/ShellLayout";
 import { useLabCommercialDocs } from "./hooks/useLabCommercialDocs";
+import { useLabTenantFoundationSync } from "./hooks/useLabTenantFoundationSync";
+import { useLabTenantUserShadowSync } from "./hooks/useLabTenantUserShadowSync";
 import * as LabUI from "./lib/ui/components";
 import {
   assignableRoleOptions,
@@ -60,8 +50,6 @@ import {
   companyReferralDiscountHistory,
   companyReferralDiscountMonthsPending,
   countCampaignPieces,
-  buildSupportSettings,
-  ensureSupportThread,
   ensureRequiredSystemUsers,
   invoiceEntityName,
   isPasswordHash,
@@ -74,25 +62,13 @@ import {
   normalizeSocialCampaign,
   normalizeSocialCampaigns,
   normalizeSocialPiece,
-  normalizeSupportThreads,
   recurringSummary,
   shouldConsumeReferralDiscountMonth,
-  supportAttachmentFromFile,
-  supportThreadPreviewText,
   syncCrewWithUsers,
   userGoogleCalendar,
   budgetRefLabel,
   daysUntil,
 } from "./lib/utils/helpers";
-import {
-  exportActiveClientsCSV,
-  exportActiveClientsPDF,
-  exportComentariosCSV,
-  exportComentariosPDF,
-  exportMovCSV,
-  exportMovPDF,
-} from "./lib/utils/exports";
-import { buildSimplePdfBlob } from "./lib/utils/pdf";
 import {
   CRM_STAGE_SEED,
   crmCanPassToClient,
@@ -120,28 +96,29 @@ import {
   MODULE_LABELS,
 } from "./lib/modules/moduleRegistry";
 import { SYSTEM_MESSAGE_PRESETS, THEME_PRESETS } from "./lib/config/appConfig";
-import { createLabDb, LAB_DATA_CONFIG, localLabKey } from "./lib/lab/storageNamespace";
+import { LAB_DATA_CONFIG, localLabKey } from "./lib/lab/labStorageConfig";
+import { dbGet, dbSet, dbCloneFromProd } from "./lib/lab/labDb";
 import { buildSeedData, SEED_EMPRESAS as BASE_SEED_EMPRESAS, SEED_USERS } from "./lib/lab/seeds";
-import { isStoredSessionExpired, sessionPayload } from "./lib/auth/sessionStorage";
-import { createAuthGateway } from "./lib/auth/authGateway";
+import { isStoredSessionExpired } from "./lib/auth/sessionStorage";
 import { getLabAuthModeLabel, LAB_AUTH_CONFIG } from "./lib/auth/authConfig";
 import { useLabBootGuards } from "./hooks/useLabBootGuards";
 import { useLabBalance } from "./hooks/useLabBalance";
+import { useLabBillingPlatform } from "./hooks/useLabBillingPlatform";
 import { useLabBudgetList } from "./hooks/useLabBudgetList";
 import { useLabCrmGuards } from "./hooks/useLabCrmGuards";
 import { useGlobalLabData, useTenantLabData } from "./hooks/useLabDataStore";
 import { useLabGlobalInit } from "./hooks/useLabGlobalInit";
 import { useLabAlerts } from "./hooks/useLabAlerts";
 import { useLabPersistence } from "./hooks/useLabPersistence";
+import { useLabPlatformFoundation } from "./hooks/useLabPlatformFoundation";
 import { useLabShell } from "./hooks/useLabShell";
 import { useLabSignals } from "./hooks/useLabSignals";
 import { useLabTenantAdmin } from "./hooks/useLabTenantAdmin";
+import { useLabFreshdeskWidget } from "./hooks/useLabFreshdeskWidget";
 import { useLabTheme } from "./hooks/useLabTheme";
 import { assignedNameList, COLS_TAREAS, getAssignedIds, normalizeTaskAssignees } from "./lib/utils/tasks";
 
 // ── SUPABASE ─────────────────────────────────────────────────
-const { dbGet, dbSet, dbCloneFromProd } = createLabDb(rawDbGet, rawDbSet);
-
 // ── UTILS ────────────────────────────────────────────────────
 const uid   = () => "_" + Math.random().toString(36).slice(2,10);
 const today = () => new Date().toISOString().split("T")[0];
@@ -154,6 +131,12 @@ const addMonths = (dateStr = today(), months = 0) => {
   return base.toISOString().split("T")[0];
 };
 const ini   = (s="") => s.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
+const sameIdArray = (a = [], b = []) => (
+  Array.isArray(a)
+  && Array.isArray(b)
+  && a.length === b.length
+  && a.every((value, index) => value === b[index])
+);
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtMoney = (n, currency="CLP") => {
   const value = Number(n || 0);
@@ -164,150 +147,42 @@ const fmtMoney = (n, currency="CLP") => {
 };
 const fmtD  = d => { try { return new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"short",year:"numeric"}); } catch { return d||"—"; } };
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const freshdeskFirstName = user => {
-  const fullName = String(user?.name || user?.nom || "").trim();
-  return fullName ? fullName.split(/\s+/)[0] : "";
-};
-const applyFreshdeskIdentity = ({ user, empresa }) => {
-  if (!user || !window.fcWidget) return false;
-  const email = String(user.email || user.ema || "").trim();
-  const externalId = String(user.id || "").trim();
-  const firstName = freshdeskFirstName(user);
-  try {
-    if (externalId && typeof window.fcWidget.setExternalId === "function") window.fcWidget.setExternalId(externalId);
-    if (firstName && window.fcWidget.user?.setFirstName) window.fcWidget.user.setFirstName(firstName);
-    if (email && window.fcWidget.user?.setEmail) window.fcWidget.user.setEmail(email);
-    if (window.fcWidget.user?.setProperties) {
-      window.fcWidget.user.setProperties({
-        cf_plan: String(empresa?.plan || "Starter"),
-        cf_status: empresa?.active === false ? "Inactive" : "Active",
-      });
-    }
-    return true;
-  } catch {
-    return false;
-  }
-};
-const syncFreshdeskVisibility = ({ user, empresa, superPanel = false }) => {
-  if (!window.fcWidget) return false;
-  const shouldShow = !!(user && empresa && user.role !== "superadmin" && !superPanel);
-  try {
-    if (shouldShow) window.fcWidget.show?.();
-    else window.fcWidget.hide?.();
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 const ADDONS = ADDON_REGISTRY;
 const SEED_EMPRESAS = BASE_SEED_EMPRESAS(today);
 const SEED_DATA = empId => buildSeedData(empId, { CRM_STAGE_SEED });
-
-// ── CSS ──────────────────────────────────────────────────────
-const CSS=`
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-:root{
-  --bg:#080809;--sur:#0f0f11;--card:#141416;--card2:#1a1a1e;
-  --bdr:#1e1e24;--bdr2:#28282f;--cy:#00d4e8;--cy2:#00b8c8;
-  --cg:#00d4e820;--cm:#00d4e840;--wh:#f4f4f6;
-  --gr:#52525e;--gr2:#7c7c8a;--gr3:#a8a8b8;
-  --red:#ff5566;--grn:#00e08a;--yel:#ffcc44;--org:#ff8844;--pur:#a855f7;
-  --fh:'Syne',sans-serif;--fb:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px;-webkit-font-smoothing:antialiased}
-body{background:var(--bg);color:var(--wh);font-family:var(--fb);min-height:100vh}
-::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
-input:focus,select:focus,textarea:focus{outline:none!important;border-color:var(--cy)!important;box-shadow:0 0 0 3px var(--cg)!important}
-tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)!important}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
-@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* Modern light theme enhancements */
-body.light .sidebar-inner{background:var(--sidebar-bg)!important}
-body.light aside{background:var(--sidebar-bg)!important;border-right:none!important}
-body.light aside *{border-color:#ffffff14!important}
-body.light aside .nav-label{color:#e2e8f0!important}
-body.light .card-wrap,.card{border-radius:12px}
-body.light .card-wrap{box-shadow:0 1px 4px rgba(0,0,0,.07),0 2px 12px rgba(0,0,0,.04)!important;border:none!important}
-body.light main{background:#eef2f7}
-body.light .stat-card{box-shadow:0 2px 8px rgba(0,0,0,.07);border:none}
-body.light input,body.light select,body.light textarea{background:#ffffff;border-color:#cbd5e1;color:#0f172a}
-body.light input:focus,body.light select:focus,body.light textarea:focus{border-color:#4f46e5;box-shadow:0 0 0 3px #4f46e520}
-body.light button[class*="btn"]{transition:all .15s}
-.va{animation:fadeUp .2s ease}
-body.light{--bg:#eef2f7;--sur:#ffffff;--card:#ffffff;--card2:#f3f6fb;--bdr:#d7dee8;--bdr2:#c2ccd8;--wh:#0f172a;--gr:#64748b;--gr2:#475569;--gr3:#1e293b;--sidebar:#111827;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#0ea5b7}
-body.light .sidebar-wrap{background:var(--sidebar-bg)!important}
-body.light .sidebar-wrap *{border-color:#ffffff15!important}
-body.light aside{background:var(--sidebar-bg)!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
-body.light aside .nav-group-label{color:#94a3b8!important}
-body.light aside,body.light aside button,body.light aside div,body.light aside span,body.light aside small{color:#e5edf7!important}
-body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}
-body.light aside [style*="color:var(--gr3)"]{color:#e5edf7!important}
-body.light aside [style*="color:var(--wh)"]{color:#ffffff!important}
-body.light aside .active-nav{background:#ffffff18!important;color:#ffffff!important}
-body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-@media(max-width:1024px){
-  html{font-size:13px}
-  [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  [style*="repeat(6,1fr)"]{grid-template-columns:repeat(3,minmax(0,1fr))!important}
-  [style*="repeat(3,1fr)"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  [style*="1fr 1fr 1fr"]{grid-template-columns:1fr 1fr!important}
-  [style*="1fr 1fr"]{grid-template-columns:1fr!important}
-}
-@media(max-width:768px){
-  aside{transform:translateX(-100%);transition:transform .25s ease!important;width:260px!important;z-index:300!important}
-  aside.mob-open{transform:translateX(0)!important}
-  main,.app-main{margin-left:0!important;width:100%!important}
-  .topbar{padding:0 14px!important;height:auto!important;min-height:60px;flex-wrap:wrap}
-  .app-page{padding:14px!important}
-  .app-breadcrumbs{min-width:0!important}
-  .app-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
-  [style*="repeat(4,1fr)"],[style*="repeat(6,1fr)"],[style*="repeat(3,1fr)"],[style*="1fr 1fr 1fr"],[style*="1fr 1fr"]{grid-template-columns:1fr!important}
-  [style*="width:260px"]{width:100%!important;max-width:100%!important}
-  [style*="min-width:190"]{min-width:0!important}
-  [style*="justify-content:space-between"][style*="width:260px"]{width:100%!important}
-  .login-shell,.company-shell{padding:16px!important}
-  .login-card,.company-card{width:100%!important;max-width:100%!important;padding:24px 18px!important}
-  .search-wrap{max-width:none!important;width:100%!important}
-  .toast-box{left:12px!important;right:12px!important;bottom:12px!important;max-width:none!important}
-  .pager{flex-direction:column;align-items:flex-start!important;gap:12px}
-  .ham-btn{display:flex!important}
-  .modal-wrap{align-items:flex-end!important;padding:0!important}
-  .modal-box{border-radius:16px 16px 0 0!important;width:100%!important;max-width:100%!important;max-height:92vh!important}
-  input,select,textarea{font-size:16px!important}
-}
-@media(max-width:1024px){
-  .login-card{grid-template-columns:1fr!important;gap:14px!important}
-  .login-form{order:-1;padding:30px 24px!important}
-  .login-promo{min-height:auto!important;padding:26px!important}
-  .login-promo-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .login-promo-footer{grid-template-columns:1fr!important}
-  .login-title{font-size:34px!important;max-width:none!important}
-}
-@media(max-width:640px){
-  .login-shell{padding:12px!important;align-items:flex-start!important}
-  .login-card{gap:12px!important}
-  .login-form,.login-promo{border-radius:18px!important;box-shadow:0 12px 36px rgba(0,0,0,.24)!important}
-  .login-form{padding:22px 16px!important}
-  .login-promo{padding:20px 16px!important}
-  .login-promo-grid{grid-template-columns:1fr!important}
-  .login-title{font-size:28px!important;line-height:1.05!important}
-  .login-subcopy{font-size:13px!important}
-  .login-promo-copy{font-size:13px!important}
-}
-@media(min-width:769px){
-  .mob-overlay{display:none!important}
-  .ham-btn{display:none!important}
-}
-`;
+const CoreModalRouter = lazy(() => import("./components/CoreModalRouter").then(module => ({ default: module.CoreModalRouter })));
+const LoginView = lazy(() => import("./components/auth/AuthViews").then(module => ({ default: module.Login })));
+const EmpresaSelectorView = lazy(() => import("./components/auth/AuthViews").then(module => ({ default: module.EmpresaSelector })));
+const AdminPanelView = lazy(() => import("./components/admin/AdminViews").then(module => ({ default: module.AdminPanel })));
+const SuperAdminPanelView = lazy(() => import("./components/admin/AdminViews").then(module => ({ default: module.SuperAdminPanel })));
+const ToastView = lazy(() => import("./components/shared/CoreFeedback").then(module => ({ default: module.Toast })));
+const AlertasPanelView = lazy(() => import("./components/shared/SystemPanels").then(module => ({ default: module.AlertasPanel })));
+const SystemMessagesPanelView = lazy(() => import("./components/shared/SystemPanels").then(module => ({ default: module.SystemMessagesPanel })));
+const ViewDashboard = lazy(() => import("./components/dashboard/DashboardView").then(module => ({ default: module.ViewDashboard })));
+const ViewCalendario = lazy(() => import("./components/calendar/CalendarView").then(module => ({ default: module.ViewCalendario })));
+const ViewCliDet = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewCliDet })));
+const ViewClientes = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewClientes })));
+const ViewCts = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewCts })));
+const ViewPres = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPres })));
+const ViewPresDet = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPresDet })));
+const CrmModule = lazy(() => import("./components/crm/CrmModule").then(module => ({ default: module.CrmModule })));
+const ViewFact = lazy(() => import("./components/commercial/InvoiceViews").then(module => ({ default: module.ViewFact })));
+const TreasuryModule = lazy(() => import("./components/treasury/TreasuryModule").then(module => ({ default: module.TreasuryModule })));
+const ViewActivos = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewActivos })));
+const ViewAus = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewAus })));
+const ViewContenidos = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewContenidos })));
+const ViewContenidoDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewContenidoDet })));
+const ViewCrew = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewCrew })));
+const ViewEpDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewEpDet })));
+const ViewPgs = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewPgs })));
+const ViewPgDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewPgDet })));
+const ViewPros = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewPros })));
+const ViewProDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewProDet })));
+const ViewTareas = lazy(() => import("./components/operations/TaskViews").then(module => ({ default: module.ViewTareas })));
 
 // ── UI PRIMITIVES ────────────────────────────────────────────
-const { Badge, Paginator, Modal, FG, FI, FSl, FTA, R2, R3, MFoot, Btn, GBtn, DBtn, XBtn, Stat, TH, TD, Card, Empty, Sep, Tabs, KV, SearchBar, FilterSel, ViewModeToggle, MultiSelect } = LabUI;
+const { Modal, Btn, GBtn, XBtn, Tabs } = LabUI;
 
 // ── LOGIN ────────────────────────────────────────────────────
 
@@ -321,7 +196,6 @@ const { Badge, Paginator, Modal, FG, FI, FSl, FTA, R2, R3, MFoot, Btn, GBtn, DBt
 // ── EMPRESA EDIT — editar datos de empresa desde Admin ───────
 // ── APP ROOT ─────────────────────────────────────────────────
 export default function App(){
-  const authGateway = useMemo(() => createAuthGateway(LAB_AUTH_CONFIG.strategy), []);
   const [curUser,setCurUser]=useState(null);
   const [curEmp,setCurEmp]=useState(null);
   const [storedSession,setStoredSession]=useState(null);
@@ -333,6 +207,7 @@ export default function App(){
   const [adminOpen,setAdminOpen]=useState(false);
   const [collapsed,setCollapsed]=useState(false);
   const [isMobile,setIsMobile]=useState(()=>typeof window!=="undefined" ? window.innerWidth<=768 : false);
+  const [mobileSidebarOpen,setMobileSidebarOpen]=useState(false);
   const [syncPulse,setSyncPulse]=useState(false);
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
@@ -349,10 +224,41 @@ export default function App(){
     empresas,setEmpresasRaw,savEmpRef,
     users,setUsersRaw,savUsrRef,
     printLayouts,setPrintLayoutsRaw,
-    supportThreads,setSupportThreadsRaw,savSupportThreads,
-    supportSettings,setSupportSettingsRaw,savSupportSettings,
     setThemeDB,
   } = useGlobalLabData();
+  const {
+    authGateway,
+    platformApiMode,
+    sessionKey,
+    authService,
+    platformServices,
+    platformGateway,
+    platformApi,
+  } = useLabPlatformFoundation({
+    users,
+    empresas,
+    dbGet,
+    dbSet,
+    sha256Hex,
+    nextTenantCode,
+    today,
+    storedSession,
+    setCurUser,
+    setCurEmp,
+    setStoredSession,
+  });
+  const foundationTenantReady = useLabTenantFoundationSync({
+    curEmp,
+    platformApiMode,
+    platformApi,
+  });
+  useLabTenantUserShadowSync({
+    curEmp,
+    users,
+    platformApiMode,
+    platformServices,
+    foundationTenantReady,
+  });
 
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
@@ -409,13 +315,9 @@ export default function App(){
     setEmpresasRaw,
     setUsersRaw,
     setPrintLayoutsRaw,
-    setSupportThreadsRaw,
-    setSupportSettingsRaw,
     normalizeEmpresasTenantCodes,
     ensureRequiredSystemUsers,
     normalizePrintLayouts,
-    normalizeSupportThreads,
-    buildSupportSettings,
     applyTheme,
     THEME_PRESETS,
     setStoredSession,
@@ -424,56 +326,32 @@ export default function App(){
     DEFAULT_PRINT_LAYOUTS,
     empresas,
     users,
-    supportSettings,
   });
+
+  const normalizedUsersSignatureRef = useRef("");
+  const crmAddonMigrationAttemptedRef = useRef(false);
 
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
     if(!Array.isArray(users) || !users.length) return;
+    const sourceSignature = JSON.stringify(users);
+    if (normalizedUsersSignatureRef.current === sourceSignature) return;
+    let cancelled = false;
     normalizeUsersAuth(users).then(next=>{
+      if (cancelled) return;
       const merged = ensureRequiredSystemUsers(next);
-      const changed = JSON.stringify(merged) !== JSON.stringify(users);
+      const mergedSignature = JSON.stringify(merged);
+      normalizedUsersSignatureRef.current = mergedSignature;
+      const changed = mergedSignature !== sourceSignature;
       if(changed){
         setUsersRaw(merged);
         dbSet("produ:users",merged);
       }
     });
+    return () => {
+      cancelled = true;
+    };
   },[users]);
-
-  useEffect(()=>{
-    if(!storedSession || !Array.isArray(users) || !Array.isArray(empresas)) return;
-    if(isStoredSessionExpired(storedSession)){
-      setCurUser(null);setCurEmp(null);
-      try{sessionStorage.removeItem(localLabKey("session"));}catch{}
-      try{localStorage.removeItem(localLabKey("session"));}catch{}
-      setStoredSession(null);
-      return;
-    }
-    const freshUser=(users||[]).find(u=>u.id===storedSession.userId&&u.active);
-    if(!freshUser){
-      setCurUser(null);setCurEmp(null);
-      try{sessionStorage.removeItem(localLabKey("session"));}catch{}
-      try{localStorage.removeItem(localLabKey("session"));}catch{}
-      setStoredSession(null);
-      return;
-    }
-    if(["superadmin","admin"].includes(freshUser.role) && storedSession?.authStrength!=="mfa_totp"){
-      setCurUser(null);setCurEmp(null);
-      try{sessionStorage.removeItem(localLabKey("session"));}catch{}
-      try{localStorage.removeItem(localLabKey("session"));}catch{}
-      setStoredSession(null);
-      return;
-    }
-    const sessionEmpId=freshUser.role==="superadmin" ? storedSession.empId : freshUser.empId;
-    const freshEmp=sessionEmpId?(empresas||[]).find(e=>e.id===sessionEmpId&&e.active!==false):null;
-    setCurUser(prev => prev?.id === freshUser.id ? prev : freshUser);
-    setCurEmp(prev => {
-      const nextId = freshEmp?.id || null;
-      if (prev?.id !== nextId) return freshEmp || null;
-      if (!prev && !freshEmp) return null;
-      return JSON.stringify(prev) === JSON.stringify(freshEmp || null) ? prev : (freshEmp || null);
-    });
-  },[storedSession,users,empresas]);
 
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
@@ -488,32 +366,8 @@ export default function App(){
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
     if(!Array.isArray(empresas) || !empresas.length) return;
-    try{
-      const flag = localStorage.getItem("produ_support_chat_default_off_v1");
-      if(flag) return;
-      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,supportChatEnabled:false})));
-      setEmpresasRaw(next);
-      dbSet("produ:empresas",next);
-      localStorage.setItem("produ_support_chat_default_off_v1","1");
-    }catch{}
-  },[empresas]);
-
-  useEffect(()=>{
-    if (LAB_DATA_CONFIG.releaseMode) return;
-    if(!Array.isArray(empresas) || !empresas.length) return;
-    try{
-      const flag = localStorage.getItem("produ_freshdesk_removed_v1");
-      if(flag) return;
-      const next = normalizeEmpresasModel((empresas||[]).map(emp=>({...emp,freshdeskEnabled:false})));
-      setEmpresasRaw(next);
-      dbSet("produ:empresas",next);
-      localStorage.setItem("produ_freshdesk_removed_v1","1");
-    }catch{}
-  },[empresas]);
-
-  useEffect(()=>{
-    if (LAB_DATA_CONFIG.releaseMode) return;
-    if(!Array.isArray(empresas) || !empresas.length) return;
+    if (crmAddonMigrationAttemptedRef.current) return;
+    crmAddonMigrationAttemptedRef.current = true;
     try{
       const flag = localStorage.getItem("produ_crm_default_on_v1");
       if(flag) return;
@@ -521,10 +375,16 @@ export default function App(){
         const addons = Array.isArray(emp?.addons) ? emp.addons : [];
         return addons.includes("crm") ? emp : { ...emp, addons:[...addons,"crm"], migratedCrmAddon:true };
       }));
+      if(JSON.stringify(next)===JSON.stringify(empresas)){
+        localStorage.setItem("produ_crm_default_on_v1","1");
+        return;
+      }
       setEmpresasRaw(next);
       dbSet("produ:empresas",next);
       localStorage.setItem("produ_crm_default_on_v1","1");
-    }catch{}
+    }catch{
+      // Avoid retry loops within the same session if storage is unavailable.
+    }
   },[empresas]);
 
   useEffect(()=>{
@@ -541,20 +401,59 @@ export default function App(){
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
     if(!curEmp) return;
+    let cancelled = false;
     const id=curEmp.id;
     const keys=["clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos","listas","tareas"];
-    const setters={setTareas,setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setTreasuryPayables,setTreasuryPurchaseOrders,setTreasuryIssuedOrders,setTreasuryReceipts,setTreasuryDisbursements,setActivos,setMovimientos};
-    keys.forEach(async k=>{
-      const v=await dbGet(`${id}:${k}`);
-      if(v===null){
-        const seed=SEED_DATA(id)[k]||[];
-        const cloned = await dbCloneFromProd(`produ:${id}:${k}`, seed);
-        const next = cloned===null ? seed : cloned;
-        dbSet(`${id}:${k}`,next);
-        setters[k]?.(next);
+    const setters={
+      listas: setListas,
+      tareas: setTareas,
+      clientes: setClientes,
+      producciones: setProducciones,
+      programas: setProgramas,
+      piezas: setPiezas,
+      episodios: setEpisodios,
+      auspiciadores: setAuspiciadores,
+      crmOpps: setCrmOpps,
+      crmActivities: setCrmActivities,
+      crmStages: setCrmStages,
+      contratos: setContratos,
+      movimientos: setMovimientos,
+      crew: setCrew,
+      eventos: setEventos,
+      presupuestos: setPresupuestos,
+      facturas: setFacturas,
+      treasuryProviders: setTreasuryProviders,
+      treasuryPayables: setTreasuryPayables,
+      treasuryPurchaseOrders: setTreasuryPurchaseOrders,
+      treasuryIssuedOrders: setTreasuryIssuedOrders,
+      treasuryReceipts: setTreasuryReceipts,
+      treasuryDisbursements: setTreasuryDisbursements,
+      activos: setActivos,
+    };
+    (async () => {
+      const seedData = SEED_DATA(id);
+      for (const k of keys) {
+        const v = await dbGet(`${id}:${k}`);
+        const shouldRehydrateEmptySeed = Array.isArray(v)
+          && v.length === 0
+          && ["crmOpps","crmActivities","presupuestos","facturas"].includes(k)
+          && Array.isArray(seedData[k])
+          && seedData[k].length > 0;
+        if (cancelled) return;
+        if (v === null || shouldRehydrateEmptySeed) {
+          const seed = seedData[k] || [];
+          const cloned = await dbCloneFromProd(`produ:${id}:${k}`, seed);
+          const next = cloned === null ? seed : cloned;
+          if (cancelled) return;
+          await dbSet(`${id}:${k}`, next);
+          setters[k]?.(next);
+        }
       }
-    });
-  },[curEmp?.id]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  },[curEmp?.id, setListas, setTareas, setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setMovimientos, setCrew, setEventos, setPresupuestos, setFacturas, setTreasuryProviders, setTreasuryPayables, setTreasuryPurchaseOrders, setTreasuryIssuedOrders, setTreasuryReceipts, setTreasuryDisbursements, setActivos]);
 
   const crmSavingRef = useRef(false);
 
@@ -582,6 +481,7 @@ export default function App(){
       const mobile=window.innerWidth<=768;
       setIsMobile(mobile);
       if(mobile) setCollapsed(false);
+      if(!mobile) setMobileSidebarOpen(false);
     };
     onResize();
     window.addEventListener("resize",onResize);
@@ -603,7 +503,8 @@ export default function App(){
     storedSession,
     empresas,
     SEED_EMPRESAS,
-    sessionPayload,
+    authService,
+    sessionKey,
   });
 
   useEffect(()=>{
@@ -631,50 +532,34 @@ export default function App(){
     return ()=>clearInterval(interval);
   },[curUser?.id,storedSession,logout,setToast]);
 
-  useEffect(()=>{
-    let cancelled=false;
-    let attempts=0;
-    const syncVisibility=()=>{
-      if(cancelled) return;
-      attempts+=1;
-      const applied = syncFreshdeskVisibility({ user: curUser, empresa: curEmp, superPanel });
-      if(!applied && attempts<20) window.setTimeout(syncVisibility,500);
-    };
-    syncVisibility();
-    return ()=>{ cancelled=true; };
-  },[curUser?.id,curUser?.role,curEmp?.id,superPanel]);
-
-  useEffect(()=>{
-    if(!curUser || curUser.role==="superadmin" || !curEmp) return;
-    let cancelled=false;
-    let attempts=0;
-    const syncFreshdesk=()=>{
-      if(cancelled) return;
-      attempts+=1;
-      const applied = applyFreshdeskIdentity({ user: curUser, empresa: curEmp });
-      if(!applied && attempts<20) window.setTimeout(syncFreshdesk,500);
-    };
-    syncFreshdesk();
-    return ()=>{ cancelled=true; };
-  },[curUser?.id,curUser?.email,curUser?.ema,curUser?.name,curUser?.nom,curUser?.role,curEmp?.id,curEmp?.plan,curEmp?.active]);
+  useLabFreshdeskWidget({ user: curUser, empresa: curEmp });
 
   useEffect(()=>{
     if(curEmp) return;
     setAdminOpen(false);
   },[curEmp,setAdminOpen]);
 
+  const closeMobileSidebar = useCallback(() => {
+    setMobileSidebarOpen(false);
+  }, []);
+
+  const openMobileSidebar = useCallback(() => {
+    setCollapsed(false);
+    setMobileSidebarOpen(true);
+  }, []);
+
   // CRUD
-  const cSave=async(arr,setArr,item)=>{
+  const cSave=useCallback(async(arr,setArr,item)=>{
     const withEmp=item.empId?item:{...item,empId:curEmp?.id};
     const idx=(arr||[]).findIndex(x=>x.id===withEmp.id);
     const next=idx>=0?(arr||[]).map((x,i)=>i===idx?withEmp:x):[...(arr||[]),{...withEmp,id:withEmp.id||uid(),cr:today()}];
     closeM();ntf("Guardado ✓");await setArr(next);
-  };
-  const cDel=async(arr,setArr,id,goFn,msg="Eliminado")=>{
+  }, [closeM, curEmp?.id, ntf]);
+  const cDel=useCallback(async(arr,setArr,id,goFn,msg="Eliminado")=>{
     if(!confirm("¿Confirmar eliminación?")) return;
     ntf(msg,"warn");if(goFn)goFn();
     await setArr((arr||[]).filter(x=>x.id!==id));
-  };
+  }, [ntf]);
   const { saveMov, delMov, saveFacturaDoc } = useLabCommercialDocs({
     curEmp,
     facturas,
@@ -690,6 +575,19 @@ export default function App(){
     today,
     uid,
     canDo: action => canDo(curUser, action, curEmp),
+  });
+  const { emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync } = useLabBillingPlatform({
+    curEmp,
+    facturas,
+    clientes,
+    auspiciadores,
+    platformGateway,
+    platformApi,
+    platformServices,
+    setFacturas,
+    ntf,
+    dbGet,
+    dbSet,
   });
 
   useLabBootGuards({
@@ -707,15 +605,13 @@ export default function App(){
     syncCrew: syncCrewWithUsers,
   });
 
-  const { saveUsers, saveEmpresas, savePrintLayouts, saveSupportThreads, saveSupportSettings, saveSuperData } = useLabPersistence({
+  const { saveUsers, saveEmpresas, savePrintLayouts, saveSuperData } = useLabPersistence({
     curEmp,
     crew,
     setCrew,
     setUsersRaw,
     setEmpresasRaw,
     setPrintLayoutsRaw,
-    setSupportThreadsRaw,
-    setSupportSettingsRaw,
     dbSet,
     normalizeUsersAuth: async nextUsers => {
       const normalizedUsers = await normalizeUsersAuth(nextUsers);
@@ -723,27 +619,71 @@ export default function App(){
     },
     normalizeEmpresasModel,
     normalizePrintLayouts,
-    normalizeSupportThreads,
-    buildSupportSettings,
     syncCrewWithUsers,
-    empresas,
-    users,
-    supportSettings,
     ntf,
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !curUser?.id || !saveUsers || !Array.isArray(users)) return;
+    const url = new URL(window.location.href);
+    const status = url.searchParams.get("google_calendar_status");
+    if (!status) return;
+
+    const cleanUrl = () => {
+      url.searchParams.delete("google_calendar_status");
+      url.searchParams.delete("google_calendar_message");
+      url.searchParams.delete("google_calendar_connection");
+      window.history.replaceState({}, document.title, url.toString());
+    };
+
+    if (status === "connected") {
+      const rawConnection = url.searchParams.get("google_calendar_connection") || "";
+      try {
+        const connection = JSON.parse(rawConnection);
+        const targetUserId = String(connection?.userId || curUser.id).trim() || curUser.id;
+        const nextUsers = users.map(item => item.id === targetUserId ? {
+          ...item,
+          googleCalendar: {
+            connected: true,
+            email: String(connection?.userEmail || item.email || "").trim(),
+            calendarId: String(connection?.calendarId || "primary").trim(),
+            calendarName: String(connection?.calendarName || "Calendario principal").trim(),
+            autoSync: false,
+            lastSyncAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
+            tokenType: String(connection?.tokenType || "Bearer").trim(),
+            scope: String(connection?.scope || "").trim(),
+            accessToken: String(connection?.accessToken || "").trim(),
+            refreshToken: String(connection?.refreshToken || "").trim(),
+            expiresIn: Number(connection?.expiresIn || 0),
+          },
+        } : item);
+        Promise.resolve(saveUsers(nextUsers))
+          .then(() => {
+            ntf("Google Calendar conectado ✓");
+            navTo("calendario");
+          })
+          .finally(cleanUrl);
+        return;
+      } catch {
+        ntf("No pudimos leer la conexión devuelta por Google Calendar.", "warn");
+        cleanUrl();
+        return;
+      }
+    }
+
+    ntf(url.searchParams.get("google_calendar_message") || "No pudimos conectar Google Calendar.", "warn");
+    navTo("calendario");
+    cleanUrl();
+  }, [curUser?.id, users, saveUsers, navTo, ntf]);
   const { deleteEmpresa } = useLabTenantAdmin({
     dbGet,
     dbSet,
     empresas,
     users,
-    supportThreads,
-    supportSettings,
     normalizeEmpresasModel,
     ensureRequiredSystemUsers,
-    normalizeSupportThreads,
     setEmpresasRaw,
     setUsersRaw,
-    setSupportThreadsRaw,
     curEmp,
     curUser,
     setCurEmp,
@@ -771,6 +711,45 @@ export default function App(){
     return [{l:L[view]||view.toUpperCase()}];
   };
 
+  const VP = useMemo(() => ({
+    empresa:curEmp,
+    user:curUser,
+    listas:L,
+    tareas:tareas||[],
+    clientes:clientes||[],
+    producciones:producciones||[],
+    programas:programas||[],
+    piezas:socialCampaigns,
+    episodios:episodios||[],
+    auspiciadores:auspiciadores||[],
+    crmOpps:crmOpps||[],
+    crmActivities:crmActivities||[],
+    crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),
+    contratos:contratos||[],
+    movimientos:movimientos||[],
+    crew:crew||[],
+    eventos:eventos||[],
+    presupuestos:presupuestos||[],
+    facturas:facturas||[],
+    activos:activos||[],
+    purchaseOrders:treasuryPurchaseOrders||[],
+    users:domainUsers,
+    empresas:domainEmpresas,
+    saveUsers,
+    navTo,
+    openM,
+    cSave,
+    cDel,
+    saveMov,
+    delMov,
+    saveFacturaDoc,
+    ntf,
+    theme,
+    fmtM,
+    fmtD,
+    platformApi,
+    canDo:(a)=>canDo(curUser,a,curEmp),
+  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi]);
   const treasuryProps={
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,
@@ -785,63 +764,39 @@ export default function App(){
     disbursements:treasuryDisbursements||[],
     setDisbursements:setTreasuryDisbursements,
   };
-  const VP={empresa:curEmp,user:curUser,listas:L,tareas:tareas||[],clientes:clientes||[],producciones:producciones||[],programas:programas||[],piezas:socialCampaigns,episodios:episodios||[],auspiciadores:auspiciadores||[],crmOpps:crmOpps||[],crmActivities:crmActivities||[],crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),contratos:contratos||[],movimientos:movimientos||[],crew:crew||[],eventos:eventos||[],presupuestos:presupuestos||[],facturas:facturas||[],activos:activos||[],users:domainUsers,empresas:domainEmpresas,saveUsers,navTo,openM,cSave,cDel,saveMov,delMov,saveFacturaDoc,ntf,theme,fmtM,fmtD,canDo:(a)=>canDo(curUser,a,curEmp),treasury:treasuryProps};
   const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
+  const modalStateSetters = setters;
   const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
-  const exportMovCsvHelper = useCallback((movs, nombre) => exportMovCSV(movs, nombre), []);
-  const exportMovPdfHelper = useCallback((movs, nombre, empresa, tipo) => exportMovPDF(movs, nombre, empresa, tipo, { companyPrintColor }), []);
-  const exportActiveClientsCsvHelper = useCallback(items => exportActiveClientsCSV(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, today }), [today]);
-  const exportActiveClientsPdfHelper = useCallback(items => exportActiveClientsPDF(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, fmtMoney, fmtD, today, buildSimplePdfBlob }), [fmtMoney, fmtD, today]);
-  const comentariosBlockHelpers = useMemo(() => ({
+  const {
+    comentariosBlockComponent,
+    tareasContextoComponent,
+    movBlockComponent,
+    miniCalComponent,
+    ausCardComponent,
+    exportMovCsvHelper,
+    exportMovPdfHelper,
+    exportActiveClientsCsvHelper,
+    exportActiveClientsPdfHelper,
+    TareaCard,
+  } = buildAppOperationHelpers({
     commentAttachmentFromFile,
     normalizeCommentAttachments,
     getAssignedIds,
     uid,
     today,
     fmtD,
-    exportComentariosCSV,
-    exportComentariosPDF: (items, nombre, empresa) => exportComentariosPDF(items, nombre, empresa, { companyPrintColor }),
-  }), [today, fmtD, uid]);
-  const comentariosBlockComponent = useCallback(props => <ComentariosBlock {...props} helpers={comentariosBlockHelpers} />, [comentariosBlockHelpers]);
-  const tareasContextoHelpers = useMemo(() => ({ uid }), [uid]);
-  const tareasContextoComponent = useCallback(props => <TareasContexto {...props} TareaCardComponent={TareaCard} helpers={tareasContextoHelpers} />, [tareasContextoHelpers]);
-  const movBlockComponent = useCallback(props => <MovBlockView {...props} fmtM={fmtM} fmtD={fmtD} />, [fmtM, fmtD]);
-  const miniCalComponent = useCallback(props => <MiniCalView {...props} fmtD={fmtD} />, [fmtD]);
-  const ausCardComponent = useCallback(props => <AusCardView {...props} ini={ini} fmtM={fmtM} fmtD={fmtD} />, [ini, fmtM, fmtD]);
+    fmtM,
+    ini,
+    companyPrintColor,
+    companyBillingStatus,
+    companyBillingBaseNet,
+    companyBillingNet,
+    companyReferralDiscountMonthsPending,
+    fmtMoney,
+  });
 
-  const renderView=()=>{
-    if(superPanel) return <><div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Panel Super Admin</div><GBtn onClick={()=>setSuperPanel(false)}>← Volver</GBtn></div><SuperAdminPanelView actorUser={curUser} empresas={empresas||[]} users={users||[]} onSave={saveSuperData} onDeleteEmpresa={deleteEmpresa} releaseMode={LAB_DATA_CONFIG.releaseMode} printLayouts={printLayouts||DEFAULT_PRINT_LAYOUTS} savePrintLayouts={savePrintLayouts} supportThreads={activeSupportThreads} supportSettings={activeSupportSettings} helpers={{dbGet,dbSet,uid,today,nowIso,fmtD,fmtMoney,normalizePrintLayouts,DEFAULT_PRINT_LAYOUTS,buildSupportSettings,normalizeSupportThreads,supportAttachmentFromFile,normalizeEmpresasModel,companyBillingDiscountPct,companyReferralDiscountMonthsPending,companyReferralDiscountHistory,companyBillingBaseNet,companyBillingNet,companyBillingStatus,companyPaymentDayLabel,companyIsUpToDate,companyGoogleCalendarEnabled,nextTenantCode,shouldConsumeReferralDiscountMonth,normalizeEmailValue,sha256Hex,sanitizeAssignableRole,ini,addons:ADDONS,exportActiveClientsCSV:exportActiveClientsCsvHelper,exportActiveClientsPDF:exportActiveClientsPdfHelper,userGoogleCalendar,SYSTEM_MESSAGE_PRESETS,XBtn,RichTextBlock}}/></>;
-    if(!treasuryEnabled && view===TREASURY_MODULE_ID) return <Card title="Módulo fuera del corte"><Empty text="Tesorería aún no está habilitada en este release" sub="Su entrada se activará con rollout controlado, smoke test financiero y validación de datos."/></Card>;
-    if(!canAccessModule(curUser, view, curEmp)) return <Card title="Acceso restringido"><Empty text="Este módulo está disponible solo para perfiles autorizados" sub="Si necesitas verlo, pide acceso al administrador de tu empresa."/></Card>;
-    switch(view){
-      case"dashboard":    return <ViewDashboard {...VP} alertas={alertas} useBal={useBal} fmtM={fmtM}/>;
-      case"tareas":       return <ViewTareas {...VP} setTareas={setTareas} openM={openM} canDo={VP.canDo} TareaCard={TareaCard} COLS_TAREAS={COLS_TAREAS} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds}/>;
-      case"clientes":     return <ViewClientes     {...VP} useBal={useBal} ini={ini} fmtM={fmtM}/>;
-      case"cli-det":      return <ViewCliDet        {...VP} id={detId} setClientes={setClientes} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ini={ini}/>;
-      case"producciones": return <ViewPros          {...VP} setProducciones={setProducciones} useBal={useBal} fmtM={fmtM} fmtD={fmtD}/>;
-      case"pro-det":      return <ViewProDet        {...VP} id={detId} setProducciones={setProducciones} setMovimientos={setMovimientos} setTareas={setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds}/>;
-      case"programas":    return <ViewPgs           {...VP} setProgramas={setProgramas} useBal={useBal} fmtM={fmtM}/>;
-      case"pg-det":       return <ViewPgDet         {...VP} id={detId} setProgramas={setProgramas} setEpisodios={setEpisodios} setMovimientos={setMovimientos} setTareas={setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} AusCard={ausCardComponent}/>;
-      case"contenidos":   return <ViewContenidos    {...VP} setPiezas={setPiezas} useBal={useBal} fmtM={fmtM} countCampaignPieces={countCampaignPieces}/>;
-      case"contenido-det":return <ViewContenidoDet  {...VP} id={detId} setPiezas={setPiezas} setMovimientos={setMovimientos} setTareas={setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} normalizeSocialPiece={normalizeSocialPiece}/>;
-      case"ep-det":       return <ViewEpDet         {...VP} id={detId} setEpisodios={setEpisodios} setMovimientos={setMovimientos} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent}/>;
-      case"crm":          return <CrmModule         {...VP} setClientes={setClientes} setAuspiciadores={setAuspiciadores} setCrmOpps={setCrmOpps} setCrmActivities={setCrmActivities} setCrmStages={setCrmStages} setTareas={setTareas} crmSavingRef={crmSavingRef} TareaCard={TareaCard} getRoleConfig={getRoleConfig} uid={uid} fmtM={fmtM} fmtD={fmtD} canDo={(action)=>canDo(curUser,action,curEmp)}/>;
-      case"crew":         return <ViewCrew          {...VP} setCrew={setCrew} ini={ini}/>;
-      case"calendario":   return <ViewCalendario    {...VP} setEventos={setEventos} assignedNameList={assignedNameList}/>;
-      case"auspiciadores":return <ViewAus           {...VP} setAuspiciadores={setAuspiciadores} AusCard={ausCardComponent}/>;
-      case"contratos":    return <ViewCts           {...VP} setContratos={setContratos}/>;
-      case"presupuestos": return <ViewPres          {...VP} setPresupuestos={setPresupuestos}/>;
-      case"pres-det":     return <ViewPresDet       {...VP} id={detId} setPresupuestos={setPresupuestos} setProducciones={setProducciones} setProgramas={setProgramas} setPiezas={setPiezas} setMovimientos={setMovimientos}/>;
-      case"facturacion":  return <ViewFact          {...VP} setFacturas={setFacturas} setMovimientos={setMovimientos}/>;
-      case TREASURY_MODULE_ID: return <TreasuryModule {...VP} treasury={treasuryProps} />;
-      case"activos":      return <ViewActivos       {...VP} setActivos={setActivos} fmtM={fmtM} fmtD={fmtD}/>;
-      default: return <Empty text="Módulo no disponible"/>;
-    }
-  };
   const {
     currentEmpresa,
-    activeSupportSettings,
-    activeSupportThreads,
     systemMessages,
     activeBanner,
     unreadSystemCount,
@@ -850,12 +805,6 @@ export default function App(){
   } = useLabSignals({
     empresas,
     curEmp,
-    users,
-    supportSettings,
-    supportThreads,
-    buildSupportSettings,
-    normalizeSupportThreads,
-    SEED_USERS,
     SEED_EMPRESAS,
     systemLeidas,
     setSystemLeidas,
@@ -905,15 +854,24 @@ export default function App(){
   }, [alertasHiddenKey]);
 
   useEffect(() => {
-    setAlertasLeidas(prev => prev.filter(id => (alertas || []).some(alerta => alerta.id === id)));
+    setAlertasLeidas(prev => {
+      const next = prev.filter(id => (alertas || []).some(alerta => alerta.id === id));
+      return sameIdArray(prev, next) ? prev : next;
+    });
   }, [alertas]);
 
   useEffect(() => {
-    setAlertasOcultas(prev => prev.filter(id => (alertas || []).some(alerta => alerta.id === id)));
+    setAlertasOcultas(prev => {
+      const next = prev.filter(id => (alertas || []).some(alerta => alerta.id === id));
+      return sameIdArray(prev, next) ? prev : next;
+    });
   }, [alertas]);
 
   useEffect(() => {
-    setSystemLeidas(prev => prev.filter(id => (systemMessages || []).some(message => message.id === id)));
+    setSystemLeidas(prev => {
+      const next = prev.filter(id => (systemMessages || []).some(message => message.id === id));
+      return sameIdArray(prev, next) ? prev : next;
+    });
   }, [systemMessages]);
 
   useEffect(() => {
@@ -937,90 +895,288 @@ export default function App(){
     try { sessionStorage.setItem(alertasHiddenKey, payload); } catch {}
   }, [alertasHiddenKey, alertasOcultas]);
 
-  const operationModalComponents = useMemo(() => ({
-    MCli: props => <MCliView {...props} uid={uid} />,
-    MPro: MProView,
-    MPg: MPgView,
-    MCampanaContenido: props => <MCampanaContenidoView {...props} normalizeSocialCampaign={normalizeSocialCampaign} meses={MESES} today={today} />,
-    MPiezaContenido: props => <MPiezaContenidoView {...props} normalizeSocialPiece={normalizeSocialPiece} uid={uid} today={today} />,
-    MEp: MEpView,
-    MAus: MAusView,
-    MCrew: MCrewView,
-    MEvento: MEventoView,
-    MActivo: MActivoView,
-    MTarea: props => <MTareaView {...props} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />,
-  }), [uid, normalizeSocialCampaign, today, normalizeSocialPiece, normalizeTaskAssignees, getAssignedIds]);
+  const operationModalComponents = useAppOperationModalComponents({
+    uid,
+    today,
+    normalizeSocialCampaign,
+    normalizeSocialPiece,
+    normalizeTaskAssignees,
+    getAssignedIds,
+    MESES,
+  });
+  const loginDbHelpers = useMemo(() => ({
+    uid,
+    today,
+    dbGet,
+    dbSet,
+    nextTenantCode,
+    normalizeEmpresasModel,
+    SEED_EMPRESAS,
+    sha256Hex,
+    authGateway,
+    sessionKey,
+    users: domainUsers,
+    empresas: domainEmpresas,
+    platformApi,
+    platformGateway,
+  }), [uid, today, dbGet, dbSet, sha256Hex, authGateway, sessionKey, domainUsers, domainEmpresas, platformApi, platformGateway]);
+  const superAdminHelpers = useMemo(() => ({
+    dbGet, dbSet, uid, today, nowIso, fmtD, fmtMoney, normalizePrintLayouts, DEFAULT_PRINT_LAYOUTS, normalizeEmpresasModel,
+    companyBillingDiscountPct, companyReferralDiscountMonthsPending, companyReferralDiscountHistory, companyBillingBaseNet, companyBillingNet,
+    companyBillingStatus, companyPaymentDayLabel, companyIsUpToDate, companyGoogleCalendarEnabled, nextTenantCode,
+    shouldConsumeReferralDiscountMonth, normalizeEmailValue, sha256Hex, sanitizeAssignableRole, ini, addons: ADDONS,
+    exportActiveClientsCSV: exportActiveClientsCsvHelper, exportActiveClientsPDF: exportActiveClientsPdfHelper,
+    userGoogleCalendar, SYSTEM_MESSAGE_PRESETS, XBtn, RichTextBlock,
+  }), [dbGet, dbSet, uid, today, nowIso, fmtD, fmtMoney, normalizePrintLayouts, normalizeEmpresasModel, companyBillingDiscountPct, companyReferralDiscountMonthsPending, companyReferralDiscountHistory, companyBillingBaseNet, companyBillingNet, companyBillingStatus, companyPaymentDayLabel, companyIsUpToDate, companyGoogleCalendarEnabled, shouldConsumeReferralDiscountMonth, normalizeEmailValue, sha256Hex, sanitizeAssignableRole, ini, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, userGoogleCalendar]);
+  const superAdminContext = useMemo(() => ({
+    actorUser: curUser,
+    empresas: empresas || [],
+    users: users || [],
+    platformServices,
+    onSave: saveSuperData,
+    onDeleteEmpresa: deleteEmpresa,
+    releaseMode: LAB_DATA_CONFIG.releaseMode,
+    printLayouts: printLayouts || DEFAULT_PRINT_LAYOUTS,
+    savePrintLayouts,
+    helpers: superAdminHelpers,
+  }), [curUser, empresas, users, platformServices, saveSuperData, deleteEmpresa, printLayouts, savePrintLayouts, superAdminHelpers]);
+  const rendererHelpers = useMemo(() => ({
+    comentariosBlockComponent,
+    movBlockComponent,
+    miniCalComponent,
+    tareasContextoComponent,
+    ausCardComponent,
+    exportMovCsvHelper,
+    exportMovPdfHelper,
+    exportActiveClientsCsvHelper,
+    exportActiveClientsPdfHelper,
+    TareaCard,
+    COLS_TAREAS,
+    getRoleConfig,
+  }), [comentariosBlockComponent, movBlockComponent, miniCalComponent, tareasContextoComponent, ausCardComponent, exportMovCsvHelper, exportMovPdfHelper, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, TareaCard, getRoleConfig]);
 
-  // Screens
-  if(!empresas||!users) return <div style={{background:"#080809",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#00d4e8",fontFamily:"monospace"}}><StyleTag css={CSS}/>Iniciando Produ...</div>;
-  if(!curUser) return <><StyleTag css={CSS}/><LoginView users={domainUsers} empresas={domainEmpresas} onLogin={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={{uid,today,dbGet,dbSet,nextTenantCode,normalizeEmpresasModel,SEED_EMPRESAS}} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode}/></>;
-  if(curUser.role==="superadmin"&&!curEmp&&!superPanel) return <><StyleTag css={CSS}/><EmpresaSelectorView empresas={domainEmpresas} onSelect={selectEmp} onSelectSuperAdmin={()=>{setAdminOpen(false);selectEmp("__super__");}} BrandLockup={BrandLockup} ini={ini}/></>;
-
-  const closeMobileSidebar=()=>{
-    document.querySelector("aside")?.classList.remove("mob-open");
-    const overlay=document.getElementById("mob-overlay");
-    if(overlay) overlay.style.display="none";
-  };
-  const openMobileSidebar=()=>{
-    setCollapsed(false);
-    const sidebar=document.querySelector("aside");
-    const overlay=document.getElementById("mob-overlay");
-    if(sidebar) sidebar.classList.add("mob-open");
-    if(overlay) overlay.style.display="block";
-  };
   const sidebarCollapsed=isMobile?false:collapsed;
   const SW=sidebarCollapsed?64:240;
   const bc=buildBc();
+  const moduleLoadingOverlay = (
+    <div
+      style={{
+        position: "fixed",
+        left: isMobile ? 0 : SW,
+        top: 64,
+        right: 0,
+        bottom: 0,
+        display: "grid",
+        placeItems: "center",
+        pointerEvents: "none",
+        zIndex: 90,
+      }}
+    >
+      <div style={{width:"min(520px, calc(100vw - 48px))"}}>
+        <LoadingScreen minHeight="auto" fullWidth={false} />
+      </div>
+    </div>
+  );
+  const adminPanelProps = useMemo(() => ({
+    Modal,
+    open: adminOpen,
+    onClose: () => setAdminOpen(false),
+    theme,
+    onSaveTheme: saveTheme,
+    empresa: curEmp,
+    user: curUser,
+    users: users || [],
+    empresas: empresas || [],
+    saveUsers,
+    saveEmpresas,
+    platformServices,
+    listas: L,
+    saveListas: async nl => { await setListas(nl); ntf("Listas guardadas"); },
+    onPurge: () => {
+      if (LAB_DATA_CONFIG.releaseMode) {
+        ntf("La limpieza masiva está bloqueada en release mode", "warn");
+        return;
+      }
+      if (!confirm("¿Eliminar TODOS los datos de esta empresa?")) return;
+      ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k => dbSet(`${empId}:${k}`, []));
+      ntf("Datos eliminados", "warn");
+      setAdminOpen(false);
+    },
+    ntf,
+    dbGet,
+    companyReferralDiscountHistory,
+    companyReferralDiscountMonthsPending,
+    assignableRoleOptions,
+    sanitizeAssignableRole,
+    uid,
+    sha256Hex,
+    themePresets: THEME_PRESETS,
+    roleOptions,
+    ini,
+    getRoleConfig,
+    userGoogleCalendar,
+    companyGoogleCalendarEnabled,
+    addons: ADDONS,
+    defaultListas: DEFAULT_LISTAS,
+    Tabs,
+    XBtn,
+    releaseMode: LAB_DATA_CONFIG.releaseMode,
+  }), [adminOpen, theme, saveTheme, curEmp, curUser, users, empresas, saveUsers, saveEmpresas, platformServices, L, ntf, dbGet, uid, sha256Hex, ini]);
+  const sidebarProps = useMemo(() => ({
+    user: curUser,
+    empresa: curEmp,
+    view: superPanel ? "__super__" : view,
+    mobileOpen: mobileSidebarOpen,
+    onNav: v => { setSuperPanel(false); navTo(v); closeMobileSidebar(); },
+    onAdmin: () => { setAdminOpen(true); closeMobileSidebar(); },
+    onLogout: logout,
+    onChangeEmp: curUser?.role === "superadmin" ? () => { selectEmp(null); closeMobileSidebar(); } : null,
+    counts,
+    collapsed: sidebarCollapsed,
+    onToggle: () => { if (isMobile) closeMobileSidebar(); else setCollapsed(v => !v); },
+    syncPulse,
+    isMobile,
+    ini,
+    includeTreasury: treasuryEnabled,
+  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, ini, treasuryEnabled]);
+  const alertsPanelProps = useMemo(() => ({
+    open: alertasOpen,
+    AlertasPanelView,
+    alertas,
+    alertasOcultas,
+    alertasLeidas,
+    setAlertasLeidas,
+    setAlertasOcultas,
+    setAlertasOpen,
+    fmtD,
+  }), [alertasOpen, AlertasPanelView, alertas, alertasOcultas, alertasLeidas, fmtD]);
+  const systemPanelProps = useMemo(() => ({
+    open: systemOpen,
+    SystemMessagesPanelView,
+    currentEmpresa,
+    systemMessages,
+    systemLeidas,
+    markSystemRead,
+    markAllSystemRead,
+    setSystemOpen,
+    RichTextBlock,
+  }), [systemOpen, SystemMessagesPanelView, currentEmpresa, systemMessages, systemLeidas, markSystemRead, markAllSystemRead]);
+  const modalLayerProps = useMemo(() => ({
+    mOpen,
+    CoreModalRouter,
+    mData,
+    closeM,
+    VP,
+    modalComponents: operationModalComponents,
+    stateSetters: modalStateSetters,
+    actions: { ntf, cSave, saveMov, saveFacturaDoc, uid, today },
+    helpers: { normalizeSocialPiece, crmNormalizeOpportunity },
+  }), [mOpen, CoreModalRouter, mData, closeM, VP, operationModalComponents, modalStateSetters, ntf, cSave, saveMov, saveFacturaDoc, uid, today, normalizeSocialPiece]);
+  const adminOverlayProps = useMemo(() => ({
+    adminOpen,
+    curEmp,
+    AdminPanelView,
+    panelProps: adminPanelProps,
+  }), [adminOpen, curEmp, adminPanelProps]);
+  const topbarActionProps = useMemo(() => ({
+    view,
+    detId,
+    curEmp,
+    curUser,
+    canDo,
+    openM,
+    setSystemOpen,
+    systemOpen,
+    unreadSystemCount,
+    setAlertasOpen,
+    alertasOpen,
+    alertas,
+    alertasLeidas,
+    alertasOcultas,
+  }), [view, detId, curEmp, curUser, openM, systemOpen, unreadSystemCount, alertasOpen, alertas, alertasLeidas, alertasOcultas]);
+  const navigationProps = useMemo(() => ({
+    superPanel,
+    setSuperPanel,
+    view,
+  }), [superPanel, view]);
+  const viewRendererContexts = useMemo(() => ({
+    superAdmin: superAdminContext,
+    access: { canAccessModule, countCampaignPieces, normalizeTaskAssignees, getAssignedIds, assignedNameList, TREASURY_MODULE_ID },
+    state: { curUser, curEmp, treasuryEnabled, alertas, useBal, fmtM, fmtD, uid, detId },
+    helpers: rendererHelpers,
+  }), [superAdminContext, curUser, curEmp, treasuryEnabled, alertas, useBal, detId, rendererHelpers]);
+  const viewRendererRegistry = useMemo(() => ({
+    modules: {
+      SuperAdminPanelView,
+      ViewDashboard,
+      ViewTareas,
+      ViewClientes,
+      ViewCliDet,
+      ViewPros,
+      ViewProDet,
+      ViewPgs,
+      ViewPgDet,
+      ViewContenidos,
+      ViewContenidoDet,
+      ViewEpDet,
+      CrmModule,
+      ViewCrew,
+      ViewCalendario,
+      ViewAus,
+      ViewCts,
+      ViewPres,
+      ViewPresDet,
+      ViewFact,
+      TreasuryModule,
+      ViewActivos,
+      setters,
+      openM,
+      ini,
+      crmSavingRef,
+      canDo: action => canDo(curUser, action, curEmp),
+      normalizeSocialPiece,
+      treasuryProps,
+      emitFacturaToBsale,
+      syncFacturaWithBsale,
+      inspectFacturaBsaleSync,
+    },
+  }), [curUser, curEmp, setters, openM, crmSavingRef, normalizeSocialPiece, treasuryProps, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync]);
+  const viewRendererProps = useMemo(() => ({
+    navigation: navigationProps,
+    VP,
+    contexts: viewRendererContexts,
+    registry: viewRendererRegistry,
+  }), [navigationProps, VP, viewRendererContexts, viewRendererRegistry]);
+
+  // Screens
+  if(!empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
+  if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;
+  if(curUser?.role==="superadmin"&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
 
   return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
-    <StyleTag css={CSS}/>
-    {/* Mobile overlay */}
-    <div id="mob-overlay" onClick={closeMobileSidebar} style={{display:"none",position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,.6)"}}/>
-    <Sidebar user={curUser} empresa={curEmp} view={superPanel?"__super__":view} onNav={v=>{setSuperPanel(false);navTo(v);closeMobileSidebar();}} onAdmin={()=>{setAdminOpen(true);closeMobileSidebar();}} onLogout={logout} onChangeEmp={curUser.role==="superadmin"?()=>{setCurEmp(null);setSuperPanel(false);const payload=sessionPayload(curUser,null,storedSession||{});try{sessionStorage.setItem(localLabKey("session"),payload);}catch{}try{localStorage.setItem(localLabKey("session"),payload);}catch{}setStoredSession(JSON.parse(payload));closeMobileSidebar();}:null} counts={counts} collapsed={sidebarCollapsed} onToggle={()=>{if(isMobile) closeMobileSidebar(); else setCollapsed(v=>!v);}} syncPulse={syncPulse} isMobile={isMobile} ini={ini} includeTreasury={treasuryEnabled}/>
-    <main className="app-main" style={{marginLeft:SW,flex:1,display:"flex",flexDirection:"column",minHeight:"100vh",transition:"margin-left .2s",background:"var(--bg)",overflowX:"hidden",overflowY:"auto"}}>
-      {/* Topbar */}
-      <div className="topbar" style={{height:64,background:"transparent",display:"flex",alignItems:"center",padding:"0 26px",gap:10,position:"sticky",top:0,zIndex:100,flexShrink:0}}>
-        {/* Hamburger - solo visible en móvil via CSS */}
-        <button className="ham-btn" onClick={openMobileSidebar} style={{display:"none",background:"none",border:"none",color:"var(--wh)",cursor:"pointer",fontSize:22,padding:"4px 6px",flexShrink:0,alignItems:"center",lineHeight:1}}>☰</button>
-        <div className="app-breadcrumbs" style={{display:"flex",alignItems:"center",gap:8,flex:1,overflow:"hidden"}}>
-          {bc.map((b,i)=><span key={i} style={{display:"flex",alignItems:"center",gap:8}}>
-            {i>0&&<span style={{color:"var(--bdr2)",fontSize:16}}>/</span>}
-            <span onClick={b.fn} style={{fontFamily:"var(--fh)",fontWeight:700,fontSize:i===bc.length-1?15:11,letterSpacing:i===bc.length-1?1:2,textTransform:"uppercase",color:b.fn?"var(--gr2)":"var(--wh)",cursor:b.fn?"pointer":"default",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",}} onMouseEnter={e=>{if(b.fn)e.target.style.color="var(--cy)";}} onMouseLeave={e=>{if(b.fn)e.target.style.color="var(--gr2)";}}>{b.l}</span>
-          </span>)}
-        </div>
-        <div className="app-actions" style={{display:"flex",gap:8,flexShrink:0,alignItems:"center"}}>
-    {(view==="pro-det"||view==="pg-det"||view==="contenido-det")&&canDo(curUser,"movimientos",curEmp)&&<Btn onClick={()=>openM("mov",{eid:detId,et:view==="pro-det"?"pro":view==="pg-det"?"pg":"pz"})} sm>+ Movimiento</Btn>}
-          {view==="ep-det"&&canDo(curUser,"movimientos",curEmp)&&<Btn onClick={()=>openM("mov",{eid:detId,et:"ep",tipo:"gasto"})} sm>+ Gasto</Btn>}
-          {curEmp&&<button onClick={()=>{setSystemOpen(!systemOpen);setAlertasOpen(false);}} style={{position:"relative",background:systemOpen?"var(--cg)":"var(--sur)",border:`1px solid ${systemOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:systemOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
-            <span style={{fontSize:16}}>💬</span>
-            <span>Mensajes</span>
-            {unreadSystemCount>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"var(--cy)",fontSize:9,fontWeight:700,color:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadSystemCount}</span>}
-          </button>}
-          {curEmp&&<button onClick={()=>setAlertasOpen(!alertasOpen)} style={{position:"relative",background:alertasOpen?"var(--cg)":"var(--sur)",border:`1px solid ${alertasOpen?"var(--cy)":"var(--bdr2)"}`,borderRadius:10,padding:"7px 12px",cursor:"pointer",color:alertasOpen?"var(--cy)":"var(--gr3)",fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:700}}>
-            <span style={{fontSize:16}}>🔔</span>
-            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
-              Alertas
-              {alertas.filter(a=>a.tipo==="urgente"&&!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length>0&&<span style={{fontSize:10,color:"#ff5566"}}>Urgente</span>}
-            </span>
-            {alertas.filter(a=>!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length>0&&<span style={{position:"absolute",top:-4,right:-4,width:18,height:18,borderRadius:"50%",background:"#ff5566",fontSize:9,fontWeight:700,color:"#ffffff",display:"flex",alignItems:"center",justifyContent:"center"}}>{alertas.filter(a=>!alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).length}</span>}
-          </button>}
-        </div>
-      </div>
-      <div className="app-page" style={{flex:1,padding:"18px 26px 28px"}}>
-        {activeBanner&&<div style={{marginBottom:14,padding:"12px 16px",borderRadius:14,border:`1px solid ${activeBanner.tone==="critical"?"#ff556640":activeBanner.tone==="warn"?"#ffcc4440":"var(--cm)"}`,background:activeBanner.tone==="critical"?"#ff556615":activeBanner.tone==="warn"?"#ffcc4415":"var(--cg)",color:activeBanner.tone==="critical"?"#ff5566":activeBanner.tone==="warn"?"#ffcc44":"var(--cy)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:16}}>{activeBanner.tone==="critical"?"⛔":activeBanner.tone==="warn"?"⚠️":"ℹ️"}</span>
-          <span style={{whiteSpace:"pre-line"}}>{activeBanner.text}</span>
-        </div>}
-        <div className="va" key={view+detId+superPanel}>
-          {isLoading ? <LoadingScreen/> : renderView()}
-        </div>
-      </div>
-    </main>
-    {alertasOpen&&<AlertasPanelView alertas={alertas.filter(a=>!alertasOcultas.includes(a.id))} leidas={alertasLeidas} onMarcar={id=>setAlertasLeidas(p=>p.includes(id)?p:[...p,id])} onMarcarTodas={()=>setAlertasLeidas(prev=>Array.from(new Set([...(prev||[]), ...alertas.filter(a=>!alertasOcultas.includes(a.id)).map(a=>a.id)])))} onOcultar={id=>{setAlertasOcultas(p=>p.includes(id)?p:[...p,id]);setAlertasLeidas(p=>p.filter(item=>item!==id));}} onOcultarTodas={()=>{const hiddenIds=alertas.filter(a=>alertasLeidas.includes(a.id)&&!alertasOcultas.includes(a.id)).map(a=>a.id);setAlertasOcultas(prev=>Array.from(new Set([...(prev||[]), ...hiddenIds])));setAlertasLeidas(prev=>prev.filter(id=>!hiddenIds.includes(id)));}} onClose={()=>setAlertasOpen(false)} fmtD={fmtD}/> }
-    {systemOpen&&<SystemMessagesPanelView empresa={currentEmpresa} mensajes={systemMessages} leidas={systemLeidas} onMarcar={markSystemRead} onMarcarTodas={markAllSystemRead} onClose={()=>setSystemOpen(false)} fmtD={fmtD} RichTextBlock={RichTextBlock}/>}
-        {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
-    {mOpen&&<CoreModalRouter key={`${mOpen}:${mData?.id || mData?.campId || mData?.eid || mData?.refId || "new"}`} modalComponents={operationModalComponents} helpers={{normalizeSocialPiece,crmNormalizeOpportunity}} mOpen={mOpen} mData={mData} closeM={closeM} VP={VP} setters={setters} ntf={ntf} cSave={cSave} saveMov={saveMov} saveFacturaDoc={saveFacturaDoc} uid={uid} today={today}/>}
-    {adminOpen&&curEmp&&<AdminPanelView Modal={Modal} open={adminOpen} onClose={()=>setAdminOpen(false)} theme={theme} onSaveTheme={saveTheme} empresa={curEmp} user={curUser} users={users||[]} empresas={empresas||[]} saveUsers={saveUsers} saveEmpresas={saveEmpresas} listas={L} saveListas={async nl=>{await setListas(nl);ntf("Listas guardadas");}} onPurge={()=>{if(LAB_DATA_CONFIG.releaseMode){ntf("La limpieza masiva está bloqueada en release mode","warn");return;} if(!confirm("¿Eliminar TODOS los datos de esta empresa?")) return; ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k=>dbSet(`${empId}:${k}`,[]));ntf("Datos eliminados","warn");setAdminOpen(false);}} ntf={ntf} dbGet={dbGet} companyReferralDiscountHistory={companyReferralDiscountHistory} companyReferralDiscountMonthsPending={companyReferralDiscountMonthsPending} assignableRoleOptions={assignableRoleOptions} sanitizeAssignableRole={sanitizeAssignableRole} uid={uid} sha256Hex={sha256Hex} themePresets={THEME_PRESETS} roleOptions={roleOptions} ini={ini} getRoleConfig={getRoleConfig} userGoogleCalendar={userGoogleCalendar} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} addons={ADDONS} defaultListas={DEFAULT_LISTAS} Tabs={Tabs} XBtn={XBtn} releaseMode={LAB_DATA_CONFIG.releaseMode}/>}
+    <StyleTag css={APP_SHELL_CSS}/>
+    <AppShellFrame
+      sidebarProps={sidebarProps}
+      sidebarWidth={SW}
+      mobileSidebarOpen={mobileSidebarOpen}
+      closeMobileSidebar={closeMobileSidebar}
+      openMobileSidebar={openMobileSidebar}
+      breadcrumbs={bc}
+      topbarActions={<AppTopbarActions {...topbarActionProps} />}
+      activeBanner={activeBanner}
+      viewKey={view+detId+superPanel}
+    >
+      {isLoading ? moduleLoadingOverlay : <Suspense fallback={moduleLoadingOverlay}>
+        <AppViewRenderer {...viewRendererProps} />
+      </Suspense>}
+    </AppShellFrame>
+    <AppOverlays
+      alertsPanel={alertsPanelProps}
+      systemPanel={systemPanelProps}
+      toastState={{ toast, ToastView, setToast }}
+      modalLayer={modalLayerProps}
+      adminPanel={adminOverlayProps}
+    />
   </div>;
 }
 

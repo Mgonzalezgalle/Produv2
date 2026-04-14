@@ -128,9 +128,9 @@ export function useLabCrmModule({
     await setCrmOpps(next.map(opp => crmNormalizeOpportunity({ ...opp, empId }, scopedStages)));
     return true;
   };
-  const addActivity = async (oppId, text, type = "note") => {
+  const addActivity = async (oppId, text, type = "note", extra = {}) => {
     if (!hasTenant || !canManageCrm || !text?.trim()) return false;
-    await setCrmActivities([...(crmActivities || []), crmActivityEntry(oppId, text.trim(), type, user, empId)]);
+    await setCrmActivities([...(crmActivities || []), crmActivityEntry(oppId, text.trim(), type, user, empId, extra)]);
     return true;
   };
   const saveOpp = async (opp, activityText = "", activityType = "update") => {

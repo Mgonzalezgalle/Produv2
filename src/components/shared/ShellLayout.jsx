@@ -28,13 +28,22 @@ export function BrandLockup({
   </div>;
 }
 
-export function LoadingScreen({ title="Cargando datos...", sub="En los proximos segundos estaremos al aire" }){
-  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:18,textAlign:"center",padding:"24px 16px"}}>
+export function LoadingScreen({
+  title="Cargando datos...",
+  sub="En los proximos segundos estaremos al aire",
+  label,
+  note,
+  minHeight="60vh",
+  fullWidth=true,
+}){
+  const resolvedTitle = label || title;
+  const resolvedSub = note || sub;
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight,width:fullWidth?"100%":"auto",gap:18,textAlign:"center",padding:"24px 16px",margin:"0 auto"}}>
     <BrandLockup size="md" subtitleColor="var(--gr2)" />
     <div style={{width:54,height:54,border:"3px solid var(--bdr2)",borderTop:"3px solid var(--cy)",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
     <div>
-      <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,color:"var(--wh)",marginBottom:6}}>{title}</div>
-      <div style={{fontSize:13,color:"var(--gr2)"}}>{sub}</div>
+      <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,color:"var(--wh)",marginBottom:6}}>{resolvedTitle}</div>
+      <div style={{fontSize:13,color:"var(--gr2)"}}>{resolvedSub}</div>
     </div>
   </div>;
 }
@@ -95,7 +104,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
   </div>;
 }
 
-export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse,isMobile,ini,includeTreasury=true}){
+export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse,isMobile,ini,includeTreasury=true,mobileOpen=false}){
   const sbBg="var(--sidebar-bg)";
   const sbPanel="var(--sidebar-panel)";
   const sbText="var(--sidebar-text)";
@@ -103,7 +112,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const NAV=buildSidebarNavigation({empresa,counts,includeTreasury});
   const SW=collapsed?64:240;
-  return <aside className="app-sidebar" style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>

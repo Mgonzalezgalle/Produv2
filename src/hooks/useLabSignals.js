@@ -1,25 +1,16 @@
 import { useCallback } from "react";
-import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/storageNamespace";
+import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/labStorageConfig";
 
 export function useLabSignals({
   empresas,
   curEmp,
-  users,
-  supportSettings,
-  supportThreads,
-  buildSupportSettings,
-  normalizeSupportThreads,
-  SEED_USERS,
   SEED_EMPRESAS,
   systemLeidas,
   setSystemLeidas,
   curUser,
 }) {
-  const domainUsers = LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS);
   const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
   const currentEmpresa = domainEmpresas.find(item => item.id === curEmp?.id) || curEmp || null;
-  const activeSupportSettings = buildSupportSettings(supportSettings || {}, domainUsers);
-  const activeSupportThreads = normalizeSupportThreads(supportThreads || [], domainEmpresas, domainUsers, activeSupportSettings);
   const systemMessages = currentEmpresa?.systemMessages || [];
   const activeBanner = currentEmpresa?.systemBanner?.active && currentEmpresa?.systemBanner?.text ? currentEmpresa.systemBanner : null;
   const unreadSystemCount = systemMessages.filter(message => !systemLeidas.includes(message.id)).length;
@@ -40,8 +31,6 @@ export function useLabSignals({
 
   return {
     currentEmpresa,
-    activeSupportSettings,
-    activeSupportThreads,
     systemMessages,
     activeBanner,
     unreadSystemCount,

@@ -105,11 +105,27 @@ export function crmNormalizeActivities(items = []) {
     text: item.text || "",
     createdAt: item.createdAt || item.fecha || today(),
     byName: item.byName || item.autor || "",
+    subject: item.subject || "",
+    to: item.to || "",
+    attachments: Array.isArray(item.attachments) ? item.attachments : [],
+    delivery: item.delivery || null,
   }));
 }
 
-export function crmActivityEntry(opportunityId, text, type, user, empId) {
-  return { id: uid(), empId, opportunityId, text, type, createdAt: today(), byName: user?.name || "Sistema" };
+export function crmActivityEntry(opportunityId, text, type, user, empId, extra = {}) {
+  return {
+    id: uid(),
+    empId,
+    opportunityId,
+    text,
+    type,
+    createdAt: today(),
+    byName: user?.name || "Sistema",
+    subject: extra.subject || "",
+    to: extra.to || "",
+    attachments: Array.isArray(extra.attachments) ? extra.attachments : [],
+    delivery: extra.delivery || null,
+  };
 }
 
 export function crmEntityLabel(opp) {

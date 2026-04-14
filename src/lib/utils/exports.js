@@ -16,6 +16,15 @@ export function exportComentariosCSV(items, nombre = "comentarios") {
   URL.revokeObjectURL(url);
 }
 
+let simplePdfBlobRuntimePromise = null;
+
+async function getSimplePdfBlobRuntime() {
+  if (!simplePdfBlobRuntimePromise) {
+    simplePdfBlobRuntimePromise = import("./pdf").then(module => module.buildSimplePdfBlob);
+  }
+  return simplePdfBlobRuntimePromise;
+}
+
 export function exportComentariosPDF(items, nombre = "comentarios", empresa = null, helpers = {}) {
   const { companyPrintColor } = helpers;
   const safeItems = Array.isArray(items) ? items : [];
@@ -90,7 +99,7 @@ export function exportActiveClientsCSV(items = [], helpers = {}) {
   URL.revokeObjectURL(url);
 }
 
-export function exportActiveClientsPDF(items = [], helpers = {}) {
+export async function exportActiveClientsPDF(items = [], helpers = {}) {
   const { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, fmtMoney, fmtD, today } = helpers;
   const activeItems = Array.isArray(items) ? items : [];
   const lines = [
@@ -109,6 +118,7 @@ export function exportActiveClientsPDF(items = [], helpers = {}) {
       lines.push({ text: `Referidos pendientes: ${companyReferralDiscountMonthsPending(it)}  |  Último pago: ${it?.billingLastPaidAt ? fmtD(it.billingLastPaidAt) : "Sin registro"}  |  Contratado por: ${it?.contractOwner || "—"}`, size: 10, color: "#94a3b8", gap: 18 });
     });
   }
+  const buildSimplePdfBlob = await getSimplePdfBlobRuntime();
   const blob = buildSimplePdfBlob(lines, "#00d4e8");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -233,4 +243,3 @@ export function exportTreasuryPayablesCSV(rows = [], nombre = "cuentas_por_pagar
   a.click();
   URL.revokeObjectURL(url);
 }
-import { buildSimplePdfBlob } from "./pdf";

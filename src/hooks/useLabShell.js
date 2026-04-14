@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { removeStoredJson, saveStoredJson, touchStoredSession } from "../lib/auth/sessionStorage";
-import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/storageNamespace";
+import { touchStoredSession } from "../lib/auth/sessionStorage";
+import { LAB_DATA_CONFIG } from "../lib/lab/labStorageConfig";
 
 export function useLabShell({
   setToast,
@@ -17,7 +17,8 @@ export function useLabShell({
   storedSession,
   empresas,
   SEED_EMPRESAS,
-  sessionPayload,
+  authService,
+  sessionKey,
 }) {
   const ntf = useCallback((msg, type = "ok") => {
     setToast({ msg, type });
@@ -53,52 +54,45 @@ export function useLabShell({
   }, [setView, setDetId]);
 
   const login = useCallback((user, options = {}) => {
-    const sessionKey = localLabKey("session");
+    if (!authService) return;
     if (user.role === "superadmin") {
       setCurUser(user);
       setCurEmp(null);
-      const payload = sessionPayload(user, null, options);
-      saveStoredJson(sessionKey, payload);
-      setStoredSession(JSON.parse(payload));
+      setStoredSession(authService.persistSession({ user, empresa: null, options }));
       return;
     }
     const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
     const empresa = domainEmpresas.find(item => item.id === user.empId);
     setCurUser(user);
     setCurEmp(empresa || null);
-    const payload = sessionPayload(user, empresa || null, options);
-    saveStoredJson(sessionKey, payload);
-    setStoredSession(JSON.parse(payload));
-  }, [setCurUser, setCurEmp, setStoredSession, empresas, SEED_EMPRESAS, sessionPayload]);
+    setStoredSession(authService.persistSession({ user, empresa: empresa || null, options }));
+  }, [authService, setCurUser, setCurEmp, setStoredSession, empresas, SEED_EMPRESAS]);
 
   const logout = useCallback(() => {
     setCurUser(null);
     setCurEmp(null);
     setStoredSession(null);
-    removeStoredJson(localLabKey("session"));
-  }, [setCurUser, setCurEmp, setStoredSession]);
+    Promise.resolve(authService?.clearSession());
+  }, [authService, setCurUser, setCurEmp, setStoredSession]);
 
   const selectEmp = useCallback((empresa) => {
+    if (!authService || !curUser) return;
     if (empresa === "__super__") {
       setCurEmp(null);
-      const payload = sessionPayload(curUser, null, storedSession || {});
-      saveStoredJson(localLabKey("session"), payload);
-      setStoredSession(JSON.parse(payload));
+      setStoredSession(authService.persistSession({ user: curUser, empresa: null, options: storedSession || {} }));
       setSuperPanel(true);
       return;
     }
     setSuperPanel(false);
     setCurEmp(empresa);
-    const payload = sessionPayload(curUser, empresa, storedSession || {});
-    saveStoredJson(localLabKey("session"), payload);
-    setStoredSession(JSON.parse(payload));
-  }, [setSuperPanel, setCurEmp, setStoredSession, curUser, storedSession, sessionPayload]);
+    setStoredSession(authService.persistSession({ user: curUser, empresa, options: storedSession || {} }));
+  }, [authService, setSuperPanel, setCurEmp, setStoredSession, curUser, storedSession]);
 
   const refreshSessionActivity = useCallback((patch = {}) => {
-    const next = touchStoredSession(localLabKey("session"), storedSession, patch);
+    const next = touchStoredSession(sessionKey, storedSession, patch);
     if (next) setStoredSession(next);
     return next;
-  }, [storedSession, setStoredSession]);
+  }, [sessionKey, storedSession, setStoredSession]);
 
   return {
     ntf,

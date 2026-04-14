@@ -1,6 +1,5 @@
 import { removeStoredJson } from "./sessionStorage";
 import { authenticateLocalUser, persistSession, requestLocalPasswordReset, resolveSessionState } from "./localAuthProvider";
-import { activateSupabaseAccount, authenticateSupabaseUser, requestSupabasePasswordReset, restoreSupabaseSession, signInWithSupabaseGoogle, signOutSupabaseUser } from "./supabaseAuthProvider";
 import { LAB_AUTH_CONFIG } from "./authConfig";
 
 export const AUTH_STRATEGIES = {
@@ -12,6 +11,15 @@ export function getLabAuthStrategy() {
   return LAB_AUTH_CONFIG.strategy === AUTH_STRATEGIES.SUPABASE
     ? AUTH_STRATEGIES.SUPABASE
     : AUTH_STRATEGIES.LOCAL;
+}
+
+let supabaseAuthProviderPromise = null;
+
+async function loadSupabaseAuthProvider() {
+  if (!supabaseAuthProviderPromise) {
+    supabaseAuthProviderPromise = import("./supabaseAuthProvider");
+  }
+  return supabaseAuthProviderPromise;
 }
 
 function createLocalGateway() {
@@ -56,7 +64,7 @@ function createLocalGateway() {
       };
     },
     supportsTwoFactorSetup() {
-      return true;
+      return LAB_AUTH_CONFIG.enableTwoFactorSetup;
     },
   };
 }
@@ -65,9 +73,11 @@ function createSupabaseGateway() {
   return {
     strategy: AUTH_STRATEGIES.SUPABASE,
     async authenticate({ users, empresas, email, password }) {
+      const { authenticateSupabaseUser } = await loadSupabaseAuthProvider();
       return authenticateSupabaseUser({ users, empresas, email, password });
     },
     async restoreSession({ storedSession, users, empresas }) {
+      const { restoreSupabaseSession } = await loadSupabaseAuthProvider();
       return restoreSupabaseSession({ storedSession, users, empresas });
     },
     persistSession({ sessionKey, user, empresa, options }) {
@@ -75,6 +85,7 @@ function createSupabaseGateway() {
     },
     async clearSession({ sessionKey }) {
       removeStoredJson(sessionKey);
+      const { signOutSupabaseUser } = await loadSupabaseAuthProvider();
       await signOutSupabaseUser();
     },
     supportsPasswordReset() {
@@ -84,15 +95,18 @@ function createSupabaseGateway() {
       return true;
     },
     async activateAccount({ users, empresas, email, password }) {
+      const { activateSupabaseAccount } = await loadSupabaseAuthProvider();
       return activateSupabaseAccount({ users, empresas, email, password });
     },
     async requestPasswordReset({ email }) {
+      const { requestSupabasePasswordReset } = await loadSupabaseAuthProvider();
       return requestSupabasePasswordReset({ email });
     },
     supportsGoogleSignIn() {
       return LAB_AUTH_CONFIG.enableGoogleSignIn;
     },
     async signInWithGoogle() {
+      const { signInWithSupabaseGoogle } = await loadSupabaseAuthProvider();
       return signInWithSupabaseGoogle();
     },
     supportsTwoFactorSetup() {

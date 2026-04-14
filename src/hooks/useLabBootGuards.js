@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { loadStoredJson } from "../lib/auth/sessionStorage";
-import { localLabKey } from "../lib/lab/storageNamespace";
+import { localLabKey } from "../lib/lab/labStorageConfig";
 
 export function useLabBootGuards({
   curEmp,

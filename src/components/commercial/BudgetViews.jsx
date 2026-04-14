@@ -48,49 +48,49 @@ import {
   today,
   uid,
 } from "../../lib/utils/helpers";
-import {
-  createCommercialPdfDeps,
-  drawDocumentSectionBox,
-  drawLegalDocStamp,
-  drawRightAlignedPdfText,
-  drawRoundedPdfBox,
-  drawSummaryPanel,
-  generateBudgetPdf,
-  hexToRgb,
-  measurePdfTextBlock,
-  sendBudgetToWhatsApp,
-  wrapPdfText,
-} from "../../lib/lab/commercialPdf";
 import { useLabBudgetDetail } from "../../hooks/useLabBudgetDetail";
 import { useLabBudgetForm } from "../../hooks/useLabBudgetForm";
 import { useLabBudgetList } from "../../hooks/useLabBudgetList";
 import { dbGet } from "../../hooks/useLabDataStore";
+let commercialPdfRuntimePromise = null;
 
-const commercialPdfDeps = createCommercialPdfDeps({
-  dbGet,
-  DEFAULT_PRINT_LAYOUTS,
-  normalizePrintLayouts,
-  hexToRgb,
-  companyPaymentInfoText,
-  budgetPaymentMethodValue,
-  budgetPaymentDateValue,
-  budgetPaymentNotesValue,
-  budgetObservationValue,
-  drawLegalDocStamp,
-  drawDocumentSectionBox,
-  drawRoundedPdfBox,
-  drawRightAlignedPdfText,
-  drawSummaryPanel,
-  measurePdfTextBlock,
-  wrapPdfText,
-  recurringSummary,
-  fmtD,
-  fmtMoney,
-  fmtM,
-  today,
-  companyPrintColor,
-  cobranzaState,
-});
+async function getCommercialPdfRuntime() {
+  if (!commercialPdfRuntimePromise) {
+    commercialPdfRuntimePromise = Promise.all([
+      import("../../lib/lab/commercialPdfBase"),
+      import("../../lib/lab/commercialBudgetPdf"),
+    ]).then(([baseModule, budgetModule]) => ({
+      generateBudgetPdf: budgetModule.generateBudgetPdf,
+      sendBudgetToWhatsApp: budgetModule.sendBudgetToWhatsApp,
+      commercialPdfDeps: baseModule.createCommercialPdfDeps({
+        dbGet,
+        DEFAULT_PRINT_LAYOUTS,
+        normalizePrintLayouts,
+        hexToRgb: baseModule.hexToRgb,
+        companyPaymentInfoText,
+        budgetPaymentMethodValue,
+        budgetPaymentDateValue,
+        budgetPaymentNotesValue,
+        budgetObservationValue,
+        drawLegalDocStamp: baseModule.drawLegalDocStamp,
+        drawDocumentSectionBox: baseModule.drawDocumentSectionBox,
+        drawRoundedPdfBox: baseModule.drawRoundedPdfBox,
+        drawRightAlignedPdfText: baseModule.drawRightAlignedPdfText,
+        drawSummaryPanel: baseModule.drawSummaryPanel,
+        measurePdfTextBlock: baseModule.measurePdfTextBlock,
+        wrapPdfText: baseModule.wrapPdfText,
+        recurringSummary,
+        fmtD,
+        fmtMoney,
+        fmtM,
+        today,
+        companyPrintColor,
+        cobranzaState,
+      }),
+    }));
+  }
+  return commercialPdfRuntimePromise;
+}
 
 export function BudgetListSection({
   q, setQ, fe, setFe, sortMode, setSortMode, openM, canEdit,
@@ -126,12 +126,12 @@ export function BudgetListSection({
     </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPage.length>0 && currentPage.every(item=>selectedIds.includes(item.id))} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();toggleAll(e.target.checked);}}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={currentPage.length>0 && currentPage.every(item=>selectedIds.includes(item.id))} onChange={e=>toggleAll(e.target.checked)}/></TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Título</TH><TH>Cliente</TH><TH>Referencia</TH><TH>Estado</TH><TH>Ítems</TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Total</TH><TH>Contrato</TH><TH></TH></tr></thead>
         <tbody>
           {currentPage.map(p=>{
             const c=(clientes||[]).find(x=>x.id===p.cliId);
-            return <tr key={p.id} onClick={e=>{ if (e.target.closest("input,button,select,label,a")) return; navTo("pres-det",p.id); }}>
-              <TD onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()} onMouseUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();toggleSelected(p.id);}}/></TD>
+            return <tr key={p.id} onClick={()=>navTo("pres-det",p.id)}>
+              <TD onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggleSelected(p.id)}/></TD>
               <TD><div style={{fontWeight:700}}>{p.titulo}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{recurringSummary(p, p.cr || today())}</div></TD>
               <TD>{c?c.nom:"—"}</TD>
               <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
@@ -214,8 +214,14 @@ export function ViewPres({ empresa, presupuestos, clientes, producciones, progra
       clientes={clientes} producciones={producciones} programas={programas} piezas={piezas} contratos={contratos}
       recurringSummary={recurringSummary} budgetRefLabel={budgetRefLabel} today={today} fmtM={fmtM} fmtMoney={fmtMoney}
       setEstadoRapido={setEstadoRapido} navTo={navTo}
-      onOpenPdf={(p, c) => generateBudgetPdf(p, c, empresa, commercialPdfDeps)}
-      onSendWhatsApp={(p, c) => sendBudgetToWhatsApp(p, c, empresa, commercialPdfDeps)}
+      onOpenPdf={async (p, c) => {
+        const { generateBudgetPdf, commercialPdfDeps } = await getCommercialPdfRuntime();
+        return generateBudgetPdf(p, c, empresa, commercialPdfDeps);
+      }}
+      onSendWhatsApp={async (p, c) => {
+        const { sendBudgetToWhatsApp, commercialPdfDeps } = await getCommercialPdfRuntime();
+        return sendBudgetToWhatsApp(p, c, empresa, commercialPdfDeps);
+      }}
       onDelete={(id) => cDel(presupuestos, setPresupuestos, id, null, "Presupuesto eliminado")}
       Stat={Stat} SearchBar={SearchBar} FilterSel={FilterSel} Btn={Btn} FSl={FSl} GBtn={GBtn} DBtn={DBtn}
       Card={Card} TH={TH} TD={TD} Badge={Badge} Empty={Empty} Paginator={Paginator} XBtn={XBtn}
@@ -313,10 +319,10 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
     </> :
       <Card>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); toggleAll(e.target.checked); }} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
+          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
           <tbody>
             {fd.slice((pg - 1) * PP, pg * PP).map(ct => { const c = (clientes || []).find(x => x.id === ct.cliId); return <tr key={ct.id}>
-              <TD onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(ct.id)} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); toggleSelected(ct.id); }} /></TD>
+              <TD><input type="checkbox" checked={selectedIds.includes(ct.id)} onChange={() => toggleSelected(ct.id)} /></TD>
               <TD bold>{ct.nom}</TD><TD>{c ? c.nom : "—"}</TD><TD><Badge label={ct.tip} color="gray" sm /></TD><TD><Badge label={contractVisualState(ct)} /></TD>
               <TD mono style={{ fontSize: 12 }}>{ct.mon ? fmtM(ct.mon) : "—"}</TD>
               <TD mono style={{ fontSize: 11 }}>{ct.vig ? fmtD(ct.vig) : "—"}</TD>
@@ -379,8 +385,8 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
   return <div>
     <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <Btn onClick={()=>generateBudgetPdf(p,c,empresa,commercialPdfDeps)}>⬇ Descargar PDF</Btn>
-        <GBtn onClick={async()=>{await sendBudgetToWhatsApp(p,c,empresa,commercialPdfDeps);}}>
+        <Btn onClick={async()=>{ const { generateBudgetPdf, commercialPdfDeps } = await getCommercialPdfRuntime(); await generateBudgetPdf(p,c,empresa,commercialPdfDeps); }}>⬇ Descargar PDF</Btn>
+        <GBtn onClick={async()=>{ const { sendBudgetToWhatsApp, commercialPdfDeps } = await getCommercialPdfRuntime(); await sendBudgetToWhatsApp(p,c,empresa,commercialPdfDeps); }}>
           <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
             WhatsApp
@@ -390,7 +396,7 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Aceptado")}>Aceptado</GBtn>}
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>setEstadoPres("Rechazado")}>Rechazado</GBtn>}
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
-        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear orden de factura</Btn>}
+        {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear documento tributario</Btn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":convTipo==="contenido"?"Contenidos":"Proyecto"}</Btn>}
         {canDo&&canDo("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
@@ -419,7 +425,7 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Facturación posterior",p.autoFactura?"Lista para facturar":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"],["Notas de pago",p.notasPago||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -521,10 +527,10 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
               {contratosCli.map(ct=><option key={ct.id} value={ct.id}>{ct.nom}</option>)}
             </FSl>
           </FG>
-        : <FG label="Facturación posterior">
+        : <FG label="Documento tributario posterior">
             <FSl value={f.autoFactura?"true":"false"} onChange={e=>u("autoFactura",e.target.value==="true")} disabled={!canInvoices}>
               <option value="false">Crear manualmente</option>
-              <option value="true">Listo para facturar</option>
+              <option value="true">Listo para emitir documento</option>
             </FSl>
           </FG>}
     </R2>
@@ -623,12 +629,12 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
     <FG label="Observaciones"><FTA value={f.obs||""} onChange={e=>u("obs",e.target.value)} placeholder="Condiciones, notas adicionales..."/></FG>
     {canInvoices && <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
       <div>
-        <div style={{fontSize:12,fontWeight:700}}>Preparación para facturación</div>
-        <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Si este presupuesto se acepta, quedará listo para crear una orden de factura desde su detalle.</div>
+        <div style={{fontSize:12,fontWeight:700}}>Preparación de documento tributario</div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Si este presupuesto se acepta, quedará listo para crear un documento tributario desde su detalle y ahí podrás elegir cuál.</div>
       </div>
       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)"}}>
         <input type="checkbox" checked={!!f.autoFactura} onChange={e=>u("autoFactura",e.target.checked)}/>
-        Marcar como listo para facturar
+        Marcar como listo para emitir documento
       </label>
     </div>}
     <MFoot onClose={onClose} onSave={()=>{

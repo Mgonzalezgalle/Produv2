@@ -5,6 +5,8 @@ import { CrmBoard } from "./CrmBoard";
 import { CrmDetailModal } from "./CrmDetailModal";
 import { CrmStageModal } from "./CrmStageModal";
 import { useLabCrmModule } from "../../hooks/useLabCrmModule";
+import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 
 export function CrmModule({
   empresa,
@@ -31,7 +33,11 @@ export function CrmModule({
   fmtM,
   fmtD,
   canDo,
+  platformApi,
 }) {
+  const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
+  const [emailComposerSending, setEmailComposerSending] = React.useState(false);
   const {
     isMobile,
     tab,
@@ -119,6 +125,98 @@ export function CrmModule({
     fmtD,
     canDo,
   });
+
+  const openCrmEmailComposer = React.useCallback((opportunity, activity) => {
+    const recipient = String(opportunity?.email || "").trim();
+    if (!recipient) {
+      window.alert("Esta oportunidad no tiene correo registrado.");
+      return;
+    }
+    const contactName = opportunity?.contacto || opportunity?.empresaMarca || opportunity?.nombre || "";
+    const resolved = resolveTransactionalEmailTemplate(empresa, "crm_followup", {
+      contactName,
+      companyName: empresa?.nombre || "Produ",
+      companyLabel: opportunity?.empresaMarca || opportunity?.nombre || "oportunidad",
+      opportunityName: opportunity?.nombre || "esta oportunidad",
+    });
+    const defaultBody = String(activity?.text || "").trim() || resolved.body;
+    setEmailComposerDraft({
+      tenantId: empresa?.id || "",
+      templateKey: "crm_followup",
+      subject: resolved.subject,
+      to: recipient,
+      body: defaultBody,
+      entityType: "crm_opportunity",
+      entityId: opportunity?.id || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: opportunity?.empresaMarca || opportunity?.nombre || "",
+        contactName,
+        activityType: activity?.type || "email",
+      },
+    });
+    setEmailComposerOpen(true);
+  }, [empresa?.id, empresa?.nombre]);
+
+  const closeEmailComposer = React.useCallback(() => {
+    if (emailComposerSending) return;
+    setEmailComposerOpen(false);
+    setEmailComposerDraft(null);
+  }, [emailComposerSending]);
+
+  const sendCrmEmail = React.useCallback(async (draft) => {
+    const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!recipients.length) {
+      window.alert("Debes indicar al menos un destinatario.");
+      return;
+    }
+    if (!String(draft?.subject || "").trim() || !String(draft?.body || "").trim()) {
+      window.alert("El asunto y el cuerpo del correo son obligatorios.");
+      return;
+    }
+    setEmailComposerSending(true);
+    try {
+      const payload = {
+        tenantId: draft?.tenantId || empresa?.id || "",
+        templateKey: draft?.templateKey || "crm_followup",
+        subject: String(draft?.subject || "").trim(),
+        to: recipients,
+        text: String(draft?.body || "").trim(),
+        html: `<p>${String(draft?.body || "").trim().replace(/\n/g, "<br />")}</p>`,
+        replyTo: String(user?.email || "").trim() || undefined,
+        attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+        entityType: draft?.entityType || "crm_opportunity",
+        entityId: draft?.entityId || "",
+        metadata: draft?.metadata || {},
+      };
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (!remoteResult?.ok) {
+        if (remoteResult?.message) {
+          window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+        }
+        if (Array.isArray(draft?.attachments) && draft.attachments.length) {
+          window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+        }
+        window.location.href = `mailto:${encodeURIComponent(recipients.join(","))}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(payload.text)}`;
+        ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);
+      } else {
+        ntf?.(`Correo enviado a ${recipients.join(", ")} ✓`);
+      }
+      if (draft?.entityId) {
+        await addActivity(draft.entityId, payload.text, "email", {
+          subject: payload.subject,
+          to: recipients.join(", "),
+          attachments: payload.attachments,
+          delivery: remoteResult?.ok ? (remoteResult.delivery || null) : null,
+        });
+      }
+      setActivityForm({ type: "note", text: "" });
+      setEmailComposerOpen(false);
+      setEmailComposerDraft(null);
+    } finally {
+      setEmailComposerSending(false);
+    }
+  }, [addActivity, empresa?.id, ntf, platformApi, setActivityForm]);
 
   return <div>
     <ModuleHeader
@@ -211,6 +309,7 @@ export function CrmModule({
       TareaCard={TareaCard}
       scopedOpps={scopedOpps}
       getRoleConfig={getRoleConfig}
+      onComposeEmail={openCrmEmailComposer}
     />
 
     <CrmStageModal
@@ -223,6 +322,13 @@ export function CrmModule({
       removeStage={removeStage}
       saveStageConfig={saveStageConfig}
       createStage={order => ({ id: uid(), name: "Nueva etapa", order, convertToClient: false, closedWon: false, closedLost: false })}
+    />
+    <TransactionalEmailComposerModal
+      open={emailComposerOpen}
+      draft={emailComposerDraft}
+      sending={emailComposerSending}
+      onClose={closeEmailComposer}
+      onSend={sendCrmEmail}
     />
   </div>;
 }

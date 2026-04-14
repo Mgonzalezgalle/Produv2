@@ -13,6 +13,15 @@
     <meta name="apple-mobile-web-app-title" content="Produ" />
     <title>Bienvenido a Produ</title>
     <style>
+      body:not([data-freshdesk-visible="true"]) #fc_frame,
+      body:not([data-freshdesk-visible="true"]) #fc_frame.fc-widget-normal,
+      body:not([data-freshdesk-visible="true"]) #fc_frame iframe,
+      body:not([data-freshdesk-visible="true"]) #fc_frame > div {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+      }
+
       #fc_frame,
       #fc_frame.fc-widget-normal,
       #fc_frame iframe,

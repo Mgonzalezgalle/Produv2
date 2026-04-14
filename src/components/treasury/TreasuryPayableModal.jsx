@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
 import { DEFAULT_LISTAS, today, uid } from "../../lib/utils/helpers";
 
@@ -8,19 +8,16 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
   const docTypeOptions = Array.isArray(listas?.tiposDocPagar) && listas.tiposDocPagar.length
     ? listas.tiposDocPagar
     : DEFAULT_LISTAS.tiposDocPagar;
-  const providerOptions = useMemo(
-    () => (Array.isArray(providers) ? providers : [])
-      .map(provider => String(provider?.name || "").trim())
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b)),
-    [providers],
-  );
+  const providerOptions = (Array.isArray(providers) ? providers : [])
+    .map(provider => String(provider?.name || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
   useEffect(() => {
     setForm(data?.id ? { ...data } : {
       id: uid(),
       supplier: "",
-      docType: docTypeOptions[0] || "Factura",
+      docType: docTypeOptions[0] || "Factura Afecta",
       folio: "",
       category: "Servicio",
       issueDate: today(),
@@ -60,7 +57,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
           </FSl>
         </FG>
         <FG label="Tipo de documento">
-          <FSl value={form.docType || (docTypeOptions[0] || "Factura")} onChange={e => setField("docType", e.target.value)}>
+          <FSl value={form.docType || (docTypeOptions[0] || "Factura Afecta")} onChange={e => setField("docType", e.target.value)}>
             {docTypeOptions.map(option => <option key={option} value={option}>{option}</option>)}
           </FSl>
         </FG>

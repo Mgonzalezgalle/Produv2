@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FG,
   FI,
@@ -62,35 +62,17 @@ export function MCt({open,data,empresa,clientes,producciones,programas,piezas,pr
 
 export function MMov({open,data,listas,onClose,onSave}){
   const [f,setF]=useState({});
-  const formRef = useRef(null);
   useEffect(()=>{setF({tipo:data?.tipo||"ingreso",mon:"",des:"",cat:"General",fec:today(),not:"",eid:data?.eid||"",et:data?.et||""});},[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
   const handleSave = () => {
-    const formData = formRef.current ? new FormData(formRef.current) : null;
-    const tipo = String(formData?.get("tipo") ?? f.tipo ?? data?.tipo ?? "ingreso");
-    const monRaw = String(formData?.get("mon") ?? f.mon ?? "");
-    const desRaw = String(formData?.get("des") ?? f.des ?? "");
-    const cat = String(formData?.get("cat") ?? f.cat ?? "General");
-    const fec = String(formData?.get("fec") ?? f.fec ?? today());
-    if (!monRaw) return;
-    const des = desRaw.trim() || `${tipo === "gasto" ? "Gasto" : "Ingreso"} · ${cat || "General"}`;
-    onSave({
-      ...f,
-      tipo,
-      mon: Number(monRaw),
-      des,
-      cat,
-      fec,
-      eid: f.eid || data?.eid || "",
-      et: f.et || data?.et || "",
-    });
+    if (!f.mon) return;
+    const des = String(f.des || "").trim() || `${f.tipo === "gasto" ? "Gasto" : "Ingreso"} · ${f.cat || "General"}`;
+    onSave({ ...f, des, mon:Number(f.mon) });
   };
   return <Modal open={open} onClose={onClose} title="Registrar Movimiento" sub="Ingreso o gasto">
-    <form ref={formRef} onSubmit={e => { e.preventDefault(); handleSave(); }}>
-      <R2><FG label="Tipo *"><FSl name="tipo" value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option></FSl></FG><FG label="Monto (CLP) *"><FI name="mon" type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
-      <FG label="Descripción"><FI name="des" value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Opcional. Si la dejas vacía, se generará automáticamente."/></FG>
-      <R2><FG label="Categoría"><FSl name="cat" value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI name="fec" type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
-      <MFoot onClose={onClose} onSave={handleSave} label="Registrar"/>
-    </form>
+    <R2><FG label="Tipo *"><FSl value={f.tipo} onChange={e=>u("tipo",e.target.value)}><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto / Egreso</option></FSl></FG><FG label="Monto (CLP) *"><FI type="number" value={f.mon} onChange={e=>u("mon",e.target.value)} placeholder="0" min="0"/></FG></R2>
+    <FG label="Descripción"><FI value={f.des} onChange={e=>u("des",e.target.value)} placeholder="Opcional. Si la dejas vacía, se generará automáticamente."/></FG>
+    <R2><FG label="Categoría"><FSl value={f.cat} onChange={e=>u("cat",e.target.value)}>{(listas?.catMov||DEFAULT_LISTAS.catMov).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Fecha"><FI type="date" value={f.fec} onChange={e=>u("fec",e.target.value)}/></FG></R2>
+    <MFoot onClose={onClose} onSave={handleSave} label="Registrar"/>
   </Modal>;
 }

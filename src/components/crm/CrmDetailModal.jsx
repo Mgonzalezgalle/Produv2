@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat } from "../../lib/ui/components";
 import { ContactBtns } from "../shared/ContactButtons";
+import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 
 export function CrmDetailModal({
   detail,
@@ -28,6 +29,7 @@ export function CrmDetailModal({
   TareaCard,
   scopedOpps,
   getRoleConfig,
+  onComposeEmail,
 }) {
   return (
     <Modal open={!!detail} onClose={() => { setDetailId(""); setActivityForm({ type: "note", text: "" }); }} title={detail?.nombre || "Detalle CRM"} sub={detail ? `${detail.empresaMarca} · ${crmEntityLabel(detail)}` : ""} extraWide>
@@ -49,7 +51,15 @@ export function CrmDetailModal({
             {(detail.telefono || detail.email) && <>
               <Sep />
               <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Contacto rápido</div>
-              <ContactBtns tel={detail.telefono} ema={detail.email} nombre={detail.contacto || detail.empresaMarca || detail.nombre} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${detail.contacto || detail.empresaMarca || ""}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} />
+              <ContactBtns
+                tel={detail.telefono}
+                ema={detail.email}
+                nombre={detail.contacto || detail.empresaMarca || detail.nombre}
+                origen={empresa?.nombre || "tu empresa"}
+                mensaje={`Hola ${detail.contacto || detail.empresaMarca || ""}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`}
+                onEmail={detail?.email ? () => onComposeEmail?.(detail, activityForm?.type === "email" ? activityForm : { type: "email", text: "" }) : null}
+                emailLabel="Correo"
+              />
             </>}
             {canManageCrm && crmCanPassToClient(detail, scopedStages) && <div style={{ marginTop: 14 }}><Btn onClick={() => passToEntity(detail)}>{detail.tipo_negocio === "auspiciador" ? "Pasar a Auspiciadores" : "Pasar a Clientes"}</Btn></div>}
             {!!detail.linkedClientId && <div style={{ marginTop: 12, fontSize: 12, color: "#00e08a" }}>✓ Vinculada al cliente existente/creado en Clientes</div>}
@@ -71,7 +81,18 @@ export function CrmDetailModal({
                 <option value="email">Email</option>
               </FSl>
               <FTA value={activityForm.text} onChange={e => setActivityForm(prev => ({ ...prev, text: e.target.value }))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{ minHeight: 88 }} />
-              {canManageCrm && <Btn onClick={async () => { if (!activityForm.text.trim()) return; await addActivity(detail.id, activityForm.text, activityForm.type); setActivityForm({ type: "note", text: "" }); ntf?.("Actividad registrada ✓"); }} sm>+ Registrar</Btn>}
+              {canManageCrm && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>
+                  <Btn onClick={async () => { if (!activityForm.text.trim()) return; await addActivity(detail.id, activityForm.text, activityForm.type); setActivityForm({ type: "note", text: "" }); ntf?.("Actividad registrada ✓"); }} sm>+ Registrar</Btn>
+                  <Btn
+                    onClick={() => onComposeEmail?.(detail, activityForm?.type === "email" ? activityForm : { type: "email", text: activityForm?.text || "" })}
+                    sm
+                    disabled={!detail?.email}
+                  >
+                    ✉ Crear correo
+                  </Btn>
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 420, overflowY: "auto" }}>
               {detailActivities.map(act => <div key={act.id} style={{ padding: 12, border: "1px solid var(--bdr2)", borderRadius: 10, background: "var(--sur)" }}>
@@ -79,7 +100,25 @@ export function CrmDetailModal({
                   <Badge label={act.type || "note"} color="gray" sm />
                   <span style={{ fontSize: 10, color: "var(--gr2)" }}>{act.createdAt ? fmtD(act.createdAt) : "—"} · {act.byName || "Sistema"}</span>
                 </div>
+                {act.type === "email" && (
+                  <div style={{ marginBottom: 8, fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>
+                    <div><b>Para:</b> {act.to || "—"}</div>
+                    <div><b>Asunto:</b> {act.subject || "Sin asunto"}</div>
+                  </div>
+                )}
                 <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{act.text}</div>
+                {!!normalizeCommentAttachments(act).length && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 10 }}>
+                    {normalizeCommentAttachments(act).map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
+                      {att.type === "pdf"
+                        ? <div style={{ display: "grid", placeItems: "center", height: 96, padding: 10, textAlign: "center" }}>
+                            <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
+                            <div style={{ fontSize: 10, color: "var(--gr3)", lineHeight: 1.35, wordBreak: "break-word" }}>{att.name || "Documento PDF"}</div>
+                          </div>
+                        : <img src={att.src} alt={att.name || "Adjunto email"} style={{ display: "block", width: "100%", height: 96, objectFit: "cover" }} />}
+                    </a>)}
+                  </div>
+                )}
               </div>)}
               {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas." />}
             </div>

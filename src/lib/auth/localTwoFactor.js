@@ -1,4 +1,5 @@
-import { sha256Hex } from "./clientAuth";
+import { sha256Hex } from "./authCrypto";
+import { LAB_AUTH_CONFIG } from "./authConfig";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const TOTP_STEP_SECONDS = 30;
@@ -91,6 +92,7 @@ async function generateCodeAt(secret = "", timestampMs = Date.now()) {
 }
 
 export function requiresLocalTwoFactor(user = null) {
+  if (!LAB_AUTH_CONFIG.enableTwoFactorSetup) return false;
   return ["superadmin", "admin"].includes(user?.role || "");
 }
 

@@ -1,5 +1,99 @@
 import { useCallback } from "react";
 
+const EMITTED_FACTURA_PROTECTED_FIELDS = [
+  "correlativo",
+  "tipoDoc",
+  "documentTypeCode",
+  "tipoDocumento",
+  "tipo",
+  "entidadId",
+  "proId",
+  "tipoRef",
+  "items",
+  "montoNeto",
+  "iva",
+  "honorarios",
+  "ivaVal",
+  "total",
+  "estado",
+  "fechaEmision",
+  "fechaVencimiento",
+  "presupuestoId",
+  "contratoId",
+  "referenceKind",
+  "referenceCodeSii",
+  "relatedDocumentId",
+  "relatedDocumentFolio",
+  "relatedDocumentTypeCode",
+  "relatedDocumentDate",
+  "relatedDocumentReason",
+  "relatedExternalDocumentId",
+  "relatedExternalReturnId",
+  "treasuryPurchaseOrderId",
+  "recurring",
+  "recMonths",
+  "recStart",
+  "projectedTotal",
+  "externalSync",
+];
+
+function normalizeReferencePayload(fact = {}) {
+  const referenceCodeSii = String(fact.referenceCodeSii || "").trim();
+  const referenceKind = String(fact.referenceKind || "").trim();
+  if (!referenceCodeSii && !referenceKind) {
+    return {
+      ...fact,
+      referenceKind: "",
+      referenceCodeSii: "",
+      relatedDocumentId: "",
+      relatedDocumentFolio: "",
+      relatedDocumentTypeCode: "",
+      relatedDocumentDate: "",
+      relatedDocumentReason: "",
+      relatedExternalDocumentId: "",
+      relatedExternalReturnId: "",
+      treasuryPurchaseOrderId: "",
+    };
+  }
+  if (referenceCodeSii === "801" || referenceKind === "purchase_order") {
+    return {
+      ...fact,
+      referenceKind: "purchase_order",
+      referenceCodeSii: "801",
+      relatedDocumentId: "",
+      relatedDocumentTypeCode: "orden_compra",
+      relatedExternalDocumentId: "",
+      relatedExternalReturnId: "",
+    };
+  }
+  if (referenceCodeSii === "document" || referenceKind === "document") {
+    return {
+      ...fact,
+      referenceKind: "document",
+      referenceCodeSii: "document",
+      treasuryPurchaseOrderId: "",
+    };
+  }
+  return {
+    ...fact,
+    referenceKind: "tax_reference",
+    relatedDocumentId: "",
+    relatedDocumentTypeCode: "",
+    relatedExternalDocumentId: "",
+    relatedExternalReturnId: "",
+    treasuryPurchaseOrderId: "",
+  };
+}
+
+function normalizeProtectedFacturaPayload(existingFact = {}, nextFact = {}) {
+  if (!existingFact?.externalSync) return nextFact;
+  const merged = { ...nextFact, externalSync: existingFact.externalSync };
+  EMITTED_FACTURA_PROTECTED_FIELDS.forEach((field) => {
+    if (existingFact[field] !== undefined) merged[field] = existingFact[field];
+  });
+  return merged;
+}
+
 export function useLabCommercialDocs({
   curEmp,
   facturas,
@@ -44,30 +138,32 @@ export function useLabCommercialDocs({
   const saveFacturaDoc = useCallback(async (fact) => {
     if (!canManageBilling) return false;
     const currentFacts = Array.isArray(facturas) ? facturas : [];
+    const existingFact = currentFacts.find((item) => item.id === fact?.id) || null;
+    const safeFact = normalizeProtectedFacturaPayload(existingFact, normalizeReferencePayload(fact));
     const isNew = !fact.id;
-    const recurringEnabled = !!fact.recurring && isNew;
-    const recurringMonths = Math.max(1, Number(fact.recMonths || 1));
-    const seriesId = fact.seriesId || uid();
-    const baseDate = fact.recStart || fact.fechaEmision || today();
+    const recurringEnabled = !!safeFact.recurring && isNew;
+    const recurringMonths = Math.max(1, Number(safeFact.recMonths || 1));
+    const seriesId = safeFact.seriesId || uid();
+    const baseDate = safeFact.recStart || safeFact.fechaEmision || today();
     const series = recurringEnabled
       ? Array.from({ length: recurringMonths }, (_, idx) => {
           const fechaEmision = addMonths(baseDate, idx);
-          const fechaVencimiento = fact.fechaVencimiento ? addMonths(fact.fechaVencimiento, idx) : "";
-          const fechaPago = cobranzaState(fact) === "Pagado" && fact.fechaPago
-            ? addMonths(fact.fechaPago, idx)
-            : cobranzaState(fact) === "Pagado"
+          const fechaVencimiento = safeFact.fechaVencimiento ? addMonths(safeFact.fechaVencimiento, idx) : "";
+          const fechaPago = cobranzaState(safeFact) === "Pagado" && safeFact.fechaPago
+            ? addMonths(safeFact.fechaPago, idx)
+            : cobranzaState(safeFact) === "Pagado"
               ? fechaEmision
               : "";
           return {
-            ...fact,
-            empId: fact.empId || curEmp?.id,
+            ...safeFact,
+            empId: safeFact.empId || curEmp?.id,
             id: uid(),
-            cr: idx === 0 ? (fact.cr || today()) : today(),
+            cr: idx === 0 ? (safeFact.cr || today()) : today(),
             tipoDoc: "Invoice",
-            estado: fact.estado || "Emitida",
-            cobranzaEstado: cobranzaState(fact),
+            estado: safeFact.estado || "Emitida",
+            cobranzaEstado: cobranzaState(safeFact),
             recurring: true,
-            recurringStatus: fact.recurringStatus || "Activa",
+            recurringStatus: safeFact.recurringStatus || "Activa",
             recMonths: recurringMonths,
             recStart: baseDate,
             seriesId,
@@ -76,18 +172,18 @@ export function useLabCommercialDocs({
             fechaEmision,
             fechaVencimiento,
             fechaPago,
-            correlativo: fact.correlativo
-              ? (recurringMonths > 1 ? `${fact.correlativo}-${String(idx + 1).padStart(2, "0")}` : fact.correlativo)
+            correlativo: safeFact.correlativo
+              ? (recurringMonths > 1 ? `${safeFact.correlativo}-${String(idx + 1).padStart(2, "0")}` : safeFact.correlativo)
               : "",
           };
         })
       : [{
-          ...fact,
-          empId: fact.empId || curEmp?.id,
-          id: fact.id || uid(),
-          cr: fact.cr || today(),
-          estado: fact.estado || "Emitida",
-          cobranzaEstado: cobranzaState(fact),
+          ...safeFact,
+          empId: safeFact.empId || curEmp?.id,
+          id: safeFact.id || uid(),
+          cr: safeFact.cr || today(),
+          estado: safeFact.estado || "Emitida",
+          cobranzaEstado: cobranzaState(safeFact),
         }];
 
     const itemsById = new Map(currentFacts.map((x) => [x.id, x]));

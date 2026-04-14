@@ -35,12 +35,18 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
     };
     reader.readAsDataURL(file);
   };
+  const maxAmount = Number(form.maxAmount || 0);
+  const currentAmount = Number(form.amount || 0);
+  const amountExceeded = maxAmount > 0 && currentAmount > maxAmount;
 
   return (
     <Modal open={open} onClose={onClose} title={title} sub={subtitle}>
       <R2>
         <FG label="Fecha pago"><FI type="date" value={form.date || ""} onChange={e => setField("date", e.target.value)} /></FG>
-        <FG label="Monto *"><FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" /></FG>
+        <FG label="Monto *">
+          <FI type="number" min="0" max={maxAmount > 0 ? maxAmount : undefined} value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" />
+          {maxAmount > 0 && <div style={{ fontSize: 11, color: amountExceeded ? "var(--red)" : "var(--gr2)", marginTop: 6 }}>Máximo permitido: {maxAmount.toLocaleString("es-CL")}</div>}
+        </FG>
       </R2>
       <R2>
         <FG label="Método">
@@ -60,6 +66,7 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
         label="Guardar pago"
         onSave={() => {
           if (!Number(form.amount || 0)) return;
+          if (amountExceeded) return;
           onSave({
             ...form,
             amount: Number(form.amount || 0),

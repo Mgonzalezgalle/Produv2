@@ -1,19 +1,15 @@
 import { useCallback } from "react";
-import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/storageNamespace";
+import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/labStorageConfig";
 
 export function useLabTenantAdmin({
   dbGet,
   dbSet,
   empresas,
   users,
-  supportThreads,
-  supportSettings,
   normalizeEmpresasModel,
   ensureRequiredSystemUsers,
-  normalizeSupportThreads,
   setEmpresasRaw,
   setUsersRaw,
-  setSupportThreadsRaw,
   curEmp,
   curUser,
   setCurEmp,
@@ -42,15 +38,12 @@ export function useLabTenantAdmin({
     const nextEmpresas = normalizeEmpresasModel((empresas || []).filter(item => item.id !== targetId));
     const nextUsersBase = (users || []).filter(item => item.empId !== targetId);
     const nextUsers = LAB_DATA_CONFIG.releaseMode ? nextUsersBase : ensureRequiredSystemUsers(nextUsersBase);
-    const nextThreads = normalizeSupportThreads((supportThreads || []).filter(thread => thread.empId !== targetId), nextEmpresas, nextUsers, supportSettings || {});
 
     setEmpresasRaw(nextEmpresas);
     setUsersRaw(nextUsers);
-    setSupportThreadsRaw(nextThreads);
 
     await dbSet("produ:empresas", nextEmpresas);
     await dbSet("produ:users", nextUsers);
-    await dbSet("produ:supportThreads", nextThreads);
 
     try {
       const solicitudes = await dbGet("produ:solicitudes");
@@ -75,14 +68,10 @@ export function useLabTenantAdmin({
     dbSet,
     empresas,
     users,
-    supportThreads,
-    supportSettings,
     normalizeEmpresasModel,
     ensureRequiredSystemUsers,
-    normalizeSupportThreads,
     setEmpresasRaw,
     setUsersRaw,
-    setSupportThreadsRaw,
     curEmp?.id,
     curUser?.role,
     setCurEmp,

@@ -1,4 +1,13 @@
 import { cobranzaState, invoiceEntityName, today } from "./helpers";
+import {
+  buildProduBillingReferenceSummary,
+  getProduBillingDocumentTypeLabel,
+  getProduBillingFinancialMultiplier,
+  isProduBillingDocumentIssued,
+  requiresProduCollectionTracking,
+  resolveProduBillingDocumentType,
+  shouldProduBillingDocumentAppearInTreasury,
+} from "../integrations/billingDomain";
 
 export const TREASURY_MODULE_ID = "tesoreria";
 export const TREASURY_MODULE_LABEL = "Tesorería";
@@ -11,6 +20,13 @@ export const TREASURY_STORE_KEYS = [
   "treasuryReceipts",
   "treasuryDisbursements",
 ];
+
+export function normalizeTreasuryPayableDocumentLabel(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "Factura Afecta";
+  if (raw === "Factura") return "Factura Afecta";
+  return raw;
+}
 
 export function treasuryReleaseEnabled() {
   try {
@@ -90,17 +106,34 @@ export function buildSeedTreasuryData(empId = "") {
 
 export function countPendingTreasury(facturas = [], empId = "") {
   return (Array.isArray(facturas) ? facturas : [])
-    .filter(item => item?.empId === empId && cobranzaState(item) !== "Pagado")
+    .filter(item => (
+      item?.empId === empId
+      && requiresProduCollectionTracking(item.documentTypeCode || item.tipoDocumento || item.tipoDoc)
+      && cobranzaState(item) !== "Pagado"
+    ))
     .length;
 }
 
 function normalizePayments(payments = [], empId = "", targetKey = "", targetId = "") {
+  const seen = new Set();
   return (Array.isArray(payments) ? payments : [])
     .filter(item => item?.empId === empId && item?.[targetKey] === targetId)
     .map(item => ({
       ...item,
       amount: Number(item.amount || 0),
     }))
+    .filter(item => {
+      const fingerprint = [
+        item.id || "",
+        item.externalSync?.paymentId || "",
+        item.date || "",
+        item.reference || "",
+        Number(item.amount || 0),
+      ].join("|");
+      if (seen.has(fingerprint)) return false;
+      seen.add(fingerprint);
+      return true;
+    })
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 }
 
@@ -124,21 +157,31 @@ function clientCreditLimit(client = {}) {
 
 export function buildTreasuryReceivables({ facturas = [], clientes = [], auspiciadores = [], receipts = [], empId = "" } = {}) {
   return (Array.isArray(facturas) ? facturas : [])
-    .filter(doc => doc?.empId === empId)
+    .filter(doc => (
+      doc?.empId === empId
+      && shouldProduBillingDocumentAppearInTreasury(doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc)
+      && isProduBillingDocumentIssued(doc)
+    ))
     .map(doc => {
-      const total = Number(doc?.total || 0);
+      const billingTypeCode = doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc;
+      const multiplier = getProduBillingFinancialMultiplier(billingTypeCode);
+      const baseTotal = Number(doc?.total || 0);
+      const total = baseTotal * multiplier;
       const state = cobranzaState(doc);
-      const paymentHistory = normalizePayments(receipts, empId, "invoiceId", doc.id);
+      const allowsManualReceipts = multiplier > 0 && requiresProduCollectionTracking(billingTypeCode);
+      const paymentHistory = allowsManualReceipts ? normalizePayments(receipts, empId, "invoiceId", doc.id) : [];
       const manualPaid = paymentHistory.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const paid = state === "Pagado" ? total : Math.min(total, manualPaid);
-      const pending = Math.max(0, total - paid);
-      const cobranza = pending <= 0 ? "Pagado" : state;
+      const paidBase = state === "Pagado" ? baseTotal : Math.min(baseTotal, manualPaid);
+      const paid = paidBase * multiplier;
+      const pending = (baseTotal - paidBase) * multiplier;
+      const cobranza = multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? "Pagado" : state);
       const entityName = invoiceEntityName(doc, clientes, auspiciadores);
-      const bucket = pending <= 0 ? "Pagado" : (state === "Pagado" ? "Pagado" : receivableBucket(doc));
+      const referenceSummary = buildProduBillingReferenceSummary(doc);
+      const bucket = multiplier < 0 ? "Ajuste" : (pending <= 0 ? "Pagado" : (state === "Pagado" ? "Pagado" : receivableBucket(doc)));
       return {
         id: doc.id,
         correlativo: doc.correlativo || doc.tipoDoc || "Sin correlativo",
-        tipoDoc: doc.tipoDoc || "Invoice",
+        tipoDoc: getProduBillingDocumentTypeLabel(billingTypeCode),
         entidadId: doc.entidadId || "",
         entidadTipo: doc.tipo || "cliente",
         entidad: entityName,
@@ -148,10 +191,15 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         estado: doc.estado || "Emitida",
         cobranza,
         bucket,
+        isAdjustment: multiplier < 0,
+        allowsManualReceipts,
+        collectionEditable: multiplier > 0,
         fechaEmision: doc.fecha || doc.fechaEmision || "",
         fechaVencimiento: doc.fechaVencimiento || "",
-        source: doc.origen || doc.tipoRef || "",
+        source: "Facturación",
+        sourceDetail: referenceSummary || doc.origen || doc.tipoRef || "",
         paymentHistory,
+        externalSync: doc.externalSync || null,
       };
     })
     .sort((a, b) => {
@@ -243,6 +291,7 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
       const status = pending <= 0 ? "Pagada" : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente"));
       return {
         ...item,
+        docType: normalizeTreasuryPayableDocumentLabel(item.docType || item.category || ""),
         total,
         paid,
         pending,

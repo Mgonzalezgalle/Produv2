@@ -34,8 +34,8 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
         <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:PRIO_BG[tarea.prioridad]||"var(--bdr)",color:PRIO_COLORS[tarea.prioridad]||"var(--gr2)"}}>{tarea.prioridad||"Media"}</span>
         <div style={{display:"flex",gap:4}}>
           {canEdit&&<>
-            <GBtn sm onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onEdit(tarea);}}>✏</GBtn>
-            <XBtn onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDelete(tarea.id);}}/>
+            <GBtn sm onClick={e=>{e.stopPropagation();onEdit(tarea);}}>✏</GBtn>
+            <XBtn onClick={e=>{e.stopPropagation();onDelete(tarea.id);}}/>
           </>}
         </div>
       </div>
@@ -59,7 +59,7 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
       </div>
       {canEdit&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>
         {COLS_TAREAS.filter(c=>c!==tarea.estado).map(c=>(
-          <button key={c} type="button" onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onChangeEstado(tarea.id,c);}}
+          <button key={c} onClick={e=>{e.stopPropagation();onChangeEstado(tarea.id,c);}}
             style={{fontSize:10,padding:"2px 8px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr2)",cursor:"pointer",transition:".1s"}}
             onMouseEnter={e=>{e.target.style.borderColor="var(--cy)";e.target.style.color="var(--cy)";}}
             onMouseLeave={e=>{e.target.style.borderColor="var(--bdr2)";e.target.style.color="var(--gr2)";}}>

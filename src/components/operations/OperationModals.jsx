@@ -4,17 +4,37 @@ import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2, R3, XBtn } from "../..
 
 export function MCli({ open, data, listas, onClose, onSave, uid }) {
   const [f, setF] = useState({});
+  const missingBsaleFields = [
+    !String(f.nom || "").trim() ? "Razón social / nombre" : null,
+    !String(f.rut || "").trim() ? "RUT" : null,
+    !String(f.dir || "").trim() ? "Dirección" : null,
+    !String(f.ciudad || "").trim() ? "Ciudad" : null,
+    !String(f.comuna || "").trim() ? "Comuna / municipio" : null,
+  ].filter(Boolean);
+  const bsaleReady = missingBsaleFields.length === 0;
   useEffect(() => {
-    setF(data?.id ? { ...data } : { nom: "", rut: "", ind: "", dir: "", not: "", contactos: [], creditLimit: "" });
+    setF(data?.id ? { ...data } : { nom: "", rut: "", ind: "", dir: "", ciudad: "", comuna: "", giro: "", not: "", contactos: [], creditLimit: "" });
   }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
   const addContact = () => setF(p => ({ ...p, contactos: [...(p.contactos || []), { id: uid(), nom: "", car: "", ema: "", tel: "", not: "" }] }));
   const updContact = (i, k, v) => setF(p => ({ ...p, contactos: (p.contactos || []).map((c, j) => j === i ? { ...c, [k]: v } : c) }));
   const delContact = i => setF(p => ({ ...p, contactos: (p.contactos || []).filter((_, j) => j !== i) }));
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Cliente" : "Nuevo Cliente"} sub="Empresa o persona" wide>
+    <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 10, border: `1px solid ${bsaleReady ? "#b9f2d0" : "#ffe2a8"}`, background: bsaleReady ? "#effcf4" : "#fff8e8" }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: bsaleReady ? "#0f8a4b" : "#b7791f", marginBottom: 6 }}>
+        {bsaleReady ? "Ficha lista para Bsale" : "Faltan datos para facturación electrónica"}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45 }}>
+        {bsaleReady
+          ? "Este cliente ya tiene los campos mínimos para emitir documentos en Bsale."
+          : `Completa: ${missingBsaleFields.join(", ")}.`}
+      </div>
+    </div>
     <R2><FG label="Nombre / Razón Social *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Empresa ABC S.A."/></FG><FG label="RUT"><FI value={f.rut || ""} onChange={e => u("rut", e.target.value)} placeholder="76.543.210-0"/></FG></R2>
-    <R2><FG label="Industria"><FSl value={f.ind || ""} onChange={e => u("ind", e.target.value)}><option value="">Seleccionar...</option>{(listas?.industriasCli || DEFAULT_LISTAS.industriasCli).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Dirección"><FI value={f.dir || ""} onChange={e => u("dir", e.target.value)} placeholder="Av. Providencia 123"/></FG></R2>
-    <R2><FG label="Límite de crédito"><FI type="number" min="0" value={f.creditLimit ?? ""} onChange={e => u("creditLimit", e.target.value)} placeholder="0"/></FG><FG label="Notas"><FTA value={f.not || ""} onChange={e => u("not", e.target.value)} placeholder="Observaciones generales..."/></FG></R2>
+    <R2><FG label="Industria"><FSl value={f.ind || ""} onChange={e => u("ind", e.target.value)}><option value="">Seleccionar...</option>{(listas?.industriasCli || DEFAULT_LISTAS.industriasCli).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Giro"><FI value={f.giro || ""} onChange={e => u("giro", e.target.value)} placeholder="Servicios audiovisuales"/></FG></R2>
+    <R2><FG label="Dirección"><FI value={f.dir || ""} onChange={e => u("dir", e.target.value)} placeholder="Av. Providencia 123"/></FG><FG label="Ciudad"><FI value={f.ciudad || ""} onChange={e => u("ciudad", e.target.value)} placeholder="Santiago"/></FG></R2>
+    <R2><FG label="Comuna / Municipio"><FI value={f.comuna || ""} onChange={e => u("comuna", e.target.value)} placeholder="Providencia"/></FG><FG label="Límite de crédito"><FI type="number" min="0" value={f.creditLimit ?? ""} onChange={e => u("creditLimit", e.target.value)} placeholder="0"/></FG></R2>
+    <FG label="Notas"><FTA value={f.not || ""} onChange={e => u("not", e.target.value)} placeholder="Observaciones generales..."/></FG>
     <hr style={{ border: "none", borderTop: "1px solid var(--bdr)", margin: "16px 0" }} />
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
       <div style={{ fontFamily: "var(--fh)", fontSize: 13, fontWeight: 700 }}>Contactos</div>
@@ -144,8 +164,19 @@ export function MCrew({ open, data, listas, onClose, onSave }) {
 
 export function MEvento({ open, data, producciones, programas, piezas, onClose, onSave }) {
   const [f, setF] = useState({});
-  useEffect(() => { setF(data?.id ? { ...data } : { titulo: "", tipo: "grabacion", fecha: data?.fecha || "", hora: "", desc: "", ref: data?.ref || "", refTipo: data?.refTipo || "" }); }, [data, open]);
+  const [inviteesInput, setInviteesInput] = useState("");
+  useEffect(() => {
+    const next = data?.id
+      ? { ...data, invitados: Array.isArray(data?.invitados) ? data.invitados : [], addMeet: data?.addMeet === true }
+      : { titulo: "", tipo: "grabacion", fecha: data?.fecha || "", hora: "", desc: "", ref: data?.ref || "", refTipo: data?.refTipo || "", invitados: [], addMeet: false };
+    setF(next);
+    setInviteesInput(Array.isArray(next.invitados) ? next.invitados.join(", ") : "");
+  }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const normalizeInvitees = value => String(value || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
   const TIPOS = [{ v: "grabacion", l: "🎬 Grabación" }, { v: "emision", l: "📡 Emisión" }, { v: "reunion", l: "💬 Reunión" }, { v: "entrega", l: "✓ Entrega" }, { v: "estreno", l: "🌟 Estreno" }, { v: "otro", l: "📌 Otro" }];
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Evento" : "Nuevo Evento de Calendario"} sub="Fecha de grabación, emisión, reunión u otro">
     <FG label="Título del evento *"><FI value={f.titulo || ""} onChange={e => u("titulo", e.target.value)} placeholder="Grabación Episodio 5, Reunión..."/></FG>
@@ -157,8 +188,27 @@ export function MEvento({ open, data, producciones, programas, piezas, onClose, 
       <optgroup label="Campañas">{(piezas || []).map(p => <option key={p.id} value={p.id}>📱 {p.nom}</option>)}</optgroup>
     </FSl></FG></R2>
     <R2><FG label="Fecha *"><FI type="date" value={f.fecha || ""} onChange={e => u("fecha", e.target.value)} /></FG><FG label="Hora"><FI type="time" value={f.hora || ""} onChange={e => u("hora", e.target.value)} /></FG></R2>
+    <FG label="Google Meet">
+      <FSl value={f.addMeet === true ? "si" : "no"} onChange={e => u("addMeet", e.target.value === "si")}>
+        <option value="no">No</option>
+        <option value="si">Sí</option>
+      </FSl>
+    </FG>
+    <FG label="Invitados">
+      <FTA
+        value={inviteesInput}
+        onChange={e => setInviteesInput(String(e.target.value || ""))}
+        placeholder="correo1@empresa.cl, correo2@empresa.cl"
+      />
+      <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 6 }}>
+        Se enviarán como invitados en Google Calendar cuando el usuario esté conectado.
+      </div>
+    </FG>
     <FG label="Descripción / Notas"><FTA value={f.desc || ""} onChange={e => u("desc", e.target.value)} placeholder="Detalles, ubicación, participantes..."/></FG>
-    <MFoot onClose={onClose} onSave={() => { if (!f.titulo?.trim() || !f.fecha) return; onSave(f); }} />
+    <MFoot onClose={onClose} onSave={() => {
+      if (!f.titulo?.trim() || !f.fecha) return;
+      onSave({ ...f, invitados: normalizeInvitees(inviteesInput) });
+    }} />
   </Modal>;
 }
 

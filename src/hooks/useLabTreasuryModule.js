@@ -122,8 +122,8 @@ export function useLabTreasuryModule({
   );
 
   const receiptLog = useMemo(
-    () => buildTreasuryReceiptLog({ receipts: treasuryReceipts, facturas, clientes, auspiciadores, empId }),
-    [treasuryReceipts, facturas, clientes, auspiciadores, empId],
+    () => buildTreasuryReceiptLog({ receipts: treasuryReceipts, facturas, empId }),
+    [treasuryReceipts, facturas, empId],
   );
 
   const disbursementLog = useMemo(
@@ -194,7 +194,11 @@ export function useLabTreasuryModule({
   const saveReceipt = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = { ...next, empId, amount: Number(next.amount || 0) };
+    const nextAmount = Number(next.amount || 0);
+    const maxAmount = Number(next.maxAmount || 0);
+    if (!nextAmount || nextAmount <= 0) return false;
+    if (maxAmount > 0 && nextAmount > maxAmount) return false;
+    const safeNext = { ...next, empId, amount: nextAmount };
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
     const updated = exists
       ? treasuryReceipts.map(item => item.id === safeNext.id ? safeNext : item)
@@ -208,7 +212,11 @@ export function useLabTreasuryModule({
   const saveDisbursement = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = { ...next, empId, amount: Number(next.amount || 0) };
+    const nextAmount = Number(next.amount || 0);
+    const maxAmount = Number(next.maxAmount || 0);
+    if (!nextAmount || nextAmount <= 0) return false;
+    if (maxAmount > 0 && nextAmount > maxAmount) return false;
+    const safeNext = { ...next, empId, amount: nextAmount };
     const exists = treasuryDisbursements.some(item => item.id === safeNext.id);
     const updated = exists
       ? treasuryDisbursements.map(item => item.id === safeNext.id ? safeNext : item)
@@ -293,6 +301,8 @@ export function useLabTreasuryModule({
       empId,
       invoiceId: row.id,
       reference: row.correlativo,
+      maxAmount: Math.max(0, Number(row.pending || 0)),
+      amount: Math.max(0, Number(row.pending || 0)) || "",
     });
     setReceiptOpen(true);
   };
@@ -303,6 +313,8 @@ export function useLabTreasuryModule({
       empId,
       payableId: row.id,
       reference: row.folio || row.supplier,
+      maxAmount: Math.max(0, Number(row.pending || 0)),
+      amount: Math.max(0, Number(row.pending || 0)) || "",
     });
     setDisbursementOpen(true);
   };

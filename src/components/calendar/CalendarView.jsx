@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import googleCalendarLogo from "../../assets/google-calendar-logo.png";
 import {
   Badge,
   Btn,
@@ -14,6 +15,18 @@ import { cobranzaState, contractVisualState, fmtD, fmtM, hasAddon, today } from 
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
+function buildSortDateTime(fecha = "", hora = "") {
+  if (!fecha) return "";
+  const safeHour = String(hora || "09:00").trim() || "09:00";
+  return `${fecha}T${safeHour.length === 5 ? `${safeHour}:00` : safeHour}`;
+}
+
+function byCalendarDateTime(a, b) {
+  const left = String(a?.sortDateTime || buildSortDateTime(a?.fecha, a?.hora) || "");
+  const right = String(b?.sortDateTime || buildSortDateTime(b?.fecha, b?.hora) || "");
+  return left.localeCompare(right);
+}
+
 function daysUntil(date) {
   if (!date) return 0;
   const now = new Date(`${today()}T12:00:00`);
@@ -22,9 +35,17 @@ function daysUntil(date) {
 }
 
 export function ViewCalendario(props) {
-  const { empresa, user, tareas, crew, clientes, auspiciadores, episodios, programas, piezas, producciones, eventos, facturas, contratos, openM, canDo, cDel, setEventos, ntf, assignedNameList } = props;
+  const { empresa, user, tareas, crew, clientes, auspiciadores, episodios, programas, piezas, producciones, eventos, facturas, contratos, openM, canDo, cDel, setEventos, ntf, assignedNameList, platformApi, saveUsers, users } = props;
   const empId = empresa?.id;
   const tasksEnabled = hasAddon(empresa, "tareas");
+  const googleCalendarEnabled = empresa?.googleCalendarEnabled === true;
+  const activeUser = (Array.isArray(users) ? users.find(item => item.id === user?.id) : null) || user || {};
+  const userCalendar = activeUser?.googleCalendar || {};
+  const userCalendarConnected = userCalendar.connected === true;
+  const googleCalendarReady = googleCalendarEnabled && userCalendarConnected && !!userCalendar.accessToken;
+  const [googleCalendarConnecting, setGoogleCalendarConnecting] = useState(false);
+  const [googleCalendarEvents, setGoogleCalendarEvents] = useState([]);
+  const syncInFlightRef = useRef(new Set());
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth <= 768 : false);
   const [mes, setMes] = useState(() => { const h = new Date(); return { y: h.getFullYear(), m: h.getMonth() }; });
   const [filtro, setFiltro] = useState("todos");
@@ -42,6 +63,126 @@ export function ViewCalendario(props) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  const googleCalendarRange = useMemo(() => {
+    const from = new Date(Date.UTC(mes.y, mes.m, 1, 0, 0, 0));
+    const to = new Date(Date.UTC(mes.y, mes.m + 1, 1, 0, 0, 0));
+    return {
+      timeMin: from.toISOString(),
+      timeMax: to.toISOString(),
+    };
+  }, [mes.m, mes.y]);
+
+  useEffect(() => {
+    if (!googleCalendarReady) {
+      setGoogleCalendarEvents([]);
+      return;
+    }
+    let cancelled = false;
+    const loadGoogleEvents = async () => {
+      try {
+        const calendarId = encodeURIComponent(userCalendar.calendarId || "primary");
+        const params = new URLSearchParams({
+          singleEvents: "true",
+          orderBy: "startTime",
+          timeMin: googleCalendarRange.timeMin,
+          timeMax: googleCalendarRange.timeMax,
+        });
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${userCalendar.accessToken}`,
+          },
+        });
+        if (!res.ok) {
+          if (!cancelled) setGoogleCalendarEvents([]);
+          return;
+        }
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const mapped = items.map(item => {
+          const start = item?.start?.dateTime || item?.start?.date || "";
+          if (!start) return null;
+          const d = new Date(start);
+          return {
+            id: `gcal_${item.id}`,
+            googleEventId: item.id,
+            fecha: start.slice(0, 10),
+            dia: d.getDate(),
+            tipo: "reunion",
+            label: `📅 ${item.summary || "Evento Google"}`,
+            sub: item.organizer?.email || userCalendar.email || "Google Calendar",
+            color: "#4285f4",
+            hora: item?.start?.dateTime ? new Date(item.start.dateTime).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "",
+            modulo: "google",
+            estado: "Google Calendar",
+            desc: item.description || "",
+            source: "google",
+            sortDateTime: item?.start?.dateTime || buildSortDateTime(start.slice(0, 10), ""),
+          };
+        }).filter(Boolean);
+        if (!cancelled) setGoogleCalendarEvents(mapped);
+      } catch {
+        if (!cancelled) setGoogleCalendarEvents([]);
+      }
+    };
+    loadGoogleEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.accessToken, userCalendar.calendarId, userCalendar.email]);
+
+  useEffect(() => {
+    if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos || !platformApi?.calendar?.createGoogleCalendarEvent) return;
+    const pending = eventos.filter(ev =>
+      ev?.empId === empId &&
+      ev?.fecha &&
+      !ev?.googleEventId &&
+      !syncInFlightRef.current.has(ev.id)
+    );
+    if (!pending.length) return;
+
+    let cancelled = false;
+    pending.forEach(ev => {
+      syncInFlightRef.current.add(ev.id);
+      const baseTime = ev.hora || "09:00";
+      const startDate = new Date(`${ev.fecha}T${baseTime}:00`);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      const startDateTime = startDate.toISOString();
+      const endDateTime = endDate.toISOString();
+      Promise.resolve(platformApi.calendar.createGoogleCalendarEvent({
+        calendarId: userCalendar.calendarId || "primary",
+        refreshToken: userCalendar.refreshToken || "",
+        summary: ev.titulo || "Evento Produ",
+        description: ev.desc || "",
+        startDateTime,
+        endDateTime,
+        timeZone: "America/Santiago",
+        attendees: Array.isArray(ev.invitados) ? ev.invitados : [],
+        addMeet: ev.addMeet === true,
+      }))
+        .then(async result => {
+          if (!result?.ok || !result?.event?.id) {
+            throw new Error(result?.message || result?.error || "google_event_create_failed");
+          }
+          if (cancelled) return;
+          const next = (eventos || []).map(item => item.id === ev.id ? { ...item, googleEventId: result.event.id, googleCalendarSyncedAt: new Date().toISOString() } : item);
+          await Promise.resolve(setEventos(next));
+        })
+        .catch(error => {
+          if (!cancelled) {
+            ntf?.(`No pudimos crear "${ev.titulo || "evento"}" en Google Calendar. ${error?.message || ""}`.trim(), "warn");
+            console.error("google_calendar_create_failed", error);
+          }
+        })
+        .finally(() => {
+          syncInFlightRef.current.delete(ev.id);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [empId, eventos, googleCalendarReady, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken]);
 
   const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const addMes = delta => setMes(prev => {
@@ -103,43 +244,43 @@ export function ViewCalendario(props) {
         : (ev.refTipo === "pieza" || ev.refTipo === "contenido")
           ? (piezas || []).find(x => x.id === ev.ref)
           : (programas || []).find(x => x.id === ev.ref);
-      todosEvs.push({ id: ev.id, fecha: ev.fecha, dia: d.getDate(), tipo: ev.tipo, label: `${ti(ev.tipo)} ${ev.titulo}`, sub: ref ? ref.nom : "Sin vinculación", color: tc(ev.tipo), hora: ev.hora || "", custom: true, desc: ev.desc || "", modulo: "cal", estado: "Programado" });
+      todosEvs.push({ id: ev.id, fecha: ev.fecha, dia: d.getDate(), tipo: ev.tipo, label: `${ti(ev.tipo)} ${ev.titulo}`, sub: ref ? ref.nom : "Sin vinculación", color: tc(ev.tipo), hora: ev.hora || "", custom: true, desc: ev.desc || "", modulo: "cal", estado: "Programado", invitados: Array.isArray(ev.invitados) ? ev.invitados : [], sortDateTime: buildSortDateTime(ev.fecha, ev.hora || "") });
     }
   });
   (episodios || []).filter(e => e.empId === empId).forEach(ep => {
     const pg = (programas || []).find(x => x.id === ep.pgId);
     if (ep.fechaGrab) {
       const d = new Date(`${ep.fechaGrab}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${ep.id}_g`, fecha: ep.fechaGrab, dia: d.getDate(), tipo: "grabacion", label: `🎬 Ep.${ep.num}: ${ep.titulo}`, sub: pg?.nom || "", color: "var(--cy)", hora: "", auto: true, editModal: "ep", sourceId: ep.id, modulo: "ep", estado: ep.estado || "Planificado" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${ep.id}_g`, fecha: ep.fechaGrab, dia: d.getDate(), tipo: "grabacion", label: `🎬 Ep.${ep.num}: ${ep.titulo}`, sub: pg?.nom || "", color: "var(--cy)", hora: "", auto: true, editModal: "ep", sourceId: ep.id, modulo: "ep", estado: ep.estado || "Planificado", sortDateTime: buildSortDateTime(ep.fechaGrab, "") });
     }
     if (ep.fechaEmision) {
       const d = new Date(`${ep.fechaEmision}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${ep.id}_e`, fecha: ep.fechaEmision, dia: d.getDate(), tipo: "emision", label: `📡 Ep.${ep.num}: ${ep.titulo}`, sub: pg?.nom || "", color: "#00e08a", hora: "", auto: true, editModal: "ep", sourceId: ep.id, modulo: "ep", estado: ep.estado || "Programado" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${ep.id}_e`, fecha: ep.fechaEmision, dia: d.getDate(), tipo: "emision", label: `📡 Ep.${ep.num}: ${ep.titulo}`, sub: pg?.nom || "", color: "#00e08a", hora: "", auto: true, editModal: "ep", sourceId: ep.id, modulo: "ep", estado: ep.estado || "Programado", sortDateTime: buildSortDateTime(ep.fechaEmision, "") });
     }
   });
   (producciones || []).filter(p => p.empId === empId).forEach(p => {
     if (p.ini) {
       const d = new Date(`${p.ini}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${p.id}_ini`, fecha: p.ini, dia: d.getDate(), tipo: "otro", label: `▶ Inicio: ${p.nom}`, sub: "Proyecto", color: "#a855f7", hora: "", auto: true, editModal: "pro", sourceId: p.id, modulo: "pro", estado: p.est || "En Curso", clienteId: p.cliId || "" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${p.id}_ini`, fecha: p.ini, dia: d.getDate(), tipo: "otro", label: `▶ Inicio: ${p.nom}`, sub: "Proyecto", color: "#a855f7", hora: "", auto: true, editModal: "pro", sourceId: p.id, modulo: "pro", estado: p.est || "En Curso", clienteId: p.cliId || "", sortDateTime: buildSortDateTime(p.ini, "") });
     }
     if (p.fin) {
       const d = new Date(`${p.fin}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${p.id}_fin`, fecha: p.fin, dia: d.getDate(), tipo: "entrega", label: `✓ Entrega: ${p.nom}`, sub: "Proyecto", color: "#ff8844", hora: "", auto: true, editModal: "pro", sourceId: p.id, modulo: "pro", estado: p.est || "En Curso", clienteId: p.cliId || "" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${p.id}_fin`, fecha: p.fin, dia: d.getDate(), tipo: "entrega", label: `✓ Entrega: ${p.nom}`, sub: "Proyecto", color: "#ff8844", hora: "", auto: true, editModal: "pro", sourceId: p.id, modulo: "pro", estado: p.est || "En Curso", clienteId: p.cliId || "", sortDateTime: buildSortDateTime(p.fin, "") });
     }
   });
   (piezas || []).filter(p => p.empId === empId).forEach(c => {
     if (c.ini) {
       const d = new Date(`${c.ini}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${c.id}_ini`, fecha: c.ini, dia: d.getDate(), tipo: "otro", label: `📱 Inicio campaña: ${c.nom}`, sub: "Contenidos", color: "#a855f7", hora: "", auto: true, editModal: "contenido", sourceId: c.id, modulo: "pz", estado: c.est || "Planificada", clienteId: c.cliId || "" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${c.id}_ini`, fecha: c.ini, dia: d.getDate(), tipo: "otro", label: `📱 Inicio campaña: ${c.nom}`, sub: "Contenidos", color: "#a855f7", hora: "", auto: true, editModal: "contenido", sourceId: c.id, modulo: "pz", estado: c.est || "Planificada", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(c.ini, "") });
     }
     if (c.fin) {
       const d = new Date(`${c.fin}T12:00:00`);
-      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${c.id}_fin`, fecha: c.fin, dia: d.getDate(), tipo: "entrega", label: `✓ Cierre campaña: ${c.nom}`, sub: "Contenidos", color: "#ff8844", hora: "", auto: true, editModal: "contenido", sourceId: c.id, modulo: "pz", estado: c.est || "Planificada", clienteId: c.cliId || "" });
+      if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${c.id}_fin`, fecha: c.fin, dia: d.getDate(), tipo: "entrega", label: `✓ Cierre campaña: ${c.nom}`, sub: "Contenidos", color: "#ff8844", hora: "", auto: true, editModal: "contenido", sourceId: c.id, modulo: "pz", estado: c.est || "Planificada", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(c.fin, "") });
     }
     (c.piezas || []).forEach(pc => {
       if (pc.fin) {
         const d = new Date(`${pc.fin}T12:00:00`);
-        if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${pc.id}_fin`, fecha: pc.fin, dia: d.getDate(), tipo: pc.est === "Publicado" ? "estreno" : "entrega", label: `📌 ${pc.nom}`, sub: c.nom, color: pc.est === "Publicado" ? "#00e08a" : "#ff8844", hora: "", auto: true, modulo: "pz", estado: pc.est || "", clienteId: c.cliId || "" });
+        if (d.getFullYear() === mes.y && d.getMonth() === mes.m) todosEvs.push({ id: `${pc.id}_fin`, fecha: pc.fin, dia: d.getDate(), tipo: pc.est === "Publicado" ? "estreno" : "entrega", label: `📌 ${pc.nom}`, sub: c.nom, color: pc.est === "Publicado" ? "#00e08a" : "#ff8844", hora: "", auto: true, modulo: "pz", estado: pc.est || "", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(pc.fin, "") });
       }
     });
   });
@@ -158,7 +299,7 @@ export function ViewCalendario(props) {
               : "";
       const assignedNames = assignedNameList ? assignedNameList(t, crew, user) : [];
       const primaryAssigned = (t.assignedIds || [])[0] || t.asignadoA || "";
-      todosEvs.push({ id: `task_${t.id}`, fecha: t.fechaLimite, dia: d.getDate(), tipo: "tarea", label: `✅ ${t.titulo}`, sub: refLabel || "Sin vínculo", color: "#7c5cff", hora: "", task: true, sourceId: t.id, modulo: "task", estado: t.estado || "Pendiente", responsableId: primaryAssigned, responsable: assignedNames.join(", "), desc: t.desc || "" });
+      todosEvs.push({ id: `task_${t.id}`, fecha: t.fechaLimite, dia: d.getDate(), tipo: "tarea", label: `✅ ${t.titulo}`, sub: refLabel || "Sin vínculo", color: "#7c5cff", hora: "", task: true, sourceId: t.id, modulo: "task", estado: t.estado || "Pendiente", responsableId: primaryAssigned, responsable: assignedNames.join(", "), desc: t.desc || "", sortDateTime: buildSortDateTime(t.fechaLimite, "") });
     }
   });
 
@@ -183,6 +324,7 @@ export function ViewCalendario(props) {
   }).filter(Boolean);
   todosEvs.push(...dueInvoices, ...dueContracts);
 
+  todosEvs.push(...googleCalendarEvents);
   const eventosFiltrados = todosEvs.filter(e =>
     (filtro === "todos" || e.tipo === filtro) &&
     (!filtroModulo || e.modulo === filtroModulo) &&
@@ -198,9 +340,9 @@ export function ViewCalendario(props) {
   const celdas = [];
   for (let i = 0; i < primerDia; i += 1) celdas.push(null);
   for (let d = 1; d <= diasMes; d += 1) celdas.push(d);
-  const evsDelDia = d => eventosFiltrados.filter(e => e.dia === d).sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+  const evsDelDia = d => eventosFiltrados.filter(e => e.dia === d).sort(byCalendarDateTime);
   const evsDiaSel = diaSelec ? eventosFiltrados.filter(e => e.dia === diaSelec) : [];
-  const proximos = [...eventosFiltrados].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || "") || (a.hora || "").localeCompare(b.hora || ""));
+  const proximos = [...eventosFiltrados].sort(byCalendarDateTime);
   const agendaHoy = proximos.filter(ev => ev.fecha === hoyStr);
   const agendaSemana = proximos.filter(ev => ev.fecha >= hoyStr).slice(0, 8);
   const programacion = proximos.filter(ev => ["grabacion", "emision", "entrega", "estreno"].includes(ev.tipo));
@@ -211,12 +353,89 @@ export function ViewCalendario(props) {
   const delEvento = async evId => { await cDel(eventos, setEventos, evId, null, "Evento eliminado"); };
   const showListCalendar = isMobile ? true : vistaLista;
 
+  const connectGoogleCalendar = async () => {
+    if (!googleCalendarEnabled || !user?.id || !platformApi?.calendar?.startGoogleCalendarOAuth) return;
+    setGoogleCalendarConnecting(true);
+    try {
+      const result = await platformApi.calendar.startGoogleCalendarOAuth({
+        tenantId: empresa?.id || "",
+        userId: activeUser.id,
+        userEmail: activeUser.email || "",
+        redirectTo: typeof window !== "undefined" ? window.location.href : "",
+      });
+      if (!result?.ok || !result?.authUrl) {
+        ntf?.(result?.message || "No pudimos iniciar la conexión con Google Calendar.", "warn");
+        return;
+      }
+      window.location.href = result.authUrl;
+    } catch (error) {
+      ntf?.(error?.message || "No pudimos iniciar Google Calendar.", "warn");
+    } finally {
+      setGoogleCalendarConnecting(false);
+    }
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    if (!activeUser?.id || !saveUsers || !Array.isArray(users)) return;
+    const nextUsers = users.map(item => item.id === activeUser.id ? {
+      ...item,
+      googleCalendar: {
+        connected: false,
+        email: "",
+        calendarId: "primary",
+        calendarName: "Calendario principal",
+        autoSync: false,
+        lastSyncAt: "",
+        tokenType: "",
+        scope: "",
+        accessToken: "",
+        refreshToken: "",
+        expiresIn: 0,
+      },
+    } : item);
+    await Promise.resolve(saveUsers(nextUsers));
+    setGoogleCalendarEvents([]);
+    ntf?.("Google Calendar desconectado");
+  };
+
   return <div>
     <ModuleHeader
       module="Calendario"
       title="Calendario Operativo"
       description="Programación, agenda del equipo y vencimientos en un solo lugar."
-      actions={canDo && canDo("calendario") ? <Btn onClick={() => openM("evento", {})} sm>+ Nuevo Evento</Btn> : null}
+      actions={<div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: isMobile ? "stretch" : "flex-end" }}>
+        {googleCalendarEnabled && !userCalendarConnected && <button
+          onClick={connectGoogleCalendar}
+          disabled={googleCalendarConnecting}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: "1px solid var(--bdr2)",
+            background: "var(--sur)",
+            color: "var(--wh)",
+            cursor: googleCalendarConnecting ? "wait" : "pointer",
+            fontSize: 12,
+            fontWeight: 700,
+            minHeight: 42,
+            boxShadow: "0 10px 30px rgba(0,0,0,.08)",
+          }}
+        >
+          <img src={googleCalendarLogo} alt="Google Calendar" style={{ width: 24, height: 24, objectFit: "contain", flexShrink: 0 }} />
+          <span>{googleCalendarConnecting ? "Conectando..." : "Conectar con Google Calendar"}</span>
+        </button>}
+        {googleCalendarEnabled && userCalendarConnected && <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "color-mix(in srgb, #22c55e 10%, var(--sur))" }}>
+          <img src={googleCalendarLogo} alt="Google Calendar" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 0 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>Conectado</span>
+            <span style={{ fontSize: 10, color: "var(--gr2)" }}>{userCalendar.email || activeUser.email || "Cuenta conectada"}</span>
+          </div>
+          <GBtn sm onClick={disconnectGoogleCalendar}>Desconectar</GBtn>
+        </div>}
+        {canDo && canDo("calendario") ? <Btn onClick={() => openM("evento", {})} sm>+ Nuevo Evento</Btn> : null}
+      </div>}
     />
 
     <Tabs tabs={["Agenda", "Calendario", "Programación", "Cobranza"]} active={subTab} onChange={setSubTab} />
@@ -227,6 +446,7 @@ export function ViewCalendario(props) {
           { value: "pg", label: "Producciones" },
           { value: "ep", label: "Episodios" },
           { value: "pz", label: "Contenidos" },
+          ...(googleCalendarEnabled ? [{ value: "google", label: "Google Calendar" }] : []),
           ...(tasksEnabled ? [{ value: "task", label: "Tareas" }] : []),
           { value: "billing", label: "Cobranza" },
           { value: "contract", label: "Contratos" },
@@ -279,11 +499,12 @@ export function ViewCalendario(props) {
             </div>) : <Empty text="Sin hitos críticos" />}
           </Card>
           <Card title="Acciones rápidas">
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {canDo && canDo("calendario") && <Btn onClick={() => openM("evento", {})} sm>Crear evento manual</Btn>}
               {canDo && canDo("calendario") && <GBtn onClick={() => { setSubTab(1); setVistaLista(false); }} sm>Ver mes completo</GBtn>}
               <GBtn onClick={() => setSubTab(2)} sm>Ir a Programación</GBtn>
               <GBtn onClick={() => setSubTab(3)} sm>Revisar Cobranza</GBtn>
+              {googleCalendarEnabled && !googleCalendarReady && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>Conecta tu cuenta para ver eventos de Google y sincronizar los eventos manuales de Produ.</div>}
             </div>
           </Card>
         </div>
@@ -350,19 +571,24 @@ export function ViewCalendario(props) {
                 <div style={{ fontSize: 12, fontWeight: 700 }}>{ev.label}</div>
                 <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 2 }}>{ev.sub}{ev.hora ? ` · ${ev.hora}` : ""}</div>
               </div>
-              {canDo && canDo("calendario") && <GBtn sm onClick={() => editCalItem(ev)}>Abrir</GBtn>}
+              {canDo && canDo("calendario") && <div style={{ display: "flex", gap: 4, alignItems: "flex-start" }}>
+                <GBtn sm onClick={() => editCalItem(ev)}>Abrir</GBtn>
+                {ev.custom && <button onClick={() => delEvento(ev.id)} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr2)", cursor: "pointer" }}>×</button>}
+              </div>}
             </div>) : <Empty text="Sin eventos este día" sub="Clic en '+' para agregar" />}
           </div>}
           <Card title="Próximos" sub={`${MESES[mes.m]} ${mes.y}`}>
             {proximos.slice(0, 8).map(ev => <div key={ev.id} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--bdr)", alignItems: "center" }}>
               <div style={{ width: 26, height: 26, borderRadius: 6, background: `${ev.color}22`, border: `1px solid ${ev.color}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ fontFamily: "var(--fm)", fontSize: 10, fontWeight: 700, color: ev.color }}>{String(ev.dia).padStart(2, "0")}</span></div>
               <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</div><div style={{ fontSize: 10, color: "var(--gr2)" }}>{ev.sub} · {moduloLabel(ev)}</div></div>
+              {canDo && canDo("calendario") && ev.custom && <button onClick={() => delEvento(ev.id)} style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr2)", cursor: "pointer", flexShrink: 0 }}>×</button>}
             </div>)}
             {!proximos.length && <Empty text="Sin eventos" />}
           </Card>
           <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 10, padding: 16 }}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Leyenda</div>
             {TIPOS.map(t => <div key={t.v} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: t.c, flexShrink: 0 }} /><span style={{ fontSize: 11, color: "var(--gr3)" }}>{t.ico} {t.lbl}</span></div>)}
+            {googleCalendarEnabled && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#4285f4", flexShrink: 0 }} /><span style={{ fontSize: 11, color: "var(--gr3)" }}>📅 Google Calendar</span></div>}
           </div>
         </div>
       </div>

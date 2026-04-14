@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
 import { completeLocalPasswordReset } from "../../lib/auth/localAuthProvider";
+import { AuthModalErrorBoundary, SelfServeAcquisitionWizard } from "./SelfServeAcquisitionWizard";
+import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
 import QRCode from "qrcode";
 import {
   buildSecondFactorSessionMeta,
@@ -16,164 +18,10 @@ import {
   verifyTotpCode,
 } from "../../lib/auth/localTwoFactor";
 
-export function SolicitudModal({
-  onClose,
-  solF,
-  setSolF,
-  solSent,
-  setSolSent,
-  empresas = [],
-  helpers,
-  releaseMode = false,
-}) {
-  const {
-    uid,
-    today,
-    dbGet,
-    dbSet,
-    nextTenantCode,
-    normalizeEmpresasModel,
-    SEED_EMPRESAS,
-  } = helpers;
-
-  return <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:14,width:720,maxWidth:"100%",padding:28,animation:"modalIn .2s ease"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>Solicita tu demo de Produ</div>
-        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
-      </div>
-      {solSent
-        ?<div style={{textAlign:"center",padding:20}}>
-          <div style={{fontSize:40,marginBottom:12}}>✅</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:16,fontWeight:700,marginBottom:8}}>Demo solicitada</div>
-          <div style={{fontSize:13,color:"var(--gr2)",marginBottom:16}}>
-            {releaseMode
-              ? "Tu solicitud quedó registrada para revisión. El equipo de Produ validará los datos y te contactará antes de activar la empresa."
-              : "Tu empresa quedó creada en estado pendiente de activación. El equipo de Produ revisará la solicitud y te contactará."}
-          </div>
-          <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
-        </div>
-        :<div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Nombre completo *</div>
-            <input value={solF.nom||""} onChange={e=>setSolF(p=>({...p,nom:e.target.value}))} placeholder="Juan Pérez" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Email *</div>
-            <input type="email" value={solF.ema||""} onChange={e=>setSolF(p=>({...p,ema:e.target.value}))} placeholder="juan@empresa.cl" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Empresa / Productora *</div>
-            <input value={solF.emp||""} onChange={e=>setSolF(p=>({...p,emp:e.target.value}))} placeholder="Play Media SpA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Teléfono *</div>
-            <input value={solF.tel||""} onChange={e=>setSolF(p=>({...p,tel:e.target.value}))} placeholder="+56 9 1234 5678" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Tipo de cliente</div>
-            <select value={solF.customerType||"productora"} onChange={e=>setSolF(p=>({...p,customerType:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
-              <option value="productora">Productora</option>
-              <option value="creador">Creador independiente</option>
-              <option value="agencia">Agencia</option>
-              <option value="estudio">Estudio</option>
-            </select></div>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Tamaño de equipo</div>
-            <select value={solF.teamSize||"1-3"} onChange={e=>setSolF(p=>({...p,teamSize:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
-              <option value="1-3">1-3 personas</option>
-              <option value="4-10">4-10 personas</option>
-              <option value="11-25">11-25 personas</option>
-              <option value="25+">25+ personas</option>
-            </select></div>
-          </div>
-          <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:8}}>Módulos de interés</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
-              {[
-                ["producciones","Proyectos"],
-                ["programas","Producciones"],
-                ["contenidos","Contenidos"],
-                ["presupuestos","Presupuestos"],
-                ["facturacion","Facturación"],
-                ["crew","Crew"],
-                ["contratos","Contratos"],
-                ["tareas","Tareas"],
-              ].map(([key,label])=>{
-                const arr=Array.isArray(solF.modules)?solF.modules:[];
-                const active=arr.includes(key);
-                return <label key={key} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"var(--sur)",border:`1px solid ${active?"var(--cy)":"var(--bdr2)"}`,borderRadius:8,cursor:"pointer"}}>
-                  <input type="checkbox" checked={active} onChange={e=>setSolF(p=>({...p,modules:e.target.checked?[...(Array.isArray(p.modules)?p.modules:[]),key]:(Array.isArray(p.modules)?p.modules:[]).filter(x=>x!==key)}))}/>
-                  <span style={{fontSize:12,color:"var(--wh)"}}>{label}</span>
-                </label>;
-              })}
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Rol inicial</div>
-            <select value={solF.rol||"admin"} onChange={e=>setSolF(p=>({...p,rol:e.target.value}))} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
-              <option value="admin">Administrador</option>
-              <option value="productor">Productor</option>
-              <option value="comercial">Comercial</option>
-            </select></div>
-            <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Código de referido</div>
-            <input value={solF.referralCode||""} onChange={e=>setSolF(p=>({...p,referralCode:e.target.value.toUpperCase()}))} placeholder="PLAYMEDIASPA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-          </div>
-          <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Mensaje (opcional)</div>
-          <textarea value={solF.msg||""} onChange={e=>setSolF(p=>({...p,msg:e.target.value}))} placeholder="Cuéntanos brevemente qué necesitas operar con Produ..." rows={3} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/></div>
-          <button onClick={async()=>{
-            if(!solF.nom||!solF.ema||!solF.emp||!solF.tel){alert("Completa nombre, email, teléfono y empresa.");return;}
-            const referral=(empresas||[]).find(e=>String(e.referralCode||"").toUpperCase()===String(solF.referralCode||"").toUpperCase()&&e.active!==false);
-            const companyId=`emp_${uid().slice(1,7)}`;
-            const allEmp=normalizeEmpresasModel((await dbGet("produ:empresas"))||(releaseMode?[]:SEED_EMPRESAS));
-            const pendingCompany=normalizeEmpresasModel([{
-              id:companyId,
-              tenantCode:nextTenantCode(allEmp),
-              nombre:solF.emp,
-              rut:solF.rut||"",
-              dir:solF.dir||"",
-              tel:solF.tel||"",
-              ema:solF.ema||"",
-              logo:"",
-              color:"#00d4e8",
-              addons:[],
-              active:false,
-              pendingActivation:true,
-              requestType:"demo",
-              customerType:solF.customerType||"productora",
-              teamSize:solF.teamSize||"1-3",
-              requestedModules:Array.isArray(solF.modules)?solF.modules:[],
-              referredByEmpId:referral?.id||"",
-              referredByName:referral?.nombre||"",
-              referred:true===!!referral,
-              plan:"starter",
-              googleCalendarEnabled:false,
-              migratedTasksAddon:true,
-              systemMessages:[],
-              systemBanner:{active:false,tone:"info",text:""},
-              billingCurrency:"UF",
-              billingMonthly:0,
-              billingDiscountPct:0,
-              billingDiscountNote:"",
-              billingStatus:"Pendiente",
-              billingDueDay:0,
-              billingLastPaidAt:"",
-              contractOwner:solF.nom,
-              clientPortalUrl:"",
-              cr:today()
-            }])[0];
-            if(!releaseMode){
-              await dbSet("produ:empresas",[...allEmp,pendingCompany]);
-            }
-            const sol={id:uid(),tipo:"empresa",nom:solF.nom,ema:solF.ema,tel:solF.tel,emp:solF.emp,rol:solF.rol||"admin",msg:solF.msg||"",fecha:today(),estado:"pendiente",empresaId:companyId,customerType:solF.customerType||"productora",teamSize:solF.teamSize||"1-3",requestedModules:Array.isArray(solF.modules)?solF.modules:[],referred:!!referral,referredByEmpId:referral?.id||"",referredByName:referral?.nombre||"",referralCode:solF.referralCode||"",companyDraft:pendingCompany};
-            const cur=await dbGet("produ:solicitudes")||[];
-            await dbSet("produ:solicitudes",[...cur,sol]);
-            setSolSent(true);
-          }} style={{width:"100%",padding:"11px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700}}>Enviar solicitud →</button>
-        </div>}
-    </div>
-  </div>;
-}
-
 export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, sha256Hex, dbHelpers, authGateway, authModeLabel = "", releaseMode = false }) {
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
   const [showPass,setShowPass]=useState(false);
-  const [solOpen,setSolOpen]=useState(false);const [solF,setSolF]=useState({});const [solSent,setSolSent]=useState(false);
+  const { solOpen, solF, solSent, setSolF, setSolSent, open: openSelfServe, close: closeSelfServe } = useLabSelfServeAccess();
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
@@ -189,6 +37,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const [setupQr, setSetupQr] = useState("");
   const [acceptedRecovery, setAcceptedRecovery] = useState(false);
   const isLocalAuth = authGateway?.strategy !== "supabase";
+  const platformApi = dbHelpers?.platformApi || null;
 
   const resetTwoFactorFlow = () => {
     setPending2FA(null);
@@ -270,12 +119,11 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setLoad(true);setErr("");
     resetTwoFactorFlow();
     await new Promise(r=>setTimeout(r,400));
-    const { user, error, requiresSecondFactor, updatedUser } = await authGateway.authenticate({
-      users,
-      empresas,
-      email,
-      password: pass,
-    });
+    const { user, error, requiresSecondFactor, updatedUser } = await (
+      platformApi?.auth?.loginWithPassword
+        ? platformApi.auth.loginWithPassword({ email, password: pass })
+        : authGateway.authenticate({ users, empresas, email, password: pass })
+    );
     if(updatedUser){
       await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
@@ -290,14 +138,39 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setErr("");
     setResetInfo("");
     setResetRevealCode("");
-    const { ok, message, revealedCode, updatedUser } = await authGateway.requestPasswordReset({
-      users,
-      email: forgotEmail,
-    });
+    const { ok, message, revealedCode, updatedUser } = await (
+      platformApi?.auth?.requestPasswordReset
+        ? platformApi.auth.requestPasswordReset({ email: forgotEmail })
+        : authGateway.requestPasswordReset({ users, email: forgotEmail })
+    );
+    let deliveryMessage = "";
     if (updatedUser) {
       await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
-    setResetInfo(message || (ok ? "Revisa tu recuperación." : "No fue posible iniciar la recuperación."));
+    if (isLocalAuth && revealedCode && platformApi?.notifications?.sendTransactionalEmail) {
+      try {
+        const delivery = await platformApi.notifications.sendTransactionalEmail({
+          templateKey: "password_reset",
+          subject: "Recuperación de contraseña en Produ",
+          to: [{ email: forgotEmail }],
+          text: `Tu código temporal de recuperación es ${revealedCode}. Válido por 15 minutos.`,
+          html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a"><p>Tu código temporal de recuperación en <strong>Produ</strong> es:</p><p style="font-size:22px;font-weight:700;letter-spacing:2px">${revealedCode}</p><p>Válido por 15 minutos.</p></div>`,
+          entityType: "auth_password_reset",
+          entityId: forgotEmail,
+          metadata: {
+            authMode: authGateway?.strategy || "local",
+          },
+        });
+        if (delivery?.ok) {
+          deliveryMessage = delivery.status === "accepted"
+            ? " También registramos el envío en el gateway transaccional."
+            : " También dejamos preparado el envío transaccional en modo laboratorio.";
+        }
+      } catch {
+        deliveryMessage = "";
+      }
+    }
+    setResetInfo((message || (ok ? "Revisa tu recuperación." : "No fue posible iniciar la recuperación.")) + deliveryMessage);
     setResetRevealCode(revealedCode || "");
     setLoad(false);
   };
@@ -428,23 +301,23 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
       <div className="login-promo" style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
         <div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Demo gratis</div>
-          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Opera tu productora con una demo real de Produ</div>
-          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:16}}>Crea una instancia demo, define tus módulos de interés y deja la empresa lista para activación. Ideal para productoras, creadores y equipos de contenido.</div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Contratación guiada</div>
+          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Activa tu empresa en Produ</div>
+          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:16}}>Completa los datos de tu empresa, define el primer administrador y elige los addons que necesitas hoy. Ideal para productoras, agencias y equipos de contenido.</div>
           <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {[["Módulos","Activa solo lo que necesitas"],["Equipo","Invita usuarios y crew"],["Comercial","Presupuestos e invoices"]].map(([title,sub])=><div key={title} style={{padding:"14px 14px",borderRadius:16,background:"rgba(8,8,9,.28)",border:"1px solid var(--bdr2)"}}><div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>{sub}</div></div>)}
           </div>
         </div>
-        <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
+          <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
           <div style={{padding:18,borderRadius:18,background:"rgba(6,10,18,.5)",border:"1px solid var(--bdr2)"}}>
             <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
             <div style={{display:"grid",gap:8,fontSize:12,color:"var(--gr3)"}}>
-              <div>• Calendario, clientes y operación editorial</div>
-              <div>• Configuración modular según tu tipo de negocio</div>
-              <div>• Activación supervisada por el equipo de Produ</div>
+              <div>• Base Produ: dashboard, calendario, clientes y proyectos</div>
+              <div>• Addons según tu operación comercial, financiera u operativa</div>
+              <div>• Activación guiada y supervisada por el equipo de Produ</div>
             </div>
           </div>
-          <button type="button" onClick={()=>setSolOpen(true)} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)"}}>Crear demo gratis</button>
+          <button type="button" onClick={openSelfServe} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)"}}>¿Quieres contratar Produ?</button>
         </div>
       </div>
       <div className="login-form" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
@@ -570,7 +443,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
               <div>
                 <>
                   <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
-                  <button type="button" onClick={()=>setSolOpen(true)} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
+                  <button type="button" onClick={openSelfServe} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
                 </>
               </div>
             </>}
@@ -580,7 +453,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       </div>
     </div>
   </div>
-  {solOpen&&<SolicitudModal onClose={()=>{setSolOpen(false);setSolF({});setSolSent(false);}} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>}
+  {solOpen&&<AuthModalErrorBoundary onClose={closeSelfServe}>
+    <SolicitudModal onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
+  </AuthModalErrorBoundary>}
   </>;
 }
 

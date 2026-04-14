@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/storageNamespace";
+import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/labStorageConfig";
 import { loadStoredJson } from "../lib/auth/sessionStorage";
 
 export function useLabGlobalInit({
@@ -9,13 +9,9 @@ export function useLabGlobalInit({
   setEmpresasRaw,
   setUsersRaw,
   setPrintLayoutsRaw,
-  setSupportThreadsRaw,
-  setSupportSettingsRaw,
   normalizeEmpresasTenantCodes,
   ensureRequiredSystemUsers,
   normalizePrintLayouts,
-  normalizeSupportThreads,
-  buildSupportSettings,
   applyTheme,
   THEME_PRESETS,
   setStoredSession,
@@ -24,7 +20,6 @@ export function useLabGlobalInit({
   DEFAULT_PRINT_LAYOUTS,
   empresas,
   users,
-  supportSettings,
 }) {
   useEffect(() => {
     const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
@@ -64,18 +59,6 @@ export function useLabGlobalInit({
       const normalized = normalizePrintLayouts(clonedLayouts || DEFAULT_PRINT_LAYOUTS);
       setPrintLayoutsRaw(normalized);
       if (!LAB_DATA_CONFIG.releaseMode && (!value || JSON.stringify(normalized) !== JSON.stringify(clonedLayouts))) dbSet("produ:printLayouts", normalized);
-    });
-
-    dbGet("produ:supportThreads").then(value => {
-      const normalized = normalizeSupportThreads(value || [], domainEmpresas, domainUsers, supportSettings || {});
-      setSupportThreadsRaw(normalized);
-      if (!LAB_DATA_CONFIG.releaseMode && (!value || JSON.stringify(normalized) !== JSON.stringify(value))) dbSet("produ:supportThreads", normalized);
-    });
-
-    dbGet("produ:supportSettings").then(value => {
-      const normalized = buildSupportSettings(value || {}, domainUsers);
-      setSupportSettingsRaw(normalized);
-      if (!LAB_DATA_CONFIG.releaseMode && (!value || JSON.stringify(normalized) !== JSON.stringify(value))) dbSet("produ:supportSettings", normalized);
     });
 
     applyTheme(THEME_PRESETS.dark);

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import { ContactBtns } from "../shared/ContactButtons";
+import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
   Badge,
   Btn,
@@ -11,6 +14,7 @@ import {
   GBtn,
   KV,
   ModuleHeader,
+  Modal,
   Paginator,
   SearchBar,
   Sep,
@@ -53,6 +57,13 @@ export function ViewClientes({
       return String(a.nom || "").localeCompare(String(b.nom || ""));
     });
   const canEdit = canDo?.("clientes");
+  const bsaleClientReady = client => Boolean(
+    String(client?.nom || "").trim()
+    && String(client?.rut || "").trim()
+    && String(client?.dir || "").trim()
+    && String(client?.ciudad || "").trim()
+    && String(client?.comuna || "").trim()
+  );
 
   return (
     <div>
@@ -79,7 +90,10 @@ export function ViewClientes({
               return (
                 <div key={c.id} onClick={() => navTo("cli-det", c.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 10, padding: 20, cursor: "pointer", transition: ".15s" }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseLeave={e => { e.currentTarget.style.transform = ""; }}>
                   <div style={{ width: 44, height: 44, background: "var(--cg)", border: "1px solid var(--cm)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: "var(--cy)", marginBottom: 14 }}>{ini(c.nom)}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{c.nom}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{c.nom}</div>
+                    <Badge sm label={bsaleClientReady(c) ? "Facturable" : "No facturable"} color={bsaleClientReady(c) ? "green" : "yellow"} />
+                  </div>
                   <div style={{ fontSize: 11, color: "var(--gr2)" }}>{c.ind || "Sin industria"}</div>
                   <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 5 }}>Cupo: {Number(c.creditLimit || 0) > 0 ? fmtM(c.creditLimit) : "No definido"}</div>
                   {(c.contactos || []).slice(0, 2).map(co => <div key={co.id} style={{ fontSize: 11, color: "var(--gr2)", marginTop: 5 }}>👤 {co.nom}{co.car ? ` · ${co.car}` : ""}</div>)}
@@ -103,6 +117,7 @@ export function ViewClientes({
                   <TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Nombre</TH>
                   <TH>Industria</TH>
                   <TH>Contacto Principal</TH>
+                  <TH>Bsale</TH>
                   <TH>Email</TH>
                   <TH>Teléfono</TH>
                   <TH>Cupo</TH>
@@ -121,6 +136,7 @@ export function ViewClientes({
                       <TD bold>{c.nom}</TD>
                       <TD>{c.ind || "—"}</TD>
                       <TD>{pc ? pc.nom : "—"}</TD>
+                      <TD><Badge sm label={bsaleClientReady(c) ? "Facturable" : "No facturable"} color={bsaleClientReady(c) ? "green" : "yellow"} /></TD>
                       <TD style={{ fontSize: 11 }}>{pc?.ema || "—"}</TD>
                       <TD style={{ fontSize: 11 }}>{pc?.tel || "—"}</TD>
                       <TD mono>{Number(c.creditLimit || 0) > 0 ? fmtM(c.creditLimit) : "—"}</TD>
@@ -158,6 +174,9 @@ export function ViewCliDet({
   fmtD,
   countCampaignPieces,
   ini,
+  ntf,
+  platformApi,
+  user,
 }) {
   const empId = empresa?.id;
   const canManageClients = !!canDo?.("clientes");
@@ -206,6 +225,105 @@ export function ViewCliDet({
     if (pzSort === "balance-asc") return ba - bb;
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
+  const [emailChoice, setEmailChoice] = useState(null);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = useState(null);
+  const [emailComposerSending, setEmailComposerSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(null);
+  const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
+  const recordClientEmail = async ({ draft, recipients, delivery = null, source = "remote" }) => {
+    if (!c?.id) return;
+    const nextEntry = {
+      id: `client_mail_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      subject: String(draft?.subject || "").trim(),
+      to: recipients.join(", "),
+      text: String(draft?.body || "").trim(),
+      attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+      createdAt: new Date().toISOString(),
+      byName: user?.name || user?.nom || user?.email || "Usuario",
+      byEmail: user?.email || "",
+      source,
+      delivery,
+    };
+    const nextClients = (clientes || []).map(item => item.id === c.id ? { ...item, emailHistory: [nextEntry, ...(Array.isArray(item.emailHistory) ? item.emailHistory : [])].slice(0, 50) } : item);
+    await setClientes(nextClients);
+  };
+  const openClientEmailChoice = contact => {
+    if (!contact?.ema) return;
+    setEmailChoice(contact);
+  };
+  const openClientEmailComposer = contact => {
+    if (!contact?.ema) return;
+    const resolved = resolveTransactionalEmailTemplate(empresa, "client_contact", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      contactName: contact.nom || c.nom || "equipo",
+      messageBody: `Queríamos tomar contacto con ${c.nom || "ustedes"} para dar continuidad a la gestión.`,
+    });
+    setEmailComposerDraft({
+      tenantId: empresa?.id || "",
+      templateKey: "client_contact",
+      subject: `Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`,
+      to: contact.ema,
+      body: resolved.body,
+      entityType: "client",
+      entityId: c.id || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: c.nom || "",
+        contactName: contact.nom || "",
+      },
+    });
+    setEmailChoice(null);
+    setEmailComposerOpen(true);
+  };
+  const closeClientEmailComposer = () => {
+    if (emailComposerSending) return;
+    setEmailComposerOpen(false);
+    setEmailComposerDraft(null);
+  };
+  const sendClientEmail = async (draft) => {
+    const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!recipients.length) {
+      window.alert("Debes indicar al menos un destinatario.");
+      return;
+    }
+    if (!String(draft?.subject || "").trim() || !String(draft?.body || "").trim()) {
+      window.alert("El asunto y el cuerpo del correo son obligatorios.");
+      return;
+    }
+    setEmailComposerSending(true);
+    try {
+      const payload = {
+        tenantId: draft?.tenantId || empresa?.id || "",
+        templateKey: draft?.templateKey || "client_contact",
+        subject: String(draft?.subject || "").trim(),
+        to: recipients,
+        text: String(draft?.body || "").trim(),
+        html: `<p>${String(draft?.body || "").trim().replace(/\n/g, "<br />")}</p>`,
+        replyTo: String(user?.email || "").trim() || undefined,
+        attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+        entityType: draft?.entityType || "client",
+        entityId: draft?.entityId || "",
+        metadata: draft?.metadata || {},
+      };
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (!remoteResult?.ok) {
+        if (remoteResult?.message) {
+          window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+        }
+        window.open(`mailto:${encodeURIComponent(recipients.join(","))}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(payload.text)}`, "_blank");
+        ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);
+        await recordClientEmail({ draft, recipients, source: "mailto_fallback" });
+      } else {
+        ntf?.(`Correo enviado a ${recipients.join(", ")} ✓`);
+        await recordClientEmail({ draft, recipients, source: remoteResult?.source || "remote", delivery: remoteResult?.delivery || null });
+      }
+      setEmailComposerOpen(false);
+      setEmailComposerDraft(null);
+    } finally {
+      setEmailComposerSending(false);
+    }
+  };
   const associationBlocks = [
     {
       key: "pro",
@@ -241,7 +359,7 @@ export function ViewCliDet({
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         <Card title="Contactos">
-          {(c.contactos || []).length > 0 ? (c.contactos || []).map(co => <div key={co.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--cg)", border: "1px solid var(--cm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--cy)", flexShrink: 0 }}>{ini(co.nom)}</div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{co.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{co.car || "—"}</div></div></div><div style={{ fontSize: 11, color: "var(--gr3)", paddingLeft: 38, marginBottom: 8 }}>✉ {co.ema || "—"} &nbsp;·&nbsp; ☎ {co.tel || "—"}</div>{co.not && <div style={{ fontSize: 11, color: "var(--gr2)", paddingLeft: 38, marginBottom: 8 }}>{co.not}</div>}<div style={{ paddingLeft: 38 }}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} /></div></div>) : <Empty text="Sin contactos registrados" />}
+          {(c.contactos || []).length > 0 ? (c.contactos || []).map(co => <div key={co.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--cg)", border: "1px solid var(--cm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--cy)", flexShrink: 0 }}>{ini(co.nom)}</div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{co.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{co.car || "—"}</div></div></div><div style={{ fontSize: 11, color: "var(--gr3)", paddingLeft: 38, marginBottom: 8 }}>✉ {co.ema || "—"} &nbsp;·&nbsp; ☎ {co.tel || "—"}</div>{co.not && <div style={{ fontSize: 11, color: "var(--gr2)", paddingLeft: 38, marginBottom: 8 }}>{co.not}</div>}<div style={{ paddingLeft: 38 }}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} onEmail={co?.ema ? () => openClientEmailChoice(co) : null} emailLabel="Correo" /></div></div>) : <Empty text="Sin contactos registrados" />}
         </Card>
         <Card title="Financiero">
           <KV label="Total Ingresos" value={<span style={{ color: "#00e08a", fontFamily: "var(--fm)" }}>{fmtM(ti)}</span>} />
@@ -253,11 +371,79 @@ export function ViewCliDet({
           {c.not && <><Sep /><div style={{ fontSize: 12, color: "var(--gr3)" }}>{c.not}</div></>}
         </Card>
       </div>
+      <Card title={`Correos enviados (${emailHistory.length})`} style={{ marginBottom: 20 }}>
+        {emailHistory.length ? <div style={{ display: "grid", gap: 10 }}>
+          {emailHistory.map(item => <button key={item.id} type="button" onClick={() => setEmailPreview(item)} style={{ width: "100%", textAlign: "left", padding: 14, borderRadius: 12, border: "1px solid var(--bdr)", background: "var(--card)", cursor: "pointer" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{item.subject || "Sin asunto"}</div>
+              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}</div>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 4 }}>Para: {item.to || "—"}</div>
+            <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Enviado por: {item.byName || "Usuario"}</div>
+            <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.text || "Sin contenido"}</div>
+          </button>)}
+        </div> : <Empty text="Sin correos enviados" sub="Aquí verás el historial de correos enviados a este cliente." />}
+      </Card>
       {associationBlocks.map(block => <Card key={block.key} title={`${block.title} (${block.count})`} action={block.action} style={{ marginBottom: 16 }}>{block.render()}</Card>)}
       <Card title={`Contratos (${cts.length})`} action={canDo?.("contratos") ? { label: "+ Nuevo", fn: () => openM("ct", { cliId: id }) } : null}>
         {cts.map(ct => <div key={ct.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 18, flexShrink: 0 }}>📄</span><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{ct.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{ct.tip}{ct.vig ? ` · ${fmtD(ct.vig)}` : ""}</div></div><Badge label={ct.est} />{ct.mon && <span style={{ fontFamily: "var(--fm)", fontSize: 12 }}>{fmtM(ct.mon)}</span>}</div>)}
         {!cts.length && <Empty text="Sin contratos" />}
       </Card>
+      <Modal open={!!emailChoice} onClose={() => setEmailChoice(null)} title="Enviar correo" sub="Elige cómo quieres continuar con este contacto.">
+        <div style={{ display: "grid", gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => openClientEmailComposer(emailChoice)}
+            style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "#ffffff", color: "#0f172a", fontWeight: 700, cursor: "pointer", textAlign: "left" }}
+          >
+            Enviar desde Produ
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!emailChoice?.ema) return;
+              const subject = encodeURIComponent(`Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`);
+              const body = encodeURIComponent(`Hola ${emailChoice?.nom || ""},\n\nTe escribimos desde ${empresa?.nombre || empresa?.nom || "Produ"}.\n\nQuedamos atentos.`);
+              window.open(`mailto:${encodeURIComponent(emailChoice.ema)}?subject=${subject}&body=${body}`, "_blank");
+              setEmailChoice(null);
+            }}
+            style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "#ffffff", color: "#0f172a", fontWeight: 700, cursor: "pointer", textAlign: "left" }}
+          >
+            Enviar desde tu correo
+          </button>
+        </div>
+      </Modal>
+      <Modal open={!!emailPreview} onClose={() => setEmailPreview(null)} title={emailPreview?.subject || "Correo enviado"} sub={emailPreview?.to ? `Para ${emailPreview.to}` : "Vista previa del correo enviado"} wide>
+        {emailPreview && <>
+          <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Fecha:</b> {emailPreview.createdAt ? new Date(emailPreview.createdAt).toLocaleString("es-CL") : "—"}</div>
+            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Enviado por:</b> {emailPreview.byName || "Usuario"}</div>
+            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Origen:</b> {emailPreview.source === "mailto_fallback" ? "Tu cliente de correo" : "Produ"}</div>
+          </div>
+          <div style={{ padding: 14, borderRadius: 12, border: "1px solid var(--bdr)", background: "var(--sur)", fontSize: 13, color: "var(--gr3)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            {emailPreview.text || "Sin contenido"}
+          </div>
+          {!!normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 14 }}>
+              {normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
+                {att.type === "pdf"
+                  ? <div style={{ display: "grid", placeItems: "center", height: 96, padding: 10, textAlign: "center" }}>
+                      <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
+                      <div style={{ fontSize: 10, color: "var(--gr3)", lineHeight: 1.35, wordBreak: "break-word" }}>{att.name || "Documento PDF"}</div>
+                    </div>
+                  : <img src={att.src} alt={att.name || "Adjunto email"} style={{ display: "block", width: "100%", height: 96, objectFit: "cover" }} />}
+              </a>)}
+            </div>
+          )}
+        </>}
+      </Modal>
+      <TransactionalEmailComposerModal
+        open={emailComposerOpen}
+        draft={emailComposerDraft}
+        sending={emailComposerSending}
+        onClose={closeClientEmailComposer}
+        onSend={sendClientEmail}
+      />
     </div>
   );
 }

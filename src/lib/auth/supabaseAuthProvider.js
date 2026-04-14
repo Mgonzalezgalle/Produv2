@@ -1,4 +1,4 @@
-import { sb } from "./clientAuth";
+import { sb } from "./supabaseClient";
 import { findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 
 export async function authenticateSupabaseUser({ users = [], empresas = [], email = "", password = "" }) {

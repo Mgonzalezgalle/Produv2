@@ -325,7 +325,7 @@ export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding
 
 export function Card({ title, sub, action, children, style = {} }) {
   return (
-    <div style={{ background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 16, padding: 20, boxShadow: "0 12px 32px rgba(0,0,0,.08)", ...style }}>
+    <div style={{ width: "100%", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 16, padding: 20, boxShadow: "0 12px 32px rgba(0,0,0,.08)", ...style }}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid var(--bdr)" }}>
           <div>
@@ -342,7 +342,7 @@ export function Card({ title, sub, action, children, style = {} }) {
 
 export function ModuleHeader({ module, title, description, actions, style = {} }) {
   return (
-    <div style={{ marginBottom: 22, ...style }}>
+    <div style={{ width: "100%", minWidth: 0, marginBottom: 22, ...style }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 800, color: "var(--wh)", lineHeight: 1.05 }}>
@@ -352,7 +352,7 @@ export function ModuleHeader({ module, title, description, actions, style = {} }
         </div>
         {actions ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div> : null}
       </div>
-      <div style={{ height: 1, background: "linear-gradient(90deg,var(--bdr2),transparent 70%)", marginTop: 18 }} />
+      <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg,var(--bdr2),transparent 70%)", marginTop: 18 }} />
     </div>
   );
 }
@@ -370,7 +370,7 @@ export const Tabs = ({ tabs, active, onChange }) => <div style={{ display: "flex
 export const KV = ({ label, value }) => <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 12, color: "var(--gr2)" }}>{label}</span><span style={{ fontSize: 13, textAlign: "right", maxWidth: "60%" }}>{value}</span></div>;
 
 export function SearchBar({ value, onChange, placeholder }) {
-  return <div className="search-wrap" style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, padding: "10px 13px", maxWidth: 320, flex: 1, boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ background: "none", border: "none", color: "var(--wh)", fontFamily: "var(--fb)", fontSize: 13, flex: 1, outline: "none", minWidth: 0 }} />{value && <span onClick={() => onChange("")} style={{ cursor: "pointer", color: "var(--gr2)", fontSize: 14 }}>×</span>}</div>;
+  return <div className="search-wrap" style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, padding: "10px 13px", flex: "1 1 320px", minWidth: 260, width: "100%", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ background: "none", border: "none", color: "var(--wh)", fontFamily: "var(--fb)", fontSize: 13, flex: 1, outline: "none", minWidth: 0 }} />{value && <span onClick={() => onChange("")} style={{ cursor: "pointer", color: "var(--gr2)", fontSize: 14 }}>×</span>}</div>;
 }
 
 export function FilterSel({ value, onChange, options, placeholder, onPointerDown, ...props }) {
@@ -383,7 +383,7 @@ export function FilterSel({ value, onChange, options, placeholder, onPointerDown
     onMouseDown={e => e.stopPropagation()}
     onClick={e => e.stopPropagation()}
     onChange={e => onChange(e.target.value)}
-    style={{ padding: "10px 12px", background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, color: "var(--gr3)", fontFamily: "var(--fb)", fontSize: 12, cursor: "pointer", outline: "none", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}
+    style={{ padding: "10px 12px", minHeight: 44, background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, color: "var(--gr3)", fontFamily: "var(--fb)", fontSize: 12, cursor: "pointer", outline: "none", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}
     {...props}
   ><option value="">{placeholder}</option>{options.map(o => typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o}>{o}</option>)}</select>;
 }

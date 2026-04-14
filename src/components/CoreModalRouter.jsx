@@ -11,7 +11,7 @@ export function CoreModalRouter({
   mData,
   closeM,
   VP,
-  setters,
+  stateSetters,
   ntf,
   cSave,
   saveMov,
@@ -20,7 +20,23 @@ export function CoreModalRouter({
   today,
 }) {
   const { empresa, clientes, producciones, programas, piezas, auspiciadores, contratos, crew, eventos } = VP;
-  const { setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setContratos, setCrew, setEventos, setPresupuestos, setFacturas, setActivos, setTareas } = setters;
+  const {
+    setClientes,
+    setProducciones,
+    setProgramas,
+    setPiezas,
+    setEpisodios,
+    setAuspiciadores,
+    setContratos,
+    setCrew,
+    setEventos,
+    setPresupuestos,
+    setFacturas,
+    setActivos,
+    setTareas,
+    setCrmOpps,
+    setCrmActivities,
+  } = stateSetters;
   const canWrite = (action) => !!(VP.canDo && VP.canDo(action));
   const guardSave = (action, handler) => async (payload) => {
     if (!canWrite(action)) return false;
@@ -45,8 +61,8 @@ export function CoreModalRouter({
     cSave,
     setContratos,
     setPiezas,
-    setCrmOpps: setters.setCrmOpps,
-    setCrmActivities: setters.setCrmActivities,
+    setCrmOpps,
+    setCrmActivities,
     setTareas,
     closeM,
     ntf,
@@ -114,6 +130,7 @@ export function CoreModalRouter({
       contratos={VP.contratos}
       presupuestos={VP.presupuestos}
       facturas={VP.facturas}
+      purchaseOrders={VP.purchaseOrders}
       currentUser={VP.user}
       onSaveContrato={saveContratoSafe}
       onSaveMovimiento={saveMov}

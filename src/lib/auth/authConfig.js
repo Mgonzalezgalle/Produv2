@@ -1,4 +1,4 @@
-import { LAB_DATA_CONFIG } from "../lab/storageNamespace";
+import { LAB_DATA_CONFIG } from "../lab/labStorageConfig";
 
 const AUTH_STRATEGIES = {
   AUTO: "auto",

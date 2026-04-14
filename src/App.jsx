@@ -778,7 +778,7 @@ export default function App(){
     exportActiveClientsCsvHelper,
     exportActiveClientsPdfHelper,
     TareaCard,
-  } = buildAppOperationHelpers({
+  } = useMemo(() => buildAppOperationHelpers({
     commentAttachmentFromFile,
     normalizeCommentAttachments,
     getAssignedIds,
@@ -793,7 +793,22 @@ export default function App(){
     companyBillingNet,
     companyReferralDiscountMonthsPending,
     fmtMoney,
-  });
+  }), [
+    commentAttachmentFromFile,
+    normalizeCommentAttachments,
+    getAssignedIds,
+    uid,
+    today,
+    fmtD,
+    fmtM,
+    ini,
+    companyPrintColor,
+    companyBillingStatus,
+    companyBillingBaseNet,
+    companyBillingNet,
+    companyReferralDiscountMonthsPending,
+    fmtMoney,
+  ]);
 
   const {
     currentEmpresa,

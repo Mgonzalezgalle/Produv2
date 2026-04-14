@@ -360,7 +360,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
   </div>;
 }
 
-export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, openM, canDo, cDel, setContratos }) {
+export function ViewCts({ empresa, user, platformApi, contratos, clientes, presupuestos, facturas, openM, canDo, cDel, setContratos }) {
   const empId = empresa?.id;
   const [q, setQ] = React.useState("");
   const [fe, setFe] = React.useState("");
@@ -369,6 +369,9 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
   const [bulkEstado, setBulkEstado] = React.useState("");
   const [vista, setVista] = React.useState("list");
   const [pg, setPg] = React.useState(1);
+  const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
+  const [emailComposerSending, setEmailComposerSending] = React.useState(false);
   const PP = 10;
   const fd = (contratos || []).filter(x => x.empId === empId).filter(c => c.nom.toLowerCase().includes(q.toLowerCase()) && (!fe || contractVisualState(c) === fe || c.est === fe)).sort((a, b) => {
     if (sortMode === "az") return String(a.nom || "").localeCompare(String(b.nom || ""));
@@ -383,6 +386,85 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
   const vencidos = fd.filter(ct => contractVisualState(ct) === "Vencido").length;
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
+  const closeEmailComposer = React.useCallback(() => {
+    if (emailComposerSending) return;
+    setEmailComposerOpen(false);
+    setEmailComposerDraft(null);
+  }, [emailComposerSending]);
+  const deliverContractEmailDraft = React.useCallback(async (draft = {}) => {
+    const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!recipients.length) return { ok: false, message: "Debes indicar al menos un destinatario." };
+    const subject = String(draft?.subject || "").trim();
+    const body = String(draft?.body || "").trim();
+    if (!subject || !body) return { ok: false, message: "El asunto y el cuerpo del correo son obligatorios." };
+    const payload = {
+      tenantId: draft?.tenantId || empresa?.id || "",
+      templateKey: draft?.templateKey || "contract_manual_delivery",
+      subject,
+      to: recipients,
+      text: body,
+      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      replyTo: String(draft?.replyTo || user?.email || "").trim() || undefined,
+      attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+      entityType: draft?.entityType || "",
+      entityId: draft?.entityId || "",
+      metadata: draft?.metadata || {},
+    };
+    try {
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (remoteResult?.ok) return remoteResult;
+      if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+    } catch {}
+    if (Array.isArray(draft?.attachments) && draft.attachments.length) {
+      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+    }
+    window.location.href = buildBudgetMailto(recipients.join(","), subject, body);
+    return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
+  }, [empresa?.id, platformApi, user?.email]);
+  const openContractEmailComposer = React.useCallback(async (ct) => {
+    const client = (clientes || []).find(item => item.id === ct.cliId);
+    const contact = (client?.contactos || []).find(item => item?.ema) || (client?.contactos || [])[0];
+    const email = String(contact?.ema || "").trim();
+    if (!email) {
+      window.alert("El cliente no tiene email registrado para enviar este contrato.");
+      return;
+    }
+    const resolved = resolveTransactionalEmailTemplate(empresa, "contract_manual_delivery", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      entityLabel: client?.nom || contact?.nom || "cliente",
+      documentNumber: ct?.nom || "sin nombre",
+      contractType: ct?.tip || "Contrato",
+      validityLabel: ct?.vig ? fmtD(ct.vig) : "Sin vigencia definida",
+      totalFormatted: ct?.mon ? fmtM(ct.mon) : "Sin monto definido",
+    });
+    const attachments = [];
+    if (ct?.arc) {
+      attachments.push({
+        id: `contract_${ct.id || Date.now()}`,
+        name: `${String(ct.nom || "contrato").trim() || "contrato"}.pdf`,
+        type: String(ct.arc).startsWith("data:application/pdf") ? "pdf" : "image",
+        src: ct.arc,
+      });
+    }
+    setEmailComposerDraft({
+      tenantId: empresa?.id || "",
+      templateKey: "contract_manual_delivery",
+      subject: `Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`,
+      to: email,
+      body: resolved.body,
+      attachments,
+      entityType: "contract",
+      entityId: ct?.id || "",
+      replyTo: user?.email || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: client?.nom || "",
+        contactName: contact?.nom || "",
+        documentNumber: ct?.nom || "",
+      },
+    });
+    setEmailComposerOpen(true);
+  }, [clientes, empresa, user?.email]);
   return <div>
     <ModuleHeader
       module="Contratos"
@@ -438,9 +520,12 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
               {ct.vig && <Badge label={`Vig. ${fmtD(ct.vig)}`} color="cyan" sm />}
             </div>
             <div style={{ fontSize: 11, color: "var(--gr2)" }}>{vinculos || "Sin vínculos"}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bdr)" }}>
-              <span style={{ fontFamily: "var(--fm)", fontSize: 12, color: "var(--cy)" }}>{ct.mon ? fmtM(ct.mon) : "—"}</span>
-              <div style={{ display: "flex", gap: 4 }}>{canDo && canDo("contratos") && <><GBtn sm onClick={() => openM("ct", ct)}>✏</GBtn><XBtn onClick={() => cDel(contratos, setContratos, ct.id, null, "Contrato eliminado")} /></>}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bdr)" }}>
+                <span style={{ fontFamily: "var(--fm)", fontSize: 12, color: "var(--cy)" }}>{ct.mon ? fmtM(ct.mon) : "—"}</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <GBtn sm onClick={() => openContractEmailComposer(ct)}>✉</GBtn>
+                {canDo && canDo("contratos") && <><GBtn sm onClick={() => openM("ct", ct)}>✏</GBtn><XBtn onClick={() => cDel(contratos, setContratos, ct.id, null, "Contrato eliminado")} /></>}
+              </div>
             </div>
           </div>;
         })}
@@ -460,13 +545,33 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
               <TD style={{ fontSize: 11, color: "var(--gr2)" }}>
                 {[(ct.pids || []).length && `${(ct.pids || []).length} vinc.`, ct.presupuestoId && `${(presupuestos || []).filter(p => p.id === ct.presupuestoId).length} pres.`, (ct.facturaIds || []).length && `${(ct.facturaIds || []).length} fact.`].filter(Boolean).join(" · ") || "Sin vínculos"}
               </TD>
-              <TD><div style={{ display: "flex", gap: 4 }}>{canDo && canDo("contratos") && <><GBtn sm onClick={() => openM("ct", ct)}>✏</GBtn><XBtn onClick={() => cDel(contratos, setContratos, ct.id, null, "Contrato eliminado")} /></>}</div></TD>
+              <TD><div style={{ display: "flex", gap: 4 }}><GBtn sm onClick={() => openContractEmailComposer(ct)}>✉</GBtn>{canDo && canDo("contratos") && <><GBtn sm onClick={() => openM("ct", ct)}>✏</GBtn><XBtn onClick={() => cDel(contratos, setContratos, ct.id, null, "Contrato eliminado")} /></>}</div></TD>
             </tr>; })}
             {!fd.length && <tr><td colSpan={9}><Empty text="Sin contratos" /></td></tr>}
           </tbody>
         </table></div>
         <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
       </Card>}
+    <TransactionalEmailComposerModal
+      open={emailComposerOpen}
+      draft={emailComposerDraft}
+      sending={emailComposerSending}
+      onClose={closeEmailComposer}
+      onSend={async draft => {
+        setEmailComposerSending(true);
+        try {
+          const result = await deliverContractEmailDraft(draft);
+          if (!result?.ok) {
+            window.alert(result?.message || "No pudimos enviar el correo.");
+            return;
+          }
+          setEmailComposerOpen(false);
+          setEmailComposerDraft(null);
+        } finally {
+          setEmailComposerSending(false);
+        }
+      }}
+    />
   </div>;
 }
 

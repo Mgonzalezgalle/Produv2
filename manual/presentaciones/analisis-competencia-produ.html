@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análisis de Competencia - Produ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#06111d;
+      --panel:#0d1928;
+      --panel-2:#13263b;
+      --line:rgba(255,255,255,.08);
+      --text:#f5f8fb;
+      --muted:#9db1c9;
+      --cyan:#12c7ff;
+      --green:#39dd8d;
+      --yellow:#ffd25c;
+      --purple:#a78bfa;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Manrope",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(18,199,255,.12), transparent 24%),
+        linear-gradient(180deg, #07111c 0%, #050d17 100%);
+    }
+    .deck{
+      width:min(1400px, 100%);
+      margin:0 auto;
+      padding:36px 24px 60px;
+      display:grid;
+      gap:28px;
+    }
+    .slide{
+      min-height:780px;
+      border-radius:32px;
+      overflow:hidden;
+      position:relative;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        linear-gradient(180deg, #0a1522 0%, #08111d 100%);
+      border:1px solid var(--line);
+      box-shadow:0 28px 80px rgba(0,0,0,.28);
+      padding:42px 44px;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:20px;
+    }
+    .slide::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size:72px 72px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,.75), transparent 88%);
+      pointer-events:none;
+    }
+    .brand{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .brand-left{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand-mark{
+      width:54px;
+      height:54px;
+      border-radius:16px;
+      background:linear-gradient(135deg, var(--cyan), #0b82d4);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:20px;
+      color:#fff;
+      box-shadow:0 14px 34px rgba(18,199,255,.28);
+    }
+    .brand-name{
+      font-family:"Syne",sans-serif;
+      font-size:32px;
+      letter-spacing:-1px;
+      line-height:1;
+    }
+    .brand-sub{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:2.2px;
+      margin-top:4px;
+    }
+    .slide-num{
+      font-size:14px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    h1,h2{
+      font-family:"Syne",sans-serif;
+      margin:0;
+      letter-spacing:-2px;
+      line-height:.98;
+    }
+    h1{font-size:92px}
+    h2{font-size:58px}
+    .accent{color:var(--cyan)}
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 14px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      text-transform:uppercase;
+      letter-spacing:1px;
+      font-size:13px;
+      font-weight:800;
+      color:#d2e2f4;
+    }
+    .kicker::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--cyan);
+    }
+    .lead{
+      margin-top:18px;
+      color:var(--muted);
+      font-size:27px;
+      line-height:1.45;
+      max-width:860px;
+    }
+    .content{
+      position:relative;
+      z-index:1;
+      display:grid;
+      gap:22px;
+      align-content:start;
+    }
+    .cols-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:22px;
+    }
+    .cols-3{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
+    .panel{
+      border-radius:28px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      padding:24px;
+    }
+    .item{
+      padding:18px 18px 18px 20px;
+      border-radius:22px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      margin-bottom:12px;
+    }
+    .item:last-child{margin-bottom:0}
+    .item strong{
+      display:block;
+      font-size:21px;
+      margin-bottom:6px;
+    }
+    .item p{
+      margin:0;
+      color:var(--muted);
+      font-size:17px;
+      line-height:1.5;
+    }
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:16px;
+    }
+    .table th,.table td{
+      padding:14px 12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      vertical-align:top;
+    }
+    .table th{
+      color:#d6e4f6;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+    }
+    .pill{
+      display:inline-flex;
+      padding:8px 11px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.05);
+      font-size:13px;
+      font-weight:800;
+    }
+    .footer{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:20px;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.5;
+    }
+    .footer strong{color:#e6eef8}
+    a{color:#8fdfff}
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">01</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Contexto competitivo</div>
+        <h1>Produ compite entre <span class="accent">software audiovisual especializado</span> y herramientas genéricas de operación.</h1>
+        <div class="lead">Análisis preparado con fuentes oficiales revisadas el <strong>5 de abril de 2026</strong> sobre StudioBinder, Yamdu, farmerswife, Celtx y monday.com.</div>
+      </div>
+      <div class="footer">
+        <div><strong>Lectura:</strong> la competencia no es una sola categoría; es un mapa híbrido.</div>
+        <div>1 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">02</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Mapa</div>
+        <h2>Hay tres tipos de competidor que afectan la decisión de compra.</h2>
+        <div class="cols-3">
+          <div class="panel">
+            <div class="item"><strong>Vertical audiovisual</strong><p>StudioBinder, Yamdu, Celtx. Enfocados en preproducción, producción y coordinación creativa.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Operación media / broadcast</strong><p>farmerswife. Mucha fortaleza en scheduling, recursos, presupuestos y facturación.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Plataformas horizontales</strong><p>monday.com y similares. No nacen para productoras, pero entran por flexibilidad.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Conclusión:</strong> Produ debe posicionarse contra ambos extremos al mismo tiempo.</div>
+        <div>2 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">03</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Comparativa</div>
+        <h2>Dónde compite mejor Produ hoy.</h2>
+        <table class="table">
+          <thead>
+            <tr><th>Herramienta</th><th>Fortaleza principal</th><th>Brecha frente a Produ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>StudioBinder</td><td>Call sheets, scheduling, breakdowns, shot lists y colaboración de producción</td><td>Menor foco en cartera, facturación operativa, multiempresa comercial y contenidos/social</td></tr>
+            <tr><td>Yamdu</td><td>Single source of truth para media production; breakdowns, schedules, call sheets, time cards</td><td>Más orientado a producción compleja internacional que a operación integral de productora local</td></tr>
+            <tr><td>farmerswife</td><td>Scheduling de recursos, presupuestos, costos e invoice desde quote to invoice</td><td>Muy fuerte en recursos/finanzas, pero menos claro como stack comercial-productora liviano y moderno</td></tr>
+            <tr><td>Celtx</td><td>Budget, call sheets, reports y workflows conectados al guion</td><td>Más anclado en script-to-production que en negocio operativo completo de una productora</td></tr>
+            <tr><td>monday.com</td><td>Flexibilidad, dashboards, automatizaciones y adopción horizontal</td><td>No trae modelo audiovisual ni lógica nativa de productoras</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <div><strong>Inference:</strong> Produ gana cuando la conversación pasa de “rodaje” a “negocio audiovisual completo”.</div>
+        <div>3 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">04</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Posición de Produ</div>
+        <h2>Produ se ubica mejor como <span class="accent">ERP liviano para productoras</span> que como “software de rodaje”.</h2>
+        <div class="cols-2">
+          <div class="panel">
+            <div class="item"><strong>Territorio natural</strong><p>Clientes, proyectos, producciones, contenidos, presupuestos, facturación, cartera y multiempresa.</p></div>
+            <div class="item"><strong>Ventaja</strong><p>Une operación diaria con gestión comercial y financiera sin obligar a usar varias apps.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Riesgo si se comunica mal</strong><p>Quedar comparado solo con herramientas de preproducción muy consolidadas.</p></div>
+            <div class="item"><strong>Mensaje correcto</strong><p>“No solo te ayuda a producir; te ayuda a operar la productora completa”.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Claves de narrativa:</strong> orden, visibilidad, cobranza, control y escalabilidad.</div>
+        <div>4 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">05</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Mensajes</div>
+        <h2>Mensajes competitivos que sí le convienen a Produ.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Contra herramientas genéricas</strong><p>“No necesitas construir el sistema desde cero. Ya viene pensado para productoras.”</p></div>
+          <div class="item"><strong>Contra software de rodaje</strong><p>“No solo organiza la producción. También organiza el negocio.”</p></div>
+          <div class="item"><strong>Contra stacks complejos</strong><p>“Menos fragmentación, menos fricción, más visibilidad real.”</p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Importante:</strong> competir por “todo en uno” funciona mejor si se aterriza en dolores concretos.</div>
+        <div>5 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">06</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Debilidades a cubrir</div>
+        <h2>Qué necesita reforzar Produ para competir mejor.</h2>
+        <div class="cols-2">
+          <div class="panel">
+            <div class="item"><strong>Prueba visual del producto</strong><p>Capturas, casos y flujo real para elevar credibilidad frente a players consolidados.</p></div>
+            <div class="item"><strong>Narrativa de valor</strong><p>Explicar mejor el ROI operativo y financiero, no solo el orden.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Casos de uso por segmento</strong><p>Productora comercial, contenidos, TV, multiempresa.</p></div>
+            <div class="item"><strong>Prueba social</strong><p>Clientes, resultados, testimonios y ejemplos concretos de ahorro de tiempo o mejora en cobranza.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Inference:</strong> el producto parece sólido; la narrativa comercial todavía puede crecer mucho.</div>
+        <div>6 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Análisis de competencia</div>
+          </div>
+        </div>
+        <div class="slide-num">07</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Fuentes y lectura final</div>
+        <h2>Produ tiene un espacio claro si se vende como <span class="accent">sistema operativo de la productora</span>.</h2>
+        <div class="panel">
+          <div class="item"><strong>Resumen</strong><p>StudioBinder, Yamdu y Celtx dominan más la conversación de preproducción/rodaje. farmerswife domina recursos y finanzas en media operations. monday entra por flexibilidad. Produ puede diferenciarse como el punto medio más útil para productoras que necesitan operar, cobrar y crecer.</p></div>
+        </div>
+        <div class="panel">
+          <div class="item"><strong>Fuentes oficiales revisadas el 5 de abril de 2026</strong><p>
+            <a href="https://www.studiobinder.com/">StudioBinder</a><br>
+            <a href="https://yamdu.com/">Yamdu</a><br>
+            <a href="https://farmerswife.com/production/">farmerswife Production</a><br>
+            <a href="https://www.celtx.com/product/production/">Celtx Production</a><br>
+            <a href="https://monday.com/use-cases/media-production">monday.com Creative / Media Production</a>
+          </p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Uso sugerido:</strong> fundraising, estrategia comercial, deck para partners o pricing discussion.</div>
+        <div>7 / 7</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

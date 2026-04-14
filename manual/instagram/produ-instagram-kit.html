@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produ Instagram Kit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#07111f;
+      --panel:#0d1a2b;
+      --panel-2:#12243b;
+      --line:rgba(255,255,255,.08);
+      --text:#f6f8fb;
+      --muted:#9eb0c8;
+      --cyan:#16c7ff;
+      --green:#37dd8b;
+      --yellow:#ffcf54;
+      --shadow:0 24px 80px rgba(2,8,20,.34);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#020817;
+      font-family:"Manrope",sans-serif;
+      color:var(--text);
+      display:grid;
+      gap:40px;
+      padding:40px;
+      justify-content:center;
+    }
+    .post{
+      width:1080px;
+      height:1350px;
+      position:relative;
+      overflow:hidden;
+      border-radius:38px;
+      background:
+        radial-gradient(circle at top left, rgba(22,199,255,.18), transparent 32%),
+        radial-gradient(circle at 100% 0%, rgba(55,221,139,.14), transparent 24%),
+        linear-gradient(180deg, #091321 0%, #07111f 54%, #050c16 100%);
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadow);
+    }
+    .grid{
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:72px 72px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,.75), transparent 85%);
+      pointer-events:none;
+    }
+    .brand{
+      position:absolute;
+      top:48px;
+      left:56px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      z-index:2;
+    }
+    .brand-mark{
+      width:54px;
+      height:54px;
+      border-radius:16px;
+      background:linear-gradient(135deg, var(--cyan), #0f7fd1);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 14px 34px rgba(22,199,255,.28);
+      font-size:20px;
+      font-weight:900;
+      color:white;
+    }
+    .brand-text strong{
+      display:block;
+      font-family:"Syne",sans-serif;
+      font-size:34px;
+      letter-spacing:-1px;
+      line-height:1;
+    }
+    .brand-text span{
+      display:block;
+      margin-top:4px;
+      color:var(--muted);
+      font-size:13px;
+      letter-spacing:2.4px;
+      text-transform:uppercase;
+    }
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 16px;
+      border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      color:#cfe3fb;
+      font-size:14px;
+      font-weight:700;
+      letter-spacing:.4px;
+      text-transform:uppercase;
+    }
+    .kicker::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--cyan);
+      box-shadow:0 0 0 6px rgba(22,199,255,.14);
+    }
+    .content{
+      position:absolute;
+      inset:0;
+      padding:150px 56px 56px;
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:34px;
+      z-index:1;
+    }
+    .left{
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      min-width:0;
+    }
+    h1{
+      margin:24px 0 18px;
+      font-family:"Syne",sans-serif;
+      font-size:96px;
+      line-height:.94;
+      letter-spacing:-3px;
+    }
+    .accent{ color:var(--cyan); }
+    .desc{
+      max-width:480px;
+      color:var(--muted);
+      font-size:28px;
+      line-height:1.45;
+    }
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:20px;
+    }
+    .footer-note{
+      color:#d8e6f8;
+      font-size:20px;
+      font-weight:700;
+      max-width:430px;
+      line-height:1.5;
+    }
+    .handle{
+      color:var(--muted);
+      font-size:18px;
+      font-weight:700;
+      letter-spacing:.4px;
+      white-space:nowrap;
+    }
+    .screen-wrap{
+      position:relative;
+      min-width:0;
+      align-self:stretch;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .screen{
+      width:100%;
+      border-radius:30px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.1);
+      box-shadow:0 28px 70px rgba(0,0,0,.35);
+      transform:perspective(1600px) rotateY(-14deg) rotateX(6deg);
+    }
+    .screen img{
+      display:block;
+      width:100%;
+      height:auto;
+    }
+    .floating-card{
+      position:absolute;
+      right:-8px;
+      bottom:100px;
+      width:270px;
+      padding:20px;
+      border-radius:26px;
+      background:linear-gradient(180deg, rgba(12,22,36,.92), rgba(8,15,26,.92));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 18px 44px rgba(0,0,0,.28);
+      backdrop-filter:blur(12px);
+    }
+    .floating-card h3{
+      margin:0 0 12px;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:1.4px;
+      color:#dceafe;
+    }
+    .metric{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      color:#d8e6f8;
+      font-size:15px;
+      font-weight:700;
+    }
+    .metric:last-child{ border-bottom:none; }
+    .metric span:last-child{ color:var(--green); }
+    .quote-card{
+      padding:28px;
+      border-radius:30px;
+      background:linear-gradient(180deg, rgba(15,28,45,.92), rgba(9,17,30,.92));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 22px 60px rgba(0,0,0,.32);
+      max-width:520px;
+    }
+    .quote-card p{
+      margin:0;
+      font-family:"Syne",sans-serif;
+      font-size:52px;
+      line-height:1.02;
+      letter-spacing:-2px;
+    }
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:22px;
+    }
+    .chip{
+      padding:11px 14px;
+      border-radius:999px;
+      font-size:15px;
+      font-weight:800;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      color:#d8e6f8;
+    }
+    .stat-rail{
+      display:grid;
+      gap:14px;
+      width:100%;
+    }
+    .stat-box{
+      padding:22px 22px;
+      border-radius:24px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .stat-box small{
+      display:block;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:1.4px;
+      font-size:12px;
+      margin-bottom:12px;
+      font-weight:800;
+    }
+    .stat-box strong{
+      display:block;
+      font-size:38px;
+      line-height:1;
+      font-family:"Syne",sans-serif;
+      letter-spacing:-1px;
+      margin-bottom:8px;
+    }
+    .stat-box span{
+      font-size:18px;
+      color:#d8e6f8;
+      line-height:1.45;
+    }
+    .piece-2 h1, .piece-5 h1{ font-size:86px; }
+    .piece-3 h1{ font-size:84px; }
+    .piece-4 h1{ font-size:88px; }
+    .piece-6 h1{ font-size:92px; }
+    .piece-7 h1{ font-size:90px; }
+    .piece-8 h1{ font-size:84px; }
+    .piece-9 h1{ font-size:84px; }
+    .piece-10 h1{ font-size:84px; }
+    .piece-11 h1{ font-size:88px; }
+    .piece-12 h1{ font-size:86px; }
+    .piece-3 .content,
+    .piece-5 .content{
+      grid-template-columns:1fr;
+    }
+    .piece-3 .layout-wide,
+    .piece-5 .layout-wide{
+      display:grid;
+      grid-template-columns:1.06fr .94fr;
+      gap:28px;
+      align-items:end;
+      height:100%;
+    }
+    .piece-3 .stack,
+    .piece-5 .stack{
+      display:grid;
+      gap:18px;
+      align-content:center;
+    }
+    .piece-4 .screen{
+      transform:perspective(1600px) rotateY(-10deg) rotateX(4deg);
+    }
+    .piece-6 .screen{
+      transform:perspective(1600px) rotateY(-12deg) rotateX(5deg);
+    }
+    .story{
+      width:1080px;
+      height:1920px;
+      position:relative;
+      overflow:hidden;
+      border-radius:40px;
+      background:
+        radial-gradient(circle at top left, rgba(22,199,255,.20), transparent 28%),
+        radial-gradient(circle at 100% 0%, rgba(55,221,139,.16), transparent 24%),
+        linear-gradient(180deg, #091321 0%, #07111f 52%, #050c16 100%);
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadow);
+    }
+    .story .content{
+      grid-template-columns:1fr;
+      padding:170px 70px 70px;
+      gap:36px;
+    }
+    .story h1{
+      font-size:106px;
+      line-height:.95;
+      max-width:780px;
+    }
+    .story .desc{
+      max-width:760px;
+      font-size:34px;
+    }
+    .story .screen-wrap{
+      justify-content:flex-end;
+      align-items:flex-end;
+    }
+    .story .screen{
+      width:92%;
+      transform:none;
+      border-radius:34px;
+    }
+    .story .footer{
+      align-items:center;
+    }
+    .carousel-slide h1{
+      font-size:88px;
+    }
+    .carousel-slide .content{
+      grid-template-columns:1fr;
+    }
+    .carousel-list{
+      display:grid;
+      gap:16px;
+      margin-top:18px;
+    }
+    .carousel-item{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      padding:18px 20px;
+      border-radius:24px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      max-width:820px;
+    }
+    .carousel-item-num{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      flex-shrink:0;
+      background:linear-gradient(135deg, var(--cyan), #0f7fd1);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      font-weight:900;
+      color:#fff;
+      box-shadow:0 10px 24px rgba(22,199,255,.22);
+    }
+    .carousel-item strong{
+      display:block;
+      font-size:24px;
+      line-height:1.2;
+      margin-bottom:6px;
+    }
+    .carousel-item span{
+      display:block;
+      color:var(--muted);
+      font-size:20px;
+      line-height:1.45;
+    }
+  </style>
+</head>
+<body>
+  <section class="post piece-1" id="piece-01">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Operación real</div>
+          <h1>Tu productora <span class="accent">no necesita</span> más planillas.</h1>
+          <div class="desc">Clientes, proyectos, producciones, contenidos y facturación conectados en un solo sistema.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Cuando todo vive en lugares distintos, operar cuesta más de lo que parece.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/02-dashboard.png" alt="Dashboard Produ">
+        </div>
+        <div class="floating-card">
+          <h3>Lo que Produ ordena</h3>
+          <div class="metric"><span>Clientes</span><span>Visibles</span></div>
+          <div class="metric"><span>Proyectos</span><span>Centralizados</span></div>
+          <div class="metric"><span>Cobranza</span><span>Conectada</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-2" id="piece-02">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Control ejecutivo</div>
+          <h1>Lo que un dueño debería ver en <span class="accent">30 segundos</span>.</h1>
+          <div class="desc">Ingresos, gastos, balance, proyectos activos, cobros pendientes y próximas grabaciones.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Eso no es lujo. Es control.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="stat-rail">
+          <div class="stat-box">
+            <small>Ingresos</small>
+            <strong style="color:var(--green)">UF 12.90</strong>
+            <span>Visibilidad financiera sin depender de Excel.</span>
+          </div>
+          <div class="stat-box">
+            <small>Proyectos activos</small>
+            <strong style="color:var(--cyan)">7</strong>
+            <span>Todo el estado operativo a una sola vista.</span>
+          </div>
+          <div class="stat-box">
+            <small>Cobros pendientes</small>
+            <strong style="color:var(--yellow)">2</strong>
+            <span>Cobranza conectada a contratos y facturación.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-3" id="piece-03">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="layout-wide">
+        <div class="left" style="justify-content:flex-start">
+          <div class="kicker">Estructura correcta</div>
+          <h1>Proyectos, producciones y <span class="accent">contenidos</span> no son lo mismo.</h1>
+          <div class="desc">Y cuando los gestionas como si fueran iguales, la operación se empieza a romper.</div>
+          <div class="chips">
+            <div class="chip">Proyecto: cliente + balance + equipo</div>
+            <div class="chip">Producción: episodios + auspicios</div>
+            <div class="chip">Contenido: campañas + piezas + plataformas</div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="screen"><img src="../captures/06-proyectos.png" alt="Proyectos"></div>
+          <div class="screen"><img src="../captures/08-contenidos.png" alt="Contenidos"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-4" id="piece-04">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Caja y seguimiento</div>
+          <h1>Una productora <span class="accent">ordenada</span> cobra mejor.</h1>
+          <div class="desc">Porque ve qué ejecutó, qué entregó y qué falta por facturar. Cobranza también es operación.</div>
+        </div>
+        <div class="quote-card">
+          <p>Si no ves el flujo completo, el dinero siempre llega tarde.</p>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/10-facturacion.png" alt="Facturación Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-5" id="piece-05">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="layout-wide">
+        <div class="left" style="justify-content:flex-start">
+          <div class="kicker">Crecimiento</div>
+          <h1>La mejor productora no siempre es la más <span class="accent">grande</span>.</h1>
+          <div class="desc">Es la que mejor opera. Crecer sin estructura solo multiplica el caos.</div>
+        </div>
+        <div class="stack" style="align-content:center">
+          <div class="stat-box">
+            <small>Antes</small>
+            <strong>Excel + WhatsApp</strong>
+            <span>Más esfuerzo, menos visibilidad.</span>
+          </div>
+          <div class="stat-box">
+            <small>Después</small>
+            <strong style="color:var(--cyan)">Produ</strong>
+            <span>Operación, comercial y administración en un solo lugar.</span>
+          </div>
+          <div class="stat-box">
+            <small>Resultado</small>
+            <strong style="color:var(--green)">Control</strong>
+            <span>Más claridad para ejecutar, cobrar y escalar.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-6" id="piece-06">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Madurez operativa</div>
+          <h1>Si tu operación depende de una sola persona, no tienes control <span class="accent">real</span>.</h1>
+          <div class="desc">Una empresa sólida no depende de memoria individual. Depende de procesos visibles.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Coordinar por mensajes no es lo mismo que gestionar con sistema.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/03-calendario.png" alt="Calendario Produ">
+        </div>
+        <div class="floating-card">
+          <h3>Sin improvisación</h3>
+          <div class="metric"><span>Calendario</span><span>Conectado</span></div>
+          <div class="metric"><span>Equipo</span><span>Asignado</span></div>
+          <div class="metric"><span>Seguimiento</span><span>Visible</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-7" id="piece-07">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Cobranza</div>
+          <h1>Cobrar tarde no siempre es un problema <span class="accent">comercial</span>.</h1>
+          <div class="desc">A veces el problema es no tener hitos, documentos y estados conectados en un solo flujo.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Cobranza también es operación.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/10-facturacion.png" alt="Cobranza y facturación Produ">
+        </div>
+        <div class="floating-card">
+          <h3>Seguimiento real</h3>
+          <div class="metric"><span>Documento</span><span>Emitido</span></div>
+          <div class="metric"><span>Estado</span><span>Visible</span></div>
+          <div class="metric"><span>Cobro</span><span>Controlado</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-8" id="piece-08">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Calendario conectado</div>
+          <h1>Coordinar por WhatsApp no es lo mismo que <span class="accent">gestionar</span>.</h1>
+          <div class="desc">Grabaciones, entregas, vencimientos y tareas deben vivir en un calendario operativo, no en conversaciones sueltas.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Cuando el equipo ve lo mismo, trabaja mejor.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/03-calendario.png" alt="Calendario Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-9" id="piece-09">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Relación comercial</div>
+          <h1>Un cliente no es solo un nombre en una <span class="accent">planilla</span>.</h1>
+          <div class="desc">Es historial, contactos, contratos, conversación comercial y trazabilidad de trabajo.</div>
+        </div>
+        <div class="chips">
+          <div class="chip">Empresa</div>
+          <div class="chip">Contactos</div>
+          <div class="chip">Contratos</div>
+          <div class="chip">Seguimiento</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">La relación comercial también necesita sistema.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/05-clientes.png" alt="Clientes Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-10" id="piece-10">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Pipeline comercial</div>
+          <h1>Presupuestar mejor también es una forma de <span class="accent">operar</span>.</h1>
+          <div class="desc">Cuando el documento está conectado al cliente, al proyecto y al estado comercial, vender deja de ser improvisación.</div>
+        </div>
+        <div class="quote-card">
+          <p>Menos PDFs sueltos. Más flujo comercial visible.</p>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/09-presupuestos.png" alt="Presupuestos Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-11" id="piece-11">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Visibilidad</div>
+          <h1>Si no puedes <span class="accent">verlo</span>, no puedes gestionarlo.</h1>
+          <div class="desc">Y si no puedes gestionarlo, no puedes escalarlo. El control empieza por hacer visible la operación.</div>
+        </div>
+        <div class="stat-rail">
+          <div class="stat-box">
+            <small>Visible</small>
+            <strong style="color:var(--cyan)">Datos</strong>
+            <span>Estado, seguimiento, balance y actividad reciente.</span>
+          </div>
+          <div class="stat-box">
+            <small>Invisibles</small>
+            <strong style="color:var(--yellow)">Riesgos</strong>
+            <span>Errores, olvidos, retrasos y plata detenida.</span>
+          </div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/12-superadmin.png" alt="Superadmin Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post piece-12" id="piece-12">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Costo invisible</div>
+          <h1>El desorden no solo cansa. También te hace perder <span class="accent">margen</span>.</h1>
+          <div class="desc">Horas perdidas, errores evitables, decisiones lentas y cobros atrasados. Todo eso también se acumula.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Ordenar no es estético. Es estratégico.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/02-dashboard-tenant.png" alt="Dashboard tenant Produ">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="story" id="story-01">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Story</div>
+          <h1>Menos caos. Más <span class="accent">operación</span>.</h1>
+          <div class="desc">Clientes, proyectos, producciones, contenidos y cobranza conectados desde un solo lugar.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Haz visible tu productora.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+      <div class="screen-wrap">
+        <div class="screen">
+          <img src="../captures/02-dashboard.png" alt="Dashboard Produ story">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post carousel-slide" id="carousel-01-slide-01">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Carrusel</div>
+          <h1>5 señales de que tu operación ya te quedó <span class="accent">chica</span>.</h1>
+          <div class="desc">Un carrusel para productoras que ya sienten que Excel, WhatsApp y memoria no alcanzan.</div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Desliza y mira si te pasa.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post carousel-slide" id="carousel-01-slide-02">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Señal 01</div>
+          <h1>No sabes cuánto ganó realmente cada <span class="accent">proyecto</span>.</h1>
+          <div class="carousel-list">
+            <div class="carousel-item">
+              <div class="carousel-item-num">1</div>
+              <div>
+                <strong>Facturas por un lado</strong>
+                <span>Gastos por otro. Y el balance real aparece tarde o nunca.</span>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="carousel-item-num">+</div>
+              <div>
+                <strong>El margen se vuelve intuición</strong>
+                <span>Y una productora no puede escalar solo con intuición.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Sin visibilidad financiera, decidir bien se vuelve más difícil.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post carousel-slide" id="carousel-01-slide-03">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Señal 02 + 03</div>
+          <h1>Tu equipo pregunta todo por mensaje y se te pasan fechas <span class="accent">clave</span>.</h1>
+          <div class="carousel-list">
+            <div class="carousel-item">
+              <div class="carousel-item-num">2</div>
+              <div>
+                <strong>La operación depende de chats</strong>
+                <span>Si algo no se escribe en el grupo correcto, desaparece.</span>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="carousel-item-num">3</div>
+              <div>
+                <strong>Las fechas viven en la cabeza de alguien</strong>
+                <span>Grabaciones, entregas y cobros no deberían depender de memoria individual.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Coordinar no es lo mismo que gestionar.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post carousel-slide" id="carousel-01-slide-04">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Señal 04 + 05</div>
+          <h1>Cobrar depende de tu memoria y cada área trabaja por <span class="accent">separado</span>.</h1>
+          <div class="carousel-list">
+            <div class="carousel-item">
+              <div class="carousel-item-num">4</div>
+              <div>
+                <strong>La cobranza llega tarde</strong>
+                <span>No porque vendas mal, sino porque no hay trazabilidad clara.</span>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="carousel-item-num">5</div>
+              <div>
+                <strong>Comercial, operación y administración no conversan</strong>
+                <span>Y el desorden se multiplica cada vez que entra más trabajo.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Cuando todo está repartido, el costo aparece en tiempo, foco y caja.</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="post carousel-slide" id="carousel-01-slide-05">
+    <div class="grid"></div>
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <div class="brand-text">
+        <strong>produ</strong>
+        <span>Gestión de productoras</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="left">
+        <div>
+          <div class="kicker">Cierre</div>
+          <h1>Si te pasa esto, no necesitas más esfuerzo. Necesitas <span class="accent">estructura</span>.</h1>
+          <div class="desc">Produ conecta clientes, proyectos, producciones, contenidos y cobranza para que tu productora opere con claridad.</div>
+        </div>
+        <div class="quote-card">
+          <p>Menos caos. Más operación.</p>
+        </div>
+        <div class="footer">
+          <div class="footer-note">Solicita una demo en produ.cl</div>
+          <div class="handle">@produ.cl</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

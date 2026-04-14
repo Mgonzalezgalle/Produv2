@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manual Produ</title>
+    <style>
+      :root {
+        --bg: #09090b;
+        --surface: #111318;
+        --surface-2: #171a21;
+        --card: #12151c;
+        --border: #222835;
+        --border-soft: #2a3242;
+        --text: #f4f7fb;
+        --muted: #98a6bb;
+        --accent: #00d4e8;
+        --accent-2: #00a9bd;
+        --ok: #31d38b;
+        --warn: #ffcc44;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(0, 212, 232, 0.12), transparent 28%),
+          linear-gradient(180deg, #09090b 0%, #0e1015 100%);
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(0, 212, 232, 0.12), rgba(255,255,255,0.02));
+        border: 1px solid var(--border-soft);
+        border-radius: 28px;
+        padding: 34px;
+        margin-bottom: 28px;
+        box-shadow: 0 24px 80px rgba(0,0,0,.32);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -80px -80px auto;
+        width: 240px;
+        height: 240px;
+        background: radial-gradient(circle, rgba(0,212,232,.18), transparent 70%);
+        pointer-events: none;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+
+      .brand-mark {
+        width: 54px;
+        height: 54px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        display: grid;
+        place-items: center;
+        color: #061015;
+        font-weight: 900;
+        font-size: 20px;
+        box-shadow: 0 16px 40px rgba(0, 212, 232, 0.28);
+      }
+
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 42px;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+      }
+
+      .hero p {
+        max-width: 760px;
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+      }
+
+      .toc,
+      .card,
+      .module,
+      .note {
+        background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: 0 16px 60px rgba(0,0,0,.22);
+      }
+
+      .toc {
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        padding: 20px;
+      }
+
+      .toc h3 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: .14em;
+        color: var(--accent);
+      }
+
+      .toc a {
+        display: block;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 12px;
+        background: rgba(255,255,255,.02);
+        border: 1px solid transparent;
+        font-size: 14px;
+      }
+
+      .toc a:hover {
+        border-color: var(--border-soft);
+        background: rgba(0,212,232,.06);
+      }
+
+      .content {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card {
+        padding: 24px;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-size: 24px;
+        letter-spacing: -0.02em;
+      }
+
+      .section-sub {
+        margin: -4px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .module {
+        padding: 26px;
+      }
+
+      .module + .module {
+        margin-top: 2px;
+      }
+
+      .module-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        margin-bottom: 18px;
+      }
+
+      .module h2 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+      }
+
+      .module p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,212,232,.24);
+        background: rgba(0,212,232,.08);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        white-space: nowrap;
+      }
+
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+      }
+
+      .panel h4 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        color: var(--accent);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li + li {
+        margin-top: 8px;
+      }
+
+      .shot {
+        margin-top: 16px;
+        background:
+          linear-gradient(135deg, rgba(0,212,232,.08), rgba(255,255,255,.02)),
+          var(--surface-2);
+        border: 1px dashed var(--border-soft);
+        border-radius: 18px;
+        padding: 18px;
+        color: var(--muted);
+      }
+
+      .figure {
+        margin-top: 18px;
+        overflow: hidden;
+        border-radius: 22px;
+        border: 1px solid var(--border);
+        background: #0c1016;
+        box-shadow: 0 18px 50px rgba(0,0,0,.24);
+      }
+
+      .figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .figcap {
+        padding: 14px 18px;
+        color: var(--muted);
+        font-size: 13px;
+        border-top: 1px solid var(--border);
+        background: rgba(255,255,255,.02);
+      }
+
+      .shot strong {
+        color: var(--text);
+      }
+
+      .note {
+        padding: 18px 20px;
+        border-left: 4px solid var(--accent);
+      }
+
+      .note.warn {
+        border-left-color: var(--warn);
+      }
+
+      .note.ok {
+        border-left-color: var(--ok);
+      }
+
+      .small {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .cover-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .cover-item {
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.03);
+      }
+
+      .cover-item strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      @media (max-width: 980px) {
+        .grid-2,
+        .cols {
+          grid-template-columns: 1fr;
+        }
+
+        .toc {
+          position: static;
+        }
+
+        .cover-list {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          color: #101826;
+        }
+
+        .hero,
+        .toc,
+        .card,
+        .module,
+        .note,
+        .panel {
+          box-shadow: none;
+          background: #fff;
+          border-color: #d7dee8;
+        }
+
+        .toc a,
+        .cover-item,
+        .shot {
+          background: #f6f8fb;
+          border-color: #d7dee8;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <div class="eyebrow">Produ · Gestión de Productoras</div>
+            <h1>Manual Operativo Produ</h1>
+          </div>
+        </div>
+        <p>
+          Este manual reúne los módulos principales de Produ, sus funciones, buenas prácticas,
+          notas operativas y consejos de uso. Está pensado para onboarding, capacitación interna
+          y estandarización de uso en productoras, agencias y equipos de contenido.
+        </p>
+        <div class="cover-list">
+          <div class="cover-item">
+            <strong>Qué incluye</strong>
+            Módulos, flujos, recomendaciones, notas prácticas y espacios definidos para capturas.
+          </div>
+          <div class="cover-item">
+            <strong>Para quién</strong>
+            Administradores, producción, comercial, finanzas, coordinación y super administración.
+          </div>
+          <div class="cover-item">
+            <strong>Uso recomendado</strong>
+            Compartirlo como base interna y exportarlo luego a PDF con capturas definitivas.
+          </div>
+        </div>
+      </section>
+
+      <div class="grid-2">
+        <aside class="toc">
+          <h3>Contenido</h3>
+          <a href="#vision">1. Visión General</a>
+          <a href="#base">2. Módulos Base</a>
+          <a href="#operacion">3. Operación</a>
+          <a href="#comercial">4. Comercial</a>
+          <a href="#recursos">5. Recursos</a>
+          <a href="#admin">6. Administración</a>
+          <a href="#superadmin">7. Super Admin</a>
+          <a href="#buenas">8. Buenas Prácticas</a>
+          <a href="#capturas">9. Guía de Capturas</a>
+        </aside>
+
+        <main class="content">
+          <section class="card" id="vision">
+            <h2 class="section-title">1. Visión General</h2>
+            <p class="section-sub">
+              Produ es un software modular para gestionar operación, contenido, clientes, flujo comercial
+              y control administrativo de productoras y equipos creativos.
+            </p>
+            <div class="cols" style="margin-top:18px">
+              <div class="panel">
+                <h4>Objetivo del sistema</h4>
+                <ul>
+                  <li>Centralizar proyectos, producciones, campañas y tareas.</li>
+                  <li>Ordenar la relación entre operación, calendario y comercial.</li>
+                  <li>Controlar presupuestos, facturación, cobranza y cartera.</li>
+                  <li>Escalar por tenant, rol y módulos activados.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Flujo general recomendado</h4>
+                <ul>
+                  <li>Cliente → Proyecto / Producción / Contenido.</li>
+                  <li>Tareas y calendario para ejecución.</li>
+                  <li>Presupuesto → Contrato → Invoice / Cobranza.</li>
+                  <li>Super Admin para control de tenants y operación global.</li>
+                </ul>
+              </div>
+            </div>
+            <figure class="figure">
+              <img src="manual/captures/02-dashboard.png" alt="Dashboard principal de Produ" />
+              <figcaption class="figcap">
+                Dashboard principal del tenant con accesos rápidos, navegación lateral y resumen operativo.
+              </figcaption>
+            </figure>
+          </section>
+
+          <section class="module" id="base">
+            <div class="module-head">
+              <div>
+                <h2>2. Módulos Base</h2>
+                <p>Estos módulos forman parte del núcleo operativo de Produ.</p>
+              </div>
+              <span class="tag">Core</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Dashboard</h4>
+                <ul>
+                  <li>Entrega visibilidad rápida del estado general del tenant.</li>
+                  <li>Muestra indicadores ejecutivos y accesos rápidos.</li>
+                  <li>Sirve como punto de entrada diario para el equipo.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Calendario</h4>
+                <ul>
+                  <li>Vista de agenda, programación, hitos y vencimientos.</li>
+                  <li>Consolida fechas de tareas, campañas, producciones y cobros.</li>
+                  <li>Permite revisar lo urgente del equipo desde una sola vista.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Tareas</h4>
+                <ul>
+                  <li>Pipeline por estado para seguimiento operativo.</li>
+                  <li>Asociación a proyectos, producciones, campañas y crew.</li>
+                  <li>Permite edición, reasignación y cambio de estado.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Alertas y Mensajes</h4>
+                <ul>
+                  <li>La campanita concentra alertas operativas.</li>
+                  <li>Mensajes son comunicaciones del sistema por tenant.</li>
+                  <li>Banners permiten anunciar información crítica o relevante.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="note ok" style="margin-top:16px">
+              <strong>Consejo:</strong> para usuarios que recién comienzan, conviene operar primero desde `Dashboard`, `Calendario` y `Tareas`.
+            </div>
+            <div class="cols" style="margin-top:16px">
+              <figure class="figure">
+                <img src="manual/captures/03-calendario.png" alt="Calendario de Produ" />
+                <figcaption class="figcap">Calendario con agenda operativa, hitos y fechas críticas.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/04-tareas.png" alt="Pipeline de tareas de Produ" />
+                <figcaption class="figcap">Pipeline de tareas para seguimiento por estado.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="module" id="operacion">
+            <div class="module-head">
+              <div>
+                <h2>3. Operación</h2>
+                <p>Bloque para gestionar ejecución, contenidos, planificación y seguimiento creativo.</p>
+              </div>
+              <span class="tag">Operación</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Clientes</h4>
+                <ul>
+                  <li>Base de clientes con datos generales y contactos.</li>
+                  <li>Accesos rápidos por email y WhatsApp.</li>
+                  <li>Desde aquí se vinculan proyectos, campañas y contratos.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Proyectos</h4>
+                <ul>
+                  <li>Antes “Producciones”. Se usa para servicios, trabajos y desarrollos generales.</li>
+                  <li>Incluye comentarios, ingresos, gastos, crew, fechas, contratos y tareas.</li>
+                  <li>Ideal para trabajos por cliente fuera del formato programa.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Producciones</h4>
+                <ul>
+                  <li>Antes “Programas TV”. Enfocado en programas y episodios.</li>
+                  <li>Incluye episodios, comentarios, auspiciadores, crew, calendario y tareas.</li>
+                  <li>Permite gestionar una producción editorial continua o por temporada.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Contenidos</h4>
+                <ul>
+                  <li>Opera mediante campañas, asociadas a clientes.</li>
+                  <li>Dentro de cada campaña se administran piezas individuales.</li>
+                  <li>Cada pieza puede tener estado, fechas, descripción y enlace rápido.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="note" style="margin-top:16px">
+              <strong>Nota:</strong> en campañas de contenidos, el equipo debería usar `Comentarios`, `Piezas`, `Tareas` y `Calendario` como eje principal.
+            </div>
+            <div class="cols" style="margin-top:16px">
+              <figure class="figure">
+                <img src="manual/captures/05-clientes.png" alt="Módulo de clientes" />
+                <figcaption class="figcap">Módulo de clientes con vista lista y accesos comerciales.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/06-proyectos.png" alt="Módulo de proyectos" />
+                <figcaption class="figcap">Módulo de proyectos para servicios y desarrollos generales.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/07-producciones.png" alt="Módulo de producciones" />
+                <figcaption class="figcap">Producciones con foco editorial, episodios y operación continua.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/08-contenidos.png" alt="Módulo de contenidos" />
+                <figcaption class="figcap">Campañas de contenidos y piezas con estados y enlace rápido.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="module" id="comercial">
+            <div class="module-head">
+              <div>
+                <h2>4. Comercial</h2>
+                <p>Gestión de oportunidades, presupuesto, relación contractual, emisión y cobranza.</p>
+              </div>
+              <span class="tag">Comercial</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Presupuestos</h4>
+                <ul>
+                  <li>Permite cotizar por ítems o por precio por pieza.</li>
+                  <li>Soporta recurrencia mensual.</li>
+                  <li>Estados: pendiente, enviado, revisión, aceptado, rechazado.</li>
+                  <li>Exporta PDF y puede enviarse por WhatsApp.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Contratos</h4>
+                <ul>
+                  <li>Vincula cliente, referencias operativas y documentos asociados.</li>
+                  <li>Permite vigencia, alerta previa y renovación.</li>
+                  <li>Sirve como capa legal/comercial de seguimiento.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Facturación</h4>
+                <ul>
+                  <li>Emite `Orden de Factura` o `Invoice`.</li>
+                  <li>Separa emisión, recurrencias y cobranza.</li>
+                  <li>Estados de cobranza por documento: pendiente, pagado, no pagado, retrasado.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Cartera</h4>
+                <ul>
+                  <li>Disponible en Super Admin como vista ejecutiva por tenant.</li>
+                  <li>Controla valor mensual, descuento, estado de pago y contratado por.</li>
+                  <li>Soporta cobro en UF, CLP o USD.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="note warn" style="margin-top:16px">
+              <strong>Consejo:</strong> para orden financiero, registrar siempre la referencia comercial correcta antes de emitir invoices o activar recurrencias.
+            </div>
+            <div class="cols" style="margin-top:16px">
+              <figure class="figure">
+                <img src="manual/captures/09-presupuestos.png" alt="Módulo de presupuestos" />
+                <figcaption class="figcap">Presupuestos con estados, recurrencia y envío comercial.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/10-facturacion.png" alt="Módulo de facturación" />
+                <figcaption class="figcap">Facturación separada por emisión, cobranza y recurrencias.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="module" id="recursos">
+            <div class="module-head">
+              <div>
+                <h2>5. Recursos</h2>
+                <p>Bloque para talento, activos y soporte operativo de producción.</p>
+              </div>
+              <span class="tag">Recursos</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Crew</h4>
+                <ul>
+                  <li>Registro de equipo interno y externo.</li>
+                  <li>Asignación a proyectos, producciones y campañas.</li>
+                  <li>Los externos pueden impactar gastos automáticamente por tarifa.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Activos</h4>
+                <ul>
+                  <li>Inventario de equipamiento y activos técnicos.</li>
+                  <li>Clasificación por categoría y estado.</li>
+                  <li>Ayuda a controlar disponibilidad y mantención.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Auspiciadores</h4>
+                <ul>
+                  <li>Vinculación con producciones.</li>
+                  <li>Control de frecuencia de pago y vigencia.</li>
+                  <li>Soporta relación comercial de media partners y canjes.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Movimientos</h4>
+                <ul>
+                  <li>Registro de ingresos y gastos por referencia.</li>
+                  <li>Exportación en CSV y PDF.</li>
+                  <li>Base financiera transversal del sistema.</li>
+                </ul>
+              </div>
+            </div>
+            <figure class="figure" style="margin-top:16px">
+              <img src="manual/captures/11-panel-admin.png" alt="Panel Administrador de Produ" />
+              <figcaption class="figcap">
+                Panel Administrador del tenant con usuarios, roles, listas, branding y datos bancarios.
+              </figcaption>
+            </figure>
+          </section>
+
+          <section class="module" id="admin">
+            <div class="module-head">
+              <div>
+                <h2>6. Panel Administrador</h2>
+                <p>Administración del tenant: identidad visual, usuarios, listas, roles y datos base.</p>
+              </div>
+              <span class="tag">Tenant Admin</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Funciones principales</h4>
+                <ul>
+                  <li>Configurar tema visual y preset de identidad.</li>
+                  <li>Administrar usuarios del tenant.</li>
+                  <li>Editar datos de empresa e información bancaria.</li>
+                  <li>Gestionar listas desplegables administrables.</li>
+                  <li>Crear roles personalizados y permisos por módulo.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Consejos</h4>
+                <ul>
+                  <li>Definir roles antes de sumar más usuarios.</li>
+                  <li>Completar la información bancaria para invoices y presupuestos.</li>
+                  <li>Usar listas administrables para unificar lenguaje interno.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="module" id="superadmin">
+            <div class="module-head">
+              <div>
+                <h2>7. Panel Super Admin</h2>
+                <p>La torre de control de Produ: tenants, cartera, comunicaciones, integraciones y usuarios del sistema.</p>
+              </div>
+              <span class="tag">Global</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Empresas</h4>
+                <ul>
+                  <li>Crear y editar tenants.</li>
+                  <li>Asignar addons y plan.</li>
+                  <li>Visualizar `Tenant ID` correlativo.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Cartera</h4>
+                <ul>
+                  <li>Lista de empresas con ficha editable.</li>
+                  <li>Valor mensual, descuento, moneda, contratado por y portal cliente.</li>
+                  <li>Estado de pago y visión ejecutiva del negocio.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Comunicaciones e Integraciones</h4>
+                <ul>
+                  <li>Mensajes del sistema por tenant.</li>
+                  <li>Banner global por empresa.</li>
+                  <li>Base para integraciones futuras como Google Calendar.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Usuarios del sistema</h4>
+                <ul>
+                  <li>Visibilidad transversal de usuarios.</li>
+                  <li>Filtros por empresa, rol y estado.</li>
+                  <li>Seguimiento del uso multi-tenant.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="cols" style="margin-top:16px">
+              <figure class="figure">
+                <img src="manual/captures/12-superadmin.png" alt="Panel Super Admin de Produ" />
+                <figcaption class="figcap">Panel Super Admin como torre de control multiempresa.</figcaption>
+              </figure>
+              <figure class="figure">
+                <img src="manual/captures/01-login-superadmin.png" alt="Selector de empresa para superadmin" />
+                <figcaption class="figcap">Selector de empresa del perfil superadmin para entrar al tenant o al panel global.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="module" id="buenas">
+            <div class="module-head">
+              <div>
+                <h2>8. Buenas Prácticas</h2>
+                <p>Recomendaciones para mantener Produ ordenado, entendible y útil para todo el equipo.</p>
+              </div>
+              <span class="tag">Recomendado</span>
+            </div>
+            <div class="cols">
+              <div class="panel">
+                <h4>Operación</h4>
+                <ul>
+                  <li>Usar nombres consistentes en proyectos, campañas y piezas.</li>
+                  <li>Registrar tareas desde comentarios cuando se requiera seguimiento.</li>
+                  <li>Actualizar fechas desde la fuente correcta para evitar dobles criterios.</li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h4>Comercial</h4>
+                <ul>
+                  <li>Aceptar o rechazar presupuestos formalmente en el sistema.</li>
+                  <li>No mezclar contratos de cliente con referencias no vinculadas.</li>
+                  <li>Separar emisión de cobranza para tener trazabilidad real.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="note">
+              <strong>Tip general:</strong> si un cliente usa pocos módulos, conviene activar solo lo esencial. Produ gana mucho valor cuando la complejidad visible se ajusta al tipo de operación.
+            </div>
+          </section>
+
+          <section class="module" id="capturas">
+            <div class="module-head">
+              <div>
+                <h2>9. Guía de Capturas Recomendadas</h2>
+                <p>Checklist para completar este manual con imágenes definitivas del producto.</p>
+              </div>
+              <span class="tag">Capturas Reales</span>
+            </div>
+            <div class="panel">
+              <ul>
+                <li>Dashboard general del tenant.</li>
+                <li>Calendario operativo.</li>
+                <li>Pipeline de tareas.</li>
+                <li>Clientes, proyectos, producciones y contenidos.</li>
+                <li>Presupuestos y facturación.</li>
+                <li>Panel Administrador.</li>
+                <li>Panel Super Admin y selector de empresa.</li>
+              </ul>
+            </div>
+            <div class="note ok" style="margin-top:16px">
+              <strong>Recomendación editorial:</strong> mantener este manual como base viva de onboarding y actualizar las capturas cada vez que cambien flujos principales o UI estructural.
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

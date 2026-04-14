@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Por Qué Produ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#06111d;
+      --panel:#0d1928;
+      --line:rgba(255,255,255,.08);
+      --text:#f5f8fb;
+      --muted:#9fb2cb;
+      --cyan:#12c7ff;
+      --green:#39dd8d;
+      --yellow:#ffd25c;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Manrope",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(18,199,255,.12), transparent 24%),
+        linear-gradient(180deg, #07111c 0%, #050d17 100%);
+    }
+    .deck{
+      width:min(1400px,100%);
+      margin:0 auto;
+      padding:36px 24px 60px;
+      display:grid;
+      gap:28px;
+    }
+    .slide{
+      min-height:780px;
+      border-radius:32px;
+      overflow:hidden;
+      position:relative;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        linear-gradient(180deg, #0a1522 0%, #08111d 100%);
+      border:1px solid var(--line);
+      box-shadow:0 28px 80px rgba(0,0,0,.28);
+      padding:42px 44px;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:20px;
+    }
+    .slide::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size:72px 72px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,.75), transparent 88%);
+      pointer-events:none;
+    }
+    .brand{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .brand-left{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand-mark{
+      width:54px;
+      height:54px;
+      border-radius:16px;
+      background:linear-gradient(135deg, var(--cyan), #0b82d4);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:20px;
+      color:#fff;
+      box-shadow:0 14px 34px rgba(18,199,255,.28);
+    }
+    .brand-name{
+      font-family:"Syne",sans-serif;
+      font-size:32px;
+      letter-spacing:-1px;
+      line-height:1;
+    }
+    .brand-sub{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:2.2px;
+      margin-top:4px;
+    }
+    .slide-num{
+      font-size:14px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    h1,h2{
+      margin:0;
+      font-family:"Syne",sans-serif;
+      letter-spacing:-2px;
+      line-height:.98;
+    }
+    h1{font-size:94px}
+    h2{font-size:60px}
+    .accent{color:var(--cyan)}
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 14px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      text-transform:uppercase;
+      letter-spacing:1px;
+      font-size:13px;
+      font-weight:800;
+      color:#d2e2f4;
+    }
+    .kicker::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--cyan);
+    }
+    .lead{
+      margin-top:18px;
+      color:var(--muted);
+      font-size:28px;
+      line-height:1.45;
+      max-width:760px;
+    }
+    .content{
+      position:relative;
+      z-index:1;
+      display:grid;
+      gap:22px;
+      align-content:start;
+    }
+    .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+    .cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .panel{
+      border-radius:28px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      padding:24px;
+    }
+    .item{
+      padding:18px 18px 18px 20px;
+      border-radius:22px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      margin-bottom:12px;
+    }
+    .item:last-child{margin-bottom:0}
+    .item strong{
+      display:block;
+      font-size:22px;
+      margin-bottom:6px;
+    }
+    .item p{
+      margin:0;
+      color:var(--muted);
+      font-size:18px;
+      line-height:1.5;
+    }
+    .quote{
+      padding:26px 28px;
+      border-radius:28px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      font-family:"Syne",sans-serif;
+      font-size:44px;
+      line-height:1.02;
+      letter-spacing:-1.6px;
+      max-width:760px;
+    }
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:17px;
+    }
+    .table th,.table td{
+      padding:14px 12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      vertical-align:top;
+    }
+    .table th{
+      color:#d6e4f6;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+    }
+    .footer{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:20px;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.5;
+    }
+    .footer strong{color:#e6eef8}
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">01</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Presentación para clientes</div>
+        <h1>Por qué <span class="accent">Produ</span> puede calzar mejor con tu productora.</h1>
+        <div class="lead">Porque no fue pensado como un gestor genérico. Fue pensado para ordenar cómo una productora vende, ejecuta, coordina y cobra.</div>
+      </div>
+      <div class="footer">
+        <div><strong>Idea central:</strong> menos caos operativo, más control real.</div>
+        <div>1 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">02</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Hoy</div>
+        <h2>Muchas productoras ya no tienen un problema de trabajo. Tienen un problema de <span class="accent">fragmentación</span>.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Clientes en un lugar</strong><p>Contactos, contratos y seguimiento repartidos.</p></div>
+          <div class="item"><strong>Operación en otro</strong><p>Grabaciones, tareas, fechas y equipo sin una sola vista.</p></div>
+          <div class="item"><strong>Cobranza aparte</strong><p>Documentos, hitos y pagos sin conexión real.</p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Resultado:</strong> más esfuerzo para entender el negocio, menos claridad para operarlo.</div>
+        <div>2 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">03</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Diferencia 01</div>
+        <h2>Produ conecta las áreas que una productora sí necesita tener <span class="accent">conectadas</span>.</h2>
+        <div class="cols-2">
+          <div class="panel">
+            <div class="item"><strong>Clientes y comercial</strong><p>Empresas, contactos, presupuestos, contratos y seguimiento.</p></div>
+            <div class="item"><strong>Operación audiovisual</strong><p>Proyectos, producciones, contenidos, equipo y calendario.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Documentos y cobranza</strong><p>Facturación, cartera, descuentos y control de pagos.</p></div>
+            <div class="item"><strong>Escalabilidad</strong><p>Roles, multiempresa y administración central cuando el negocio crece.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>En simple:</strong> menos traspasos manuales, menos fricción entre áreas.</div>
+        <div>3 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">04</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Diferencia 02</div>
+        <h2>Produ no te obliga a adaptar tu productora a una herramienta genérica.</h2>
+        <table class="table">
+          <thead>
+            <tr><th>Necesidad real</th><th>Con sistemas genéricos</th><th>Con Produ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ver balance por trabajo</td><td>Se arma manualmente</td><td>Se piensa dentro del flujo operativo</td></tr>
+            <tr><td>Separar proyectos, producciones y contenidos</td><td>Se resuelve con parches</td><td>Se modela como parte del negocio</td></tr>
+            <tr><td>Conectar comercial con ejecución</td><td>Se usan varias apps</td><td>Se gestiona dentro del mismo sistema</td></tr>
+            <tr><td>Escalar a más empresas o equipos</td><td>Se vuelve complejo</td><td>Existe lógica multiempresa</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <div><strong>Valor:</strong> Produ habla el idioma de una productora desde el día uno.</div>
+        <div>4 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">05</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Beneficios</div>
+        <h2>Lo que cambia cuando la operación sí está <span class="accent">ordenada</span>.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Más visibilidad</strong><p>Sabes qué está activo, qué viene, qué falta cobrar y quién está asignado.</p></div>
+          <div class="item"><strong>Más velocidad</strong><p>Menos tiempo buscando datos. Más tiempo ejecutando mejor.</p></div>
+          <div class="item"><strong>Más control</strong><p>Decisiones con información real, no con sensación de control.</p></div>
+        </div>
+        <div class="quote">Una productora ordenada no solo trabaja mejor. También cobra mejor.</div>
+      </div>
+      <div class="footer">
+        <div><strong>Impacto real:</strong> operación, comercial y caja dejan de competir entre sí.</div>
+        <div>5 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">06</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Encaje</div>
+        <h2>Produ calza especialmente bien si hoy tu productora vive alguno de estos síntomas.</h2>
+        <div class="cols-2">
+          <div class="panel">
+            <div class="item"><strong>Se pierden cosas</strong><p>Fechas, cobros, aprobaciones o documentos.</p></div>
+            <div class="item"><strong>Todo pasa por una persona</strong><p>Y si esa persona no está, la operación se frena.</p></div>
+          </div>
+          <div class="panel">
+            <div class="item"><strong>Cuesta ver el negocio</strong><p>No está claro qué deja margen y qué no.</p></div>
+            <div class="item"><strong>El crecimiento complica</strong><p>Más clientes y trabajo significan más caos, no más orden.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Señal clave:</strong> cuando ya no basta con “seguir coordinando como siempre”.</div>
+        <div>6 / 7</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Por qué Produ</div>
+          </div>
+        </div>
+        <div class="slide-num">07</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Cierre</div>
+        <h2>Produ puede ser una buena decisión si lo que buscas no es “otra herramienta”, sino una mejor forma de <span class="accent">operar tu productora</span>.</h2>
+        <div class="panel">
+          <div class="item"><strong>Menos fragmentación</strong><p>Menos perseguir información en distintos lugares.</p></div>
+          <div class="item"><strong>Más claridad</strong><p>Más visibilidad sobre clientes, trabajos, equipo y caja.</p></div>
+          <div class="item"><strong>Más escalabilidad</strong><p>Una base real para crecer sin multiplicar el desorden.</p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>CTA sugerido:</strong> agendar demo y revisar juntos tu flujo actual.</div>
+        <div>7 / 7</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentación Comercial - Produ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#06111d;
+      --panel:#0d1928;
+      --panel-2:#12253b;
+      --line:rgba(255,255,255,.08);
+      --text:#f4f7fb;
+      --muted:#9fb2cb;
+      --cyan:#12c7ff;
+      --green:#39dd8d;
+      --yellow:#ffd25c;
+      --red:#ff7b87;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Manrope",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(18,199,255,.12), transparent 24%),
+        linear-gradient(180deg, #07111c 0%, #050d17 100%);
+    }
+    .deck{
+      width:min(1400px, 100%);
+      margin:0 auto;
+      padding:36px 24px 60px;
+      display:grid;
+      gap:28px;
+    }
+    .slide{
+      min-height:780px;
+      border-radius:32px;
+      overflow:hidden;
+      position:relative;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        linear-gradient(180deg, #0a1522 0%, #08111d 100%);
+      border:1px solid var(--line);
+      box-shadow:0 28px 80px rgba(0,0,0,.28);
+      padding:42px 44px;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:20px;
+    }
+    .slide::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size:72px 72px;
+      mask-image:linear-gradient(180deg, rgba(0,0,0,.75), transparent 88%);
+      pointer-events:none;
+    }
+    .brand{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .brand-left{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand-mark{
+      width:54px;
+      height:54px;
+      border-radius:16px;
+      background:linear-gradient(135deg, var(--cyan), #0b82d4);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:20px;
+      color:#fff;
+      box-shadow:0 14px 34px rgba(18,199,255,.28);
+    }
+    .brand-name{
+      font-family:"Syne",sans-serif;
+      font-size:32px;
+      letter-spacing:-1px;
+      line-height:1;
+    }
+    .brand-sub{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:2.2px;
+      margin-top:4px;
+    }
+    .slide-num{
+      font-size:14px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    .hero{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:28px;
+      align-items:center;
+    }
+    h1,h2{
+      font-family:"Syne",sans-serif;
+      letter-spacing:-2px;
+      margin:0;
+      line-height:.98;
+    }
+    h1{font-size:96px}
+    h2{font-size:62px}
+    .accent{color:var(--cyan)}
+    .lead{
+      margin-top:20px;
+      color:var(--muted);
+      font-size:28px;
+      line-height:1.4;
+      max-width:720px;
+    }
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 14px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      text-transform:uppercase;
+      letter-spacing:1px;
+      font-size:13px;
+      font-weight:800;
+      color:#d2e2f4;
+    }
+    .kicker::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--cyan);
+    }
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:24px;
+    }
+    .hero-card{
+      display:grid;
+      gap:14px;
+    }
+    .hero-metric{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .metric{
+      padding:18px;
+      border-radius:20px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+    }
+    .metric small{
+      display:block;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+      font-size:11px;
+      margin-bottom:10px;
+      font-weight:800;
+    }
+    .metric strong{
+      font-size:34px;
+      font-family:"Syne",sans-serif;
+      letter-spacing:-1px;
+    }
+    .metric span{
+      display:block;
+      margin-top:8px;
+      font-size:15px;
+      color:#d7e4f4;
+      line-height:1.45;
+    }
+    .content{
+      position:relative;
+      z-index:1;
+      display:grid;
+      gap:24px;
+      align-content:start;
+    }
+    .cols-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:22px;
+    }
+    .cols-3{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:18px;
+    }
+    .list{
+      display:grid;
+      gap:12px;
+      margin-top:10px;
+    }
+    .item{
+      padding:18px 18px 18px 20px;
+      border-radius:22px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+    }
+    .item strong{
+      display:block;
+      font-size:22px;
+      margin-bottom:6px;
+    }
+    .item p{
+      margin:0;
+      color:var(--muted);
+      font-size:18px;
+      line-height:1.5;
+    }
+    .matrix{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:22px;
+    }
+    .table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:17px;
+    }
+    .table th,.table td{
+      padding:14px 12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      vertical-align:top;
+    }
+    .table th{
+      color:#d6e4f6;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+    }
+    .chip{
+      display:inline-flex;
+      padding:9px 12px;
+      border-radius:999px;
+      font-size:14px;
+      font-weight:800;
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      color:#d8e6f8;
+    }
+    .footer{
+      position:relative;
+      z-index:1;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:20px;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.5;
+    }
+    .footer strong{color:#e6eef8}
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">01</div>
+      </div>
+      <div class="hero">
+        <div>
+          <div class="kicker">Presentación comercial</div>
+          <h1>Produ ordena la <span class="accent">operación completa</span> de una productora.</h1>
+          <div class="lead">Clientes, proyectos, producciones, contenidos, contratos, presupuestos, facturación y cartera conectados en un solo sistema.</div>
+        </div>
+        <div class="panel hero-card">
+          <div class="hero-metric">
+            <div class="metric">
+              <small>Problema</small>
+              <strong style="color:var(--red)">Caos</strong>
+              <span>Excel, WhatsApp, correos y memoria como sistema operativo.</span>
+            </div>
+            <div class="metric">
+              <small>Resultado</small>
+              <strong style="color:var(--green)">Control</strong>
+              <span>Más visibilidad para ejecutar, cobrar y escalar.</span>
+            </div>
+          </div>
+          <div class="metric">
+            <small>Propuesta central</small>
+            <strong style="font-size:28px;color:var(--cyan)">Un sistema pensado para productoras reales</strong>
+            <span>No es un PM genérico. Es una plataforma operativa, comercial y administrativa adaptada al trabajo audiovisual.</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Uso sugerido:</strong> reunión comercial, demo con clientes, introducción a partners.</div>
+        <div>produ.cl</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">02</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Problema</div>
+        <h2>La mayoría de las productoras crece con <span class="accent">herramientas que ya no alcanzan</span>.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Operación dispersa</strong><p>Clientes, grabaciones, tareas y documentos repartidos entre varios lugares.</p></div>
+          <div class="item"><strong>Cobranza lenta</strong><p>Los hitos, aprobaciones y facturas no conversan entre sí.</p></div>
+          <div class="item"><strong>Poca visibilidad</strong><p>Cuesta ver balance, carga del equipo y estado real del negocio.</p></div>
+        </div>
+        <div class="panel">
+          <div class="list">
+            <div class="item"><strong>Consecuencia directa</strong><p>Se pierde tiempo, margen, seguimiento y capacidad de crecer sin fricción.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Insight:</strong> el dolor no es “falta de esfuerzo”; es falta de estructura.</div>
+        <div>2 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">03</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Solución</div>
+        <h2>Produ conecta <span class="accent">operación, comercial y administración</span> en un solo flujo.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Clientes y relación comercial</strong><p>Empresas, contactos, contratos, presupuestos y seguimiento.</p></div>
+          <div class="item"><strong>Operación audiovisual</strong><p>Proyectos, producciones, contenidos, crew, calendario y tareas.</p></div>
+          <div class="item"><strong>Gestión y caja</strong><p>Facturación, cartera, descuentos, cobranza y visibilidad financiera.</p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Mensaje clave:</strong> Produ no reemplaza solo una planilla; reemplaza el caos operativo.</div>
+        <div>3 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">04</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Módulos</div>
+        <h2>Un stack modular para <span class="accent">distintos tipos de productora</span>.</h2>
+        <div class="cols-2">
+          <div class="panel">
+            <div class="list">
+              <div class="item"><strong>Base</strong><p>Dashboard, clientes, proyectos, calendario, tareas y control financiero.</p></div>
+              <div class="item"><strong>Producciones</strong><p>Programas, episodios, auspiciadores y operación comercial asociada.</p></div>
+              <div class="item"><strong>Contenidos</strong><p>Campañas, piezas, plataformas, responsables y seguimiento.</p></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="list">
+              <div class="item"><strong>Comercial</strong><p>Presupuestos, contratos, facturación y pipeline.</p></div>
+              <div class="item"><strong>Recursos</strong><p>Crew, activos, listas administrables y roles.</p></div>
+              <div class="item"><strong>Escala</strong><p>Multiempresa, panel SuperAdmin y cartera consolidada.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Ventaja:</strong> el cliente activa solo lo que necesita, sin sobrecargar la operación.</div>
+        <div>4 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">05</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Diferenciación</div>
+        <h2>Por qué Produ es distinto a usar <span class="accent">Notion, Monday o un stack armado</span>.</h2>
+        <table class="table">
+          <thead>
+            <tr><th>Necesidad</th><th>Herramientas genéricas</th><th>Produ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Modelo audiovisual</td><td>Se arma a mano</td><td>Ya viene pensado para productoras</td></tr>
+            <tr><td>Clientes + operación + caja</td><td>Se resuelve con varias apps</td><td>Todo conectado en un solo sistema</td></tr>
+            <tr><td>Producciones y contenidos</td><td>Workarounds y campos custom</td><td>Flujos nativos por tipo de trabajo</td></tr>
+            <tr><td>Cartera y referidos</td><td>No es nativo</td><td>Gestión comercial y financiera integrada</td></tr>
+            <tr><td>Multiempresa</td><td>Complejo</td><td>Panel SuperAdmin y tenants separados</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <div><strong>Posicionamiento:</strong> software vertical para productoras, no un lienzo genérico.</div>
+        <div>5 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">06</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Cliente ideal</div>
+        <h2>Produ calza mejor cuando la productora ya siente <span class="accent">fricción operativa</span>.</h2>
+        <div class="cols-3">
+          <div class="item"><strong>Productoras audiovisuales</strong><p>Con clientes recurrentes, proyectos simultáneos y necesidad de ver balance real.</p></div>
+          <div class="item"><strong>Equipos con líneas mixtas</strong><p>Proyectos + programas + contenidos + documentos comerciales.</p></div>
+          <div class="item"><strong>Empresas en etapa de orden</strong><p>Que ya no quieren depender de planillas ni coordinación informal.</p></div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Señal de compra:</strong> “ya somos demasiado grandes para seguir operando así”.</div>
+        <div>6 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">07</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Modelo comercial</div>
+        <h2>Entrada simple, crecimiento por <span class="accent">módulos, usuarios y empresas</span>.</h2>
+        <div class="matrix">
+          <div class="panel">
+            <div class="list">
+              <div class="item"><strong>Starter</strong><p>Ordena la base de la operación.</p></div>
+              <div class="item"><strong>Pro</strong><p>Activa el stack completo de ejecución, documentos y equipo.</p></div>
+              <div class="item"><strong>Enterprise</strong><p>Multiempresa, visibilidad consolidada y administración central.</p></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="list">
+              <div class="item"><strong>Add-ons</strong><p>Producciones, contenidos, presupuestos, facturación, crew, contratos y activos.</p></div>
+              <div class="item"><strong>Upsell natural</strong><p>Cuando el cliente ordena una parte, tiende a conectar la siguiente.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>Lectura:</strong> Produ puede venderse primero como orden operativo y crecer luego como ERP audiovisual liviano.</div>
+        <div>7 / 8</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="brand">
+        <div class="brand-left">
+          <div class="brand-mark">▶</div>
+          <div>
+            <div class="brand-name">produ</div>
+            <div class="brand-sub">Gestión de productoras</div>
+          </div>
+        </div>
+        <div class="slide-num">08</div>
+      </div>
+      <div class="content">
+        <div class="kicker">Cierre</div>
+        <h2>Produ no vende “más gestión”. Vende <span class="accent">claridad para operar</span>.</h2>
+        <div class="panel">
+          <div class="list">
+            <div class="item"><strong>Menos caos</strong><p>Menos perseguir información, menos fricción entre áreas.</p></div>
+            <div class="item"><strong>Más control</strong><p>Más visibilidad sobre proyectos, equipo, cobros y negocio.</p></div>
+            <div class="item"><strong>Más escalabilidad</strong><p>Base real para crecer sin multiplicar el desorden.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <div><strong>CTA:</strong> demo comercial, presentación a cliente o versión resumida para ventas.</div>
+        <div>8 / 8</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

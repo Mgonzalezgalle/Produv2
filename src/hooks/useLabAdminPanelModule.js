@@ -133,7 +133,41 @@ export function useLabAdminPanelModule({
       await saveUsers((users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u));
     }
     ntf("Acceso temporal generado ✓");
-    alert(`Acceso temporal para ${target.email}: ${temp}`);
+    let emailResult = null;
+    if (target?.email && platformServices?.sendTransactionalEmail) {
+      try {
+        const safeName = target?.name || target?.email || "equipo";
+        const tenantName = empresa?.nombre || empresa?.nom || "Produ";
+        const text = [
+          `Hola ${safeName},`,
+          "",
+          `Actualizamos tu acceso en ${tenantName}.`,
+          "",
+          `Email: ${target.email || ""}`,
+          `Contraseña temporal: ${temp}`,
+          "",
+          "Te recomendamos cambiarla al ingresar.",
+        ].join("\n").trim();
+        emailResult = await platformServices.sendTransactionalEmail({
+          tenantId: empresa?.id || target?.empId || "",
+          templateKey: "access_updated",
+          subject: `Acceso actualizado en ${tenantName}`,
+          to: [target.email],
+          text,
+          html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
+          entityType: "user_access",
+          entityId: target?.id || "",
+          metadata: {
+            tenantName,
+            userName: target?.name || "",
+            mode: "access_updated",
+          },
+        });
+      } catch {
+        emailResult = { ok: false };
+      }
+    }
+    alert(`Acceso temporal para ${target.email}: ${temp}${emailResult?.ok ? " / Correo enviado." : ""}`);
   };
 
   const saveUser = async () => {

@@ -47,11 +47,14 @@ import {
   recurringSummary,
   today,
   uid,
+  commentAttachmentFromFile,
 } from "../../lib/utils/helpers";
 import { useLabBudgetDetail } from "../../hooks/useLabBudgetDetail";
 import { useLabBudgetForm } from "../../hooks/useLabBudgetForm";
 import { useLabBudgetList } from "../../hooks/useLabBudgetList";
 import { dbGet } from "../../hooks/useLabDataStore";
+import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 let commercialPdfRuntimePromise = null;
 
 async function getCommercialPdfRuntime() {
@@ -98,7 +101,7 @@ export function BudgetListSection({
   currentPage, toggleAll, toggleSelected, fd, pg, PP, setPg,
   total, aceptados, acceptedCount, clientes, producciones, programas, piezas, contratos,
   recurringSummary, budgetRefLabel, today, fmtM, fmtMoney,
-  setEstadoRapido, navTo, onOpenPdf, onSendWhatsApp, onDelete,
+  setEstadoRapido, navTo, onOpenPdf, onSendWhatsApp, onSendEmail, onDelete,
   Stat, SearchBar, FilterSel, Btn, FSl, GBtn, DBtn, Card, TH, TD, Badge, Empty, Paginator, XBtn,
 }) {
   return <div>
@@ -142,6 +145,7 @@ export function BudgetListSection({
               <TD><div style={{display:"flex",gap:4}}>
                 <GBtn sm onClick={e=>{e.stopPropagation();navTo("pres-det",p.id);}}>Ver</GBtn>
                 <GBtn sm onClick={e=>{e.stopPropagation();onOpenPdf(p,c);}} title="Descargar PDF">⬇</GBtn>
+                <GBtn sm onClick={async e=>{e.stopPropagation();await onSendEmail(p,c);}} title="Enviar por correo">✉</GBtn>
                 <GBtn sm onClick={async e=>{e.stopPropagation();await onSendWhatsApp(p,c);}} title="Enviar por WhatsApp">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                 </GBtn>
@@ -160,7 +164,11 @@ export function BudgetListSection({
   </div>;
 }
 
-export function ViewPres({ empresa, presupuestos, clientes, producciones, programas, piezas, contratos, navTo, openM, canDo, cSave, cDel, setPresupuestos }) {
+function buildBudgetMailto(to = "", subject = "", body = "") {
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, producciones, programas, piezas, contratos, navTo, openM, canDo, cSave, cDel, setPresupuestos }) {
   const {
     q,
     setQ,
@@ -192,6 +200,121 @@ export function ViewPres({ empresa, presupuestos, clientes, producciones, progra
     cSave,
     canEdit: canDo && canDo("presupuestos"),
   });
+  const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
+  const [emailComposerSending, setEmailComposerSending] = React.useState(false);
+
+  const openEmailComposer = React.useCallback((builderResult) => {
+    if (!builderResult?.ok || !builderResult?.draft) {
+      window.alert(builderResult?.message || "No pudimos preparar el correo.");
+      return;
+    }
+    setEmailComposerDraft(builderResult.draft);
+    setEmailComposerOpen(true);
+  }, []);
+
+  const closeEmailComposer = React.useCallback(() => {
+    if (emailComposerSending) return;
+    setEmailComposerOpen(false);
+    setEmailComposerDraft(null);
+  }, [emailComposerSending]);
+
+  const deliverEmailDraft = React.useCallback(async (draft = {}) => {
+    const recipients = String(draft?.to || "")
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+    if (!recipients.length) return { ok: false, message: "Debes indicar al menos un destinatario." };
+    const subject = String(draft?.subject || "").trim();
+    const body = String(draft?.body || "").trim();
+    if (!subject || !body) return { ok: false, message: "El asunto y el cuerpo del correo son obligatorios." };
+    const payload = {
+      tenantId: draft?.tenantId || empresa?.id || "",
+      templateKey: draft?.templateKey || "budget_manual_delivery",
+      subject,
+      to: recipients,
+      text: body,
+      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      replyTo: String(draft?.replyTo || user?.email || "").trim() || undefined,
+      attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+      entityType: draft?.entityType || "",
+      entityId: draft?.entityId || "",
+      metadata: draft?.metadata || {},
+    };
+    try {
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (remoteResult?.ok) return remoteResult;
+      if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+    } catch {}
+    if (Array.isArray(draft?.attachments) && draft.attachments.length) {
+      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+    }
+    window.location.href = buildBudgetMailto(recipients.join(","), subject, body);
+    return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
+  }, [empresa?.id, platformApi, user?.email]);
+
+  const createBudgetEmailDraft = React.useCallback(async (pres, client) => {
+    const contact = (client?.contactos || []).find(item => item?.ema) || (client?.contactos || [])[0];
+    const email = String(contact?.ema || "").trim();
+    if (!email) return { ok: false, message: "El cliente no tiene email registrado para enviar este presupuesto." };
+    const resolved = resolveTransactionalEmailTemplate(empresa, "budget_manual_delivery", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      entityLabel: client?.nom || contact?.nom || "cliente",
+      documentNumber: pres?.correlativo || pres?.titulo || "sin correlativo",
+      totalFormatted: fmtMoney(pres?.total || 0, pres?.moneda || empresa?.moneda || "CLP"),
+      validityLabel: `${pres?.validez || 30} días`,
+      referenceLabel: budgetRefLabel(pres, producciones, programas, piezas) || "Sin referencia",
+    });
+    let attachments = [];
+    try {
+      const { buildBudgetPdfFile, commercialPdfDeps } = await getCommercialPdfRuntime();
+      const file = await buildBudgetPdfFile(pres, client, empresa, commercialPdfDeps);
+      const attachment = await commentAttachmentFromFile(file);
+      if (attachment) attachments = [attachment];
+    } catch {
+      window.alert("No pudimos adjuntar automáticamente el PDF del presupuesto. El correo se abrirá igual para revisión.");
+    }
+    return {
+      ok: true,
+      draft: {
+        tenantId: empresa?.id || "",
+        templateKey: "budget_manual_delivery",
+        subject: `Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`,
+        to: email,
+        body: resolved.body,
+        attachments,
+        entityType: "budget",
+        entityId: pres?.id || "",
+        replyTo: user?.email || "",
+        metadata: {
+          companyName: empresa?.nombre || empresa?.nom || "Produ",
+          entityLabel: client?.nom || "",
+          contactName: contact?.nom || "",
+          documentNumber: pres?.correlativo || pres?.titulo || "",
+        },
+      },
+    };
+  }, [empresa, piezas, producciones, programas, user?.email]);
+
+  const openBudgetEmailComposer = React.useCallback(async (pres, client) => {
+    const built = await createBudgetEmailDraft(pres, client);
+    openEmailComposer(built);
+  }, [createBudgetEmailDraft, openEmailComposer]);
+
+  const handleSendComposedEmail = React.useCallback(async (draft) => {
+    setEmailComposerSending(true);
+    try {
+      const result = await deliverEmailDraft(draft);
+      if (!result?.ok) {
+        window.alert(result?.message || "No pudimos enviar el correo.");
+        return;
+      }
+      setEmailComposerOpen(false);
+      setEmailComposerDraft(null);
+    } finally {
+      setEmailComposerSending(false);
+    }
+  }, [deliverEmailDraft]);
 
   return <div>
     <ModuleHeader
@@ -222,9 +345,17 @@ export function ViewPres({ empresa, presupuestos, clientes, producciones, progra
         const { sendBudgetToWhatsApp, commercialPdfDeps } = await getCommercialPdfRuntime();
         return sendBudgetToWhatsApp(p, c, empresa, commercialPdfDeps);
       }}
+      onSendEmail={openBudgetEmailComposer}
       onDelete={(id) => cDel(presupuestos, setPresupuestos, id, null, "Presupuesto eliminado")}
       Stat={Stat} SearchBar={SearchBar} FilterSel={FilterSel} Btn={Btn} FSl={FSl} GBtn={GBtn} DBtn={DBtn}
       Card={Card} TH={TH} TD={TD} Badge={Badge} Empty={Empty} Paginator={Paginator} XBtn={XBtn}
+    />
+    <TransactionalEmailComposerModal
+      open={emailComposerOpen}
+      draft={emailComposerDraft}
+      sending={emailComposerSending}
+      onClose={closeEmailComposer}
+      onSend={handleSendComposedEmail}
     />
   </div>;
 }
@@ -339,7 +470,7 @@ export function ViewCts({ empresa, contratos, clientes, presupuestos, facturas, 
   </div>;
 }
 
-export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setPiezas,setMovimientos}){
+export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,producciones,programas,piezas,contratos,facturas,navTo,openM,canDo,cSave,cDel,setPresupuestos,setProducciones,setProgramas,setPiezas,setMovimientos}){
   const {
     p,
     c,
@@ -381,11 +512,88 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
     hasAddon,
     canDo,
   });
+  const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
+  const [emailComposerSending, setEmailComposerSending] = React.useState(false);
   if(!p) return <Empty text="No encontrado"/>;
+  const deliverEmailDraft = async (draft = {}) => {
+    const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!recipients.length) return { ok: false, message: "Debes indicar al menos un destinatario." };
+    const subject = String(draft?.subject || "").trim();
+    const body = String(draft?.body || "").trim();
+    if (!subject || !body) return { ok: false, message: "El asunto y el cuerpo del correo son obligatorios." };
+    const payload = {
+      tenantId: draft?.tenantId || empresa?.id || "",
+      templateKey: draft?.templateKey || "budget_manual_delivery",
+      subject,
+      to: recipients,
+      text: body,
+      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      replyTo: String(draft?.replyTo || user?.email || "").trim() || undefined,
+      attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
+      entityType: draft?.entityType || "",
+      entityId: draft?.entityId || "",
+      metadata: draft?.metadata || {},
+    };
+    try {
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (remoteResult?.ok) return remoteResult;
+      if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+    } catch {}
+    if (Array.isArray(draft?.attachments) && draft.attachments.length) {
+      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+    }
+    window.location.href = buildBudgetMailto(recipients.join(","), subject, body);
+    return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
+  };
+  const openBudgetEmailComposer = async () => {
+    const contact = (c?.contactos || []).find(item => item?.ema) || (c?.contactos || [])[0];
+    const email = String(contact?.ema || "").trim();
+    if (!email) {
+      window.alert("El cliente no tiene email registrado para enviar este presupuesto.");
+      return;
+    }
+    const resolved = resolveTransactionalEmailTemplate(empresa, "budget_manual_delivery", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      entityLabel: c?.nom || contact?.nom || "cliente",
+      documentNumber: p?.correlativo || p?.titulo || "sin correlativo",
+      totalFormatted: fmtMoney(p?.total || 0, p?.moneda || empresa?.moneda || "CLP"),
+      validityLabel: `${p?.validez || 30} días`,
+      referenceLabel: budgetRefLabel(p, producciones, programas, piezas) || "Sin referencia",
+    });
+    let attachments = [];
+    try {
+      const { buildBudgetPdfFile, commercialPdfDeps } = await getCommercialPdfRuntime();
+      const file = await buildBudgetPdfFile(p, c, empresa, commercialPdfDeps);
+      const attachment = await commentAttachmentFromFile(file);
+      if (attachment) attachments = [attachment];
+    } catch {
+      window.alert("No pudimos adjuntar automáticamente el PDF del presupuesto. El correo se abrirá igual para revisión.");
+    }
+    setEmailComposerDraft({
+      tenantId: empresa?.id || "",
+      templateKey: "budget_manual_delivery",
+      subject: `Notificación de ${empresa?.nombre || empresa?.nom || "Produ"}`,
+      to: email,
+      body: resolved.body,
+      attachments,
+      entityType: "budget",
+      entityId: p?.id || "",
+      replyTo: user?.email || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: c?.nom || "",
+        contactName: contact?.nom || "",
+        documentNumber: p?.correlativo || p?.titulo || "",
+      },
+    });
+    setEmailComposerOpen(true);
+  };
   return <div>
     <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <Btn onClick={async()=>{ const { generateBudgetPdf, commercialPdfDeps } = await getCommercialPdfRuntime(); await generateBudgetPdf(p,c,empresa,commercialPdfDeps); }}>⬇ Descargar PDF</Btn>
+        <GBtn onClick={openBudgetEmailComposer}>✉ Crear correo</GBtn>
         <GBtn onClick={async()=>{ const { sendBudgetToWhatsApp, commercialPdfDeps } = await getCommercialPdfRuntime(); await sendBudgetToWhatsApp(p,c,empresa,commercialPdfDeps); }}>
           <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.122 1.528 5.855L0 24l6.335-1.51A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.66-.498-5.193-1.37l-.371-.22-3.863.921.976-3.769-.242-.388A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
@@ -453,6 +661,26 @@ export function ViewPresDet({id,empresa,presupuestos,clientes,producciones,progr
       <div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#00e08a",marginBottom:16}}>Se creará {convTipo==="produccion"?"un proyecto":convTipo==="programa"?"una producción":"una campaña de contenidos"} con los datos del cliente. Podrás editar{convTipo==="contenido"?"la desde Contenidos":"lo desde el módulo correspondiente"}.</div>
       <MFoot onClose={()=>setConvOpen(false)} onSave={()=>convertir(navTo)} label={convTipo==="programa"?"Crear Producción":convTipo==="contenido"?"Crear Campaña":"Crear Proyecto"}/>
     </Modal>
+    <TransactionalEmailComposerModal
+      open={emailComposerOpen}
+      draft={emailComposerDraft}
+      sending={emailComposerSending}
+      onClose={() => { if (emailComposerSending) return; setEmailComposerOpen(false); setEmailComposerDraft(null); }}
+      onSend={async draft => {
+        setEmailComposerSending(true);
+        try {
+          const result = await deliverEmailDraft(draft);
+          if (!result?.ok) {
+            window.alert(result?.message || "No pudimos enviar el correo.");
+            return;
+          }
+          setEmailComposerOpen(false);
+          setEmailComposerDraft(null);
+        } finally {
+          setEmailComposerSending(false);
+        }
+      }}
+    />
   </div>;
 }
 

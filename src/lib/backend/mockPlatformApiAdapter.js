@@ -101,6 +101,20 @@ export function createMockPlatformApiAdapter({
         }
         return platformGateway.createGoogleCalendarEvent(payload);
       },
+
+      async listGoogleCalendarEvents(payload = {}) {
+        if (!platformGateway?.listGoogleCalendarEvents) {
+          throw new Error("listGoogleCalendarEvents no está configurado.");
+        }
+        return platformGateway.listGoogleCalendarEvents(payload);
+      },
+
+      async deleteGoogleCalendarEvent(payload = {}) {
+        if (!platformGateway?.deleteGoogleCalendarEvent) {
+          throw new Error("deleteGoogleCalendarEvent no está configurado.");
+        }
+        return platformGateway.deleteGoogleCalendarEvent(payload);
+      },
     },
   };
 }

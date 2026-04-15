@@ -452,7 +452,7 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
         source: "mock",
         provider: "google",
         event: {
-          id: `gcal_mock_${Date.now()}`,
+          id: String(payload?.googleEventId || `gcal_mock_${Date.now()}`),
           calendarId: String(payload?.calendarId || "primary").trim(),
           summary: String(payload?.summary || "Evento Produ").trim(),
           description: String(payload?.description || "").trim(),
@@ -461,6 +461,23 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
           timeZone: String(payload?.timeZone || "America/Santiago").trim(),
           createdAt: new Date().toISOString(),
         },
+      };
+    },
+
+    async listGoogleCalendarEvents() {
+      return {
+        ok: true,
+        source: "mock",
+        provider: "google",
+        items: [],
+      };
+    },
+
+    async deleteGoogleCalendarEvent() {
+      return {
+        ok: true,
+        source: "mock",
+        provider: "google",
       };
     },
   };

@@ -1,6 +1,7 @@
 type Payload = {
   calendarId?: string;
   refreshToken?: string;
+  googleEventId?: string;
   summary?: string;
   description?: string;
   startDateTime?: string;
@@ -79,6 +80,7 @@ Deno.serve(async (req) => {
 
   const payload = await req.json() as Payload;
   const refreshToken = String(payload?.refreshToken || "").trim();
+  const googleEventId = String(payload?.googleEventId || "").trim();
   const summary = String(payload?.summary || "").trim();
   const startDateTime = String(payload?.startDateTime || "").trim();
   const endDateTime = String(payload?.endDateTime || "").trim();
@@ -95,11 +97,16 @@ Deno.serve(async (req) => {
   if (!access.ok) return json({ ok: false, source: "degraded", provider: "google", error: access.error, message: access.message }, access.status || 502);
 
   const calendarId = encodeURIComponent(String(payload?.calendarId || "primary").trim() || "primary");
-  const createUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`);
-  if (addMeet) createUrl.searchParams.set("conferenceDataVersion", "1");
+  const targetEventId = googleEventId ? encodeURIComponent(googleEventId) : "";
+  const createUrl = new URL(
+    targetEventId
+      ? `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${targetEventId}`
+      : `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`
+  );
+  if (addMeet || targetEventId) createUrl.searchParams.set("conferenceDataVersion", "1");
 
   const createRes = await fetch(createUrl.toString(), {
-    method: "POST",
+    method: targetEventId ? "PATCH" : "POST",
     headers: {
       Authorization: `Bearer ${access.accessToken}`,
       "Content-Type": "application/json",

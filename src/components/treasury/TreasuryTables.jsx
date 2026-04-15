@@ -86,8 +86,29 @@ function collectionOptions(current = "") {
   return current && !base.includes(current) ? [current, ...base] : base;
 }
 
-export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, onBillingEmail, onBillingWhatsApp, onStatementEmail, onStatementWhatsApp, canManage = false, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function hasMercadoPagoData(row = {}) {
+  const mercadoPago = row?.mercadoPago || {};
+  return Boolean(
+    String(mercadoPago.initPoint || "").trim() ||
+    String(mercadoPago.preferenceId || "").trim() ||
+    String(mercadoPago.externalReference || "").trim() ||
+    String(mercadoPago.status || "").trim() ||
+    (Array.isArray(mercadoPago.history) && mercadoPago.history.length)
+  );
+}
+
+function canReviewMercadoPagoPayment(row = {}) {
+  const mercadoPago = row?.mercadoPago || {};
+  return Boolean(
+    String(mercadoPago.preferenceId || "").trim() ||
+    String(mercadoPago.externalReference || "").trim() ||
+    String(mercadoPago.lastPaymentId || "").trim()
+  );
+}
+
+export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, onBillingEmail, onPaymentLinkEmail, onBillingWhatsApp, onPaymentLinkWhatsApp, onStatementEmail, onStatementWhatsApp, onGeneratePaymentLink, onCopyPaymentLink, onRefreshPaymentLink, canManage = false, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   const [openId, setOpenId] = useState("");
+  const [actionGroupByRow, setActionGroupByRow] = useState({});
   if (!rows.length) return <EmptyInsideCard text="Sin cuentas por cobrar" sub="Emite facturas para comenzar a visualizar la cartera." />;
   return (
     <div className="treasury-table-wrap">
@@ -100,7 +121,7 @@ export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, on
             const canRegisterPayment = canManage && onAddPayment && row.allowsManualReceipts !== false;
             const canEditCollection = canManage && onUpdateCobranza && row.collectionEditable !== false;
             const canSelectRow = row.allowsManualReceipts !== false || row.collectionEditable !== false;
-            return (
+          return (
               <React.Fragment key={row.id}>
                 <tr>
                   <td><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} disabled={!canSelectRow} title={canSelectRow ? "Seleccionar documento" : "Documento no operable para acciones de cobranza"} /></td>
@@ -113,7 +134,112 @@ export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, on
                   <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{fmtM(row.pending)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{canRegisterPayment ? <GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn> : null}<GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>
                 </tr>
-                {open ? <tr><td colSpan={9} style={{ paddingTop: 0 }}><div className="treasury-detail"><div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"flex-start", flexWrap:"wrap", marginBottom:12 }}><div><div className="treasury-detail-title">Gestión de cobranza</div><div className="treasury-muted" style={{ fontSize:12 }}>{row.isAdjustment ? "Este documento se comporta como ajuste financiero y no registra cobros manuales." : "Aquí se centraliza el seguimiento operativo del cobro para este documento."}</div></div><div style={{ display:"flex", alignItems:"flex-start", gap:12, flexWrap:"wrap" }}><div style={{ display:"grid", gap:8, justifyItems:"start", paddingTop:22 }}><div className="treasury-context-chips"><span className="treasury-context-chip brand">{row.source || "Facturación"}</span>{row.sourceDetail ? <span className="treasury-context-chip soft">{row.sourceDetail}</span> : null}{row.externalSync?.externalFolio ? <span className="treasury-context-chip soft">Folio {row.externalSync.externalFolio}</span> : null}</div></div>{canEditCollection ? <label style={{ minWidth:220 }}><div className="treasury-section-sub" style={{ marginTop:0, marginBottom:6 }}>Estado de cobranza</div><select value={row.cobranza} onChange={e => onUpdateCobranza(row, e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid var(--bdr2)", background:"var(--card)", color:"var(--wh)" }}>{collectionOptions(row.cobranza).map(option => <option key={option} value={option}>{option}</option>)}</select></label> : null}</div></div><div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>{onBillingEmail ? <ContactActionButton tone="mail" label="Crear correo" onClick={() => onBillingEmail(row)} /> : null}{onBillingWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onBillingWhatsApp(row)} /> : null}{onStatementEmail ? <ContactActionButton tone="mail" label="Crear estado cta." onClick={() => onStatementEmail(row)} /> : null}{onStatementWhatsApp ? <ContactActionButton tone="wa" label="Estado cta." onClick={() => onStatementWhatsApp(row)} /> : null}</div><div className="treasury-detail-title">Historial de pagos</div><DetailTable columns={[{ key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" }, { key: "method", label: "Método" }, { key: "reference", label: "Referencia" }, { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> }]} rows={row.paymentHistory || []} emptyText={row.isAdjustment ? "Los ajustes no registran pagos manuales en Tesorería." : "Todavía no hay pagos manuales registrados para este documento"} /></div></td></tr> : null}
+                {open ? (
+                  <tr>
+                    <td colSpan={9} style={{ paddingTop: 0 }}>
+                      <div className="treasury-detail">
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 12 }}>
+                          <div>
+                            <div className="treasury-detail-title">Gestion de cobranza</div>
+                            <div className="treasury-muted" style={{ fontSize: 12 }}>
+                              {row.isAdjustment ? "Este documento se comporta como ajuste financiero y no registra cobros manuales." : "Aqui se centraliza el seguimiento operativo del cobro para este documento."}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{ display: "grid", gap: 8, justifyItems: "start", paddingTop: 22 }}>
+                              <div className="treasury-context-chips">
+                                <span className="treasury-context-chip brand">{row.source || "Facturacion"}</span>
+                                {row.sourceDetail ? <span className="treasury-context-chip soft">{row.sourceDetail}</span> : null}
+                                {row.externalSync?.externalFolio ? <span className="treasury-context-chip soft">Folio {row.externalSync.externalFolio}</span> : null}
+                                {row.mercadoPago?.status ? <span className="treasury-context-chip soft">MP {row.mercadoPago.status}</span> : null}
+                              </div>
+                            </div>
+                            {canEditCollection ? (
+                              <label style={{ minWidth: 220 }}>
+                                <div className="treasury-section-sub" style={{ marginTop: 0, marginBottom: 6 }}>Estado de cobranza</div>
+                                <select value={row.cobranza} onChange={e => onUpdateCobranza(row, e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--bdr2)", background: "var(--card)", color: "var(--wh)" }}>
+                                  {collectionOptions(row.cobranza).map(option => <option key={option} value={option}>{option}</option>)}
+                                </select>
+                              </label>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                          {[
+                            { key: "billing", label: "Cobranza", enabled: Boolean(onBillingWhatsApp || onBillingEmail) },
+                            { key: "statement", label: "Estado de cta.", enabled: Boolean(onStatementEmail || onStatementWhatsApp) },
+                            { key: "payment", label: "Pago online", enabled: Boolean(onPaymentLinkEmail || onGeneratePaymentLink || onCopyPaymentLink || onPaymentLinkWhatsApp || onRefreshPaymentLink) },
+                          ].filter(item => item.enabled).map(item => (
+                            <GBtn
+                              key={item.key}
+                              sm
+                              onClick={() => setActionGroupByRow(current => ({
+                                ...current,
+                                [row.id]: current?.[row.id] === item.key ? "" : item.key,
+                              }))}
+                            >
+                              {item.label}
+                            </GBtn>
+                          ))}
+                        </div>
+
+                        {actionGroupByRow?.[row.id] === "billing" ? (
+                          <div style={{ display: "grid", gap: 8, marginBottom: 14, justifyItems: "start" }}>
+                            {onBillingWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onBillingWhatsApp(row)} /> : null}
+                            {onBillingEmail ? <ContactActionButton tone="mail" label="Crear correo" onClick={() => onBillingEmail(row)} /> : null}
+                          </div>
+                        ) : null}
+
+                        {actionGroupByRow?.[row.id] === "statement" ? (
+                          <div style={{ display: "grid", gap: 8, marginBottom: 14, justifyItems: "start" }}>
+                            {onStatementEmail ? <ContactActionButton tone="mail" label="Estado cta." onClick={() => onStatementEmail(row)} /> : null}
+                            {onStatementWhatsApp ? <ContactActionButton tone="wa" label="Estado cta." onClick={() => onStatementWhatsApp(row)} /> : null}
+                          </div>
+                        ) : null}
+
+                        {actionGroupByRow?.[row.id] === "payment" ? (
+                          <div style={{ display: "grid", gap: 8, marginBottom: 14, justifyItems: "start" }}>
+                            {onPaymentLinkEmail ? <ContactActionButton tone="mail" label="Enviar link por correo" onClick={() => onPaymentLinkEmail(row)} /> : null}
+                            {hasMercadoPagoData(row) && onCopyPaymentLink ? (
+                              <ContactActionButton
+                                tone="pay"
+                                label="Link de Pago"
+                                onClick={() => onCopyPaymentLink(row)}
+                              />
+                            ) : null}
+                            {onPaymentLinkWhatsApp ? <ContactActionButton tone="wa" label="Enviar link por WhatsApp" onClick={() => onPaymentLinkWhatsApp(row)} /> : null}
+                            {canReviewMercadoPagoPayment(row) && onRefreshPaymentLink ? <ContactActionButton tone="pay" label="Revisar pago" onClick={() => onRefreshPaymentLink(row)} /> : null}
+                          </div>
+                        ) : null}
+
+                        {hasMercadoPagoData(row) ? (
+                          <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                            <div>
+                              <div className="treasury-detail-title" style={{ marginBottom: 4 }}>Pago online</div>
+                              <div className="treasury-muted" style={{ fontSize: 12 }}>
+                                {row.mercadoPago?.status === "approved" ? "Pago aceptado correctamente." : "Pago todavia no aceptado."}
+                              </div>
+                            </div>
+                            <StatusBadge label={row.mercadoPago?.status === "approved" ? "Aceptado" : "No aceptado"} />
+                          </div>
+                        ) : null}
+
+                        <div className="treasury-detail-title">Historial de pagos</div>
+                        <DetailTable
+                          columns={[
+                            { key: "date", label: "Fecha", render: item => item.date ? fmtD(item.date) : "—" },
+                            { key: "method", label: "Metodo" },
+                            { key: "reference", label: "Referencia" },
+                            { key: "amount", label: "Monto", render: item => <span className="treasury-mono treasury-pending-paid">{fmtM(item.amount)}</span> },
+                          ]}
+                          rows={row.paymentHistory || []}
+                          emptyText={row.isAdjustment ? "Los ajustes no registran pagos manuales en Tesoreria." : "Todavia no hay pagos manuales registrados para este documento"}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
               </React.Fragment>
             );
           })}

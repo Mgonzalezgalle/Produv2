@@ -117,5 +117,13 @@ export function createPlatformMockGateway({
     async createGoogleCalendarEvent(payload = {}) {
       return services.createGoogleCalendarEvent(payload);
     },
+
+    async listGoogleCalendarEvents(payload = {}) {
+      return services.listGoogleCalendarEvents(payload);
+    },
+
+    async deleteGoogleCalendarEvent(payload = {}) {
+      return services.deleteGoogleCalendarEvent(payload);
+    },
   };
 }

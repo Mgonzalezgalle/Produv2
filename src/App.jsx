@@ -308,7 +308,7 @@ export default function App(){
     dbSet,
   });
 
-  useLabGlobalInit({
+  const globalInitReady = useLabGlobalInit({
     dbGet,
     dbSet,
     dbCloneFromProd,
@@ -1164,7 +1164,7 @@ export default function App(){
   }), [navigationProps, VP, viewRendererContexts, viewRendererRegistry]);
 
   // Screens
-  if(!empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
+  if(!globalInitReady || !empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
   if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;
   if(curUser?.role==="superadmin"&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
 

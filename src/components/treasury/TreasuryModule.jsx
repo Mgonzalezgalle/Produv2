@@ -6,7 +6,6 @@ import {
   Paginator,
 } from "../../lib/ui/components";
 import { fmtD, fmtM, fmtMonthPeriod, openWhatsApp } from "../../lib/utils/helpers";
-import { exportTreasuryPayablesCSV } from "../../lib/utils/exports";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
@@ -17,8 +16,9 @@ import { TreasuryPayableModal } from "./TreasuryPayableModal";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
 import { TreasuryPurchaseOrderModal } from "./TreasuryPurchaseOrderModal";
 import { TreasuryPayablesSection, TreasuryReceivablesSection } from "./TreasurySections";
-import { TreasuryStyles, SectionCard, KpiCard, useTableState, deriveProviders } from "./TreasuryCore";
+import { TreasuryStyles, SectionCard, KpiCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 
 export function TreasuryModule(props) {
   const [payablesTab, setPayablesTab] = useState("documentos");
@@ -34,9 +34,10 @@ export function TreasuryModule(props) {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [emailComposerDraft, setEmailComposerDraft] = useState(null);
   const [emailComposerSending, setEmailComposerSending] = useState(false);
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(null);
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
   const {
-    tab, setTab, q, setQ, statusFilter, setStatusFilter, filteredReceivables, receivableSummary, portfolio,
+    tab, setTab, filteredReceivables, receivableSummary, portfolio,
     providers, payables, payablesSummary, purchaseOrders, purchaseOrderSummary, issuedOrders, issuedOrderSummary,
     receiptLog, disbursementLog, canManageTreasury, payableOpen, payableDraft, poOpen, poDraft, issuedOpen, issuedDraft,
     receiptOpen, receiptDraft, disbursementOpen, disbursementDraft, providerOpen, providerDraft, savePayable, deletePayable,
@@ -49,16 +50,20 @@ export function TreasuryModule(props) {
   const saveFacturaDoc = props.saveFacturaDoc;
   const {
     createBillingEmailDraft,
+    createPaymentLinkEmailDraft,
     createStatementEmailDraft,
+    generateMercadoPagoPaymentLink,
+    refreshMercadoPagoPaymentStatus,
+    simulateMercadoPagoPayment,
     deliverEmailDraft,
-    sendBillingEmail,
     sendBillingWhatsApp,
-    sendStatementEmail,
+    sendPaymentLinkWhatsApp,
     sendStatementWhatsApp,
   } = useLabBillingTools({
     allDocs: (facturas || []).filter(item => item.empId === props.empresa?.id),
     movimientos: props.movimientos || [],
     setFacturas: props.setFacturas || (() => {}),
+    saveFacturaDoc,
     setMovimientos: props.setMovimientos || (() => {}),
     canEdit: canManageTreasury,
     ntf: props.ntf,
@@ -84,6 +89,8 @@ export function TreasuryModule(props) {
     uid: () => `treasury_${Math.random().toString(36).slice(2,10)}`,
     platformApi: props.platformApi,
     senderReplyTo: props.user?.email || "",
+    treasuryReceipts: props.treasury?.receipts || [],
+    setTreasuryReceipts: props.treasury?.setReceipts || null,
   });
   const openEmailComposer = React.useCallback((builderResult) => {
     if (!builderResult?.ok || !builderResult?.draft) {
@@ -115,6 +122,9 @@ export function TreasuryModule(props) {
   const openBillingEmailComposer = React.useCallback((doc, entity) => {
     openEmailComposer(createBillingEmailDraft(doc, entity));
   }, [createBillingEmailDraft, openEmailComposer]);
+  const openPaymentLinkEmailComposer = React.useCallback((doc, entity) => {
+    openEmailComposer(createPaymentLinkEmailDraft(doc, entity));
+  }, [createPaymentLinkEmailDraft, openEmailComposer]);
   const openStatementEmailComposer = React.useCallback((docs, entity, type) => {
     openEmailComposer(createStatementEmailDraft(docs, entity, type));
   }, [createStatementEmailDraft, openEmailComposer]);
@@ -234,7 +244,7 @@ export function TreasuryModule(props) {
         },
       },
     };
-  }, [fmtD, fmtM, props.empresa, providers]);
+  }, [props.empresa, providers]);
   const handleSupplierEmail = React.useCallback((row) => {
     openEmailComposer(buildSupplierEmailDraft(row));
   }, [buildSupplierEmailDraft, openEmailComposer]);
@@ -252,13 +262,7 @@ export function TreasuryModule(props) {
 
   const deleteMany = async (ids = [], deleter) => {
     if (!ids.length || !deleter) return;
-    if (!confirm(`¿Eliminar ${ids.length} registro${ids.length === 1 ? "" : "s"} seleccionado${ids.length === 1 ? "" : "s"}?`)) return;
-    for (const id of ids) {
-      // Keep sequential writes so the current store setters stay consistent.
-      // This is slower than batching, but safer with the current module contract.
-      // eslint-disable-next-line no-await-in-loop
-      await deleter(id);
-    }
+    setPendingBulkDelete({ ids, deleter });
   };
 
   return (
@@ -319,6 +323,11 @@ export function TreasuryModule(props) {
             saveReceipt={saveReceipt}
             sendBillingEmail={openBillingEmailComposer}
             sendBillingWhatsApp={sendBillingWhatsApp}
+            sendPaymentLinkEmail={openPaymentLinkEmailComposer}
+            sendPaymentLinkWhatsApp={sendPaymentLinkWhatsApp}
+            generateMercadoPagoPaymentLink={generateMercadoPagoPaymentLink}
+            refreshMercadoPagoPaymentStatus={refreshMercadoPagoPaymentStatus}
+            simulateMercadoPagoPayment={simulateMercadoPagoPayment}
             sendStatementEmail={openStatementEmailComposer}
             sendStatementWhatsApp={sendStatementWhatsApp}
             closeReceipt={closeReceipt}
@@ -385,6 +394,25 @@ export function TreasuryModule(props) {
         sending={emailComposerSending}
         onClose={closeEmailComposer}
         onSend={handleSendComposedEmail}
+      />
+      <ConfirmActionDialog
+        open={Boolean(pendingBulkDelete)}
+        title="Eliminar registros"
+        message={`¿Eliminar ${pendingBulkDelete?.ids?.length || 0} registro${(pendingBulkDelete?.ids?.length || 0) === 1 ? "" : "s"} seleccionado${(pendingBulkDelete?.ids?.length || 0) === 1 ? "" : "s"}?`}
+        confirmLabel="Eliminar"
+        onClose={() => setPendingBulkDelete(null)}
+        onConfirm={() => {
+          const current = pendingBulkDelete;
+          setPendingBulkDelete(null);
+          if (!current?.ids?.length || !current?.deleter) return;
+          void (async () => {
+            for (const id of current.ids) {
+              // Keep sequential writes so the current store setters stay consistent.
+              // This is slower than batching, but safer with the current module contract.
+              await current.deleter(id);
+            }
+          })();
+        }}
       />
     </div>
   );

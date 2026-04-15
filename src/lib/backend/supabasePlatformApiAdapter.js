@@ -174,6 +174,22 @@ export function createSupabasePlatformApiAdapter({
         }
         return fn.data || { ok: false, source: "degraded", message: "La función de creación de eventos no devolvió respuesta." };
       },
+
+      async listGoogleCalendarEvents(payload = {}) {
+        const fn = await callEdgeFunction("google-calendar-list-events", payload);
+        if (!fn.ok) {
+          return buildUnavailable(fn.error || "No pudimos leer los eventos de Google Calendar.");
+        }
+        return fn.data || { ok: false, source: "degraded", message: "La función de lectura de eventos no devolvió respuesta." };
+      },
+
+      async deleteGoogleCalendarEvent(payload = {}) {
+        const fn = await callEdgeFunction("google-calendar-delete-event", payload);
+        if (!fn.ok) {
+          return buildUnavailable(fn.error || "No pudimos eliminar el evento en Google Calendar.");
+        }
+        return fn.data || { ok: false, source: "degraded", message: "La función de eliminación no devolvió respuesta." };
+      },
     },
   };
 }

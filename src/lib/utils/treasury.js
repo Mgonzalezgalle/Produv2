@@ -5,7 +5,6 @@ import {
   getProduBillingFinancialMultiplier,
   isProduBillingDocumentIssued,
   requiresProduCollectionTracking,
-  resolveProduBillingDocumentType,
   shouldProduBillingDocumentAppearInTreasury,
 } from "../integrations/billingDomain";
 
@@ -200,6 +199,7 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         sourceDetail: referenceSummary || doc.origen || doc.tipoRef || "",
         paymentHistory,
         externalSync: doc.externalSync || null,
+        mercadoPago: doc.mercadoPago || null,
       };
     })
     .sort((a, b) => {

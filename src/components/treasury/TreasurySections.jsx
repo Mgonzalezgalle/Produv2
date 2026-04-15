@@ -18,8 +18,6 @@ import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
 
 export function TreasuryReceivablesSection({
   canManageTreasury,
-  closePortfolioDetail,
-  clientes,
   deleteMany,
   deleteReceipt,
   facturas,
@@ -27,8 +25,6 @@ export function TreasuryReceivablesSection({
   openPurchaseOrderEdit,
   openReceiptCreate,
   openReceiptEdit,
-  poDraft,
-  poOpen,
   props,
   purchaseOrderSummary,
   receiptClientFilter,
@@ -40,17 +36,18 @@ export function TreasuryReceivablesSection({
   saveFacturaDoc,
   sendBillingEmail,
   sendBillingWhatsApp,
+  sendPaymentLinkEmail,
+  sendPaymentLinkWhatsApp,
+  generateMercadoPagoPaymentLink,
+  refreshMercadoPagoPaymentStatus,
+  simulateMercadoPagoPayment,
   sendStatementEmail,
   sendStatementWhatsApp,
   setReceiptClientFilter,
   setReceiptPeriodFilter,
-  portfolioItem,
-  portfolioOpen,
   portfolioTable,
   receiptOpen,
   receiptDraft,
-  savePurchaseOrder,
-  closePurchaseOrder,
   closeReceipt,
   saveReceipt,
 }) {
@@ -90,12 +87,50 @@ export function TreasuryReceivablesSection({
               : (props.clientes || []).find(item => item.id === doc?.entidadId);
             if (doc) sendBillingEmail(doc, entity);
           }}
+          onPaymentLinkEmail={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            const entity = doc?.tipo === "auspiciador"
+              ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
+              : (props.clientes || []).find(item => item.id === doc?.entidadId);
+            if (!doc) return;
+            const link = String(doc?.mercadoPago?.initPoint || "").trim();
+            if (link) {
+              sendPaymentLinkEmail?.(doc, entity);
+              return;
+            }
+            void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
+              if (!result?.ok) {
+                window.alert(result?.message || "No pudimos generar el link de pago.");
+                return;
+              }
+              sendPaymentLinkEmail?.(result?.doc || doc, entity);
+            });
+          }}
           onBillingWhatsApp={row => {
             const doc = (facturas || []).find(item => item.id === row.id);
             const entity = doc?.tipo === "auspiciador"
               ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
               : (props.clientes || []).find(item => item.id === doc?.entidadId);
             if (doc) sendBillingWhatsApp(doc, entity);
+          }}
+          onPaymentLinkWhatsApp={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            const entity = doc?.tipo === "auspiciador"
+              ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
+              : (props.clientes || []).find(item => item.id === doc?.entidadId);
+            if (!doc) return;
+            const link = String(doc?.mercadoPago?.initPoint || "").trim();
+            if (link) {
+              sendPaymentLinkWhatsApp?.(doc, entity);
+              return;
+            }
+            void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
+              if (!result?.ok) {
+                window.alert(result?.message || "No pudimos generar el link de pago.");
+                return;
+              }
+              sendPaymentLinkWhatsApp?.(result?.doc || doc, entity);
+            });
           }}
           onStatementEmail={row => {
             const doc = (facturas || []).find(item => item.id === row.id);
@@ -124,6 +159,43 @@ export function TreasuryReceivablesSection({
                 item.entidadId === doc.entidadId
             );
             sendStatementWhatsApp(entityDocs, entity, doc.tipo);
+          }}
+          onGeneratePaymentLink={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            const entity = doc?.tipo === "auspiciador"
+              ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
+              : (props.clientes || []).find(item => item.id === doc?.entidadId);
+            if (!doc) return;
+            void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
+              if (!result?.ok) {
+                window.alert(result?.message || "No pudimos generar el link de Mercado Pago.");
+                return;
+              }
+              const emailDoc = result?.doc || doc;
+              if (sendBillingEmail) sendBillingEmail(emailDoc, entity);
+            });
+          }}
+          onCopyPaymentLink={row => {
+            const paymentLink = String(row?.mercadoPago?.initPoint || "").trim();
+            if (!paymentLink) return;
+            if (navigator?.clipboard?.writeText) {
+              navigator.clipboard.writeText(paymentLink);
+              props.ntf?.("Link Mercado Pago copiado ✓");
+              return;
+            }
+            window.prompt("Copia el link de pago:", paymentLink);
+          }}
+          onApprovePaymentLink={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            if (doc) void simulateMercadoPagoPayment(doc, "approved");
+          }}
+          onRefreshPaymentLink={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            if (doc) void refreshMercadoPagoPaymentStatus(doc);
+          }}
+          onRejectPaymentLink={row => {
+            const doc = (facturas || []).find(item => item.id === row.id);
+            if (doc) void simulateMercadoPagoPayment(doc, "rejected");
           }}
           canManage={canManageTreasury}
           selectedIds={receivableTable.selectedIds}

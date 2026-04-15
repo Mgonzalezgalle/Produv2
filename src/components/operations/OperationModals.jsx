@@ -168,7 +168,7 @@ export function MEvento({ open, data, producciones, programas, piezas, onClose, 
   useEffect(() => {
     const next = data?.id
       ? { ...data, invitados: Array.isArray(data?.invitados) ? data.invitados : [], addMeet: data?.addMeet === true }
-      : { titulo: "", tipo: "grabacion", fecha: data?.fecha || "", hora: "", desc: "", ref: data?.ref || "", refTipo: data?.refTipo || "", invitados: [], addMeet: false };
+      : { titulo: "", tipo: "grabacion", fecha: data?.fecha || "", hora: data?.hora || "", desc: "", ref: data?.ref || "", refTipo: data?.refTipo || "", invitados: [], addMeet: false };
     setF(next);
     setInviteesInput(Array.isArray(next.invitados) ? next.invitados.join(", ") : "");
   }, [data, open]);

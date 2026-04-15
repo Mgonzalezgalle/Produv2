@@ -416,14 +416,20 @@ export function ViewCalendario(props) {
             calendarId: userCalendar.calendarId,
             calendarName: userCalendar.calendarName,
           });
-          await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
-            ...item,
-            googleEventId: result.event.id,
-            googleCalendarSyncedAt: new Date().toISOString(),
-            googleCalendarSyncHash: calendarSyncHash(ev),
-            googleCalendarSyncState: "synced",
-            googleCalendarSyncError: "",
-          } : item)));
+          await Promise.resolve(setEventos((current = []) => {
+            const base = Array.isArray(current) ? current : [];
+            const syncedItem = {
+              ...ev,
+              googleEventId: result.event.id,
+              googleCalendarSyncedAt: new Date().toISOString(),
+              googleCalendarSyncHash: calendarSyncHash(ev),
+              googleCalendarSyncState: "synced",
+              googleCalendarSyncError: "",
+            };
+            return base.some(item => item.id === ev.id)
+              ? base.map(item => item.id === ev.id ? { ...item, ...syncedItem } : item)
+              : [...base, syncedItem];
+          }));
           if (remoteEvent) {
             setGoogleCalendarEvents((current = []) => mergeGoogleCalendarEventItems(current, remoteEvent));
           }

@@ -474,17 +474,12 @@ export function ViewCalendario(props) {
         ) {
           return [item];
         }
-        if (item.googleCalendarSyncHash === localCurrentHash) {
-          changed = true;
-          removedCount += 1;
-          return [];
-        }
         if (item.googleCalendarSyncState === "orphan") return [item];
         changed = true;
         return [{
           ...item,
           googleCalendarSyncState: "orphan",
-          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual.",
+          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual. Se mantiene en Produ para no perderlo.",
         }];
       }
       const remoteHash = remoteCalendarSyncHash(remote);

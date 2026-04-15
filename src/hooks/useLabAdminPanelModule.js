@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
@@ -24,6 +24,8 @@ export function useLabAdminPanelModule({
   const isSuperAdmin = user?.role === "superadmin";
   const [tab, setTab] = useState(0);
   const [lt, setLt] = useState(theme || {});
+  const lastThemeEmpresaRef = useRef(empresa?.id || "");
+  const lastSyncedThemeRef = useRef(JSON.stringify(theme || {}));
   const [uf, setUf] = useState({});
   const [uid2, setUid2] = useState(null);
   const [uq, setUq] = useState("");
@@ -63,25 +65,13 @@ export function useLabAdminPanelModule({
   const tenantCanEditMercadoPagoConfig = mercadoPagoGovernanceMode !== "disabled";
 
   useEffect(() => {
+    const nextEmpresaId = empresa?.id || "";
+    const nextThemeSignature = JSON.stringify(theme || {});
+    if (lastThemeEmpresaRef.current === nextEmpresaId && lastSyncedThemeRef.current === nextThemeSignature) return;
+    lastThemeEmpresaRef.current = nextEmpresaId;
+    lastSyncedThemeRef.current = nextThemeSignature;
     setLt(theme || {});
-  }, [
-    empresa?.id,
-    theme,
-    theme?.preset,
-    theme?.mode,
-    theme?.bg,
-    theme?.surface,
-    theme?.card,
-    theme?.border,
-    theme?.accent,
-    theme?.accent2,
-    theme?.white,
-    theme?.gray,
-    theme?.sidebarBg,
-    theme?.sidebarPanel,
-    theme?.sidebarText,
-    theme?.sidebarMuted,
-  ]);
+  }, [empresa?.id, theme]);
   useEffect(() => { dbGet("produ:solicitudes").then(v => setRefSols(v || [])); }, [dbGet]);
   useEffect(() => {
     const envConfig = getBsaleBillingConfig();

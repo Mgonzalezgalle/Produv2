@@ -37,6 +37,8 @@ nav{position:sticky;top:0;z-index:100;background:rgba(246,248,252,.92);backdrop-
 .section-desc{font-size:17px;line-height:1.7;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 16px 42px rgba(16,26,51,.06)}
+.partner-card{display:flex;flex-direction:column;justify-content:space-between}
+.partner-logo{height:38px;width:auto;display:block;margin-bottom:18px}
 .pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef7f4;color:#0e8b74;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
 .card h3{font-family:'Syne',sans-serif;font-size:24px;letter-spacing:-.6px}
 .card p{font-size:14px;line-height:1.7;color:var(--muted);margin-top:10px}
@@ -85,15 +87,15 @@ footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
 <div class="hero-wrap">
   <section class="hero">
     <div class="hero-badge">Integraciones y partners</div>
-    <h1>Produ conecta la operación con partners que resuelven capas específicas del negocio.</h1>
-    <p>El cliente compra Produ. Las integraciones existen para reforzar capacidades puntuales como facturación electrónica, no para reemplazar la experiencia central del producto.</p>
+    <h1>Produ conecta la operación con partners que resuelven funciones específicas del negocio.</h1>
+    <p>El cliente compra Produ. Las integraciones existen para reforzar necesidades puntuales como facturación electrónica o cobro online, no para reemplazar la experiencia central del producto.</p>
   </section>
 </div>
 
 <section class="section">
   <div class="section-head">
     <div class="section-tag">Partner activo</div>
-    <h2 class="section-title">Bsale queda como partner de facturación electrónica.</h2>
+    <h2 class="section-title">Bsale es partner de facturación electrónica.</h2>
     <p class="section-desc">En Produ, la experiencia de facturación vive dentro del producto. Bsale opera como motor tributario para emitir, consultar estado y obtener recursos del documento electrónico.</p>
   </div>
   <div class="grid">
@@ -132,25 +134,42 @@ footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
 
 <section class="section">
   <div class="section-head">
-    <div class="section-tag">Próximamente</div>
-    <h2 class="section-title">Partners e integraciones futuras se incorporan cuando agregan valor real al flujo.</h2>
-    <p class="section-desc">No llenamos el producto de logos. Cada integración debe reforzar una necesidad operativa o financiera clara dentro de Produ.</p>
+    <div class="section-tag">Integraciones activas</div>
+    <h2 class="section-title">Mercado Pago y Google Calendar amplían la operación cuando el flujo del cliente lo necesita.</h2>
+    <p class="section-desc">La idea no es sumar complejidad. Estas integraciones ya están contempladas para resolver cobro online y agenda operativa sin sacar al equipo del flujo principal dentro de Produ.</p>
   </div>
   <div class="grid">
-    <article class="card">
-      <div class="pill">Calendario</div>
-      <h3>Google Calendar</h3>
-      <p>Potencial integración para agenda operativa y sincronización de eventos cuando el flujo lo requiera.</p>
+    <article class="card partner-card">
+      <div>
+        <div class="pill">Cobros online</div>
+        <img class="partner-logo" src="/assets/mercado-pago-logo.png" alt="Mercado Pago" />
+        <p>Partner de cobro digital para enviar links de pago asociados a facturas emitidas desde Produ.</p>
+      </div>
+      <ul>
+        <li>Link de pago por factura</li>
+        <li>Seguimiento del estado del cobro</li>
+        <li>Registro en tesorería cuando el pago se aprueba</li>
+      </ul>
     </article>
     <article class="card">
-      <div class="pill">Pagos</div>
-      <h3>Capas financieras</h3>
-      <p>Futuras integraciones financieras se evalúan según el nivel de trazabilidad y valor que sumen al producto.</p>
+      <div class="pill">Agenda operativa</div>
+      <img class="partner-logo" src="/assets/google-calendar-partner.svg" alt="Google Calendar" />
+      <p>Partner de agenda para sincronizar reuniones, bloques operativos y eventos relevantes del equipo desde Produ.</p>
+      <ul>
+        <li>Sincronización de eventos por usuario</li>
+        <li>Visibilidad de agenda dentro de Produ</li>
+        <li>Meets e invitados cuando el flujo lo requiere</li>
+      </ul>
     </article>
     <article class="card">
-      <div class="pill">Ecosistema</div>
-      <h3>Partners selectivos</h3>
-      <p>Produ se integra con criterio: menos ruido, más valor real en la operación del cliente.</p>
+      <div class="pill">Implementación</div>
+      <h3>Activación por cliente</h3>
+      <p>Las integraciones se habilitan por tenant según la necesidad operativa del cliente. No todos necesitan cobranzas online o agenda conectada desde el primer día.</p>
+      <ul>
+        <li>Configuración de credenciales por cliente</li>
+        <li>Activación controlada por tenant</li>
+        <li>Despliegue gradual según el caso de uso</li>
+      </ul>
     </article>
   </div>
 </section>

@@ -642,28 +642,32 @@ export default function App(){
       try {
         const connection = JSON.parse(rawConnection);
         const targetUserId = String(connection?.userId || curUser.id).trim() || curUser.id;
+        const nextGoogleCalendar = {
+          connected: true,
+          email: String(connection?.userEmail || curUser?.email || "").trim(),
+          calendarId: String(connection?.calendarId || "primary").trim(),
+          calendarName: String(connection?.calendarName || "Calendario principal").trim(),
+          autoSync: false,
+          lastSyncAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
+          tokenType: String(connection?.tokenType || "Bearer").trim(),
+          scope: String(connection?.scope || "").trim(),
+          accessToken: String(connection?.accessToken || "").trim(),
+          refreshToken: String(connection?.refreshToken || "").trim(),
+          expiresIn: Number(connection?.expiresIn || 0),
+        };
         const nextUsers = users.map(item => item.id === targetUserId ? {
           ...item,
-          googleCalendar: {
-            connected: true,
-            email: String(connection?.userEmail || item.email || "").trim(),
-            calendarId: String(connection?.calendarId || "primary").trim(),
-            calendarName: String(connection?.calendarName || "Calendario principal").trim(),
-            autoSync: false,
-            lastSyncAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
-            tokenType: String(connection?.tokenType || "Bearer").trim(),
-            scope: String(connection?.scope || "").trim(),
-            accessToken: String(connection?.accessToken || "").trim(),
-            refreshToken: String(connection?.refreshToken || "").trim(),
-            expiresIn: Number(connection?.expiresIn || 0),
-          },
+          googleCalendar: nextGoogleCalendar,
         } : item);
-        Promise.resolve(saveUsers(nextUsers))
-          .then(() => {
-            ntf("Google Calendar conectado ✓");
-            navTo("calendario");
-          })
-          .finally(cleanUrl);
+        cleanUrl();
+        if (targetUserId === curUser.id) {
+          setCurUser(prev => prev ? { ...prev, googleCalendar: nextGoogleCalendar } : prev);
+        }
+        navTo("calendario");
+        ntf("Google Calendar conectado ✓");
+        Promise.resolve(saveUsers(nextUsers)).catch(() => {
+          ntf("Conectamos Google Calendar, pero no pudimos persistir la conexión localmente.", "warn");
+        });
         return;
       } catch {
         ntf("No pudimos leer la conexión devuelta por Google Calendar.", "warn");

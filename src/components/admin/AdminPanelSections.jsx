@@ -1,5 +1,6 @@
 import React from "react";
 import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FTA, FilterSel, GBtn, KV, R2, R3, SearchBar } from "../../lib/ui/components";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { companyPaymentInfoText, companyPrintColor, PRINT_COLORS } from "../../lib/utils/helpers";
 import { getTransactionalEmailTemplateDefinition, getTransactionalEmailTemplateDefinitions, getTenantTransactionalEmailTemplates, resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 
@@ -13,6 +14,12 @@ export function EmpresaEditSection({
   addons,
   companyGoogleCalendarEnabled,
   canManageAdmin = true,
+  mercadoPagoGovernanceMode = "disabled",
+  tenantCanEditMercadoPagoConfig = false,
+  tenantMercadoPagoConfig = {},
+  setTenantMercadoPagoConfig,
+  tenantMercadoPagoSaving = false,
+  saveTenantMercadoPagoConfig,
 }) {
   const [ef, setEf] = React.useState({});
   const [editing, setEditing] = React.useState(false);
@@ -68,6 +75,16 @@ export function EmpresaEditSection({
     ntf("Datos guardados ✓");
     setEditing(false);
   };
+
+  const mercadoPagoHasSeller = String(tenantMercadoPagoConfig?.sellerAccountLabel || "").trim();
+  const mercadoPagoHasAccessToken = String(tenantMercadoPagoConfig?.accessToken || "").trim();
+  const mercadoPagoHasWebhookSecret = String(tenantMercadoPagoConfig?.webhookSecret || "").trim();
+  const mercadoPagoReadyForCollection =
+    mercadoPagoGovernanceMode !== "disabled" &&
+    mercadoPagoHasSeller &&
+    mercadoPagoHasAccessToken &&
+    tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false &&
+    (tenantMercadoPagoConfig?.status === "connected" || tenantMercadoPagoConfig?.status === "draft");
 
   if (!editing) return (
     <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:10, padding:16 }}>
@@ -153,6 +170,77 @@ export function EmpresaEditSection({
           {(empresa.addons||[]).length ? (empresa.addons||[]).map(key=><Badge key={key} label={addons[key]?.label||key} color="gray" sm/>) : <span style={{fontSize:11,color:"var(--gr2)"}}>Sin módulos activos</span>}
         </div>
         <div style={{fontSize:11,color:"var(--gr2)",marginTop:8}}>La activación y desactivación de módulos se administra desde Torre de Control.</div>
+      </div>
+      <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Cobros online · Mercado Pago</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Torre de Control habilita esta integración. Aquí el tenant conecta su cuenta y define la operación del link de pago.</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <Badge label={mercadoPagoGovernanceMode === "disabled" ? "No habilitado" : "Habilitado por Torre"} color={mercadoPagoGovernanceMode === "disabled" ? "gray" : "green"} sm />
+            <Badge label={tenantMercadoPagoConfig?.status || "disconnected"} color={tenantMercadoPagoConfig?.status === "connected" ? "cyan" : "yellow"} sm />
+          </div>
+        </div>
+        {mercadoPagoGovernanceMode === "disabled"
+          ? <div style={{fontSize:11,color:"var(--gr2)"}}>Mercado Pago todavía no está habilitado para este tenant. Debe activarse primero desde Torre de Control, en Integraciones.</div>
+          : <>
+              <R2>
+                <FG label="Cuenta seller / etiqueta visible">
+                  <FI value={tenantMercadoPagoConfig?.sellerAccountLabel || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,sellerAccountLabel:e.target.value,status:p.status==="disconnected"&&e.target.value?"draft":p.status}))} placeholder="Ej: Play Media · Mercado Pago" />
+                </FG>
+                <FG label="Estado conexión">
+                  <FSl value={tenantMercadoPagoConfig?.status || "disconnected"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,status:e.target.value}))}>
+                    <option value="disconnected">disconnected</option>
+                    <option value="draft">draft</option>
+                    <option value="connected">connected</option>
+                    <option value="invalid_credentials">invalid_credentials</option>
+                    <option value="paused">paused</option>
+                  </FSl>
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Public key">
+                  <FI value={tenantMercadoPagoConfig?.publicKey || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,publicKey:e.target.value,status:(e.target.value || p.accessToken || p.sellerAccountLabel) ? "draft" : "disconnected"}))} placeholder="APP_USR-..." />
+                </FG>
+                <FG label="Access token / referencia OAuth">
+                  <FI type="password" value={tenantMercadoPagoConfig?.accessToken || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,accessToken:e.target.value,status:(e.target.value && (p.publicKey || p.sellerAccountLabel)) ? "connected" : ((e.target.value || p.publicKey || p.sellerAccountLabel) ? "draft" : "disconnected")}))} placeholder="APP_USR-... o referencia segura" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Webhook secret">
+                  <FI type="password" value={tenantMercadoPagoConfig?.webhookSecret || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,webhookSecret:e.target.value}))} placeholder="Secret de validación webhook" />
+                </FG>
+                <FG label="Expiración por defecto (días)">
+                  <FI value={tenantMercadoPagoConfig?.defaultExpirationDays || "7"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,defaultExpirationDays:e.target.value}))} placeholder="7" />
+                </FG>
+              </R2>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:4,marginBottom:12}}>
+                <input type="checkbox" checked={tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,enablePaymentLinksInCollection:e.target.checked}))}/>
+                Permitir links de pago directos dentro de Cobranza
+              </label>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:12}}>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Estado operativo</div>
+                  <div style={{fontSize:12,fontWeight:700,color:mercadoPagoReadyForCollection ? "var(--cy)" : "var(--gr3)"}}>
+                    {mercadoPagoReadyForCollection ? "Listo para generar links" : "Configuración incompleta"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Webhook</div>
+                  <div style={{fontSize:12,fontWeight:700,color:mercadoPagoHasWebhookSecret ? "var(--cy)" : "var(--gr3)"}}>
+                    {mercadoPagoHasWebhookSecret ? "Secret configurado" : "Pendiente"}
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginBottom:12}}>
+                En una fase real, aquí podemos reemplazar el ingreso manual por `Conectar Mercado Pago` vía OAuth. Por ahora el tenant queda operativo cuando tiene cuenta seller, access token y links habilitados en Cobranza.
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Btn onClick={saveTenantMercadoPagoConfig} disabled={!tenantCanEditMercadoPagoConfig || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
+                <GBtn disabled>OAuth próximamente</GBtn>
+              </div>
+            </>}
       </div>
       <div style={{ display:"flex", gap:8, marginTop:8 }}>
         <Btn onClick={save}>✓ Guardar</Btn>
@@ -299,7 +387,9 @@ export function TransactionalEmailTemplatesPanel({
   };
 
   const activeDefinition = getTransactionalEmailTemplateDefinition(activeKey);
-  const activeVars = templateVarPresets[activeKey] || {};
+  const activeVars = React.useMemo(() => (
+    templateVarPresets[activeKey] || {}
+  ), [activeKey, templateVarPresets]);
   const previewTemplate = React.useMemo(() => resolveTransactionalEmailTemplate({
     ...(empresa || {}),
     emailTemplates: {
@@ -377,8 +467,10 @@ export function TransactionalEmailTemplatesPanel({
 export function UsersAdminSection({
   uq, setUq, uRole, setURole, uState, setUState, roleOptions, empresa, filteredUsers, ini, getRoleConfig,
   userGoogleCalendar, setUid2, setUf, resetAccess, toggleUserActive, deleteUser, uid2, uf, editableRoleOptions,
-  saveUser, canManageAdmin,
+  saveUser,
 }) {
+  const [pendingDeleteUser, setPendingDeleteUser] = React.useState(null);
+
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
       <SearchBar value={uq} onChange={setUq} placeholder="Buscar usuario por nombre o email..."/>
@@ -399,7 +491,7 @@ export function UsersAdminSection({
             <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} s={{minWidth:74}}>Editar</GBtn>
             <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
             <GBtn sm onClick={()=>toggleUserActive(u)}>{u.active?"Desactivar":"Activar"}</GBtn>
-            {u.role!=="superadmin"&&<DBtn onClick={()=>{ if(!confirm(`¿Eliminar a ${u.name || "este usuario"}?`)) return; deleteUser(u); }} sm>Eliminar</DBtn>}
+            {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} sm>Eliminar</DBtn>}
           </>}
         </div>;
       })}
@@ -430,6 +522,18 @@ export function UsersAdminSection({
         {uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar edición</GBtn>}
       </div>
     </div>
+    <ConfirmActionDialog
+      open={Boolean(pendingDeleteUser)}
+      title="Eliminar usuario"
+      message={`¿Eliminar a ${pendingDeleteUser?.name || "este usuario"}?`}
+      confirmLabel="Eliminar"
+      onClose={() => setPendingDeleteUser(null)}
+      onConfirm={() => {
+        if (!pendingDeleteUser) return;
+        deleteUser(pendingDeleteUser);
+        setPendingDeleteUser(null);
+      }}
+    />
   </div>;
 }
 

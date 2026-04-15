@@ -3,6 +3,7 @@ import { Badge, Btn, Card, Empty, FG, FI, FSl, FilterSel, GBtn, KV, R2, R3 } fro
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "./towerControlHealth";
 import { getTransactionalEmailProviderSnapshot } from "../../lib/integrations/transactionalEmailConfig";
 import { getGoogleCalendarProviderSnapshot } from "../../lib/integrations/googleCalendarConfig";
+import { getMercadoPagoPaymentsProviderSnapshot } from "../../lib/integrations/mercadoPagoPaymentsConfig";
 
 export function IntegracionesAdminPanel({
   empresas,
@@ -32,17 +33,27 @@ export function IntegracionesAdminPanel({
   const googleCalendarGovernance = googleCalendarProvisioning?.governance || {};
   const googleCalendarMode = googleCalendarGovernance.mode || (companyGoogleCalendarEnabled(selectedIntegrationEmp) ? "oauth" : "disabled");
   const googleCalendarSnapshot = getGoogleCalendarProviderSnapshot();
+  const mercadoPagoProvisioning = selectedIntegrationEmp?.integrationConfigs?.mercadoPago || {};
+  const mercadoPagoGovernance = mercadoPagoProvisioning?.governance || {};
+  const mercadoPagoMode = mercadoPagoGovernance.mode || "disabled";
+  const mercadoPagoEnabled = mercadoPagoMode !== "disabled";
+  const mercadoPagoSnapshot = getMercadoPagoPaymentsProviderSnapshot();
   const localModules = Array.isArray(selectedIntegrationEmp?.addons) ? selectedIntegrationEmp.addons : [];
   const modulesAligned = JSON.stringify([...localModules].sort()) === JSON.stringify([...remoteModules].sort());
   const bsaleAligned = (remoteBsale?.governanceMode || "disabled") === bsaleMode;
 
   useEffect(() => {
     if (!selectedIntegrationEmp?.id || !platformServices?.getTenantPlatformSnapshot) {
-      setRemoteSnapshot(null);
+      queueMicrotask(() => {
+        setRemoteSnapshot(null);
+        setRemoteLoading(false);
+      });
       return;
     }
     let cancelled = false;
-    setRemoteLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setRemoteLoading(true);
+    });
     Promise.resolve(platformServices.getTenantPlatformSnapshot(selectedIntegrationEmp.id))
       .then(snapshot => {
         if (!cancelled) setRemoteSnapshot(snapshot || null);
@@ -261,6 +272,48 @@ export function IntegracionesAdminPanel({
         <KV label="Scopes" value={googleCalendarSnapshot.scopes.join(", ")} />
         <KV label="Uso inicial" value="Agenda, rodajes y entregas por usuario" />
       </Card>
+      <Card title="Mercado Pago" sub={selectedIntegrationEmp.nombre}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <Badge label={mercadoPagoEnabled ? "Habilitado" : "Deshabilitado"} color={mercadoPagoEnabled ? "green" : "gray"} sm />
+          <Badge label={mercadoPagoSnapshot.usesOAuth ? "OAuth seller" : mercadoPagoSnapshot.isMock ? "Mock" : "Conexión manual/API"} color={mercadoPagoSnapshot.usesOAuth ? "purple" : mercadoPagoSnapshot.isMock ? "cyan" : "yellow"} sm />
+          <Badge label={mercadoPagoSnapshot.ready ? "Provider listo" : "Provider base"} color={mercadoPagoSnapshot.ready ? "green" : "yellow"} sm />
+        </div>
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, marginBottom: 14 }}>
+          Torre de Control define si este tenant puede usar cobros online con Mercado Pago. La conexión operativa de la cuenta se completa dentro del Panel Administrador del tenant.
+        </div>
+        <R2>
+          <FG label="Provisionamiento">
+            <FSl
+              value={mercadoPagoMode}
+              onChange={e => persistIntegration(emp => ({
+                ...emp,
+                integrationConfigs: {
+                  ...(emp.integrationConfigs || {}),
+                  mercadoPago: {
+                    ...((emp.integrationConfigs || {}).mercadoPago || {}),
+                    governance: {
+                      ...(((emp.integrationConfigs || {}).mercadoPago || {}).governance || {}),
+                      mode: e.target.value,
+                      enabled: e.target.value !== "disabled",
+                    },
+                  },
+                },
+              }), { action: "tenant_mercadopago_governance_updated", integration: "mercadopago_payments", field: "governance.mode", value: e.target.value })}
+            >
+              <option value="disabled">Desactivado</option>
+              <option value="mock">Mock</option>
+              <option value="oauth">OAuth seller</option>
+              <option value="api">API manual</option>
+            </FSl>
+          </FG>
+          <FG label="Marketplace">
+            <FI value={mercadoPagoSnapshot.marketplace || "MLC"} readOnly placeholder="MLC" />
+          </FG>
+        </R2>
+        <KV label="Uso inicial" value="Links de pago por factura desde Cobranza" />
+        <KV label="Conciliación" value="Solo pagos aprobados registran Tesorería" />
+        <KV label="Operación" value="Credenciales y cuenta seller se configuran en Administrador" />
+      </Card>
       <Card title="Correo transaccional" sub={selectedIntegrationEmp.nombre}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <Badge label={emailEnabled ? "Provisionado" : "No provisionado"} color={emailEnabled ? "green" : "gray"} sm />
@@ -310,6 +363,7 @@ export function IntegracionesAdminPanel({
       </Card>
       <Card title="Estado operativo" sub="Lo que ya queda resuelto en el producto">
         <KV label="Visibilidad en Calendario" value={companyGoogleCalendarEnabled(selectedIntegrationEmp) ? "Oculta hasta tener sync real" : "Oculta"} />
+        <KV label="Visibilidad Mercado Pago" value={mercadoPagoEnabled ? "Disponible para conexión del tenant" : "Oculta en administrador"} />
         <KV label="Gobierno" value="Torre de Control" />
         <KV label="Conexión futura" value="Usuario individual" />
         <KV label="Modelo" value="Multiempresa / multiusuario" />

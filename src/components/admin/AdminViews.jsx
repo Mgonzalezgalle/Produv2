@@ -1,6 +1,6 @@
+import React from "react";
 import { Badge, Btn, Card, GBtn, Modal } from "../../lib/ui/components";
 import { useLabAdminPanelModule } from "../../hooks/useLabAdminPanelModule";
-import { getRoleConfig } from "../../lib/auth/authorization";
 import { SuperAdminPanel as TowerControlSuperAdminPanel } from "./TowerControlViews";
 import { CarteraAdminPanel, ComunicacionesAdminPanel, EmpresasAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel } from "./TowerControlPanels";
 import { ListasEditor } from "./AdminListasEditor";
@@ -83,6 +83,7 @@ function AdminTabs({ tabs, active, onChange }) {
 
 export function AdminPanel(rawProps) {
   const props = rawProps.panelProps || rawProps;
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = React.useState(false);
   const {
     Modal,
     open,
@@ -102,7 +103,6 @@ export function AdminPanel(rawProps) {
     ntf,
     dbGet,
     companyReferralDiscountHistory,
-    companyReferralDiscountMonthsPending,
     assignableRoleOptions,
     sanitizeAssignableRole,
     uid,
@@ -121,7 +121,7 @@ export function AdminPanel(rawProps) {
   const {
     tab, setTab, lt, setLt, uf, setUf, uid2, setUid2, uq, setUq, uRole, setURole, uState, setUState,
     empUsers, filteredUsers, activeUsers, inactiveUsers, ADMIN_TABS, ADMIN_TAB_META,
-    activeAdminTab, editableRoleOptions, canManageAdmin, platformSnapshot, platformLoading, platformPlanning, platformPreparingMemberships, platformQueueingMemberships, remoteBsaleSnapshot, remoteProvisionedModules, bsaleGovernanceMode, tenantCanEditBsaleConfig, tenantBsaleConfig, setTenantBsaleConfig, tenantBsaleSaving, resetAccess, saveUser, toggleUserActive, deleteUser, planIdentityPromotions, refreshPlatformSnapshot, prepareIdentityMembershipBlueprints, prepareMembershipTransitionQueue, saveTenantBsaleConfig,
+    activeAdminTab, editableRoleOptions, canManageAdmin, platformSnapshot, platformLoading, platformPlanning, platformPreparingMemberships, platformQueueingMemberships, remoteBsaleSnapshot, remoteProvisionedModules, bsaleGovernanceMode, tenantCanEditBsaleConfig, tenantBsaleConfig, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig, tenantMercadoPagoConfig, setTenantMercadoPagoConfig, tenantMercadoPagoSaving, resetAccess, saveUser, toggleUserActive, deleteUser, planIdentityPromotions, refreshPlatformSnapshot, prepareIdentityMembershipBlueprints, prepareMembershipTransitionQueue, saveTenantMercadoPagoConfig,
   } = useLabAdminPanelModule({
     theme,
     empresa,
@@ -188,7 +188,7 @@ export function AdminPanel(rawProps) {
       toggleUserActive={toggleUserActive} deleteUser={deleteUser} uid2={uid2} uf={uf}
       editableRoleOptions={editableRoleOptions} saveUser={saveUser} canManageAdmin={canManageAdmin}
     />}
-    {activeAdminTab==="Empresa"&&empresa&&<EmpresaEditSection empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} addons={addons} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} canManageAdmin={canManageAdmin}/>}
+    {activeAdminTab==="Empresa"&&empresa&&<EmpresaEditSection empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} addons={addons} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} canManageAdmin={canManageAdmin} mercadoPagoGovernanceMode={mercadoPagoGovernanceMode} tenantCanEditMercadoPagoConfig={tenantCanEditMercadoPagoConfig} tenantMercadoPagoConfig={tenantMercadoPagoConfig} setTenantMercadoPagoConfig={setTenantMercadoPagoConfig} tenantMercadoPagoSaving={tenantMercadoPagoSaving} saveTenantMercadoPagoConfig={saveTenantMercadoPagoConfig} />}
     {activeAdminTab==="Listas"&&<ListasEditor listas={listas} saveListas={saveListas} defaultListas={defaultListas}/>}
     {activeAdminTab==="Roles y Permisos"&&empresa&&<RolesEditor empresa={empresa} empresas={empresas} users={users} saveEmpresas={saveEmpresas} platformServices={platformServices} ntf={ntf} uid={uid} canManageAdmin={canManageAdmin}/>}
     {activeAdminTab==="Plataforma"&&<PlatformFoundationPanel
@@ -222,5 +222,27 @@ export function AdminPanel(rawProps) {
       getRoleConfig={getRoleConfig}
     />}
     {activeAdminTab==="Correo"&&empresa&&<TransactionalEmailTemplatesPanel empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} ntf={ntf} canManageAdmin={canManageAdmin} />}
+    {!releaseMode && activeAdminTab==="Empresa" && canManageAdmin && (
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+        <GBtn onClick={() => setPurgeConfirmOpen(true)}>🔄 Restaurar / limpiar datos</GBtn>
+      </div>
+    )}
+    <Modal open={purgeConfirmOpen} onClose={() => setPurgeConfirmOpen(false)} title="Confirmar limpieza" sub={empresa?.nombre || "Empresa"}>
+      <div style={{ fontSize: 13, color: "var(--gr3)", lineHeight: 1.6, marginBottom: 18 }}>
+        Vamos a limpiar los datos operativos de esta empresa dentro del `lab`. Esta acción vacía clientes, proyectos, contenidos, facturación, tesorería y activos del tenant actual.
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <GBtn onClick={() => setPurgeConfirmOpen(false)}>Cancelar</GBtn>
+        <Btn
+          onClick={() => {
+            onPurge?.();
+            setPurgeConfirmOpen(false);
+          }}
+          style={{ background: "linear-gradient(135deg,#ff6b6b,#e03131)", borderColor: "#ff8787" }}
+        >
+          Sí, limpiar datos
+        </Btn>
+      </div>
+    </Modal>
   </Modal>;
 }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
+import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 
 export function useLabAdminPanelModule({
   theme,
@@ -43,11 +44,44 @@ export function useLabAdminPanelModule({
     priceListId: "",
   });
   const [tenantBsaleSaving, setTenantBsaleSaving] = useState(false);
+  const [tenantMercadoPagoConfig, setTenantMercadoPagoConfig] = useState({
+    mode: "disabled",
+    status: "disconnected",
+    sellerAccountLabel: "",
+    publicKey: "",
+    accessToken: "",
+    webhookSecret: "",
+    defaultExpirationDays: "7",
+    enablePaymentLinksInCollection: true,
+  });
+  const [tenantMercadoPagoSaving, setTenantMercadoPagoSaving] = useState(false);
   const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
   const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
   const tenantCanEditBsaleConfig = bsaleGovernance.allowTenantConfig === true;
+  const mercadoPagoGovernance = empresa?.integrationConfigs?.mercadoPago?.governance || {};
+  const mercadoPagoGovernanceMode = mercadoPagoGovernance.mode || "disabled";
+  const tenantCanEditMercadoPagoConfig = mercadoPagoGovernanceMode !== "disabled";
 
-  useEffect(() => setLt(theme || {}), [theme]);
+  useEffect(() => {
+    setLt(theme || {});
+  }, [
+    empresa?.id,
+    theme,
+    theme?.preset,
+    theme?.mode,
+    theme?.bg,
+    theme?.surface,
+    theme?.card,
+    theme?.border,
+    theme?.accent,
+    theme?.accent2,
+    theme?.white,
+    theme?.gray,
+    theme?.sidebarBg,
+    theme?.sidebarPanel,
+    theme?.sidebarText,
+    theme?.sidebarMuted,
+  ]);
   useEffect(() => { dbGet("produ:solicitudes").then(v => setRefSols(v || [])); }, [dbGet]);
   useEffect(() => {
     const envConfig = getBsaleBillingConfig();
@@ -68,6 +102,27 @@ export function useLabAdminPanelModule({
     });
   }, [empresa, bsaleGovernanceMode, tenantCanEditBsaleConfig]);
 
+  useEffect(() => {
+    const envConfig = getMercadoPagoPaymentsConfig();
+    const current = empresa?.integrationConfigs?.mercadoPago?.tenant || {};
+    const source = current.publicKey || current.accessToken
+      ? "tenant"
+      : (envConfig.appId || envConfig.publicKey ? "environment" : "unset");
+    setTenantMercadoPagoConfig({
+      mode: mercadoPagoGovernanceMode,
+      status: current.status || "disconnected",
+      sellerAccountLabel: current.sellerAccountLabel || "",
+      publicKey: current.publicKey || "",
+      accessToken: current.accessToken || "",
+      webhookSecret: current.webhookSecret || "",
+      defaultExpirationDays: current.defaultExpirationDays || "7",
+      enablePaymentLinksInCollection: current.enablePaymentLinksInCollection !== false,
+      source,
+      governed: mercadoPagoGovernanceMode !== "disabled",
+      tenantCanEdit: tenantCanEditMercadoPagoConfig,
+    });
+  }, [empresa, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig]);
+
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const filteredUsers = empUsers.filter(u =>
     (!uq || u.name?.toLowerCase().includes(uq.toLowerCase()) || u.email?.toLowerCase().includes(uq.toLowerCase())) &&
@@ -78,7 +133,10 @@ export function useLabAdminPanelModule({
   const inactiveUsers = empUsers.filter(u => u.active === false).length;
   const referredSols = (refSols || []).filter(s => s.referredByEmpId === empresa?.id && s.tipo === "empresa");
   const referralHistory = companyReferralDiscountHistory(empresa);
-  const ADMIN_TABS = ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", ...(canManageAdmin ? ["Plataforma"] : []), "Correo"];
+  const ADMIN_TABS = useMemo(
+    () => ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", ...(canManageAdmin ? ["Plataforma"] : []), "Correo"],
+    [canManageAdmin],
+  );
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",
     "Usuarios": "Gestiona usuarios del tenant, accesos, roles base y pertenencia al crew interno.",
@@ -91,7 +149,7 @@ export function useLabAdminPanelModule({
   const activeAdminTab = ADMIN_TABS[tab];
   useEffect(() => {
     if (tab >= ADMIN_TABS.length) setTab(0);
-  }, [tab, ADMIN_TABS.length]);
+  }, [ADMIN_TABS, tab]);
   const editableRoleOptions = assignableRoleOptions(empresa, user);
   const remoteBsaleSnapshot = getRemoteBsaleSnapshot(platformSnapshot);
   const remoteProvisionedModules = getRemoteProvisionedModules(platformSnapshot);
@@ -114,7 +172,7 @@ export function useLabAdminPanelModule({
     return () => {
       cancelled = true;
     };
-  }, [tab, empresa?.id, platformServices]);
+  }, [ADMIN_TABS, tab, empresa?.id, platformServices]);
 
   const referralStatus = sol => {
     const targetEmp = (empresas || []).find(e => e.id === sol.empresaId);
@@ -133,41 +191,7 @@ export function useLabAdminPanelModule({
       await saveUsers((users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u));
     }
     ntf("Acceso temporal generado ✓");
-    let emailResult = null;
-    if (target?.email && platformServices?.sendTransactionalEmail) {
-      try {
-        const safeName = target?.name || target?.email || "equipo";
-        const tenantName = empresa?.nombre || empresa?.nom || "Produ";
-        const text = [
-          `Hola ${safeName},`,
-          "",
-          `Actualizamos tu acceso en ${tenantName}.`,
-          "",
-          `Email: ${target.email || ""}`,
-          `Contraseña temporal: ${temp}`,
-          "",
-          "Te recomendamos cambiarla al ingresar.",
-        ].join("\n").trim();
-        emailResult = await platformServices.sendTransactionalEmail({
-          tenantId: empresa?.id || target?.empId || "",
-          templateKey: "access_updated",
-          subject: `Acceso actualizado en ${tenantName}`,
-          to: [target.email],
-          text,
-          html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
-          entityType: "user_access",
-          entityId: target?.id || "",
-          metadata: {
-            tenantName,
-            userName: target?.name || "",
-            mode: "access_updated",
-          },
-        });
-      } catch {
-        emailResult = { ok: false };
-      }
-    }
-    alert(`Acceso temporal para ${target.email}: ${temp}${emailResult?.ok ? " / Correo enviado." : ""}`);
+    alert(`Acceso temporal para ${target.email}: ${temp}`);
   };
 
   const saveUser = async () => {
@@ -338,6 +362,50 @@ export function useLabAdminPanelModule({
     }
   };
 
+  const saveTenantMercadoPagoConfig = async () => {
+    if (!empresa?.id) return;
+    if (!tenantCanEditMercadoPagoConfig) {
+      ntf("Mercado Pago debe habilitarse primero desde Torre de Control.", "warn");
+      return;
+    }
+    setTenantMercadoPagoSaving(true);
+    try {
+      const hasSeller = String(tenantMercadoPagoConfig.sellerAccountLabel || "").trim();
+      const hasPublicKey = String(tenantMercadoPagoConfig.publicKey || "").trim();
+      const hasAccessToken = String(tenantMercadoPagoConfig.accessToken || "").trim();
+      const inferredStatus = hasAccessToken && (hasSeller || hasPublicKey)
+        ? "connected"
+        : (hasSeller || hasPublicKey || hasAccessToken ? "draft" : "disconnected");
+      const nextIntegrationConfigs = {
+        ...(empresa?.integrationConfigs || {}),
+        mercadoPago: {
+          ...((empresa?.integrationConfigs || {}).mercadoPago || {}),
+          tenant: {
+            status: inferredStatus,
+            sellerAccountLabel: hasSeller,
+            publicKey: hasPublicKey,
+            accessToken: hasAccessToken,
+            webhookSecret: String(tenantMercadoPagoConfig.webhookSecret || "").trim(),
+            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
+            enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
+          },
+        },
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
+      setTenantMercadoPagoConfig(prev => ({
+        ...prev,
+        status: inferredStatus,
+        source: prev.publicKey || prev.accessToken ? "tenant" : "unset",
+        tenantCanEdit: true,
+      }));
+      ntf("Configuración Mercado Pago del tenant guardada ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos guardar la configuración de Mercado Pago.", "warn");
+    } finally {
+      setTenantMercadoPagoSaving(false);
+    }
+  };
+
   return {
     canManageAdmin,
     isSuperAdmin,
@@ -378,6 +446,11 @@ export function useLabAdminPanelModule({
     tenantBsaleConfig,
     setTenantBsaleConfig,
     tenantBsaleSaving,
+    mercadoPagoGovernanceMode,
+    tenantCanEditMercadoPagoConfig,
+    tenantMercadoPagoConfig,
+    setTenantMercadoPagoConfig,
+    tenantMercadoPagoSaving,
     referralStatus,
     resetAccess,
     saveUser,
@@ -388,5 +461,6 @@ export function useLabAdminPanelModule({
     prepareIdentityMembershipBlueprints,
     prepareMembershipTransitionQueue,
     saveTenantBsaleConfig,
+    saveTenantMercadoPagoConfig,
   };
 }

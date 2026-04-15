@@ -95,11 +95,13 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   return {
     id: `gcal_${item.id}`,
     googleEventId: item.id,
+    googleCalendarId: String(item?._produCalendarId || userCalendar.calendarId || "primary").trim() || "primary",
+    googleCalendarName: String(item?._produCalendarName || userCalendar.calendarName || "Calendario principal").trim() || "Calendario principal",
     fecha: start.slice(0, 10),
     dia: d.getDate(),
     tipo: "reunion",
     label: `📅 ${item.summary || "Evento Google"}`,
-    sub: item.organizer?.email || userCalendar.email || "Google Calendar",
+    sub: [String(item?._produCalendarName || userCalendar.calendarName || "").trim(), String(item.organizer?.email || userCalendar.email || "").trim()].filter(Boolean).join(" · ") || "Google Calendar",
     color: "#4285f4",
     hora: startDateTime ? startDateTime.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "",
     modulo: "google",
@@ -333,7 +335,7 @@ export function ViewCalendario(props) {
         setGoogleCalendarLoading(true);
         setGoogleCalendarError("");
         const result = await Promise.resolve(platformApi?.calendar?.listGoogleCalendarEvents?.({
-          calendarId: userCalendar.calendarId || "primary",
+          calendarId: "all",
           refreshToken: userCalendar.refreshToken || "",
           timeMin: googleCalendarRange.timeMin,
           timeMax: googleCalendarRange.timeMax,
@@ -346,7 +348,11 @@ export function ViewCalendario(props) {
           return;
         }
         const items = Array.isArray(result?.items) ? result.items : [];
-        const mapped = items.map(item => mapGoogleEventToCalendarItem(item, { email: userCalendarEmail })).filter(Boolean);
+        const mapped = items.map(item => mapGoogleEventToCalendarItem(item, {
+          email: userCalendarEmail,
+          calendarId: userCalendar.calendarId,
+          calendarName: userCalendar.calendarName,
+        })).filter(Boolean);
         if (!cancelled) {
           setGoogleCalendarEvents(mapped);
           setGoogleCalendarLastPullAt(new Date().toISOString());
@@ -364,7 +370,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail, platformApi?.calendar, googleCalendarRefreshTick]);
+  }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.calendarId, userCalendar.calendarName, userCalendar.refreshToken, userCalendarEmail, platformApi?.calendar, googleCalendarRefreshTick]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos || !platformApi?.calendar?.createGoogleCalendarEvent) return;
@@ -407,7 +413,11 @@ export function ViewCalendario(props) {
             throw new Error(result?.message || result?.error || "google_event_create_failed");
           }
           if (cancelled) return;
-          const remoteEvent = mapGoogleEventToCalendarItem(result.event, { email: userCalendarEmail });
+          const remoteEvent = mapGoogleEventToCalendarItem(result.event, {
+            email: userCalendarEmail,
+            calendarId: userCalendar.calendarId,
+            calendarName: userCalendar.calendarName,
+          });
           await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
             ...item,
             googleEventId: result.event.id,
@@ -441,7 +451,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail]);
+  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.calendarName, userCalendar.refreshToken, userCalendarEmail]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos) return;
@@ -826,7 +836,7 @@ export function ViewCalendario(props) {
     if (!ev) return;
     if (ev.googleEventId && googleCalendarReady && platformApi?.calendar?.deleteGoogleCalendarEvent) {
       const remoteDelete = await Promise.resolve(platformApi.calendar.deleteGoogleCalendarEvent({
-        calendarId: userCalendar.calendarId || "primary",
+        calendarId: ev.googleCalendarId || userCalendar.calendarId || "primary",
         refreshToken: userCalendar.refreshToken || "",
         googleEventId: ev.googleEventId,
       }));
@@ -959,7 +969,10 @@ export function ViewCalendario(props) {
           <img src={googleCalendarLogo} alt="Google Calendar" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 0 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>Conectado</span>
-            <span style={{ fontSize: 10, color: "var(--gr2)" }}>{userCalendar.email || activeUser.email || "Cuenta conectada"}</span>
+            <span style={{ fontSize: 10, color: "var(--gr2)" }}>
+              {userCalendar.email || activeUser.email || "Cuenta conectada"}
+              {userCalendar.calendarName ? ` · ${userCalendar.calendarName}` : ""}
+            </span>
           </div>
           <GBtn sm onClick={refreshGoogleCalendar}>{googleCalendarLoading ? "Sync..." : "Actualizar"}</GBtn>
           <GBtn sm onClick={disconnectGoogleCalendar}>Desconectar</GBtn>
@@ -1397,7 +1410,10 @@ export function ViewCalendario(props) {
                 <img src={googleCalendarLogo} alt="Google Calendar" style={{ width: 28, height: 28, objectFit: "contain" }} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 800 }}>{userCalendarConnected ? "Cuenta conectada" : "Cuenta no conectada"}</div>
-                  <div style={{ fontSize: 11, color: "var(--gr2)" }}>{userCalendar.email || "Google Calendar personal"}</div>
+                  <div style={{ fontSize: 11, color: "var(--gr2)" }}>
+                    {userCalendar.email || "Google Calendar personal"}
+                    {userCalendar.calendarName ? ` · base ${userCalendar.calendarName}` : ""}
+                  </div>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
@@ -1424,7 +1440,7 @@ export function ViewCalendario(props) {
                   ))}
                 </div>
               ) : null}
-              {googleCalendarError ? <div style={{ fontSize: 11, lineHeight: 1.5, color: "#ff9b9b" }}>{googleCalendarError}</div> : <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>{googleCalendarLastPullAt ? `Última lectura: ${fmtD(googleCalendarLastPullAt.slice(0, 10))}` : "Conecta la cuenta para mezclar reuniones, invitados y Meet con la agenda operativa."}</div>}
+              {googleCalendarError ? <div style={{ fontSize: 11, lineHeight: 1.5, color: "#ff9b9b" }}>{googleCalendarError}</div> : <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>{googleCalendarLastPullAt ? `Última lectura: ${fmtD(googleCalendarLastPullAt.slice(0, 10))}. Produ ahora mezcla los calendarios visibles de la cuenta conectada.` : "Conecta la cuenta para mezclar reuniones, invitados y Meet con la agenda operativa."}</div>}
             </div>
           </CalendarSidebarSection>
         </div>

@@ -58,6 +58,64 @@ async function getGoogleAccessToken(refreshToken: string) {
   return { ok: true, accessToken: String(data?.access_token || "").trim() };
 }
 
+async function listCalendars(accessToken: string) {
+  const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    return {
+      ok: false,
+      error: "google_calendar_list_failed",
+      message: message || "No pudimos leer la lista de calendarios de Google.",
+      status: 502,
+    };
+  }
+
+  const data = await res.json();
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return {
+    ok: true,
+    items: items.filter((item) => item?.hidden !== true && item?.selected !== false && String(item?.accessRole || "").trim() !== "none"),
+  };
+}
+
+async function listEventsForCalendar(accessToken: string, calendarId: string, timeMin?: string, timeMax?: string) {
+  const encodedId = encodeURIComponent(String(calendarId || "primary").trim() || "primary");
+  const listUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodedId}/events`);
+  listUrl.searchParams.set("singleEvents", "true");
+  listUrl.searchParams.set("orderBy", "startTime");
+  if (timeMin) listUrl.searchParams.set("timeMin", String(timeMin));
+  if (timeMax) listUrl.searchParams.set("timeMax", String(timeMax));
+
+  const listRes = await fetch(listUrl.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!listRes.ok) {
+    const message = await listRes.text();
+    return {
+      ok: false,
+      error: "google_event_list_failed",
+      message: message || "Google rechazó la lectura de eventos.",
+      status: 502,
+    };
+  }
+
+  const data = await listRes.json();
+  return {
+    ok: true,
+    items: Array.isArray(data?.items) ? data.items : [],
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -77,36 +135,74 @@ Deno.serve(async (req) => {
     return json({ ok: false, source: "degraded", provider: "google", error: access.error, message: access.message }, access.status || 502);
   }
 
-  const calendarId = encodeURIComponent(String(payload?.calendarId || "primary").trim() || "primary");
-  const listUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`);
-  listUrl.searchParams.set("singleEvents", "true");
-  listUrl.searchParams.set("orderBy", "startTime");
-  if (payload?.timeMin) listUrl.searchParams.set("timeMin", String(payload.timeMin));
-  if (payload?.timeMax) listUrl.searchParams.set("timeMax", String(payload.timeMax));
+  const requestedCalendarId = String(payload?.calendarId || "all").trim() || "all";
+  const loadAllCalendars = requestedCalendarId === "all";
 
-  const listRes = await fetch(listUrl.toString(), {
-    headers: {
-      Authorization: `Bearer ${access.accessToken}`,
-      "Content-Type": "application/json",
-    },
-  });
+  if (!loadAllCalendars) {
+    const listRes = await listEventsForCalendar(access.accessToken, requestedCalendarId, payload?.timeMin, payload?.timeMax);
+    if (!listRes.ok) {
+      return json({
+        ok: false,
+        source: "degraded",
+        provider: "google",
+        error: listRes.error,
+        message: listRes.message,
+      }, listRes.status || 502);
+    }
 
-  if (!listRes.ok) {
-    const message = await listRes.text();
+    return json({
+      ok: true,
+      source: "remote",
+      provider: "google",
+      items: listRes.items.map((item) => ({
+        ...item,
+        _produCalendarId: requestedCalendarId,
+      })),
+    });
+  }
+
+  const calendars = await listCalendars(access.accessToken);
+  if (!calendars.ok) {
     return json({
       ok: false,
       source: "degraded",
       provider: "google",
-      error: "google_event_list_failed",
-      message: message || "Google rechazó la lectura de eventos.",
-    }, 502);
+      error: calendars.error,
+      message: calendars.message,
+    }, calendars.status || 502);
   }
 
-  const data = await listRes.json();
+  const calendarItems = Array.isArray(calendars.items) ? calendars.items : [];
+  const responses = await Promise.all(calendarItems.map(async (calendar) => {
+    const result = await listEventsForCalendar(access.accessToken, String(calendar?.id || "primary").trim() || "primary", payload?.timeMin, payload?.timeMax);
+    return {
+      calendarId: String(calendar?.id || "primary").trim() || "primary",
+      calendarName: String(calendar?.summary || "Calendario").trim() || "Calendario",
+      result,
+    };
+  }));
+
+  const failedResponse = responses.find((item) => !item.result?.ok);
+  if (failedResponse) {
+    return json({
+      ok: false,
+      source: "degraded",
+      provider: "google",
+      error: failedResponse.result?.error || "google_event_list_failed",
+      message: failedResponse.result?.message || `No pudimos leer eventos de ${failedResponse.calendarName}.`,
+    }, failedResponse.result?.status || 502);
+  }
+
+  const items = responses.flatMap((entry) => (entry.result?.items || []).map((item) => ({
+    ...item,
+    _produCalendarId: entry.calendarId,
+    _produCalendarName: entry.calendarName,
+  })));
+
   return json({
     ok: true,
     source: "remote",
     provider: "google",
-    items: Array.isArray(data?.items) ? data.items : [],
+    items,
   });
 });

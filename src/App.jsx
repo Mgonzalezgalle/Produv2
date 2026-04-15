@@ -302,6 +302,7 @@ export default function App(){
   const { theme, applyTheme, saveTheme } = useLabTheme({
     THEME_PRESETS,
     curEmp,
+    storedSession,
     empresas,
     setEmpresasRaw,
     setThemeDB,

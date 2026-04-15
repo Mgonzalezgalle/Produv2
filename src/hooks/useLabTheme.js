@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 export function useLabTheme({
   THEME_PRESETS,
   curEmp,
+  storedSession,
   empresas,
   setEmpresasRaw,
   setThemeDB,
   dbSet,
 }) {
-  const DEFAULT_T = { ...THEME_PRESETS.clasico.dark, preset: "clasico" };
-  const [theme, setThemeState] = useState(DEFAULT_T);
+  const DEFAULT_T = useMemo(() => ({
+    ...THEME_PRESETS.clasico.dark,
+    preset: "clasico",
+    mode: "dark",
+  }), [THEME_PRESETS]);
 
   const resolveTheme = useCallback((rawTheme) => {
     const presetKey = rawTheme?.preset || "clasico";
@@ -19,9 +23,7 @@ export function useLabTheme({
     return { ...base, ...rawTheme, preset: presetKey, mode };
   }, [THEME_PRESETS]);
 
-  const applyTheme = useCallback((nextTheme) => {
-    const merged = resolveTheme(nextTheme, curEmp);
-    setThemeState(prev => JSON.stringify(prev) === JSON.stringify(merged) ? prev : merged);
+  const commitThemeToDom = useCallback((merged) => {
     const root = document.documentElement;
     const map = {
       "--bg": merged.bg,
@@ -46,11 +48,30 @@ export function useLabTheme({
     Object.entries(map).forEach(([key, value]) => root.style.setProperty(key, value));
     document.body.className = merged.mode === "light" ? "light" : "dark";
     return merged;
-  }, [resolveTheme, curEmp]);
+  }, []);
+
+  const theme = useMemo(() => {
+    if (curEmp?.id) {
+      const freshEmp = (empresas || []).find(item => item.id === curEmp.id) || curEmp;
+      return resolveTheme(freshEmp?.theme || DEFAULT_T);
+    }
+
+    if (storedSession?.empId) {
+      const sessionEmp = (empresas || []).find(item => item.id === storedSession.empId);
+      if (sessionEmp?.theme) return resolveTheme(sessionEmp.theme);
+    }
+
+    return resolveTheme(DEFAULT_T);
+  }, [curEmp, empresas, storedSession, resolveTheme, DEFAULT_T]);
+
+  const applyTheme = useCallback((nextTheme) => {
+    const merged = resolveTheme(nextTheme);
+    return commitThemeToDom(merged);
+  }, [resolveTheme, commitThemeToDom]);
 
   const saveTheme = useCallback((nextTheme) => {
-    const resolved = resolveTheme(nextTheme, curEmp);
-    applyTheme(resolved);
+    const resolved = resolveTheme(nextTheme);
+    commitThemeToDom(resolved);
     if (curEmp?.id) {
       const updated = (empresas || []).map(item => item.id === curEmp.id ? { ...item, theme: resolved, color: resolved.accent || item.color } : item);
       setEmpresasRaw(updated);
@@ -59,16 +80,11 @@ export function useLabTheme({
       setThemeDB(resolved);
       dbSet("produ:theme", resolved);
     }
-  }, [resolveTheme, applyTheme, curEmp, empresas, setEmpresasRaw, setThemeDB, dbSet]);
+  }, [resolveTheme, commitThemeToDom, curEmp, empresas, setEmpresasRaw, setThemeDB, dbSet]);
 
   useEffect(() => {
-    if (curEmp?.id) {
-      const freshEmp = (empresas || []).find(item => item.id === curEmp.id) || curEmp;
-      applyTheme(freshEmp?.theme || DEFAULT_T);
-      return;
-    }
-    applyTheme(DEFAULT_T);
-  }, [curEmp?.id, empresas, applyTheme]);
+    commitThemeToDom(theme);
+  }, [theme, commitThemeToDom]);
 
   return {
     DEFAULT_T,

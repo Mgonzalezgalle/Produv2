@@ -38,7 +38,11 @@ nav{position:sticky;top:0;z-index:100;background:rgba(246,248,252,.92);backdrop-
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 16px 42px rgba(16,26,51,.06)}
 .partner-card{display:flex;flex-direction:column;justify-content:space-between}
-.partner-logo{height:38px;width:auto;display:block;margin-bottom:18px}
+.partner-brand{display:inline-flex;align-items:center;gap:14px;padding:14px 18px;border-radius:20px;border:1px solid var(--line);background:#fff;box-shadow:0 16px 42px rgba(16,26,51,.06);margin-bottom:18px;align-self:flex-start}
+.partner-brand span{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.8px;color:var(--ink)}
+.partner-logo{display:block;flex-shrink:0}
+.partner-logo.market{height:56px;width:auto}
+.partner-logo.calendar{height:46px;width:46px}
 .pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef7f4;color:#0e8b74;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
 .card h3{font-family:'Syne',sans-serif;font-size:24px;letter-spacing:-.6px}
 .card p{font-size:14px;line-height:1.7;color:var(--muted);margin-top:10px}
@@ -142,7 +146,9 @@ footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
     <article class="card partner-card">
       <div>
         <div class="pill">Cobros online</div>
-        <img class="partner-logo" src="/assets/mercado-pago-logo.png" alt="Mercado Pago" />
+        <div class="partner-brand">
+          <img class="partner-logo market" src="/assets/mercado-pago-logo.png" alt="Mercado Pago" />
+        </div>
         <p>Partner de cobro digital para enviar links de pago asociados a facturas emitidas desde Produ.</p>
       </div>
       <ul>
@@ -151,9 +157,12 @@ footer{background:#0e1629;padding:46px 5% 30px;color:#c5d1eb}
         <li>Registro en tesorería cuando el pago se aprueba</li>
       </ul>
     </article>
-    <article class="card">
+    <article class="card partner-card">
       <div class="pill">Agenda operativa</div>
-      <img class="partner-logo" src="/assets/google-calendar-partner.svg" alt="Google Calendar" />
+      <div class="partner-brand">
+        <img class="partner-logo calendar" src="/assets/google-calendar-partner.svg" alt="Google Calendar" />
+        <span>Google Calendar</span>
+      </div>
       <p>Partner de agenda para sincronizar reuniones, bloques operativos y eventos relevantes del equipo desde Produ.</p>
       <ul>
         <li>Sincronización de eventos por usuario</li>

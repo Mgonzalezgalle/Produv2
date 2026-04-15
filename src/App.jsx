@@ -302,6 +302,8 @@ export default function App(){
   const { theme, applyTheme, saveTheme } = useLabTheme({
     THEME_PRESETS,
     curEmp,
+    storedSession,
+    globalInitReady,
     empresas,
     setEmpresasRaw,
     setThemeDB,
@@ -318,8 +320,6 @@ export default function App(){
     normalizeEmpresasTenantCodes,
     ensureRequiredSystemUsers,
     normalizePrintLayouts,
-    applyTheme,
-    THEME_PRESETS,
     setStoredSession,
     SEED_EMPRESAS,
     SEED_USERS,

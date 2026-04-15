@@ -31,7 +31,6 @@ export function CoreModalRouter({
     setCrew,
     setEventos,
     setPresupuestos,
-    setFacturas,
     setActivos,
     setTareas,
     setCrmOpps,
@@ -104,7 +103,7 @@ export function CoreModalRouter({
       onSaveEp={guardSave("programas", d => cSave(VP.episodios, setEpisodios, withEmp(d)))}
       onSaveAus={guardSave("auspiciadores", d => cSave(auspiciadores, setAuspiciadores, withEmp(d)))}
       onSaveCrew={guardSave("crew", d => cSave(crew, setCrew, withEmp(d)))}
-      onSaveEvento={guardSave("eventos", d => cSave(eventos, setEventos, withEmp(d)))}
+      onSaveEvento={guardSave("calendario", d => cSave(eventos, setEventos, withEmp(d)))}
       onSaveActivo={guardSave("activos", d => cSave(VP.activos, setActivos, withEmp(d)))}
       onSaveTarea={saveTask}
     />

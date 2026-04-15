@@ -342,7 +342,6 @@ export function ViewCalendario(props) {
         }));
         if (!result?.ok) {
           if (!cancelled) {
-            setGoogleCalendarEvents([]);
             setGoogleCalendarError(result?.message || "No pudimos leer los eventos de Google Calendar.");
           }
           return;
@@ -359,7 +358,6 @@ export function ViewCalendario(props) {
         }
       } catch (error) {
         if (!cancelled) {
-          setGoogleCalendarEvents([]);
           setGoogleCalendarError(error?.message || "No pudimos leer los eventos de Google Calendar.");
         }
       } finally {
@@ -428,7 +426,6 @@ export function ViewCalendario(props) {
           } : item)));
           if (remoteEvent) {
             setGoogleCalendarEvents((current = []) => mergeGoogleCalendarEventItems(current, remoteEvent));
-            setGoogleCalendarLastPullAt(new Date().toISOString());
           }
           setGoogleCalendarRefreshTick(tick => tick + 1);
         })

@@ -16,6 +16,8 @@ export function useLabGlobalInit({
   normalizeEmpresasTenantCodes,
   ensureRequiredSystemUsers,
   normalizePrintLayouts,
+  applyTheme,
+  THEME_PRESETS,
   setStoredSession,
   SEED_EMPRESAS,
   SEED_USERS,
@@ -83,6 +85,12 @@ export function useLabGlobalInit({
       }
 
       try {
+        applyTheme(THEME_PRESETS.dark);
+      } catch (error) {
+        logGlobalInitIssue("No pudimos aplicar el tema inicial", error);
+      }
+
+      try {
         const stored = loadStoredJson(localLabKey("session"));
         if (stored && !cancelled) setStoredSession(stored);
       } catch (error) {
@@ -97,7 +105,7 @@ export function useLabGlobalInit({
     return () => {
       cancelled = true;
     };
-  }, [dbGet, dbSet, dbCloneFromProd, setEmpresasRaw, setUsersRaw, setPrintLayoutsRaw, normalizeEmpresasTenantCodes, ensureRequiredSystemUsers, normalizePrintLayouts, setStoredSession, SEED_EMPRESAS, SEED_USERS, DEFAULT_PRINT_LAYOUTS]);
+  }, [dbGet, dbSet, dbCloneFromProd, setEmpresasRaw, setUsersRaw, setPrintLayoutsRaw, normalizeEmpresasTenantCodes, ensureRequiredSystemUsers, normalizePrintLayouts, applyTheme, THEME_PRESETS.dark, setStoredSession, SEED_EMPRESAS, SEED_USERS, DEFAULT_PRINT_LAYOUTS]);
 
   return globalInitReady;
 }

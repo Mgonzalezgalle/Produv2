@@ -116,6 +116,15 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   };
 }
 
+function mergeGoogleCalendarEventItems(current = [], incoming = null) {
+  if (!incoming?.googleEventId) return Array.isArray(current) ? current : [];
+  const base = Array.isArray(current) ? current : [];
+  const next = base.filter(item => item?.googleEventId !== incoming.googleEventId);
+  next.push(incoming);
+  next.sort(byCalendarDateTime);
+  return next;
+}
+
 function googleSyncBadgeState(event = {}) {
   if (event?.googleCalendarSyncState === "conflict") return { label: "Conflicto", color: "orange" };
   if (event?.googleCalendarSyncState === "cancelled") return { label: "Cancelado", color: "red" };
@@ -395,6 +404,7 @@ export function ViewCalendario(props) {
             throw new Error(result?.message || result?.error || "google_event_create_failed");
           }
           if (cancelled) return;
+          const remoteEvent = mapGoogleEventToCalendarItem(result.event, { email: userCalendarEmail });
           await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
             ...item,
             googleEventId: result.event.id,
@@ -403,6 +413,10 @@ export function ViewCalendario(props) {
             googleCalendarSyncState: "synced",
             googleCalendarSyncError: "",
           } : item)));
+          if (remoteEvent) {
+            setGoogleCalendarEvents((current = []) => mergeGoogleCalendarEventItems(current, remoteEvent));
+            setGoogleCalendarLastPullAt(new Date().toISOString());
+          }
           setGoogleCalendarRefreshTick(tick => tick + 1);
         })
         .catch(error => {
@@ -424,7 +438,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken]);
+  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos) return;
@@ -444,6 +458,12 @@ export function ViewCalendario(props) {
       const remote = remoteMap.get(item.googleEventId);
       const localCurrentHash = calendarSyncHash(item);
       if (!remote) {
+        if (
+          item.googleCalendarSyncedAt &&
+          (!googleCalendarLastPullAt || new Date(item.googleCalendarSyncedAt).getTime() >= new Date(googleCalendarLastPullAt).getTime())
+        ) {
+          return [item];
+        }
         if (item.googleCalendarSyncHash === localCurrentHash) {
           changed = true;
           removedCount += 1;
@@ -520,7 +540,7 @@ export function ViewCalendario(props) {
     if (conflictCount) ntf?.(`${conflictCount} evento(s) tienen conflicto entre Produ y Google Calendar.`, "warn");
     if (cancelledCount) ntf?.(`${cancelledCount} evento(s) fueron cancelados en Google Calendar.`, "warn");
     if (removedCount) ntf?.(`${removedCount} evento(s) eliminados en Google dejaron de mostrarse en Produ.`, "warn");
-  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, ntf, setEventos, visibleDateRange]);
+  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, googleCalendarLastPullAt, ntf, setEventos, visibleDateRange]);
 
   const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const moveCalendarRange = delta => {

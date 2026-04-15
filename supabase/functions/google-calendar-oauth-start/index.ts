@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
   const clientId = Deno.env.get("GOOGLE_CLIENT_ID") || "";
   const redirectUri = Deno.env.get("GOOGLE_REDIRECT_URI") || "";
-  const defaultScopes = (Deno.env.get("GOOGLE_CALENDAR_SCOPES") || "https://www.googleapis.com/auth/calendar.events")
+  const defaultScopes = (Deno.env.get("GOOGLE_CALENDAR_SCOPES") || "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.calendarlist.readonly")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);

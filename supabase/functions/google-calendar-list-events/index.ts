@@ -163,13 +163,32 @@ Deno.serve(async (req) => {
 
   const calendars = await listCalendars(access.accessToken);
   if (!calendars.ok) {
+    const fallbackCalendarId = String(payload?.calendarId || "primary").trim() === "all"
+      ? "primary"
+      : String(payload?.calendarId || "primary").trim() || "primary";
+    const fallbackList = await listEventsForCalendar(access.accessToken, fallbackCalendarId, payload?.timeMin, payload?.timeMax);
+    if (!fallbackList.ok) {
+      return json({
+        ok: false,
+        source: "degraded",
+        provider: "google",
+        error: fallbackList.error || calendars.error,
+        message: fallbackList.message || calendars.message,
+      }, fallbackList.status || calendars.status || 502);
+    }
+
     return json({
-      ok: false,
-      source: "degraded",
+      ok: true,
+      source: "remote",
       provider: "google",
-      error: calendars.error,
-      message: calendars.message,
-    }, calendars.status || 502);
+      degraded: true,
+      warning: calendars.message || "No pudimos enumerar todos los calendarios visibles; usamos el calendario base.",
+      items: fallbackList.items.map((item) => ({
+        ...item,
+        _produCalendarId: fallbackCalendarId,
+        _produCalendarName: fallbackCalendarId === "primary" ? "Calendario principal" : fallbackCalendarId,
+      })),
+    });
   }
 
   const calendarItems = Array.isArray(calendars.items) ? calendars.items : [];

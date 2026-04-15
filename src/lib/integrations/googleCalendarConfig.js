@@ -5,6 +5,7 @@ export const GOOGLE_CALENDAR_MODES = {
 
 export const GOOGLE_CALENDAR_DEFAULT_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 ];
 
 const FALLBACK_SUPABASE_URL = "https://zpgxbmlzoxxgymsschrd.supabase.co";

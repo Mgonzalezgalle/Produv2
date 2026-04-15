@@ -82,6 +82,16 @@ function hourNumber(value = "") {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function formatCalendarHour(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/Santiago",
+  });
+}
+
 function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   const start = item?.start?.dateTime || item?.start?.date || item?.originalStartTime?.dateTime || item?.originalStartTime?.date || "";
   if (!start) return null;
@@ -103,7 +113,7 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
     label: `📅 ${item.summary || "Evento Google"}`,
     sub: [String(item?._produCalendarName || userCalendar.calendarName || "").trim(), String(item.organizer?.email || userCalendar.email || "").trim()].filter(Boolean).join(" · ") || "Google Calendar",
     color: "#4285f4",
-    hora: startDateTime ? startDateTime.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "",
+    hora: startDateTime ? formatCalendarHour(startDateTime) : "",
     modulo: "google",
     estado: item.status === "cancelled" ? "Cancelado" : "Google Calendar",
     desc: item.description || "",

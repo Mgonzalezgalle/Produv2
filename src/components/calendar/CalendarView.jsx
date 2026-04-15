@@ -85,7 +85,10 @@ function hourNumber(value = "") {
 function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   const start = item?.start?.dateTime || item?.start?.date || item?.originalStartTime?.dateTime || item?.originalStartTime?.date || "";
   if (!start) return null;
-  const d = new Date(start);
+  const isAllDay = Boolean(item?.start?.date && !item?.start?.dateTime);
+  const d = isAllDay
+    ? new Date(`${String(item.start.date).slice(0, 10)}T12:00:00`)
+    : new Date(start);
   const startDateTime = item?.start?.dateTime ? new Date(item.start.dateTime) : null;
   const attendeeEmails = Array.isArray(item.attendees) ? item.attendees.map(att => String(att?.email || "").trim().toLowerCase()).filter(Boolean) : [];
   const meetLink = item.hangoutLink || item?.conferenceData?.entryPoints?.find(entry => entry.entryPointType === "video")?.uri || "";
@@ -911,7 +914,12 @@ export function ViewCalendario(props) {
   };
 
   const syncedCustomEvents = (eventos || []).filter(ev => ev?.empId === empId && ev?.googleEventId).length;
-  const pendingSyncEvents = (eventos || []).filter(ev => ev?.empId === empId && ev?.fecha && (!ev?.googleEventId || ev?.googleCalendarSyncHash !== calendarSyncHash(ev))).length;
+  const pendingSyncEvents = (eventos || []).filter(ev =>
+    ev?.empId === empId &&
+    ev?.fecha &&
+    isDateWithinRange(ev.fecha, visibleDateRange) &&
+    (!ev?.googleEventId || ev?.googleCalendarSyncHash !== calendarSyncHash(ev))
+  ).length;
   const googleMeetEvents = googleCalendarEvents.filter(ev => ev?.meetLink).length;
   const syncIssueEvents = (eventos || [])
     .filter(ev => ev?.empId === empId && ["error", "conflict", "orphan", "cancelled"].includes(ev?.googleCalendarSyncState))

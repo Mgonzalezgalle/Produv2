@@ -434,7 +434,7 @@ export default function App(){
     return () => {
       cancelled = true;
     };
-  },[curEmp?.id, setListas, setTareas, setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setMovimientos, setCrew, setEventos, setPresupuestos, setFacturas, setTreasuryProviders, setTreasuryPayables, setTreasuryPurchaseOrders, setTreasuryIssuedOrders, setTreasuryReceipts, setTreasuryDisbursements, setActivos]);
+  },[curEmp, setListas, setTareas, setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setMovimientos, setCrew, setEventos, setPresupuestos, setFacturas, setTreasuryProviders, setTreasuryPayables, setTreasuryPurchaseOrders, setTreasuryIssuedOrders, setTreasuryReceipts, setTreasuryDisbursements, setActivos]);
 
   const crmSavingRef = useRef(false);
 
@@ -679,9 +679,23 @@ export default function App(){
   const useBal = useLabBalance;
   const domainUsers = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS), [users]);
   const domainEmpresas = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS), [empresas]);
-  const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
+  const ef = useCallback(arr => (arr || []).filter(x => x.empId === empId), [empId]);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
-  const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,crm:ef(crmOpps).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,tes:countPendingTreasury(facturas,empId),act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&!["Completada","Finalizada"].includes(t.estado)).length:0};
+  const counts = useMemo(() => ({
+    cli: ef(clientes).length,
+    pro: ef(producciones).length,
+    pg: ef(programas).length,
+    pz: ef(socialCampaigns).length,
+    crew: ef(crew).length,
+    aus: ef(auspiciadores).length,
+    crm: ef(crmOpps).length,
+    ct: ef(contratos).length,
+    pres: ef(presupuestos).length,
+    fact: ef(facturas).length,
+    tes: countPendingTreasury(facturas, empId),
+    act: ef(activos).length,
+    tar: tasksEnabled ? (Array.isArray(tareas) ? tareas : []).filter(t => t && t.empId === empId && getAssignedIds(t).includes(curUser?.id) && !["Completada", "Finalizada"].includes(t.estado)).length : 0,
+  }), [clientes, producciones, programas, socialCampaigns, crew, auspiciadores, crmOpps, contratos, presupuestos, facturas, activos, tareas, tasksEnabled, empId, curUser?.id, ef]);
 
   // Breadcrumb
   const buildBc=()=>{
@@ -735,7 +749,7 @@ export default function App(){
     platformApi,
     canDo:(a)=>canDo(curUser,a,curEmp),
   }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi]);
-  const treasuryProps={
+  const treasuryProps = useMemo(() => ({
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,
     payables:treasuryPayables||[],
@@ -748,8 +762,8 @@ export default function App(){
     setReceipts:setTreasuryReceipts,
     disbursements:treasuryDisbursements||[],
     setDisbursements:setTreasuryDisbursements,
-  };
-  const setters={setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas};
+  }), [treasuryProviders, treasuryPayables, treasuryPurchaseOrders, treasuryIssuedOrders, treasuryReceipts, treasuryDisbursements, setTreasuryProviders, setTreasuryPayables, setTreasuryPurchaseOrders, setTreasuryIssuedOrders, setTreasuryReceipts, setTreasuryDisbursements]);
+  const setters = useMemo(() => ({setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}), [setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setCrew, setEventos, setPresupuestos, setFacturas, setActivos, setMovimientos, setTareas]);
   const modalStateSetters = setters;
   const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
   const {
@@ -1006,7 +1020,7 @@ export default function App(){
     Tabs,
     XBtn,
     releaseMode: LAB_DATA_CONFIG.releaseMode,
-  }), [adminOpen, theme, saveTheme, curEmp, curUser, users, empresas, saveUsers, saveEmpresas, platformServices, L, ntf, dbGet, uid, sha256Hex, empId, setListas]);
+  }), [adminOpen, theme, saveTheme, curEmp, curUser, users, empresas, saveUsers, saveEmpresas, platformServices, L, ntf, empId, setListas]);
   const sidebarProps = useMemo(() => ({
     user: curUser,
     empresa: curEmp,

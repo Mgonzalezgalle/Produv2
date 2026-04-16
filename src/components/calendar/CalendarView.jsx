@@ -10,6 +10,7 @@ import {
   ModuleHeader,
   Tabs,
 } from "../../lib/ui/components";
+import { clearGoogleCalendarSession, loadGoogleCalendarSession } from "../../lib/auth/sessionStorage";
 import { fmtD, hasAddon, today } from "../../lib/utils/helpers";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -248,9 +249,14 @@ export function ViewCalendario(props) {
   const googleCalendarEnabled = empresa?.googleCalendarEnabled === true;
   const activeUser = (Array.isArray(users) ? users.find(item => item.id === user?.id) : null) || user || {};
   const userCalendar = activeUser?.googleCalendar || {};
+  const userCalendarSession = useMemo(
+    () => loadGoogleCalendarSession(activeUser?.id),
+    [activeUser?.id],
+  );
+  const googleCalendarRefreshToken = String(userCalendarSession?.refreshToken || "");
   const userCalendarEmail = String(userCalendar.email || "");
   const userCalendarConnected = userCalendar.connected === true;
-  const googleCalendarReady = googleCalendarEnabled && userCalendarConnected && !!userCalendar.refreshToken;
+  const googleCalendarReady = googleCalendarEnabled && userCalendarConnected && !!googleCalendarRefreshToken;
   const [googleCalendarConnecting, setGoogleCalendarConnecting] = useState(false);
   const [googleCalendarEvents, setGoogleCalendarEvents] = useState([]);
   const [googleCalendarLoading, setGoogleCalendarLoading] = useState(false);
@@ -321,7 +327,7 @@ export function ViewCalendario(props) {
         setGoogleCalendarError("");
         const result = await Promise.resolve(platformApi?.calendar?.listGoogleCalendarEvents?.({
           calendarId: userCalendar.calendarId || "primary",
-          refreshToken: userCalendar.refreshToken || "",
+          refreshToken: googleCalendarRefreshToken,
           timeMin: googleCalendarRange.timeMin,
           timeMax: googleCalendarRange.timeMax,
         }));
@@ -351,7 +357,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail, platformApi?.calendar, googleCalendarRefreshTick]);
+  }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.calendarId, googleCalendarRefreshToken, userCalendarEmail, platformApi?.calendar, googleCalendarRefreshTick]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos || !platformApi?.calendar?.createGoogleCalendarEvent) return;
@@ -379,7 +385,7 @@ export function ViewCalendario(props) {
       const endDateTime = endDate.toISOString();
       Promise.resolve(platformApi.calendar.createGoogleCalendarEvent({
         calendarId: userCalendar.calendarId || "primary",
-        refreshToken: userCalendar.refreshToken || "",
+        refreshToken: googleCalendarRefreshToken,
         googleEventId: ev.googleEventId || "",
         summary: ev.titulo || "Evento Produ",
         description: ev.desc || "",
@@ -423,7 +429,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken]);
+  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, googleCalendarRefreshToken]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos) return;
@@ -784,7 +790,7 @@ export function ViewCalendario(props) {
     if (ev.googleEventId && googleCalendarReady && platformApi?.calendar?.deleteGoogleCalendarEvent) {
       const remoteDelete = await Promise.resolve(platformApi.calendar.deleteGoogleCalendarEvent({
         calendarId: userCalendar.calendarId || "primary",
-        refreshToken: userCalendar.refreshToken || "",
+        refreshToken: googleCalendarRefreshToken,
         googleEventId: ev.googleEventId,
       }));
       if (!remoteDelete?.ok) {
@@ -853,6 +859,7 @@ export function ViewCalendario(props) {
       },
     } : item);
     await Promise.resolve(saveUsers(nextUsers));
+    clearGoogleCalendarSession(activeUser.id);
     setGoogleCalendarEvents([]);
     setGoogleCalendarError("");
     setGoogleCalendarLastPullAt("");

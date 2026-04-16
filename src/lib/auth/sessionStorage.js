@@ -4,6 +4,7 @@ const SESSION_MAX_AGE_DEFAULT_MS = 12 * 60 * 60 * 1000;
 const SESSION_IDLE_DEFAULT_MS = 60 * 60 * 1000;
 const SESSION_MAX_AGE_PRIVILEGED_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_PRIVILEGED_MS = 15 * 60 * 1000;
+const GOOGLE_CALENDAR_SECRET_PREFIX = "produ:google-calendar:session:";
 
 function warnSessionStorage(message, error, extra = {}) {
   console.warn(message, {
@@ -131,4 +132,23 @@ export function removeStoredJson(storageKey) {
   } catch (error) {
     warnSessionStorage("Unable to remove session payload", error, { storageKey });
   }
+}
+
+function googleCalendarSecretKey(userId = "") {
+  return `${GOOGLE_CALENDAR_SECRET_PREFIX}${String(userId || "").trim()}`;
+}
+
+export function loadGoogleCalendarSession(userId = "") {
+  if (!String(userId || "").trim()) return null;
+  return loadStoredJson(googleCalendarSecretKey(userId));
+}
+
+export function saveGoogleCalendarSession(userId = "", payload = {}) {
+  if (!String(userId || "").trim()) return;
+  saveStoredJson(googleCalendarSecretKey(userId), payload);
+}
+
+export function clearGoogleCalendarSession(userId = "") {
+  if (!String(userId || "").trim()) return;
+  removeStoredJson(googleCalendarSecretKey(userId));
 }

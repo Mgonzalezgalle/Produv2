@@ -12,6 +12,7 @@ import { AppShellFrame } from "./components/shared/AppShellFrame";
 import { AppTopbarActions } from "./components/shared/AppTopbarActions";
 import { AppViewRenderer } from "./components/shared/AppViewRenderer";
 import { APP_SHELL_CSS } from "./components/shared/appShellCss";
+import { ConfirmActionDialog } from "./components/shared/ConfirmActionDialog";
 import { BrandLockup, LoadingScreen } from "./components/shared/ShellLayout";
 import { useLabCommercialDocs } from "./hooks/useLabCommercialDocs";
 import { useLabTenantFoundationSync } from "./hooks/useLabTenantFoundationSync";
@@ -80,7 +81,7 @@ import { SYSTEM_MESSAGE_PRESETS, THEME_PRESETS } from "./lib/config/appConfig";
 import { LAB_DATA_CONFIG, localLabKey } from "./lib/lab/labStorageConfig";
 import { dbGet, dbSet, dbCloneFromProd } from "./lib/lab/labDb";
 import { buildSeedData, SEED_EMPRESAS as BASE_SEED_EMPRESAS, SEED_USERS } from "./lib/lab/seeds";
-import { isStoredSessionExpired } from "./lib/auth/sessionStorage";
+import { isStoredSessionExpired, saveGoogleCalendarSession } from "./lib/auth/sessionStorage";
 import { getLabAuthModeLabel, LAB_AUTH_CONFIG } from "./lib/auth/authConfig";
 import { useLabBootGuards } from "./hooks/useLabBootGuards";
 import { useLabBalance } from "./hooks/useLabBalance";
@@ -195,6 +196,7 @@ export default function App(){
   const [alertasOcultas,setAlertasOcultas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
+  const [pendingConfirm, setPendingConfirm] = useState(null);
   const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
@@ -537,9 +539,16 @@ export default function App(){
     closeM();ntf("Guardado ✓");await setArr(next);
   }, [closeM, curEmp?.id, ntf]);
   const cDel=useCallback(async(arr,setArr,id,goFn,msg="Eliminado")=>{
-    if(!confirm("¿Confirmar eliminación?")) return;
-    ntf(msg,"warn");if(goFn)goFn();
-    await setArr((arr||[]).filter(x=>x.id!==id));
+    setPendingConfirm({
+      title: "Confirmar eliminación",
+      message: "Esta acción eliminará el registro seleccionado.",
+      confirmLabel: "Eliminar",
+      onConfirm: async () => {
+        ntf(msg,"warn");
+        if(goFn) goFn();
+        await setArr((arr||[]).filter(x=>x.id!==id));
+      },
+    });
   }, [ntf]);
   const { saveMov, delMov, saveFacturaDoc } = useLabCommercialDocs({
     curEmp,
@@ -622,6 +631,19 @@ export default function App(){
       try {
         const connection = JSON.parse(rawConnection);
         const targetUserId = String(connection?.userId || curUser.id).trim() || curUser.id;
+        if (targetUserId !== curUser.id) {
+          ntf("La conexión devuelta por Google Calendar no coincide con la sesión activa.", "warn");
+          cleanUrl();
+          return;
+        }
+        saveGoogleCalendarSession(curUser.id, {
+          tokenType: String(connection?.tokenType || "Bearer").trim(),
+          scope: String(connection?.scope || "").trim(),
+          accessToken: String(connection?.accessToken || "").trim(),
+          refreshToken: String(connection?.refreshToken || "").trim(),
+          expiresIn: Number(connection?.expiresIn || 0),
+          connectedAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
+        });
         const nextGoogleCalendar = {
           connected: true,
           email: String(connection?.userEmail || curUser?.email || "").trim(),
@@ -631,8 +653,8 @@ export default function App(){
           lastSyncAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
           tokenType: String(connection?.tokenType || "Bearer").trim(),
           scope: String(connection?.scope || "").trim(),
-          accessToken: String(connection?.accessToken || "").trim(),
-          refreshToken: String(connection?.refreshToken || "").trim(),
+          accessToken: "",
+          refreshToken: "",
           expiresIn: Number(connection?.expiresIn || 0),
         };
         const nextUsers = users.map(item => item.id === targetUserId ? {
@@ -996,10 +1018,21 @@ export default function App(){
         ntf("La limpieza masiva está bloqueada en release mode", "warn");
         return;
       }
-      if (!confirm("¿Eliminar TODOS los datos de esta empresa?")) return;
-      ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k => dbSet(`${empId}:${k}`, []));
-      ntf("Datos eliminados", "warn");
-      setAdminOpen(false);
+      const safeEmpId = String(empId || "").trim();
+      if (!safeEmpId || safeEmpId === "__none__") {
+        ntf("No pudimos identificar la empresa activa para limpiar datos.", "warn");
+        return;
+      }
+      setPendingConfirm({
+        title: "Eliminar datos del tenant",
+        message: `Esto vaciará los datos operativos de ${curEmp?.nombre || "la empresa activa"} en este entorno.`,
+        confirmLabel: "Sí, eliminar datos",
+        onConfirm: async () => {
+          ["clientes","producciones","programas","piezas","episodios","auspiciadores","contratos","movimientos","crew","eventos","presupuestos","facturas",...TREASURY_STORE_KEYS,"activos"].forEach(k => dbSet(`${safeEmpId}:${k}`, []));
+          ntf("Datos eliminados", "warn");
+          setAdminOpen(false);
+        },
+      });
     },
     ntf,
     dbGet,
@@ -1176,6 +1209,18 @@ export default function App(){
       toastState={{ toast, ToastView, setToast }}
       modalLayer={modalLayerProps}
       adminPanel={adminOverlayProps}
+    />
+    <ConfirmActionDialog
+      open={Boolean(pendingConfirm)}
+      title={pendingConfirm?.title || "Confirmar acción"}
+      message={pendingConfirm?.message || ""}
+      confirmLabel={pendingConfirm?.confirmLabel || "Confirmar"}
+      onClose={() => setPendingConfirm(null)}
+      onConfirm={async () => {
+        const action = pendingConfirm?.onConfirm;
+        setPendingConfirm(null);
+        if (typeof action === "function") await action();
+      }}
     />
   </div>;
 }

@@ -262,7 +262,7 @@ function CalendarAgendaRow({ ev, onOpen, onDelete, canDelete = false, compact = 
 }
 
 export function ViewCalendario(props) {
-  const { empresa, user, tareas, crew, clientes, auspiciadores, episodios, programas, piezas, producciones, eventos, openM, canDo, cDel, setEventos, ntf, assignedNameList, platformApi, saveUsers, users } = props;
+  const { empresa, user, tareas, crew, clientes, episodios, programas, piezas, producciones, eventos, openM, canDo, cDel, setEventos, ntf, assignedNameList, platformApi, saveUsers, users } = props;
   const empId = empresa?.id;
   const tasksEnabled = hasAddon(empresa, "tareas");
   const googleCalendarEnabled = empresa?.googleCalendarEnabled === true;

@@ -695,8 +695,8 @@ function normalizeEmpresasAddons(empresas = []) {
 export function normalizeEmpresasModel(empresas = []) {
   return normalizeEmpresasAddons(normalizeEmpresasTenantCodes(empresas)).map(emp => ({
     ...emp,
-    supportChatEnabled: false,
-    freshdeskEnabled: false,
+    supportChatEnabled: emp?.supportChatEnabled === true,
+    freshdeskEnabled: emp?.freshdeskEnabled === true,
     referralCode: buildReferralCode(emp),
     referralCredits: Number(emp?.referralCredits || 0),
     referralDiscountMonthsPending: Number(emp?.referralDiscountMonthsPending || 0),

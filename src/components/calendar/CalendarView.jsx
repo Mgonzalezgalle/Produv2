@@ -958,8 +958,8 @@ export function ViewCalendario(props) {
     </Card>}
 
     {subTab === 1 && <>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr .8fr", gap: 16 }}>
-        <Card title="Próximos eventos">
+      <div style={{ display: "grid", gap: 16 }}>
+        <Card title="Próximos eventos" style={{ width: "100%" }}>
           {agendaSemana.length ? agendaSemana.map(ev => <div key={ev.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--bdr)", alignItems: "flex-start" }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: `${ev.color}20`, border: `1px solid ${ev.color}35`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <div style={{ fontSize: 14 }}>{ti(ev.tipo)}</div>
@@ -977,7 +977,7 @@ export function ViewCalendario(props) {
             {canDo && canDo("calendario") && <GBtn sm onClick={() => editCalItem(ev)}>Abrir</GBtn>}
           </div>) : <Empty text="Sin eventos próximos" sub="Cuando programes fechas, aparecerán aquí." />}
         </Card>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))", gap: 16, alignItems: "start" }}>
           <Card title="Google Calendar">
             <div style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

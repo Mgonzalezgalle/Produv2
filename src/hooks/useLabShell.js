@@ -72,7 +72,11 @@ export function useLabShell({
     setCurUser(null);
     setCurEmp(null);
     setStoredSession(null);
-    Promise.resolve(authService?.clearSession());
+    Promise.resolve(authService?.clearSession()).catch((error) => {
+      console.warn("Auth session clear failed", {
+        error: error?.message || String(error || ""),
+      });
+    });
   }, [authService, setCurUser, setCurEmp, setStoredSession]);
 
   const selectEmp = useCallback((empresa) => {

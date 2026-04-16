@@ -197,6 +197,9 @@ export default function App(){
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
   const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [moduleLoadingTimedOut, setModuleLoadingTimedOut] = useState(false);
+  const sessionActivityRef = useRef(0);
+  const moduleLoadingTimeoutRef = useRef(null);
   const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
@@ -290,7 +293,34 @@ export default function App(){
   } = useTenantLabData(eId);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const empId = curEmp?.id;
-  const isLoading = !!curEmp && [ldLst,ldTar,ldCli,ldPro,ldPg,ldPiezas,ldEp,ldAus,ldCrmOpps,ldCrmActivities,ldCrmStages,ldCt,ldMov,ldCrew,ldEv,ldPres,ldFact,ldTreasuryProviders,ldTreasuryPayables,ldTreasuryPurchaseOrders,ldTreasuryIssuedOrders,ldTreasuryReceipts,ldTreasuryDisbursements,ldAct].some(Boolean);
+  const moduleLoadingMap = useMemo(() => ({
+    listas: ldLst,
+    tareas: ldTar,
+    clientes: ldCli,
+    producciones: ldPro,
+    programas: ldPg,
+    piezas: ldPiezas,
+    episodios: ldEp,
+    auspiciadores: ldAus,
+    crmOpps: ldCrmOpps,
+    crmActivities: ldCrmActivities,
+    crmStages: ldCrmStages,
+    contratos: ldCt,
+    movimientos: ldMov,
+    crew: ldCrew,
+    eventos: ldEv,
+    presupuestos: ldPres,
+    facturas: ldFact,
+    treasuryProviders: ldTreasuryProviders,
+    treasuryPayables: ldTreasuryPayables,
+    treasuryPurchaseOrders: ldTreasuryPurchaseOrders,
+    treasuryIssuedOrders: ldTreasuryIssuedOrders,
+    treasuryReceipts: ldTreasuryReceipts,
+    treasuryDisbursements: ldTreasuryDisbursements,
+    activos: ldAct,
+  }), [ldLst, ldTar, ldCli, ldPro, ldPg, ldPiezas, ldEp, ldAus, ldCrmOpps, ldCrmActivities, ldCrmStages, ldCt, ldMov, ldCrew, ldEv, ldPres, ldFact, ldTreasuryProviders, ldTreasuryPayables, ldTreasuryPurchaseOrders, ldTreasuryIssuedOrders, ldTreasuryReceipts, ldTreasuryDisbursements, ldAct]);
+  const isModuleLoading = !!curEmp && Object.values(moduleLoadingMap).some(Boolean);
+  const isLoading = isModuleLoading && !moduleLoadingTimedOut;
   const tasksEnabled = hasAddon(curEmp,"tareas");
   const alertHelpers = useMemo(() => ({
     cobranzaState,
@@ -510,17 +540,43 @@ export default function App(){
 
   useEffect(()=>{
     if(!curUser || !storedSession) return;
-    let lastTouch = 0;
     const onActivity = () => {
       const now = Date.now();
-      if(now - lastTouch < 15000) return;
-      lastTouch = now;
+      if(now - sessionActivityRef.current < 15000) return;
+      sessionActivityRef.current = now;
       refreshSessionActivity({ lastActivityAt: now });
     };
     const events = ["mousemove","keydown","scroll","touchstart"];
     events.forEach(evt=>window.addEventListener(evt,onActivity,{passive:true}));
     return ()=>events.forEach(evt=>window.removeEventListener(evt,onActivity));
   },[curUser, storedSession, refreshSessionActivity]);
+
+  useEffect(() => {
+    if (!isModuleLoading) {
+      if (moduleLoadingTimeoutRef.current) {
+        clearTimeout(moduleLoadingTimeoutRef.current);
+        moduleLoadingTimeoutRef.current = null;
+      }
+      if (moduleLoadingTimedOut) setModuleLoadingTimedOut(false);
+      return undefined;
+    }
+    if (moduleLoadingTimedOut || moduleLoadingTimeoutRef.current) return undefined;
+    moduleLoadingTimeoutRef.current = setTimeout(() => {
+      moduleLoadingTimeoutRef.current = null;
+      setModuleLoadingTimedOut(true);
+      console.warn("Module loading timeout reached; releasing UI fallback", {
+        empId: curEmp?.id || "",
+        activeFlags: Object.entries(moduleLoadingMap)
+          .filter(([, value]) => Boolean(value))
+          .map(([key]) => key),
+      });
+    }, 15000);
+    return () => {
+      if (!moduleLoadingTimeoutRef.current) return;
+      clearTimeout(moduleLoadingTimeoutRef.current);
+      moduleLoadingTimeoutRef.current = null;
+    };
+  }, [curEmp?.id, isModuleLoading, moduleLoadingMap, moduleLoadingTimedOut]);
 
   useEffect(()=>{
     if(!curUser || !storedSession) return;

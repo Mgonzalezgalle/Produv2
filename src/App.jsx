@@ -982,7 +982,7 @@ export default function App(){
     <div
       style={{
         position: "fixed",
-        left: isMobile ? 0 : SW,
+        left: 0,
         top: 64,
         right: 0,
         bottom: 0,

@@ -1044,14 +1044,6 @@ export function ViewCalendario(props) {
               <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 2 }}>{ev.sub} · {ev.fecha ? fmtD(ev.fecha) : "Sin fecha"}</div>
             </div>) : <Empty text="Sin hitos críticos" />}
           </Card>
-          <Card title="Acciones rápidas">
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {canDo && canDo("calendario") && <Btn onClick={() => openM("evento", {})} sm>Crear evento manual</Btn>}
-              {canDo && canDo("calendario") && <GBtn onClick={() => { setSubTab(1); setVistaLista(false); }} sm>Ver mes completo</GBtn>}
-              <GBtn onClick={() => setSubTab(2)} sm>Ir a Programación</GBtn>
-              {googleCalendarEnabled && !googleCalendarReady && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>Conecta tu cuenta para ver eventos de Google y sincronizar los eventos manuales de Produ.</div>}
-            </div>
-          </Card>
         </div>
       </div>
     </>}

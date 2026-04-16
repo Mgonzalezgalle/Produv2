@@ -229,10 +229,38 @@ export function MActivo({ open, data, producciones, listas, onClose, onSave }) {
 }
 
 export function MTarea({ open, data, producciones, programas, piezas, oportunidades, crew, listas, onClose, onSave, normalizeTaskAssignees, getAssignedIds }) {
-  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[], recurrenciaTipo:"" };
+  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[], recurrenciaTipo:"", recurrenciaUnidad:"", recurrenciaIntervalo:1 };
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? normalizeTaskAssignees({ ...data }) : { ...empty }); }, [data, open, normalizeTaskAssignees]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const setRecurrencePreset = value => {
+    if (!value) {
+      setF(prev => ({ ...prev, recurrenciaTipo: "", recurrenciaUnidad: "", recurrenciaIntervalo: 1 }));
+      return;
+    }
+    if (value === "diaria") {
+      setF(prev => ({ ...prev, recurrenciaTipo: "diaria", recurrenciaUnidad: "dia", recurrenciaIntervalo: 1 }));
+      return;
+    }
+    if (value === "semanal") {
+      setF(prev => ({ ...prev, recurrenciaTipo: "semanal", recurrenciaUnidad: "semana", recurrenciaIntervalo: 1 }));
+      return;
+    }
+    if (value === "mensual") {
+      setF(prev => ({ ...prev, recurrenciaTipo: "mensual", recurrenciaUnidad: "mes", recurrenciaIntervalo: 1 }));
+      return;
+    }
+    if (value === "trimestral") {
+      setF(prev => ({ ...prev, recurrenciaTipo: "trimestral", recurrenciaUnidad: "mes", recurrenciaIntervalo: 3 }));
+      return;
+    }
+    setF(prev => ({
+      ...prev,
+      recurrenciaTipo: "personalizada",
+      recurrenciaUnidad: prev.recurrenciaUnidad || "semana",
+      recurrenciaIntervalo: Number(prev.recurrenciaIntervalo || 1) || 1,
+    }));
+  };
   const toggleAssigned = id => setF(prev => {
     const current = getAssignedIds(prev);
     const nextIds = current.includes(id) ? current.filter(x => x !== id) : [...current, id];
@@ -253,16 +281,39 @@ export function MTarea({ open, data, producciones, programas, piezas, oportunida
       </FSl></FG>
     </R2>
     <FG label="Recurrencia">
-      <FSl value={f.recurrenciaTipo || ""} onChange={e => u("recurrenciaTipo", e.target.value)}>
+      <FSl value={f.recurrenciaTipo || ""} onChange={e => setRecurrencePreset(e.target.value)}>
         <option value="">Sin recurrencia</option>
+        <option value="diaria">Diaria</option>
+        <option value="semanal">Semanal</option>
         <option value="mensual">Mensual</option>
+        <option value="trimestral">Cada 3 meses</option>
+        <option value="personalizada">Personalizada</option>
       </FSl>
       <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 6 }}>
-        {f.recurrenciaTipo === "mensual"
-          ? "Al guardar, Produ generará la serie mensual usando la fecha límite como base."
-          : "Usa esto para tareas que deban repetirse cada mes."}
+        {f.recurrenciaTipo
+          ? "Produ generará la serie usando la fecha límite como base."
+          : "Usa esto para tareas que deban repetirse automáticamente."}
       </div>
     </FG>
+    {f.recurrenciaTipo === "personalizada" && (
+      <R2>
+        <FG label="Cada cuánto">
+          <FI
+            type="number"
+            min="1"
+            value={f.recurrenciaIntervalo || 1}
+            onChange={e => u("recurrenciaIntervalo", Math.max(1, Number(e.target.value || 1)))}
+          />
+        </FG>
+        <FG label="Unidad">
+          <FSl value={f.recurrenciaUnidad || "semana"} onChange={e => u("recurrenciaUnidad", e.target.value)}>
+            <option value="dia">Día</option>
+            <option value="semana">Semana</option>
+            <option value="mes">Mes</option>
+          </FSl>
+        </FG>
+      </R2>
+    )}
     {!!crew?.length && <FG label="Asignar a más usuarios">
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(crew || []).map(member => {
@@ -289,6 +340,6 @@ export function MTarea({ open, data, producciones, programas, piezas, oportunida
       {f.refTipo==="crm"&&<FG label="Oportunidad"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}><option value="">— Seleccionar —</option>{(oportunidades||[]).map(o=><option key={o.id} value={o.id}>{o.nombre} · {o.empresaMarca}</option>)}</FSl></FG>}
       {f.refTipo==="crew"&&<FG label="Miembro Crew"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}><option value="">— Seleccionar —</option>{(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}</FSl></FG>}
     </R2>
-    <MFoot onClose={onClose} onSave={() => { if (!f.titulo) return; if (f.recurrenciaTipo === "mensual" && !f.fechaLimite) return; onSave(normalizeTaskAssignees(f)); }} />
+    <MFoot onClose={onClose} onSave={() => { if (!f.titulo) return; if (f.recurrenciaTipo && !f.fechaLimite) return; onSave(normalizeTaskAssignees(f)); }} />
   </Modal>;
 }

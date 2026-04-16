@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { crmActivityEntry } from "../lib/utils/crm";
-import { addMonthsToDateKey, normalizeTaskRecurrence } from "../lib/utils/tasks";
+import { addRecurrenceToDateKey, normalizeTaskRecurrence } from "../lib/utils/tasks";
 
 export function useLabModalActions({
   empresa,
@@ -89,13 +89,19 @@ export function useLabModalActions({
     const hasCurrent = arr.find((x) => x.id === item.id);
     let next = hasCurrent ? arr.map((x) => (x.id === item.id ? item : x)) : [...arr, item];
 
-    if (item.recurrenciaTipo === "mensual" && item.fechaLimite) {
+    if (item.recurrenciaActiva && item.fechaLimite) {
       const recurrenciaSerieId = item.recurrenciaSerieId || uid();
       const recurrenciaBaseFecha = item.recurrenciaBaseFecha || item.fechaLimite;
+      const recurrenciaUnidad = item.recurrenciaUnidad || "mes";
+      const recurrenciaIntervalo = Math.max(1, Number(item.recurrenciaIntervalo || 1));
       next = next.map(task => task.id === item.id ? {
         ...task,
-        recurrenciaTipo: "mensual",
-        recurrenciaActiva: true,
+        ...normalizeTaskRecurrence({
+          ...task,
+          recurrenciaTipo: item.recurrenciaTipo,
+          recurrenciaUnidad,
+          recurrenciaIntervalo,
+        }),
         recurrenciaSerieId,
         recurrenciaBaseFecha,
         recurrenciaOrden: Number.isFinite(Number(task.recurrenciaOrden)) ? Number(task.recurrenciaOrden) : 0,
@@ -107,8 +113,8 @@ export function useLabModalActions({
           .filter(Boolean),
       );
       const seedTask = next.find(task => task.id === item.id) || item;
-      for (let monthOffset = 1; monthOffset <= 11; monthOffset += 1) {
-        const nextFecha = addMonthsToDateKey(recurrenciaBaseFecha, monthOffset);
+      for (let step = 1; step <= 11; step += 1) {
+        const nextFecha = addRecurrenceToDateKey(recurrenciaBaseFecha, recurrenciaUnidad, recurrenciaIntervalo * step);
         if (!nextFecha || existingByMonth.has(nextFecha)) continue;
         existingByMonth.add(nextFecha);
         next.push({
@@ -117,17 +123,21 @@ export function useLabModalActions({
           cr: today(),
           fechaLimite: nextFecha,
           estado: "Pendiente",
-          recurrenciaTipo: "mensual",
-          recurrenciaActiva: true,
+          ...normalizeTaskRecurrence({
+            ...seedTask,
+            recurrenciaTipo: item.recurrenciaTipo,
+            recurrenciaUnidad,
+            recurrenciaIntervalo,
+          }),
           recurrenciaSerieId,
           recurrenciaBaseFecha,
-          recurrenciaOrden: monthOffset,
+          recurrenciaOrden: step,
         });
       }
     }
     await setTareas(next);
     closeM();
-    ntf(item.recurrenciaTipo === "mensual" ? "Tarea recurrente guardada ✓" : "Tarea guardada ✓");
+    ntf(item.recurrenciaActiva ? "Tarea recurrente guardada ✓" : "Tarea guardada ✓");
     return true;
   }, [canManageTasks, closeM, empId, ntf, setTareas, tareas, today, uid, withEmp]);
 

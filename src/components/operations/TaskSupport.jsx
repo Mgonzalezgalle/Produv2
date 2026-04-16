@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Btn, Card, Empty, FG, FTA, GBtn, XBtn } from "../../lib/ui/components";
-import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS } from "../../lib/utils/tasks";
+import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS, taskRecurrenceLabel } from "../../lib/utils/tasks";
 import { requestConfirm } from "../../lib/ui/confirmService";
 import { TaskErrorBoundary } from "../shared/CoreFeedback";
 
@@ -58,9 +58,9 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
           {isDone ? "Finalizada" : venc<0?`Vencida hace ${Math.abs(venc)}d`:venc===0?"Vence hoy":venc===1?"Vence mañana":`${venc}d`}
         </span>}
       </div>
-      {tarea.recurrenciaTipo === "mensual" && (
+      {taskRecurrenceLabel(tarea) && (
         <div style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: "var(--cy)", letterSpacing: 0.4, textTransform: "uppercase" }}>
-          Recurrente mensual
+          {taskRecurrenceLabel(tarea)}
         </div>
       )}
       {canEdit&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>

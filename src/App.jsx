@@ -29,11 +29,6 @@ import {
 import {
   DEFAULT_LISTAS,
   DEFAULT_PRINT_LAYOUTS,
-  budgetPaymentDateValue,
-  budgetPaymentMethodValue,
-  budgetPaymentNotesValue,
-  budgetObservationValue,
-  buildInternalCrewFromUser,
   cobranzaState,
   commentAttachmentFromFile,
   companyBillingBaseNet,
@@ -43,16 +38,11 @@ import {
   companyGoogleCalendarEnabled,
   companyIsUpToDate,
   companyPaymentDayLabel,
-  companyPaymentInfoText,
-  contractsForReference,
-  contractVisualState,
   companyPrintColor,
   companyReferralDiscountHistory,
   companyReferralDiscountMonthsPending,
   countCampaignPieces,
   ensureRequiredSystemUsers,
-  invoiceEntityName,
-  isPasswordHash,
   nextTenantCode,
   normalizeEmailValue,
   normalizeCommentAttachments,
@@ -62,27 +52,19 @@ import {
   normalizeSocialCampaign,
   normalizeSocialCampaigns,
   normalizeSocialPiece,
-  recurringSummary,
   shouldConsumeReferralDiscountMonth,
   syncCrewWithUsers,
   userGoogleCalendar,
-  budgetRefLabel,
   daysUntil,
 } from "./lib/utils/helpers";
 import {
   CRM_STAGE_SEED,
-  crmCanPassToClient,
-  crmEntityLabel,
-  crmFindClientDuplicate,
-  crmFindSponsorDuplicate,
   crmNormalizeActivities,
   crmNormalizeOpportunity,
   normalizeCrmStages,
   recoverPreferredCrmStages,
 } from "./lib/utils/crm";
 import {
-  buildSeedTreasuryData,
-  buildTreasurySidebarItem,
   countPendingTreasury,
   TREASURY_MODULE_ICON,
   TREASURY_MODULE_ID,
@@ -92,7 +74,6 @@ import {
 } from "./lib/utils/treasury";
 import {
   ADDON_REGISTRY,
-  buildSidebarNavigation,
   MODULE_LABELS,
 } from "./lib/modules/moduleRegistry";
 import { SYSTEM_MESSAGE_PRESETS, THEME_PRESETS } from "./lib/config/appConfig";
@@ -104,7 +85,6 @@ import { getLabAuthModeLabel, LAB_AUTH_CONFIG } from "./lib/auth/authConfig";
 import { useLabBootGuards } from "./hooks/useLabBootGuards";
 import { useLabBalance } from "./hooks/useLabBalance";
 import { useLabBillingPlatform } from "./hooks/useLabBillingPlatform";
-import { useLabBudgetList } from "./hooks/useLabBudgetList";
 import { useLabCrmGuards } from "./hooks/useLabCrmGuards";
 import { useGlobalLabData, useTenantLabData } from "./hooks/useLabDataStore";
 import { useLabGlobalInit } from "./hooks/useLabGlobalInit";
@@ -215,14 +195,14 @@ export default function App(){
   const [alertasOcultas,setAlertasOcultas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
-  const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
-  const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
-  const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser?.id, curEmp?.id]);
+  const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
+  const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
+  const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
 
   // Global data
   const {
-    empresas,setEmpresasRaw,savEmpRef,
-    users,setUsersRaw,savUsrRef,
+    empresas,setEmpresasRaw,
+    users,setUsersRaw,
     printLayouts,setPrintLayoutsRaw,
     setThemeDB,
   } = useGlobalLabData();
@@ -263,30 +243,30 @@ export default function App(){
   // Per-empresa data
   const eId=curEmp?.id||"__none__";
   const {
-    listas,setListas,savLst,ldLst,
-    tareas,setTareas,savTar,ldTar,
-    clientes,setClientes,savCli,ldCli,
-    producciones,setProducciones,savPro,ldPro,
-    programas,setProgramas,savPg,ldPg,
-    piezas,setPiezas,savPiezas,ldPiezas,
-    episodios,setEpisodios,savEp,ldEp,
-    auspiciadores,setAuspiciadores,savAus,ldAus,
-    crmOpps,setCrmOpps,savCrmOpps,ldCrmOpps,
-    crmActivities,setCrmActivities,savCrmActivities,ldCrmActivities,
-    crmStages,setCrmStages,savCrmStages,ldCrmStages,
-    contratos,setContratos,savCt,ldCt,
-    movimientos,setMovimientos,savMov,ldMov,
-    crew,setCrew,savCrew,ldCrew,
-    eventos,setEventos,savEv,ldEv,
-    presupuestos,setPresupuestos,savPres,ldPres,
-    facturas,setFacturas,savFact,ldFact,
-    treasuryProviders,setTreasuryProviders,savTreasuryProviders,ldTreasuryProviders,
-    treasuryPayables,setTreasuryPayables,savTreasuryPayables,ldTreasuryPayables,
-    treasuryPurchaseOrders,setTreasuryPurchaseOrders,savTreasuryPurchaseOrders,ldTreasuryPurchaseOrders,
-    treasuryIssuedOrders,setTreasuryIssuedOrders,savTreasuryIssuedOrders,ldTreasuryIssuedOrders,
-    treasuryReceipts,setTreasuryReceipts,savTreasuryReceipts,ldTreasuryReceipts,
-    treasuryDisbursements,setTreasuryDisbursements,savTreasuryDisbursements,ldTreasuryDisbursements,
-    activos,setActivos,savAct,ldAct,
+    listas,setListas,ldLst,
+    tareas,setTareas,ldTar,
+    clientes,setClientes,ldCli,
+    producciones,setProducciones,ldPro,
+    programas,setProgramas,ldPg,
+    piezas,setPiezas,ldPiezas,
+    episodios,setEpisodios,ldEp,
+    auspiciadores,setAuspiciadores,ldAus,
+    crmOpps,setCrmOpps,ldCrmOpps,
+    crmActivities,setCrmActivities,ldCrmActivities,
+    crmStages,setCrmStages,ldCrmStages,
+    contratos,setContratos,ldCt,
+    movimientos,setMovimientos,ldMov,
+    crew,setCrew,ldCrew,
+    eventos,setEventos,ldEv,
+    presupuestos,setPresupuestos,ldPres,
+    facturas,setFacturas,ldFact,
+    treasuryProviders,setTreasuryProviders,ldTreasuryProviders,
+    treasuryPayables,setTreasuryPayables,ldTreasuryPayables,
+    treasuryPurchaseOrders,setTreasuryPurchaseOrders,ldTreasuryPurchaseOrders,
+    treasuryIssuedOrders,setTreasuryIssuedOrders,ldTreasuryIssuedOrders,
+    treasuryReceipts,setTreasuryReceipts,ldTreasuryReceipts,
+    treasuryDisbursements,setTreasuryDisbursements,ldTreasuryDisbursements,
+    activos,setActivos,ldAct,
   } = useTenantLabData(eId);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const empId = curEmp?.id;
@@ -352,7 +332,7 @@ export default function App(){
     return () => {
       cancelled = true;
     };
-  },[users]);
+  },[users, setUsersRaw]);
 
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
@@ -362,7 +342,7 @@ export default function App(){
       setEmpresasRaw(normalized);
       dbSet("produ:empresas",normalized);
     }
-  },[empresas]);
+  },[empresas, setEmpresasRaw]);
 
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
@@ -386,7 +366,7 @@ export default function App(){
     }catch{
       // Avoid retry loops within the same session if storage is unavailable.
     }
-  },[empresas]);
+  },[empresas, setEmpresasRaw]);
 
   useEffect(()=>{
     if (LAB_DATA_CONFIG.releaseMode) return;
@@ -396,7 +376,7 @@ export default function App(){
       setPrintLayoutsRaw(normalized);
       dbSet("produ:printLayouts",normalized);
     }
-  },[printLayouts]);
+  },[printLayouts, setPrintLayoutsRaw]);
 
   // Seed per-empresa data
   useEffect(()=>{
@@ -697,8 +677,8 @@ export default function App(){
     ntf,
   });
   const useBal = useLabBalance;
-  const domainUsers = LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS);
-  const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
+  const domainUsers = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS), [users]);
+  const domainEmpresas = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS), [empresas]);
   const ef=arr=>(arr||[]).filter(x=>x.empId===empId);
   const socialCampaigns = normalizeSocialCampaigns(piezas);
   const counts={cli:ef(clientes).length,pro:ef(producciones).length,pg:ef(programas).length,pz:ef(socialCampaigns).length,crew:ef(crew).length,aus:ef(auspiciadores).length,crm:ef(crmOpps).length,ct:ef(contratos).length,pres:ef(presupuestos).length,fact:ef(facturas).length,tes:countPendingTreasury(facturas,empId),act:ef(activos).length,tar:tasksEnabled?(Array.isArray(tareas)?tareas:[]).filter(t=>t&&t.empId===empId&&getAssignedIds(t).includes(curUser?.id)&&!["Completada","Finalizada"].includes(t.estado)).length:0};
@@ -897,22 +877,22 @@ export default function App(){
   useEffect(() => {
     if (!alertasReadKey) return;
     const payload = JSON.stringify(Array.isArray(alertasLeidas) ? alertasLeidas : []);
-    try { localStorage.setItem(alertasReadKey, payload); } catch {}
-    try { sessionStorage.setItem(alertasReadKey, payload); } catch {}
+    try { localStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
+    try { sessionStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasReadKey, alertasLeidas]);
 
   useEffect(() => {
     if (!systemReadKey) return;
     const payload = JSON.stringify(Array.isArray(systemLeidas) ? systemLeidas : []);
-    try { localStorage.setItem(systemReadKey, payload); } catch {}
-    try { sessionStorage.setItem(systemReadKey, payload); } catch {}
+    try { localStorage.setItem(systemReadKey, payload); } catch { /* ignore storage write failures */ }
+    try { sessionStorage.setItem(systemReadKey, payload); } catch { /* ignore storage write failures */ }
   }, [systemReadKey, systemLeidas]);
 
   useEffect(() => {
     if (!alertasHiddenKey) return;
     const payload = JSON.stringify(Array.isArray(alertasOcultas) ? alertasOcultas : []);
-    try { localStorage.setItem(alertasHiddenKey, payload); } catch {}
-    try { sessionStorage.setItem(alertasHiddenKey, payload); } catch {}
+    try { localStorage.setItem(alertasHiddenKey, payload); } catch { /* ignore storage write failures */ }
+    try { sessionStorage.setItem(alertasHiddenKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasHiddenKey, alertasOcultas]);
 
   const operationModalComponents = useAppOperationModalComponents({

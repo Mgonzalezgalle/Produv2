@@ -3,7 +3,6 @@ import { Sidebar } from "./ShellLayout";
 export function AppShellFrame({
   sidebarProps,
   sidebarWidth,
-  isMobile,
   mobileSidebarOpen,
   closeMobileSidebar,
   openMobileSidebar,
@@ -16,7 +15,7 @@ export function AppShellFrame({
   const resolvedSidebarWidth = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
 
   return (
-    <div style={{ display: "block", minHeight: "100vh", background: "var(--bg)" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
       <div
         id="mob-overlay"
         onClick={closeMobileSidebar}
@@ -26,9 +25,10 @@ export function AppShellFrame({
       <main
         className="app-main"
         style={{
-          marginLeft: isMobile ? 0 : sidebarWidth,
-          width: isMobile ? "100%" : `calc(100% - ${resolvedSidebarWidth})`,
-          maxWidth: isMobile ? "100%" : `calc(100% - ${resolvedSidebarWidth})`,
+          marginLeft: sidebarWidth,
+          width: `calc(100vw - ${resolvedSidebarWidth})`,
+          maxWidth: `calc(100vw - ${resolvedSidebarWidth})`,
+          flex: 1,
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
@@ -42,7 +42,7 @@ export function AppShellFrame({
         <div
           className="topbar"
           style={{
-            minHeight: 64,
+            height: 64,
             background: "transparent",
             display: "flex",
             alignItems: "center",

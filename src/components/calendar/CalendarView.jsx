@@ -8,7 +8,6 @@ import {
   FilterSel,
   GBtn,
   ModuleHeader,
-  Stat,
   Tabs,
 } from "../../lib/ui/components";
 import { fmtD, hasAddon, today } from "../../lib/utils/helpers";
@@ -1111,10 +1110,6 @@ export function ViewCalendario(props) {
             return <button key={v} onClick={() => setFiltro(v)} style={calendarChipStyle(filtro === v, color)}>{v === "todos" ? "Todos" : <><span>{item?.ico}</span><span>{item?.lbl}</span></>}</button>;
           })}
         </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
-        {[["Total", eventosFiltrados.length, "var(--cy)"], ["Google", googleCalendarEvents.length, "#4285f4"], ["Pendientes sync", pendingSyncEvents, pendingSyncEvents ? "#f59e0b" : "#22c55e"], ["Reuniones", eventosFiltrados.filter(e => e.tipo === "reunion" || e.source === "google").length, "#ffcc44"]].map(([l, v, c]) => <Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]} />)}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : calendarViewport === "week" ? "280px minmax(0,1fr) 340px" : "minmax(0,1fr) 340px", gap: 16, alignItems: "start" }}>

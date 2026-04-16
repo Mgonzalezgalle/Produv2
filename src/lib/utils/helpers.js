@@ -341,7 +341,7 @@ export const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   hashtags: piece.hashtags || "",
   responsableId: piece.responsableId || "",
   approval: piece.approval || "Pendiente",
-  publishDate: piece.publishDate || piece.fin || campaign.fin || "",
+  publishDate: piece.publishDate || "",
   publishedAt: piece.publishedAt || "",
   link: piece.link || piece.url || "",
   finalLink: piece.finalLink || "",

@@ -626,9 +626,12 @@ export function ViewCalendario(props) {
       if (isDateWithinRange(c.fin, visibleDateRange)) todosEvs.push({ id: `${c.id}_fin`, fecha: c.fin, dia: d.getDate(), tipo: "entrega", label: `✓ Cierre campaña: ${c.nom}`, sub: "Contenidos", color: "#ff8844", hora: "", auto: true, editModal: "contenido", sourceId: c.id, modulo: "pz", estado: c.est || "Planificada", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(c.fin, "") });
     }
     (c.piezas || []).forEach(pc => {
-      if (pc.fin) {
-        const d = new Date(`${pc.fin}T12:00:00`);
-        if (isDateWithinRange(pc.fin, visibleDateRange)) todosEvs.push({ id: `${pc.id}_fin`, fecha: pc.fin, dia: d.getDate(), tipo: pc.est === "Publicado" ? "estreno" : "entrega", label: `📌 ${pc.nom}`, sub: c.nom, color: pc.est === "Publicado" ? "#00e08a" : "#ff8844", hora: "", auto: true, modulo: "pz", estado: pc.est || "", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(pc.fin, "") });
+      const pieceCalendarDate = pc.publishedAt || pc.publishDate || pc.fin || "";
+      if (pieceCalendarDate) {
+        const d = new Date(`${pieceCalendarDate}T12:00:00`);
+        const pieceCalendarType = pc.publishedAt || pc.est === "Publicado" ? "estreno" : pc.publishDate ? "estreno" : "entrega";
+        const pieceCalendarColor = pieceCalendarType === "estreno" ? "#00e08a" : "#ff8844";
+        if (isDateWithinRange(pieceCalendarDate, visibleDateRange)) todosEvs.push({ id: `${pc.id}_${pieceCalendarType}`, fecha: pieceCalendarDate, dia: d.getDate(), tipo: pieceCalendarType, label: `📌 ${pc.nom}`, sub: c.nom, color: pieceCalendarColor, hora: "", auto: true, modulo: "pz", estado: pc.est || "", clienteId: c.cliId || "", sortDateTime: buildSortDateTime(pieceCalendarDate, "") });
       }
     });
   });

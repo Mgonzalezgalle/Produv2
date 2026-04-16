@@ -4,6 +4,9 @@ import { useLabSuperAdminModule } from "../../hooks/useLabSuperAdminModule";
 import { assignableRoleOptions, getRoleConfig } from "../../lib/auth/authorization";
 import { GovernanceSyncStatus } from "./TowerControlHealthViews";
 
+const RESPONSIVE_TOWER_HERO_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
+const RESPONSIVE_TOWER_SUMMARY_GRID = "repeat(auto-fit,minmax(min(100%,160px),1fr))";
+
 const SUPER_ADMIN_LIGHT_VARS = {
   "--bg": "#eef3f9",
   "--card": "#ffffff",
@@ -169,7 +172,7 @@ export function SuperAdminPanel({
 
   return <div style={controlThemeVars}>
     <div style={{padding:"18px 18px 16px",border:"1px solid var(--bdr2)",borderRadius:22,background:isLightMode?"linear-gradient(180deg,rgba(47,111,179,.08),rgba(47,111,179,.02) 42%, transparent 100%)":"linear-gradient(180deg,rgba(56,189,248,.10),rgba(56,189,248,.03) 42%, transparent 100%)",marginBottom:16,boxShadow:isLightMode?"0 18px 40px rgba(41,63,97,.08)":"0 18px 40px rgba(0,0,0,.22)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.4fr) minmax(320px,.9fr)",gap:16,alignItems:"stretch",marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_HERO_GRID,gap:16,alignItems:"stretch",marginBottom:14}}>
         <div style={{padding:"4px 2px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:10}}>
             <Badge label="Torre de Control" color="cyan" sm />
@@ -183,7 +186,7 @@ export function SuperAdminPanel({
           </div>
           {lastGovernanceSync && <div style={{marginTop:10}}><GovernanceSyncStatus sync={lastGovernanceSync} /></div>}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,alignContent:"start"}}>
+        <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_SUMMARY_GRID,gap:10,alignContent:"start"}}>
           {summaryCards.map(card=><div key={card.label} style={{padding:"12px 12px 13px",borderRadius:16,border:"1px solid var(--bdr2)",background:"linear-gradient(180deg,var(--sur),rgba(255,255,255,.015))"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <span style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>{card.label}</span>

@@ -35,7 +35,7 @@ export function ComunicacionesAdminPanel({
         setBannerForm(emp?.systemBanner || { active: false, tone: "info", text: "" });
       }} options={(empresas || []).map(e => ({ value: e.id, label: e.nombre }))} placeholder="Selecciona una empresa" />
     </div>
-    {selectedCommEmp ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    {selectedCommEmp ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 16 }}>
       <Card title="Mensajes del sistema" sub={selectedCommEmp.nombre}>
         <FG label="Título"><FI value={sysMsg.title || ""} onChange={e => setSysMsg(p => ({ ...p, title: e.target.value }))} placeholder="Mantenimiento programado" /></FG>
         <div style={{ marginBottom: 12 }}>

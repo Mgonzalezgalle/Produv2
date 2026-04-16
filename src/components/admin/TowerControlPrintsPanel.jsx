@@ -26,7 +26,7 @@ export function ImpresosAdminPanel({
       <GBtn sm onClick={() => applyPrintPreset(activeDoc, "balanced")}>Preset base</GBtn>
       <GBtn sm onClick={() => applyPrintPreset(activeDoc, "airy")}>Preset aireado</GBtn>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.1fr) minmax(320px,.9fr)", gap: 16, alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 16, alignItems: "start" }}>
       <Card title={`Controles de ${docLabel}`} sub="Ajusta jerarquía, sello legal, resumen y estructura visual.">
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)", fontSize: 11, color: "var(--gr2)" }}>Jerarquía general</div>

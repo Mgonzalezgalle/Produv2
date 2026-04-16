@@ -8,6 +8,9 @@ import { RolesEditor } from "./AdminRolesEditor";
 import { SolicitudesAdmin } from "./AdminSolicitudes";
 import { EmpresaEditSection, PlatformFoundationPanel, ThemeSettingsPanel, TransactionalEmailTemplatesPanel, UsersAdminSection } from "./AdminPanelSections";
 
+const RESPONSIVE_ADMIN_SUMMARY_GRID = "repeat(auto-fit,minmax(min(100%,160px),1fr))";
+const RESPONSIVE_ADMIN_HEADER_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
+
 export function SuperAdminPanel({
   controlProps,
   actorUser,
@@ -165,7 +168,7 @@ export function AdminPanel(rawProps) {
           </div>
           <div style={{ fontSize: 12, color: "var(--gr2)", maxWidth: 720, lineHeight: 1.6 }}>{ADMIN_TAB_META[activeAdminTab]}</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, minWidth: 280, flex: "1 1 320px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_HEADER_GRID, gap: 8, minWidth: 0, flex: "1 1 320px", width: "100%", maxWidth: 420 }}>
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "var(--cy)" }}>{activeUsers}</div></div>
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Addons</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#00e08a" }}>{(empresa?.addons || []).length}</div></div>
           <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios inactivos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#ffcc44" }}>{inactiveUsers}</div></div>
@@ -175,7 +178,7 @@ export function AdminPanel(rawProps) {
         <AdminTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} />
       </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16, position: "relative", zIndex: 1 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_SUMMARY_GRID, gap: 10, marginBottom: 16, position: "relative", zIndex: 1 }}>
       <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "var(--cy)" }}>{activeUsers}</div></div>
       <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios inactivos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "#ffcc44" }}>{inactiveUsers}</div></div>
       <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Addons activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "#00e08a" }}>{(empresa?.addons || []).length}</div></div>

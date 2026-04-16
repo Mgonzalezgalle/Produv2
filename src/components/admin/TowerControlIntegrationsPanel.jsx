@@ -92,7 +92,7 @@ export function IntegracionesAdminPanel({
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
       <FilterSel value={integrationEmpId} onChange={setIntegrationEmpId} options={(empresas || []).map(e => ({ value: e.id, label: e.nombre }))} placeholder="Selecciona una empresa" />
     </div>
-    {selectedIntegrationEmp ? <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 16 }}>
+    {selectedIntegrationEmp ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 16 }}>
       <Card title="Motor tributario" sub={selectedIntegrationEmp.nombre}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <Badge label={bsaleProvisioned ? "Provisionada" : "No provisionada"} color={bsaleProvisioned ? "green" : "gray"} sm />

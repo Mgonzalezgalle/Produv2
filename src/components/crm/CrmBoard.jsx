@@ -2,6 +2,8 @@ import React from "react";
 import { Badge, Btn, Card, DBtn, Empty, FilterSel, FSl, GBtn, Paginator, SearchBar, Stat, TD, TH, ViewModeToggle } from "../../lib/ui/components";
 import { exportCrmCsv } from "../../lib/utils/crm";
 
+const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
+
 export function CrmBoard({
   scopedOpps,
   scopedStages,
@@ -62,7 +64,7 @@ export function CrmBoard({
 }) {
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
         <Stat label="Oportunidades" value={scopedOpps.length} accent="var(--cy)" vc="var(--cy)" />
         <Stat label="Pipeline activo" value={scopedOpps.filter(opp => !crmStageMeta(opp.stageId, scopedStages).closedWon && !crmStageMeta(opp.stageId, scopedStages).closedLost).length} />
         <Stat label="Ganadas" value={scopedOpps.filter(opp => crmStageMeta(opp.stageId, scopedStages).closedWon || opp.status === "Ganada").length} accent="#00e08a" vc="#00e08a" />

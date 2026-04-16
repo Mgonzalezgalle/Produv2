@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { ContactBtns } from "../shared/ContactButtons";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+
+const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
+const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
   Badge,
@@ -351,13 +354,13 @@ export function ViewCliDet({
   return (
     <div>
       <DetHeader title={c.nom} tag={c.ind} meta={[c.rut && `RUT: ${c.rut}`, c.dir].filter(Boolean)} actions={canManageClients && <><GBtn onClick={() => openM("cli", c)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageClients) return; if (!confirm("¿Eliminar?")) return; cDel(clientes, setClientes, id, () => navTo("clientes"), "Cliente eliminado"); }}>🗑 Eliminar</DBtn></>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
         <Stat label="Asociaciones" value={prs.length + pgs.length + ctn.length} accent="var(--cy)" vc="var(--cy)" />
         <Stat label="Contratos" value={cts.length} />
         <Stat label="Ingresos" value={fmtM(ti)} accent="#00e08a" vc="#00e08a" />
         <Stat label="Balance" value={fmtM(ti - tg)} accent={ti - tg >= 0 ? "#00e08a" : "#ff5566"} vc={ti - tg >= 0 ? "#00e08a" : "#ff5566"} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, marginBottom: 20 }}>
         <Card title="Contactos">
           {(c.contactos || []).length > 0 ? (c.contactos || []).map(co => <div key={co.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--cg)", border: "1px solid var(--cm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--cy)", flexShrink: 0 }}>{ini(co.nom)}</div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{co.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{co.car || "—"}</div></div></div><div style={{ fontSize: 11, color: "var(--gr3)", paddingLeft: 38, marginBottom: 8 }}>✉ {co.ema || "—"} &nbsp;·&nbsp; ☎ {co.tel || "—"}</div>{co.not && <div style={{ fontSize: 11, color: "var(--gr2)", paddingLeft: 38, marginBottom: 8 }}>{co.not}</div>}<div style={{ paddingLeft: 38 }}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} onEmail={co?.ema ? () => openClientEmailChoice(co) : null} emailLabel="Correo" /></div></div>) : <Empty text="Sin contactos registrados" />}
         </Card>

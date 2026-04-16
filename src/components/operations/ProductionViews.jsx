@@ -26,6 +26,10 @@ import {
 import { DEFAULT_LISTAS, contractsForReference, hasAddon, today as helperToday, uid as helperUid } from "../../lib/utils/helpers";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
+const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,240px),1fr))";
+const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
+const RESPONSIVE_COMPACT_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
 
 function parseTarifa(t) {
   return parseInt(String(t || 0).replace(/[^0-9]/g, ""), 10) || 0;
@@ -37,7 +41,7 @@ function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, i
   const todos = safeCrew.filter(x => x.empId === empId);
   const asig = todos.filter(x => safeAssigned.includes(x.id));
   const disp = todos.filter(x => !safeAssigned.includes(x.id) && x.active !== false);
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+  return <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
     <Card title={`Crew Asignado (${asig.length})`}>
       {asig.length ? asig.map(m => <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--bg)", flexShrink: 0 }}>{ini(m.nom)}</div>
@@ -118,7 +122,7 @@ export function ViewPros({
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(p => {
           const c = (clientes || []).find(x => x.id === p.cliId);
           const b = bal(p.id);
@@ -134,7 +138,7 @@ export function ViewPros({
               <Badge label={p.tip || "Sin tipo"} color="gray" sm />
               {p.ini && <Badge label={`Ini ${fmtD(p.ini)}`} color="cyan" sm />}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
               <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Ingresos</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: "#00e08a", marginTop: 4 }}>{fmtM(b.i)}</div></div>
               <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Balance</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: b.b >= 0 ? "#00e08a" : "#ff5566", marginTop: 4 }}>{fmtM(b.b)}</div></div>
             </div>
@@ -196,7 +200,7 @@ export function ViewProDet(props) {
       <span style={{ fontSize: 12, color: "var(--gr2)" }}>Contacto: <b style={{ color: "var(--wh)" }}>{cContacto.nom}</b> {cContacto.car ? `· ${cContacto.car}` : ""}</span>
       <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${cContacto.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} />
     </div>}
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
@@ -211,7 +215,7 @@ export function ViewProDet(props) {
     {tab === 1 && <MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 2 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pro" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 3 && <CrewTab crew={crew || []} empId={empId} asignados={p.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManageProjects} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pro", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={ini} fmtM={fmtM} />}
-    {tab === 4 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+    {tab === 4 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, alignItems: "start" }}>
       <Card title="Fechas Base del Proyecto" action={canDo && canDo("producciones") ? { label: "✏ Editar Fechas", fn: () => openM("pro", p) } : null}>
         <KV label="Inicio" value={p.ini ? fmtD(p.ini) : "Por definir"} />
         <KV label="Entrega" value={p.fin ? fmtD(p.fin) : "Por definir"} />
@@ -281,7 +285,7 @@ export function ViewPgs({
       }}>Eliminar seleccionadas</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
+    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
       {fd.slice((pg - 1) * PP, pg * PP).map(pg_ => {
         const eps = (episodios || []).filter(e => e.pgId === pg_.id);
         const pub = eps.filter(e => e.estado === "Publicado").length;
@@ -293,7 +297,7 @@ export function ViewPgs({
           <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800, marginBottom: 5, lineHeight: 1.2 }}>{pg_.nom}</div>
           <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>{pg_.can || "Sin canal"} · {pg_.fre || ""}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}><Badge label={pg_.est} />{pg_.totalEp && <Badge label={`${pg_.totalEp} ep.`} color="gray" />}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 6, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
             {[["Total", eps.length, "var(--wh)"], ["Pub.", pub, "#00e08a"], ["Aus.", aus, "var(--cy)"]].map(([l, v, c]) => <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{v}</div><div style={{ fontSize: 9, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{l}</div></div>)}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 10 }}>
@@ -395,14 +399,14 @@ export function ViewContenidos({
       }}>Eliminar seleccionadas</DBtn>
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 12, marginBottom: 18 }}>
       <Stat label="Planificadas" value={totalPlanned} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Creadas" value={totalCreated} accent="#7c5cff" vc="#7c5cff" />
       <Stat label="Programadas" value={totalScheduled} accent="#38bdf8" vc="#38bdf8" />
       <Stat label="Publicadas" value={totalPublished} accent="#00e08a" vc="#00e08a" />
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(pz => { const c = (clientes || []).find(x => x.id === pz.cliId); const b = bal(pz.id); return <div key={pz.id} onClick={() => navTo("contenido-det", pz.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
@@ -415,7 +419,7 @@ export function ViewContenidos({
             <Badge label={[pz.mes, pz.ano].filter(Boolean).join(" ") || "Sin mes"} color="cyan" sm />
             <Badge label={pz.plataforma || "Multi-plataforma"} color="gray" sm />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
             <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Piezas</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, marginTop: 4 }}>{countCampaignPieces(pz)}/{pz.plannedPieces || countCampaignPieces(pz)}</div></div>
             <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Balance</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: b.b >= 0 ? "#00e08a" : "#ff5566", marginTop: 4 }}>{fmtM(b.b)}</div></div>
           </div>
@@ -509,7 +513,7 @@ export function ViewContenidoDet(props) {
   return <div>
     <DetHeader title={pz.nom} tag="Campaña" badges={[<Badge key={0} label={pz.est || "Planificada"} />]} meta={[cli && `Cliente: ${cli.nom}`, pz.plataforma && `Plataforma: ${pz.plataforma}`, [pz.mes, pz.ano].filter(Boolean).join(" "), pz.fin && `Cierre: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
       actions={canManageContent && <><GBtn onClick={() => openM("contenido", pz)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageContent) return; if (!confirm("¿Eliminar campaña?")) return; cDel(piezas, setPiezas, id, () => navTo("contenidos"), "Campaña eliminada"); }}>🗑</DBtn></>} />
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)" />
@@ -522,7 +526,7 @@ export function ViewContenidoDet(props) {
     </div>}
     {tab === 0 && <ComentariosBlock items={pz.comentarios || []} onSave={async comentarios => { if (!canManageContent) return; await setPiezas((piezas || []).map(x => x.id === id ? { ...x, comentarios } : x)); }} onCreateTask={tasksEnabled ? async comment => { if (!canManageContent) return; const task = normalizeTaskAssignees({ id: uid(), empId, cr: today(), titulo: comment.text?.split("\n")[0]?.slice(0, 80) || `Seguimiento ${pz.nom}`, desc: comment.text || "", estado: "Pendiente", prioridad: "Media", fechaLimite: "", refTipo: "pz", refId: id, assignedIds: getAssignedIds(comment), asignadoA: getAssignedIds(comment)[0] || "" }); await setTareas([...(Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object") : []), task]); ntf && ntf("Comentario guardado y tarea creada ✓"); } : null} crewOptions={pCrew} canEdit={canManageContent} title="Comentarios de la Campaña" empresa={empresa} currentUser={user} />}
     {tab === 1 && <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 12, marginBottom: 14 }}>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Publicadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#00e08a" }}>{piezasPub}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Programadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--cy)" }}>{piezasProgramadas}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
@@ -562,7 +566,7 @@ export function ViewContenidoDet(props) {
         </table></div>
       </Card>
     </div>}
-    {tab === 2 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    {tab === 2 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
       <Card title="Calendario editorial" sub="Qué se viene, qué está atrasado y qué ya salió.">
         <div style={{ display: "grid", gap: 12 }}>
           <div>
@@ -607,7 +611,7 @@ export function ViewContenidoDet(props) {
     {tab === 4 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 5 && <CrewTab crew={crew || []} empId={empId} asignados={pz.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManageContent} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pz", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={(name="")=>String(name||"").split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()} fmtM={fmtM} />}
     {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "contenido" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await cSave((eventos || []).filter(x => x.id !== evId), () => {}, {}); }} canEdit={canManageCalendar} titulo={pz.nom} />}
-    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
       <Card title="Datos de la Campaña">
         {[["Cliente", cli?.nom || "—"], ["Plataforma", pz.plataforma || "—"], ["Mes", pz.mes || "—"], ["Año", pz.ano || "—"], ["Estado", <Badge key={0} label={pz.est || "Planificada"} />], ["Piezas creadas", countCampaignPieces(pz)], ["Piezas mensuales", pz.plannedPieces || countCampaignPieces(pz)]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -619,7 +623,7 @@ export function ViewContenidoDet(props) {
     {tasksEnabled && tab === 8 && <TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object" && t.empId === empId) : []} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={canDo && canDo("contenidos")} />}
     <Modal open={!!pieceDetail} onClose={() => setPiezaDetailId("")} title={pieceDetail?.nom || "Pieza"} sub="Revisión completa de la pieza" wide>
       {pieceDetail && <>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
           <Card title="Resumen">
             <KV label="Estado" value={<Badge label={pieceDetail.est || "Planificado"} />} />
             <KV label="Formato" value={pieceDetail.formato || "—"} />
@@ -636,7 +640,7 @@ export function ViewContenidoDet(props) {
             <KV label="Link final" value={pieceDetail.finalLink ? <a href={pieceDetail.finalLink} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
           </Card>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, marginTop: 16 }}>
           <Card title="Brief">
             <KV label="Objetivo" value={pieceDetail.objetivo || "—"} />
             <KV label="CTA" value={pieceDetail.cta || "—"} />
@@ -694,7 +698,7 @@ export function ViewEpDet(props) {
         {canDo && canDo("programas") && <><GBtn onClick={() => openM("ep", ep)}>✏ Editar</GBtn><DBtn onClick={() => { if (!confirm("¿Eliminar?")) return; cDel(episodios, setEpisodios, id, () => navTo("pg-det", ep.pgId), "Episodio eliminado"); }}>🗑</DBtn></>}
       </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Gastos Ep." value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} ítems`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Grabación" value={ep.fechaGrab ? fmtD(ep.fechaGrab) : "—"} accent="var(--cy)" />
       <Stat label="Emisión" value={ep.fechaEmision ? fmtD(ep.fechaEmision) : "—"} accent="#00e08a" />
@@ -702,7 +706,7 @@ export function ViewEpDet(props) {
     </div>
     <Tabs tabs={["Comentarios", "Información", "Gastos", "Crew"]} active={tab} onChange={setTab} />
     {tab === 0 && <ComentariosBlock items={ep.comentarios || []} onSave={async comentarios => { if (!canManagePrograms) return; const next = (episodios || []).map(x => x.id === id ? { ...x, comentarios } : x); await setEpisodios(next); }} crewOptions={pCrew} canEdit={canManagePrograms} title="Comentarios del Episodio" empresa={empresa} currentUser={user} />}
-    {tab === 1 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    {tab === 1 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
       <Card title="Datos del Episodio">
         {[["Número", `#${String(ep.num).padStart(2, "0")}`], ["Invitado / Tema", ep.invitado || "—"], ["Locación", ep.locacion || "—"], ["Descripción", ep.descripcion || "—"], ["Notas", ep.notas || "—"]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -753,7 +757,7 @@ export function ViewPgDet(props) {
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est} />]} meta={[pg_.can, pg_.fre, pg_.temporada && `Temp: ${pg_.temporada}`, pg_.conductor && `🎙 ${pg_.conductor}`, cliAsoc && `Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
       actions={canManagePrograms && <><GBtn onClick={() => openM("pg", pg_)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManagePrograms) return; if (!confirm("¿Eliminar producción y episodios?")) return; cDel(programas, setProgramas, id, () => navTo("programas"), "Eliminado"); }}>🗑</DBtn></>} />
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Episodios" value={eps.length} sub={`${epStats.plan} planificados`} />
       <Stat label="Publicados" value={epStats.pub} accent="#00e08a" vc="#00e08a" sub={`${epStats.grab} grabados`} />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
@@ -775,7 +779,7 @@ export function ViewPgDet(props) {
         <FilterSel value={epF} onChange={v => { setEpF(v); setEpPg(1); }} options={["Planificado", "Grabado", "En Edición", "Programado", "Publicado", "Cancelado"]} placeholder="Todo estados" />
         {canDo && canDo("programas") && <Btn onClick={() => openM("ep", { pgId: id, num: eps.length ? Math.max(...eps.map(e => e.num)) + 1 : 1 })}>+ Nuevo Episodio</Btn>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_COMPACT_GRID, gap: 8, marginBottom: 16 }}>
         {[["Planificado", epStats.plan, "#ffcc44"], ["Grabado", epStats.grab, "var(--cy)"], ["En Edición", epStats.edit, "var(--cy)"], ["Programado", epStats.prog, "#a855f7"], ["Publicado", epStats.pub, "#00e08a"], ["Cancelado", epStats.can, "#ff5566"]].map(([s, cnt, c]) => (
           <div key={s} onClick={() => setEpF(epF === s ? "" : s)} style={{ background: "var(--card)", border: `1px solid ${epF === s ? c : "var(--bdr)"}`, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}>
             <div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{cnt}</div>
@@ -807,11 +811,11 @@ export function ViewPgDet(props) {
     {tab === 3 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pg" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 4 && <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>{canDo && canDo("auspiciadores") && <Btn onClick={() => openM("aus", { pids: [id] })}>+ Auspiciador</Btn>}</div>
-      {aus.length ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>{aus.map(a => <AusCard key={a.id} a={a} pgs={[pg_]} onEdit={canDo && canDo("auspiciadores") ? () => openM("aus", a) : null} />)}</div> : <Empty text="Sin auspiciadores" />}
+      {aus.length ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 12 }}>{aus.map(a => <AusCard key={a.id} a={a} pgs={[pg_]} onEdit={canDo && canDo("auspiciadores") ? () => openM("aus", a) : null} />)}</div> : <Empty text="Sin auspiciadores" />}
     </div>}
     {tab === 5 && <CrewTab crew={crew || []} empId={empId} asignados={pg_.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManagePrograms} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pg", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={ini} fmtM={fmtM} />}
     {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "programa" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await cSave((eventos || []).filter(x => x.id !== evId), () => { }, {}); }} canEdit={canManageCalendar} titulo={pg_.nom} />}
-    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
       <Card title="Datos de la Producción">
         {[["Tipo", pg_.tip], ["Canal", pg_.can || "—"], ["Frecuencia", pg_.fre || "—"], ["Temporada", pg_.temporada || "—"], ["Total Ep.", pg_.totalEp || "—"], ["Estado", <Badge key={0} label={pg_.est} />], ["Cliente", cliAsoc?.nom || "—"]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -884,7 +888,7 @@ export function ViewAus(props) {
       }}>Eliminar seleccionados</DBtn>
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
+    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
       {fd.slice((pg - 1) * PP, pg * PP).map(a => {
         const pgs = (a.pids || []).map(pid => (programas || []).find(x => x.id === pid)).filter(Boolean);
         return <div key={a.id} onClick={() => setDetailId(a.id)} style={{ cursor: "pointer" }}><AusCard a={a} pgs={pgs} onEdit={canManageSponsors ? () => openM("aus", a) : null} onDel={canManageSponsors ? () => cDel(auspiciadores, setAuspiciadores, a.id, null, "Auspiciador eliminado") : null} /></div>;
@@ -911,7 +915,7 @@ export function ViewAus(props) {
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
     <Modal open={!!detail} onClose={() => setDetailId("")} title={detail?.nom || "Auspiciador"} sub="Ficha de auspiciador" wide>
       {detail && <>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
           <Card title="Información general">
             <KV label="Tipo" value={<Badge label={detail.tip || "—"} sm />} />
             <KV label="Estado" value={<Badge label={detail.est || "Activo"} color={(detail.est || "Activo") === "Activo" ? "green" : "gray"} sm />} />
@@ -1006,11 +1010,11 @@ export function ViewCrew(props) {
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 16 }}>El crew interno proviene de `Usuarios`. Desde aquí puedes completar sus datos operativos; para cambiar nombre, cargo o estado base, usa `Panel Administrador &gt; Usuarios`.</div>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_COMPACT_GRID, gap: 10, marginBottom: 20 }}>
       {AREAS.slice(0, 6).map(a => { const cnt = (crew || []).filter(x => x.empId === empId && x.area === a).length; return <div key={a} onClick={() => setFa(fa === a ? "" : a)} style={{ background: "var(--card)", border: `1px solid ${fa === a ? "var(--cy)" : "var(--bdr)"}`, borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: fa === a ? "var(--cy)" : "var(--wh)" }}>{cnt}</div><div style={{ fontSize: 9, color: "var(--gr2)", marginTop: 2 }}>{a}</div></div>; })}
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(m => <div key={m.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "var(--bg)", flexShrink: 0 }}>{ini(m.nom)}</div>
@@ -1105,7 +1109,7 @@ export function ViewActivos(props) {
       description="Mantén control del equipamiento, su estado, valor y asignación dentro de la operación."
       actions={canManageAssets ? <Btn onClick={() => openM("activo", {})}>+ Nuevo Activo</Btn> : null}
     />
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Total Activos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Disponibles" value={dispCount} accent="#00e08a" vc="#00e08a" />
       <Stat label="En Uso" value={enUsoCount} accent="var(--cy)" vc="var(--cy)" />
@@ -1141,7 +1145,7 @@ export function ViewActivos(props) {
       {ESTADOS.map(s => { const cnt = (activos || []).filter(a => a.empId === empId && a.estado === s).length; return <div key={s} onClick={() => setFe(fe === s ? "" : s)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, border: `1px solid ${fe === s ? statColor(s) : "var(--bdr2)"}`, background: fe === s ? statColor(s) + "22" : "transparent", cursor: "pointer", fontSize: 11, fontWeight: 600, color: fe === s ? statColor(s) : "var(--gr3)" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: statColor(s), flexShrink: 0 }} />{s} ({cnt})</div>; })}
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
@@ -1191,7 +1195,7 @@ export function ViewActivos(props) {
       </Card>}
     {CATS.filter(c => (activos || []).some(a => a.empId === empId && a.categoria === c)).length > 0 && <div style={{ marginTop: 16 }}>
       <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Por Categoría</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 10 }}>
         {CATS.filter(c => (activos || []).some(a => a.empId === empId && a.categoria === c)).map(c => {
           const items = (activos || []).filter(a => a.empId === empId && a.categoria === c);
           const val = items.reduce((s, a) => s + Number(a.valorCompra || 0), 0);

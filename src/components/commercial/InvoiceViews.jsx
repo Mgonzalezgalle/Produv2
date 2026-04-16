@@ -74,6 +74,9 @@ import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSecti
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 export { MFact } from "./InvoiceModal";
 let commercialPdfRuntimePromise = null;
+const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
+const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,280px),1fr))";
+const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,220px),1fr))";
 
 async function getCommercialPdfRuntime() {
   if (!commercialPdfRuntimePromise) {
@@ -377,7 +380,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       title="Facturación"
       description="Emite documentos y administra recurrencias. La cobranza operativa vive en Tesorería dentro de Cuentas por Cobrar."
     />
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Cuentas por cobrar" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44" sub={`${cuentasPorCobrar.length} documento(s)`}/>
       <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
@@ -472,7 +475,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       canPres={canPres} canContracts={canContracts}
     />}
     {tab===1 && <Card title="Órdenes de Compra Recibidas" sub="Gestiona las OC del cliente desde Facturación y crea el documento comercial cuando la OC esté aceptada">
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:18}}>
+      <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_CARD_GRID,gap:14,marginBottom:18}}>
         <Stat label="OC recibidas" value={purchaseOrderSummary.docs} accent="var(--cy)" vc="var(--cy)"/>
         <Stat label="Monto OC" value={fmtM(purchaseOrderSummary.total)} accent="#00e08a" vc="#00e08a"/>
         <Stat label="Pendiente Match" value={fmtM(purchaseOrderSummary.pending)} accent="#ffcc44" vc="#ffcc44"/>
@@ -553,7 +556,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       title={`Detalle tributario · ${bsaleSyncTarget?.correlativo || "Documento"}`}
       sub={bsaleSyncTarget ? getProduBillingDocumentTypeLabel(bsaleSyncTarget.documentTypeCode || bsaleSyncTarget.tipoDocumento || bsaleSyncTarget.tipoDoc) : ""}
     >
-      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_DETAIL_GRID,gap:12,marginBottom:16}}>
         <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
           <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>ESTADO</div>
           <div style={{fontWeight:700,color:"var(--cy)"}}>{bsaleSyncTarget?.externalSync?.status || "draft"}</div>
@@ -579,7 +582,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
           </div>
         )}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+      <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_CARD_GRID,gap:12,marginBottom:16}}>
         <div style={{padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
           <div style={{fontSize:10,color:"var(--gr2)",fontWeight:700,marginBottom:4}}>NETO</div>
           <div style={{fontWeight:800,color:"var(--wh)",fontFamily:"var(--fm)"}}>{fmtM(Number(bsaleSyncTarget?.externalSync?.netAmount ?? bsaleSyncTarget?.montoNeto ?? bsaleSyncTarget?.subtotal ?? bsaleSyncTarget?.neto ?? 0))}</div>

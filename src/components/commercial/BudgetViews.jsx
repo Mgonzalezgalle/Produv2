@@ -56,6 +56,9 @@ import { dbGet } from "../../hooks/useLabDataStore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 let commercialPdfRuntimePromise = null;
+const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
+const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,280px),1fr))";
+const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
 
 function budgetUsesFx(pres = null) {
   return !!pres && String(pres.moneda || "CLP").toUpperCase() !== "CLP";
@@ -121,7 +124,7 @@ export function BudgetListSection({
   Stat, SearchBar, FilterSel, Btn, FSl, GBtn, DBtn, Card, TH, TD, Badge, Empty, Paginator, XBtn,
 }) {
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Total" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Aceptados" value={acceptedCount} accent="#00e08a" vc="#00e08a"/>
       <Stat label="Monto Total" value={fmtM(total)} sub="todos" accent="var(--cy)"/>
@@ -491,7 +494,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       description="Centraliza acuerdos comerciales, vigencias y vínculos con presupuestos y facturas desde una sola vista."
       actions={canDo && canDo("contratos") ? <Btn onClick={() => openM("ct", {})}>+ Nuevo Contrato</Btn> : null}
     />
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
       <Stat label="Total Contratos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Vigentes" value={vigentes} accent="#00e08a" vc="#00e08a" />
       <Stat label="Por vencer" value={porVencer} accent="#ffcc44" vc="#ffcc44" />
@@ -522,7 +525,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(ct => {
           const c = (clientes || []).find(x => x.id === ct.cliId);
           const vinculos = [(ct.pids || []).length && `${(ct.pids || []).length} vínculo${(ct.pids || []).length === 1 ? "" : "s"}`, ct.presupuestoId && `${(presupuestos || []).filter(p => p.id === ct.presupuestoId).length} presupuesto`, (ct.facturaIds || []).length && `${(ct.facturaIds || []).length} factura${(ct.facturaIds || []).length === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
@@ -733,7 +736,7 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
         {canDo&&canDo("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
       </div>}/>
     {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"proyecto":p.convertido==="programa"?"producción":"campaña de contenidos"}: <b>{p.convertidoNom}</b></div>}
-    {(contrato || linkedInvoices.length) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+    {(contrato || linkedInvoices.length) && <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_DETAIL_GRID,gap:16,marginBottom:16}}>
       {contrato && canContracts && <Card title="Contrato Asociado">
         <KV label="Contrato" value={contrato.nom}/>
         <KV label="Estado" value={<Badge label={contractVisualState(contrato)}/>}/>
@@ -749,13 +752,13 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
         </div>)}
       </Card>}
     </div>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Subtotal Neto" value={fmtMoney(p.subtotal||0,budgetSummaryCurrency(p))}/>
       <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtMoney(p.ivaVal||0,budgetSummaryCurrency(p)):"No aplica"}/>
       <Stat label="Total Final" value={fmtMoney(p.total||0,budgetSummaryCurrency(p))} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtMoney(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1)),budgetSummaryCurrency(p)):(p.items||[]).length}/>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+    <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_DETAIL_GRID,gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
         {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda origen",p.moneda||"CLP"],[budgetUsesFx(p)?"Tipo de cambio":"Moneda operativa",budgetUsesFx(p)?`${Number(p.tipoCambio || 1)} CLP`:"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
@@ -1000,8 +1003,18 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
       </label>
     </div>}
     <MFoot onClose={onClose} onSave={()=>{
-      if(!f.titulo?.trim()||!f.cliId)return;
-      if(usesFx && Number(exchangeRate || 0) <= 0) return;
+      if(!f.titulo?.trim()){
+        window.alert("Debes ingresar un título para guardar el presupuesto.");
+        return;
+      }
+      if(!f.cliId){
+        window.alert("Debes seleccionar un cliente para guardar el presupuesto.");
+        return;
+      }
+      if(usesFx && Number(exchangeRate || 0) <= 0){
+        window.alert("Debes ingresar un tipo de cambio válido para guardar un presupuesto en moneda extranjera.");
+        return;
+      }
       onSave(buildPayload());
     }}/>
   </Modal>;

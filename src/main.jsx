@@ -11,8 +11,10 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js?v=20260416-01').catch((err) => {
-      console.error('No se pudo registrar el service worker', err)
-    })
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch((err) => {
+        console.error('No se pudo desregistrar el service worker', err)
+      })
   })
 }

@@ -31,46 +31,22 @@ export function useLabTenantFoundationSync({
   platformApiMode,
   platformApi,
 }) {
-  const [foundationTenantReady, setFoundationTenantReady] = useState(false);
-  const tenantSnapshot = useMemo(() => buildTenantSnapshot(curEmp), [
-    curEmp?.tenantCode,
-    curEmp?.nombre,
-    curEmp?.brandName,
-    curEmp?.rut,
-    curEmp?.ema,
-    curEmp?.tel,
-    curEmp?.dir,
-    curEmp?.logo,
-    curEmp?.theme?.cy,
-    curEmp?.primaryColor,
-    curEmp?.active,
-    curEmp?.customerType,
-    curEmp?.teamSize,
-    curEmp?.billingCurrency,
-    curEmp?.billingMonthly,
-    curEmp?.billingStatus,
-    JSON.stringify(curEmp?.addons || []),
-    JSON.stringify(curEmp?.theme || {}),
-  ]);
+  const [lastSyncedTenantSignature, setLastSyncedTenantSignature] = useState("");
+  const tenantSnapshot = useMemo(() => buildTenantSnapshot(curEmp), [curEmp]);
   const tenantSignature = useMemo(() => JSON.stringify({
     legacyEmpId: curEmp?.id || "",
     snapshot: tenantSnapshot,
   }), [curEmp?.id, tenantSnapshot]);
   const syncLegacyTenant = platformApi?.tenants?.syncLegacyTenant;
   const appendSyncAuditLog = platformApi?.foundation?.appendSyncAuditLog;
+  const shouldSyncFoundation = platformApiMode === PLATFORM_API_MODES.SUPABASE && !!curEmp?.id && !!syncLegacyTenant;
 
   useEffect(() => {
-    if (platformApiMode !== PLATFORM_API_MODES.SUPABASE) {
-      setFoundationTenantReady(true);
-      return;
-    }
-    if (!curEmp?.id || !syncLegacyTenant) {
-      setFoundationTenantReady(false);
+    if (!shouldSyncFoundation) {
       return;
     }
 
     let cancelled = false;
-    setFoundationTenantReady(false);
     Promise.resolve(
       syncLegacyTenant({
         legacyEmpId: curEmp.id,
@@ -78,10 +54,10 @@ export function useLabTenantFoundationSync({
       }).then(result => {
         if (cancelled) return result;
         if (result?.ok === false) {
-          setFoundationTenantReady(false);
+          setLastSyncedTenantSignature("");
           return result;
         }
-        setFoundationTenantReady(true);
+        setLastSyncedTenantSignature(tenantSignature);
         if (!appendSyncAuditLog || result?.source !== "remote") return result;
         return appendSyncAuditLog({
           legacyEmpId: curEmp.id,
@@ -95,7 +71,7 @@ export function useLabTenantFoundationSync({
         });
       }),
     ).catch((error) => {
-      if (!cancelled) setFoundationTenantReady(false);
+      if (!cancelled) setLastSyncedTenantSignature("");
       console.warn("Tenant foundation sync failed", {
         legacyEmpId: curEmp?.id || "",
         error: error?.message || String(error || ""),
@@ -105,15 +81,8 @@ export function useLabTenantFoundationSync({
     return () => {
       cancelled = true;
     };
-  }, [
-    appendSyncAuditLog,
-    curEmp?.addons,
-    curEmp?.id,
-    platformApiMode,
-    syncLegacyTenant,
-    tenantSignature,
-    tenantSnapshot,
-  ]);
+  }, [appendSyncAuditLog, curEmp?.addons, curEmp?.id, shouldSyncFoundation, syncLegacyTenant, tenantSignature, tenantSnapshot]);
 
-  return foundationTenantReady;
+  if (!shouldSyncFoundation) return true;
+  return lastSyncedTenantSignature === tenantSignature;
 }

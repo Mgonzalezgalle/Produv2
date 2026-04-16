@@ -11,7 +11,7 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/sw.js?v=20260416-01').catch((err) => {
       console.error('No se pudo registrar el service worker', err)
     })
   })

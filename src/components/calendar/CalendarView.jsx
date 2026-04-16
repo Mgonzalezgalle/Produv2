@@ -444,7 +444,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken]);
+  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos) return;
@@ -883,14 +883,10 @@ export function ViewCalendario(props) {
     ntf?.("Actualizando Google Calendar...");
   };
 
-  const syncedCustomEvents = (eventos || []).filter(ev => ev?.empId === empId && ev?.googleEventId).length;
   const pendingSyncEvents = (eventos || []).filter(ev => ev?.empId === empId && ev?.fecha && (!ev?.googleEventId || ev?.googleCalendarSyncHash !== calendarSyncHash(ev))).length;
-  const googleMeetEvents = googleCalendarEvents.filter(ev => ev?.meetLink).length;
   const syncIssueEvents = (eventos || [])
     .filter(ev => ev?.empId === empId && ["error", "conflict", "orphan", "cancelled"].includes(ev?.googleCalendarSyncState))
     .sort(byCalendarDateTime);
-  const syncConflictCount = syncIssueEvents.filter(ev => ev?.googleCalendarSyncState === "conflict").length;
-  const syncRemovedCount = syncIssueEvents.filter(ev => ["orphan", "cancelled"].includes(ev?.googleCalendarSyncState)).length;
 
   return <div>
     <ModuleHeader

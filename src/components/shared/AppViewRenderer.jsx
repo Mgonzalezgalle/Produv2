@@ -34,8 +34,6 @@ export function AppViewRenderer({
     ausCardComponent,
     exportMovCsvHelper,
     exportMovPdfHelper,
-    exportActiveClientsCsvHelper,
-    exportActiveClientsPdfHelper,
     TareaCard,
     COLS_TAREAS,
     getRoleConfig,

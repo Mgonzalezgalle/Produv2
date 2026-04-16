@@ -185,11 +185,16 @@ export function ViewCliDet({
   const empId = empresa?.id;
   const canManageClients = !!canDo?.("clientes");
   const bal = useBal(movimientos, empId);
-  const c = (clientes || []).find(x => x.id === id);
-  if (!c) return <Empty text="No encontrado" />;
   const [proSort, setProSort] = useState("name-asc");
   const [pgSort, setPgSort] = useState("name-asc");
   const [pzSort, setPzSort] = useState("name-asc");
+  const [emailChoice, setEmailChoice] = useState(null);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = useState(null);
+  const [emailComposerSending, setEmailComposerSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(null);
+  const c = (clientes || []).find(x => x.id === id);
+  if (!c) return <Empty text="No encontrado" />;
   const prs = (producciones || []).filter(p => p.cliId === id);
   const pgs = (programas || []).filter(p => p.cliId === id);
   const ctn = (piezas || []).filter(p => p.cliId === id);
@@ -229,11 +234,6 @@ export function ViewCliDet({
     if (pzSort === "balance-asc") return ba - bb;
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
-  const [emailChoice, setEmailChoice] = useState(null);
-  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
-  const [emailComposerDraft, setEmailComposerDraft] = useState(null);
-  const [emailComposerSending, setEmailComposerSending] = useState(false);
-  const [emailPreview, setEmailPreview] = useState(null);
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const recordClientEmail = async ({ draft, recipients, delivery = null, source = "remote" }) => {
     if (!c?.id) return;

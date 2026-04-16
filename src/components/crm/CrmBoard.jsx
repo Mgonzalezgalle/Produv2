@@ -23,9 +23,6 @@ export function CrmBoard({
   sortKey,
   setSortKey,
   openM,
-  setLocalStages,
-  setStagesChanged,
-  setStagesOpen,
   exportTarget,
   selectedItems,
   tab,
@@ -194,7 +191,6 @@ export function CrmBoard({
               </thead>
               <tbody>
                 {paged.map(opp => {
-                  const owner = tenantUsers.find(u => u.id === opp.responsable);
                   const actionTone = nextActionTone(opp);
                   return <tr key={opp.id}>
                     <TD><input type="checkbox" checked={selectedIds.includes(opp.id)} onChange={() => toggleSelected(opp.id)} /></TD>

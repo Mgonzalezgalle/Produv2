@@ -58,6 +58,11 @@ export function TareaCard({ tarea, producciones, programas, piezas, oportunidade
           {isDone ? "Finalizada" : venc<0?`Vencida hace ${Math.abs(venc)}d`:venc===0?"Vence hoy":venc===1?"Vence mañana":`${venc}d`}
         </span>}
       </div>
+      {tarea.recurrenciaTipo === "mensual" && (
+        <div style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: "var(--cy)", letterSpacing: 0.4, textTransform: "uppercase" }}>
+          Recurrente mensual
+        </div>
+      )}
       {canEdit&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap"}}>
         {COLS_TAREAS.filter(c=>c!==tarea.estado).map(c=>(
           <button key={c} onClick={e=>{e.stopPropagation();onChangeEstado(tarea.id,c);}}

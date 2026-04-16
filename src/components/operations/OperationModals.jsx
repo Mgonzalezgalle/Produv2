@@ -229,7 +229,7 @@ export function MActivo({ open, data, producciones, listas, onClose, onSave }) {
 }
 
 export function MTarea({ open, data, producciones, programas, piezas, oportunidades, crew, listas, onClose, onSave, normalizeTaskAssignees, getAssignedIds }) {
-  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[] };
+  const empty = { titulo:"", desc:"", estado:"Pendiente", prioridad:"Media", fechaLimite:"", refTipo:"", refId:"", asignadoA:"", assignedIds:[], recurrenciaTipo:"" };
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? normalizeTaskAssignees({ ...data }) : { ...empty }); }, [data, open, normalizeTaskAssignees]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
@@ -252,6 +252,17 @@ export function MTarea({ open, data, producciones, programas, piezas, oportunida
         {(crew || []).map(c => <option key={c.id} value={c.id}>{c.nom} · {c.rol || "Crew"}</option>)}
       </FSl></FG>
     </R2>
+    <FG label="Recurrencia">
+      <FSl value={f.recurrenciaTipo || ""} onChange={e => u("recurrenciaTipo", e.target.value)}>
+        <option value="">Sin recurrencia</option>
+        <option value="mensual">Mensual</option>
+      </FSl>
+      <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 6 }}>
+        {f.recurrenciaTipo === "mensual"
+          ? "Al guardar, Produ generará la serie mensual usando la fecha límite como base."
+          : "Usa esto para tareas que deban repetirse cada mes."}
+      </div>
+    </FG>
     {!!crew?.length && <FG label="Asignar a más usuarios">
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(crew || []).map(member => {
@@ -278,6 +289,6 @@ export function MTarea({ open, data, producciones, programas, piezas, oportunida
       {f.refTipo==="crm"&&<FG label="Oportunidad"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}><option value="">— Seleccionar —</option>{(oportunidades||[]).map(o=><option key={o.id} value={o.id}>{o.nombre} · {o.empresaMarca}</option>)}</FSl></FG>}
       {f.refTipo==="crew"&&<FG label="Miembro Crew"><FSl value={f.refId||""} onChange={e=>u("refId",e.target.value)}><option value="">— Seleccionar —</option>{(crew||[]).map(c=><option key={c.id} value={c.id}>{c.nom} · {c.rol||"Crew"}</option>)}</FSl></FG>}
     </R2>
-    <MFoot onClose={onClose} onSave={() => { if (!f.titulo) return; onSave(normalizeTaskAssignees(f)); }} />
+    <MFoot onClose={onClose} onSave={() => { if (!f.titulo) return; if (f.recurrenciaTipo === "mensual" && !f.fechaLimite) return; onSave(normalizeTaskAssignees(f)); }} />
   </Modal>;
 }

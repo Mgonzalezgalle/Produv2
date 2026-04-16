@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { crmActivityEntry } from "../lib/utils/crm";
+import { addMonthsToDateKey, normalizeTaskRecurrence } from "../lib/utils/tasks";
 
 export function useLabModalActions({
   empresa,
@@ -38,7 +39,7 @@ export function useLabModalActions({
     const merged = existing ? { ...existing, ...nextItem } : nextItem;
     await cSave(contratos, setContratos, merged);
     return true;
-  }, [cSave, canManageContracts, contratos, setContratos, withEmp]);
+  }, [cSave, canManageContracts, contratos, empId, setContratos, withEmp]);
 
   const saveContentPiece = useCallback(async (d) => {
     if (!empId || !canManageContent) return false;
@@ -82,14 +83,53 @@ export function useLabModalActions({
 
   const saveTask = useCallback(async (d) => {
     if (!empId || !canManageTasks) return false;
-    const item = { ...withEmp(d), id: d.id || uid(), cr: d.cr || today() };
+    const rawItem = { ...withEmp(d), id: d.id || uid(), cr: d.cr || today() };
+    const item = normalizeTaskRecurrence(rawItem);
     const arr = Array.isArray(tareas) ? tareas.filter((x) => x && typeof x === "object") : [];
-    const next = arr.find((x) => x.id === item.id) ? arr.map((x) => (x.id === item.id ? item : x)) : [...arr, item];
+    const hasCurrent = arr.find((x) => x.id === item.id);
+    let next = hasCurrent ? arr.map((x) => (x.id === item.id ? item : x)) : [...arr, item];
+
+    if (item.recurrenciaTipo === "mensual" && item.fechaLimite) {
+      const recurrenciaSerieId = item.recurrenciaSerieId || uid();
+      const recurrenciaBaseFecha = item.recurrenciaBaseFecha || item.fechaLimite;
+      next = next.map(task => task.id === item.id ? {
+        ...task,
+        recurrenciaTipo: "mensual",
+        recurrenciaActiva: true,
+        recurrenciaSerieId,
+        recurrenciaBaseFecha,
+        recurrenciaOrden: Number.isFinite(Number(task.recurrenciaOrden)) ? Number(task.recurrenciaOrden) : 0,
+      } : task);
+      const existingByMonth = new Set(
+        next
+          .filter(task => task.recurrenciaSerieId === recurrenciaSerieId)
+          .map(task => String(task.fechaLimite || "").trim())
+          .filter(Boolean),
+      );
+      const seedTask = next.find(task => task.id === item.id) || item;
+      for (let monthOffset = 1; monthOffset <= 11; monthOffset += 1) {
+        const nextFecha = addMonthsToDateKey(recurrenciaBaseFecha, monthOffset);
+        if (!nextFecha || existingByMonth.has(nextFecha)) continue;
+        existingByMonth.add(nextFecha);
+        next.push({
+          ...seedTask,
+          id: uid(),
+          cr: today(),
+          fechaLimite: nextFecha,
+          estado: "Pendiente",
+          recurrenciaTipo: "mensual",
+          recurrenciaActiva: true,
+          recurrenciaSerieId,
+          recurrenciaBaseFecha,
+          recurrenciaOrden: monthOffset,
+        });
+      }
+    }
     await setTareas(next);
     closeM();
-    ntf("Tarea guardada ✓");
+    ntf(item.recurrenciaTipo === "mensual" ? "Tarea recurrente guardada ✓" : "Tarea guardada ✓");
     return true;
-  }, [canManageTasks, closeM, ntf, setTareas, tareas, today, uid, withEmp]);
+  }, [canManageTasks, closeM, empId, ntf, setTareas, tareas, today, uid, withEmp]);
 
   return {
     withEmp,

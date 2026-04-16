@@ -126,6 +126,15 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   };
 }
 
+function mergeGoogleCalendarEventItems(current = [], incoming = null) {
+  if (!incoming?.googleEventId) return Array.isArray(current) ? current : [];
+  const base = Array.isArray(current) ? current : [];
+  const next = base.filter(item => item?.googleEventId !== incoming.googleEventId);
+  next.push(incoming);
+  next.sort(byCalendarDateTime);
+  return next;
+}
+
 function googleSyncBadgeState(event = {}) {
   if (event?.googleCalendarSyncState === "conflict") return { label: "Conflicto", color: "orange" };
   if (event?.googleCalendarSyncState === "cancelled") return { label: "Cancelado", color: "red" };
@@ -338,7 +347,6 @@ export function ViewCalendario(props) {
         }));
         if (!result?.ok) {
           if (!cancelled) {
-            setGoogleCalendarEvents([]);
             setGoogleCalendarError(result?.message || "No pudimos leer los eventos de Google Calendar.");
           }
           return;
@@ -351,7 +359,6 @@ export function ViewCalendario(props) {
         }
       } catch (error) {
         if (!cancelled) {
-          setGoogleCalendarEvents([]);
           setGoogleCalendarError(error?.message || "No pudimos leer los eventos de Google Calendar.");
         }
       } finally {
@@ -405,6 +412,7 @@ export function ViewCalendario(props) {
             throw new Error(result?.message || result?.error || "google_event_create_failed");
           }
           if (cancelled) return;
+          const remoteEvent = mapGoogleEventToCalendarItem(result.event, { email: userCalendarEmail });
           await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
             ...item,
             googleEventId: result.event.id,
@@ -413,6 +421,9 @@ export function ViewCalendario(props) {
             googleCalendarSyncState: "synced",
             googleCalendarSyncError: "",
           } : item)));
+          if (remoteEvent) {
+            setGoogleCalendarEvents((current = []) => mergeGoogleCalendarEventItems(current, remoteEvent));
+          }
           setGoogleCalendarRefreshTick(tick => tick + 1);
         })
         .catch(error => {
@@ -460,27 +471,16 @@ export function ViewCalendario(props) {
         ) {
           return [item];
         }
-        if (item.googleCalendarSyncHash === localCurrentHash) {
-          changed = true;
-          removedCount += 1;
-          return [];
-        }
         if (item.googleCalendarSyncState === "orphan") return [item];
         changed = true;
         return [{
           ...item,
           googleCalendarSyncState: "orphan",
-          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual.",
+          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual. Se mantiene en Produ para no perderlo.",
         }];
       }
       const remoteHash = remoteCalendarSyncHash(remote);
       if (remote.rawStatus === "cancelled") {
-        if (item.googleCalendarSyncHash === localCurrentHash) {
-          changed = true;
-          cancelledCount += 1;
-          removedCount += 1;
-          return [];
-        }
         if (item.googleCalendarSyncState === "cancelled" && item.googleCalendarSyncHash === remoteHash) return [item];
         changed = true;
         cancelledCount += 1;
@@ -536,7 +536,7 @@ export function ViewCalendario(props) {
     if (conflictCount) ntf?.(`${conflictCount} evento(s) tienen conflicto entre Produ y Google Calendar.`, "warn");
     if (cancelledCount) ntf?.(`${cancelledCount} evento(s) fueron cancelados en Google Calendar.`, "warn");
     if (removedCount) ntf?.(`${removedCount} evento(s) eliminados en Google dejaron de mostrarse en Produ.`, "warn");
-  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, googleCalendarLastPullAt, ntf, setEventos, visibleDateRange]);
+  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, googleCalendarLastPullAt, ntf, setEventos, userCalendarEmail, visibleDateRange]);
 
   const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const moveCalendarRange = delta => {

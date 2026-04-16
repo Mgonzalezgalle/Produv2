@@ -454,6 +454,12 @@ export function ViewCalendario(props) {
       const remote = remoteMap.get(item.googleEventId);
       const localCurrentHash = calendarSyncHash(item);
       if (!remote) {
+        if (
+          item.googleCalendarSyncedAt &&
+          (!googleCalendarLastPullAt || new Date(item.googleCalendarSyncedAt).getTime() >= new Date(googleCalendarLastPullAt).getTime())
+        ) {
+          return [item];
+        }
         if (item.googleCalendarSyncHash === localCurrentHash) {
           changed = true;
           removedCount += 1;
@@ -530,7 +536,7 @@ export function ViewCalendario(props) {
     if (conflictCount) ntf?.(`${conflictCount} evento(s) tienen conflicto entre Produ y Google Calendar.`, "warn");
     if (cancelledCount) ntf?.(`${cancelledCount} evento(s) fueron cancelados en Google Calendar.`, "warn");
     if (removedCount) ntf?.(`${removedCount} evento(s) eliminados en Google dejaron de mostrarse en Produ.`, "warn");
-  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, ntf, setEventos, visibleDateRange]);
+  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, googleCalendarLastPullAt, ntf, setEventos, visibleDateRange]);
 
   const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const moveCalendarRange = delta => {

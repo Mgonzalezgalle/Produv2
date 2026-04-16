@@ -112,7 +112,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const NAV=buildSidebarNavigation({empresa,counts,includeTreasury});
   const SW=collapsed?64:240;
-  return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:"flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:isMobile && !mobileOpen ? "none" : "flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>

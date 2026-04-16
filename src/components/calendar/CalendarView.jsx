@@ -11,7 +11,7 @@ import {
   Stat,
   Tabs,
 } from "../../lib/ui/components";
-import { cobranzaState, contractVisualState, fmtD, fmtM, hasAddon, today } from "../../lib/utils/helpers";
+import { fmtD, hasAddon, today } from "../../lib/utils/helpers";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DIAS_SEMANA = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
@@ -262,7 +262,7 @@ function CalendarAgendaRow({ ev, onOpen, onDelete, canDelete = false, compact = 
 }
 
 export function ViewCalendario(props) {
-  const { empresa, user, tareas, crew, clientes, auspiciadores, episodios, programas, piezas, producciones, eventos, facturas, contratos, openM, canDo, cDel, setEventos, ntf, assignedNameList, platformApi, saveUsers, users } = props;
+  const { empresa, user, tareas, crew, clientes, auspiciadores, episodios, programas, piezas, producciones, eventos, openM, canDo, cDel, setEventos, ntf, assignedNameList, platformApi, saveUsers, users } = props;
   const empId = empresa?.id;
   const tasksEnabled = hasAddon(empresa, "tareas");
   const googleCalendarEnabled = empresa?.googleCalendarEnabled === true;
@@ -670,27 +670,6 @@ export function ViewCalendario(props) {
     }
   });
 
-  const facturasEmp = (facturas || []).filter(f => f.empId === empId);
-  const contratosEmp = (contratos || []).filter(c => c.empId === empId);
-  const cobranzaItems = facturasEmp.filter(f => f.fechaVencimiento).map(f => {
-    const estado = cobranzaState(f);
-    const entidad = f.tipo === "auspiciador"
-      ? (auspiciadores || []).find(a => a.id === f.entidadId)?.nom
-      : (clientes || []).find(c => c.id === f.entidadId)?.nom;
-    return { ...f, estadoCobranza: estado, entidad: entidad || "Sin entidad" };
-  }).sort((a, b) => (a.fechaVencimiento || "").localeCompare(b.fechaVencimiento || ""));
-  const dueInvoices = cobranzaItems.filter(f => f.fechaVencimiento).map(f => {
-    const d = new Date(`${f.fechaVencimiento}T12:00:00`);
-    if (!isDateWithinRange(f.fechaVencimiento, visibleDateRange)) return null;
-    return { id: `bill_${f.id}`, fecha: f.fechaVencimiento, dia: d.getDate(), tipo: "cobranza", label: `💸 ${f.correlativo || f.tipoDoc || "Invoice"}`, sub: f.entidad, color: "#ff5566", hora: "", modulo: "billing", estado: f.estadoCobranza, clienteId: f.tipo === "cliente" ? f.entidadId : "", desc: fmtM(f.total || 0) };
-  }).filter(Boolean);
-  const dueContracts = contratosEmp.filter(ct => ct.vig).map(ct => {
-    const d = new Date(`${ct.vig}T12:00:00`);
-    if (!isDateWithinRange(ct.vig, visibleDateRange)) return null;
-    return { id: `ct_${ct.id}`, fecha: ct.vig, dia: d.getDate(), tipo: "cobranza", label: `📄 ${ct.nom}`, sub: "Vigencia contrato", color: "#f59e0b", hora: "", modulo: "contract", estado: contractVisualState(ct), clienteId: ct.cliId || "", desc: ct.not || "" };
-  }).filter(Boolean);
-  todosEvs.push(...dueInvoices, ...dueContracts);
-
   todosEvs.push(...googleCalendarEvents);
   const eventosFiltrados = todosEvs.filter(e =>
     (filtro === "todos" || e.tipo === filtro) &&
@@ -731,7 +710,7 @@ export function ViewCalendario(props) {
   const agendaSemana = proximos.filter(ev => ev.fecha >= hoyStr).slice(0, 8);
   const programacion = proximos.filter(ev => ["grabacion", "emision", "entrega", "estreno"].includes(ev.tipo));
   const agendaEquipo = proximos.filter(ev => ev.tipo === "tarea");
-  const hitosCriticos = proximos.filter(ev => ev.tipo === "cobranza" || ev.estado === "En Revisión" || ev.estado === "Retrasado de pago").slice(0, 8);
+  const hitosCriticos = proximos.filter(ev => ev.estado === "En Revisión" || ev.estado === "Retrasado de pago" || ev.estado === "Vencida" || ev.estado === "Vence hoy").slice(0, 8);
   const estadoOptions = Array.from(new Set(todosEvs.map(ev => ev.estado).filter(Boolean)));
   const canManageCalendar = !!(canDo && canDo("calendario"));
   const remoteGoogleEventsMap = useMemo(

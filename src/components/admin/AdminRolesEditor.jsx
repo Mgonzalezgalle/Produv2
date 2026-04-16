@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, DBtn, Empty, FG, FI, FSl, R3 } from "../../lib/ui/components";
 import { getCustomRoles, PERMS, ROLE_COLOR_MAP, ROLE_PERMISSION_GROUPS, ROLES } from "../../lib/auth/authorization";
+import { requestConfirm } from "../../lib/ui/confirmService";
 
 export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformServices, ntf, uid, canManageAdmin=true }) {
   const [activeKey,setActiveKey]=useState("");
@@ -71,7 +72,12 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformSe
       ntf("No puedes eliminar un rol asignado a usuarios activos","warn");
       return;
     }
-    if(!confirm("¿Eliminar este rol personalizado?")) return;
+    const confirmed = await requestConfirm({
+      title: "Eliminar rol personalizado",
+      message: "¿Eliminar este rol personalizado?",
+      confirmLabel: "Eliminar rol",
+    });
+    if(!confirmed) return;
     if (platformServices?.deleteTenantRole) {
       const nextRoles = await platformServices.deleteTenantRole(empresa.id, selected.key);
       applyRoleList(nextRoles);

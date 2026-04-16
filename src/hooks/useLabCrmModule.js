@@ -9,6 +9,7 @@ import {
   normalizeCrmStages,
   recoverPreferredCrmStages,
 } from "../lib/utils/crm";
+import { requestConfirm } from "../lib/ui/confirmService";
 
 const uid = () => "_" + Math.random().toString(36).slice(2, 10);
 const today = () => new Date().toISOString().split("T")[0];
@@ -254,7 +255,12 @@ export function useLabCrmModule({
   };
   const bulkDeleteSelected = async () => {
     if (!canManageCrm || !selectedItems.length) return;
-    if (!confirm(`¿Eliminar ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} seleccionada${selectedItems.length === 1 ? "" : "s"}?`)) return;
+    const confirmed = await requestConfirm({
+      title: "Eliminar oportunidades",
+      message: `¿Eliminar ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} seleccionada${selectedItems.length === 1 ? "" : "s"}?`,
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
     const selectedSet = new Set(selectedIds);
     await setCrmOpps((crmOpps || []).filter(opp => !(opp.empId === empId && selectedSet.has(opp.id))));
     await setCrmActivities((crmActivities || []).filter(act => !selectedSet.has(act.opportunityId)));

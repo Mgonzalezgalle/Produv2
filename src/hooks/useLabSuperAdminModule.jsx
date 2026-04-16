@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { requestConfirm } from "../lib/ui/confirmService";
 
 const isSameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -292,9 +293,14 @@ export function useLabSuperAdminModule({
     return true;
   };
 
-  const deleteSystemUser = user => {
+  const deleteSystemUser = async user => {
     if (!canWriteGlobal() || !user || user.role === "superadmin") return false;
-    if (!window.confirm(`¿Eliminar a ${user.name || user.email} del sistema?`)) return false;
+    const confirmed = await requestConfirm({
+      title: "Eliminar usuario del sistema",
+      message: `¿Eliminar a ${user.name || user.email} del sistema?`,
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return false;
     guardedOnSave("users", (users || []).filter(u => u.id !== user.id));
     if (sysUid === user.id) {
       setSysUid(null);

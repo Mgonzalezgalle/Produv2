@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Btn, Card, Empty, FG, FTA, GBtn, XBtn } from "../../lib/ui/components";
 import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS } from "../../lib/utils/tasks";
+import { requestConfirm } from "../../lib/ui/confirmService";
 import { TaskErrorBoundary } from "../shared/CoreFeedback";
 
 export function TareaCard({ tarea, producciones, programas, piezas, oportunidades, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
@@ -101,7 +102,12 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
   };
   const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setAttachments(normalizeCommentAttachments(it));};
   const delItem=async id=>{
-    if(!confirm("¿Eliminar comentario?")) return;
+    const confirmed = await requestConfirm({
+      title: "Eliminar comentario",
+      message: "¿Eliminar comentario?",
+      confirmLabel: "Eliminar",
+    });
+    if(!confirmed) return;
     await onSave(items.filter(it=>it.id!==id));
     if(editingId===id) resetForm();
   };
@@ -193,7 +199,12 @@ export function TareasContexto({ title, refTipo, refId, tareas, producciones, pr
       await setTareas(next);
     };
     const deleteTarea=async(id)=>{
-      if(!confirm("¿Eliminar tarea?")) return;
+      const confirmed = await requestConfirm({
+        title: "Eliminar tarea",
+        message: "¿Eliminar tarea?",
+        confirmLabel: "Eliminar",
+      });
+      if(!confirmed) return;
       const next=safeTareas.filter(t=>t.id!==id);
       await setTareas(next);
     };

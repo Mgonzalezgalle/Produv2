@@ -201,6 +201,24 @@ export default function App(){
   const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    window.__produRequestConfirm = ({ title = "Confirmar acción", message = "", confirmLabel = "Confirmar" } = {}) => (
+      new Promise(resolve => {
+        setPendingConfirm({
+          title,
+          message,
+          confirmLabel,
+          onConfirm: async () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      })
+    );
+    return () => {
+      delete window.__produRequestConfirm;
+    };
+  }, []);
+
   // Global data
   const {
     empresas,setEmpresasRaw,
@@ -1215,7 +1233,11 @@ export default function App(){
       title={pendingConfirm?.title || "Confirmar acción"}
       message={pendingConfirm?.message || ""}
       confirmLabel={pendingConfirm?.confirmLabel || "Confirmar"}
-      onClose={() => setPendingConfirm(null)}
+      onClose={() => {
+        const cancel = pendingConfirm?.onCancel;
+        setPendingConfirm(null);
+        if (typeof cancel === "function") cancel();
+      }}
       onConfirm={async () => {
         const action = pendingConfirm?.onConfirm;
         setPendingConfirm(null);

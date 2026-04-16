@@ -55,6 +55,7 @@ import { useLabBudgetList } from "../../hooks/useLabBudgetList";
 import { dbGet } from "../../hooks/useLabDataStore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { requestConfirm } from "../../lib/ui/confirmService";
 let commercialPdfRuntimePromise = null;
 const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
 const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,280px),1fr))";
@@ -519,9 +520,16 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
       {canDo && canDo("contratos") && <DBtn sm onClick={() => {
-        if (!confirm(`¿Eliminar ${selectedIds.length} contrato${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setContratos((contratos || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
+        void (async () => {
+          const confirmed = await requestConfirm({
+            title: "Eliminar contratos",
+            message: `¿Eliminar ${selectedIds.length} contrato${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`,
+            confirmLabel: "Eliminar",
+          });
+          if (!confirmed) return;
+          setContratos((contratos || []).filter(item => !selectedIds.includes(item.id)));
+          setSelectedIds([]);
+        })();
       }}>Eliminar seleccionados</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
@@ -736,7 +744,7 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
         {canDo&&canDo("presupuestos")&&<GBtn onClick={()=>openM("pres",p)}>✏ Editar</GBtn>}
         {canInvoices&&<Btn onClick={()=>openM("fact",{presupuestoId:p.id,entidadId:p.cliId,tipo:"cliente",tipoRef:p.tipo,proId:p.refId||"",montoNeto:Number(p.subtotal||p.total||0),iva:!!p.iva,contratoId:p.contratoId||"",obs:"",obs2:p.obs||"",recurring:!!p.recurring,recMonths:String(p.recMonths||"6"),recStart:p.recStart||today()})}>🧾 Crear documento tributario</Btn>}
         {p.estado==="Aceptado"&&!p.convertido&&<Btn onClick={()=>setConvOpen(true)} s={{background:"#00e08a",color:"var(--bg)"}}>→ Convertir en {convTipo==="programa"?"Producción":convTipo==="contenido"?"Contenidos":"Proyecto"}</Btn>}
-        {canDo&&canDo("presupuestos")&&<DBtn onClick={()=>{if(!confirm("¿Eliminar?"))return;cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");}}>🗑</DBtn>}
+        {canDo&&canDo("presupuestos")&&<DBtn onClick={()=>{void (async()=>{const confirmed = await requestConfirm({ title:"Eliminar presupuesto", message:"¿Eliminar este presupuesto?", confirmLabel:"Eliminar" }); if(!confirmed) return; cDel(presupuestos,setPresupuestos,id,()=>navTo("presupuestos"),"Eliminado");})();}}>🗑</DBtn>}
       </div>}/>
     {p.convertido&&<div style={{background:"#00e08a18",border:"1px solid #00e08a35",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#00e08a"}}>✓ Convertido en {p.convertido==="produccion"?"proyecto":p.convertido==="programa"?"producción":"campaña de contenidos"}: <b>{p.convertidoNom}</b></div>}
     {(contrato || linkedInvoices.length) && <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_DETAIL_GRID,gap:16,marginBottom:16}}>

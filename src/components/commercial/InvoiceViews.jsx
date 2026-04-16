@@ -72,6 +72,7 @@ import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderMod
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { requestConfirm } from "../../lib/ui/confirmService";
 export { MFact } from "./InvoiceModal";
 let commercialPdfRuntimePromise = null;
 const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
@@ -540,7 +541,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
               <TD><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                 {canEdit&&series.status!=="Cancelada"&&<GBtn sm onClick={()=>pauseSeries(series)}>{series.status==="Pausada"?"▶ Reactivar":"⏸ Pausar"}</GBtn>}
                 {canEdit&&<GBtn sm onClick={()=>regenerateSeries(series)}>↻ Regenerar</GBtn>}
-                {canEdit&&series.status!=="Cancelada"&&<XBtn onClick={()=>{if(!confirm("¿Cancelar los meses futuros de esta recurrencia?")) return; cutSeries(series);}} title="Cancelar recurrencia"/>}
+                {canEdit&&series.status!=="Cancelada"&&<XBtn onClick={async()=>{const confirmed = await requestConfirm({ title:"Cancelar recurrencia", message:"¿Cancelar los meses futuros de esta recurrencia?", confirmLabel:"Cancelar recurrencia" }); if(!confirmed) return; cutSeries(series);}} title="Cancelar recurrencia"/>}
               </div></TD>
             </tr>)}
           </tbody>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { requestConfirm } from "../../lib/ui/confirmService";
 
 export function ListasEditor({ listas, saveListas, defaultListas }) {
   const mergeListValues = (base = {}, overrides = {}) => {
@@ -69,8 +70,13 @@ export function ListasEditor({ listas, saveListas, defaultListas }) {
     persistLists({ ...L, [active]: arr });
   };
 
-  const resetGroup = () => {
-    if (!confirm("¿Restaurar valores por defecto para esta lista?")) return;
+  const resetGroup = async () => {
+    const confirmed = await requestConfirm({
+      title: "Restaurar lista",
+      message: "¿Restaurar valores por defecto para esta lista?",
+      confirmLabel: "Restaurar",
+    });
+    if (!confirmed) return;
     persistLists({ ...L, [active]: defaultListas[active] });
   };
 

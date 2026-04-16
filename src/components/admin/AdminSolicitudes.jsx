@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Badge, Empty, GBtn } from "../../lib/ui/components";
+import { requestConfirm } from "../../lib/ui/confirmService";
 
 export function SolicitudesAdmin({ users, onSaveUsers, dbGet, dbSet, uid, sha256Hex }) {
   const [sols, setSols] = useState([]);
@@ -20,7 +21,12 @@ export function SolicitudesAdmin({ users, onSaveUsers, dbGet, dbSet, uid, sha256
   };
 
   const rechazar = async s => {
-    if (!confirm(`¿Rechazar solicitud de ${s.nombre}?`)) return;
+    const confirmed = await requestConfirm({
+      title: "Rechazar solicitud",
+      message: `¿Rechazar solicitud de ${s.nombre}?`,
+      confirmLabel: "Rechazar",
+    });
+    if (!confirmed) return;
     const upd = sols.map(x => x.id === s.id ? { ...x, estado: "rechazada" } : x);
     setSols(upd);
     await dbSet("produ:solicitudes", upd);

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { requestConfirm } from "../lib/ui/confirmService";
 
 export function useLabBudgetList({
   empresa,
@@ -49,9 +50,14 @@ export function useLabBudgetList({
     setSelectedIds([]);
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = async () => {
     if (!canEdit) return;
-    if (!confirm(`¿Eliminar ${selectedIds.length} presupuesto${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
+    const confirmed = await requestConfirm({
+      title: "Eliminar presupuestos",
+      message: `¿Eliminar ${selectedIds.length} presupuesto${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`,
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
     setPresupuestos((presupuestos || []).filter((item) => !selectedIds.includes(item.id)));
     setSelectedIds([]);
   };

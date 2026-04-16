@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { LAB_DATA_CONFIG, localLabKey } from "../lib/lab/labStorageConfig";
+import { requestConfirm } from "../lib/ui/confirmService";
 
 export function useLabTenantAdmin({
   dbGet,
@@ -27,7 +28,11 @@ export function useLabTenantAdmin({
       ntf("Primero desactiva la empresa antes de eliminarla", "warn");
       return;
     }
-    const confirmDelete = confirm(`¿Eliminar la instancia ${emp.nombre}?\n\nEsto borrará usuarios y datos asociados del tenant. Esta acción no se puede deshacer.`);
+    const confirmDelete = await requestConfirm({
+      title: "Eliminar instancia",
+      message: `¿Eliminar la instancia ${emp.nombre}?\n\nEsto borrará usuarios y datos asociados del tenant. Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar instancia",
+    });
     if (!confirmDelete) return;
 
     const targetId = emp.id;
@@ -51,13 +56,15 @@ export function useLabTenantAdmin({
         const nextSolicitudes = solicitudes.filter(sol => sol.empresaId !== targetId && sol.referredByEmpId !== targetId);
         await dbSet("produ:solicitudes", nextSolicitudes);
       }
-    } catch {}
+    } catch (error) {
+      console.warn("tenant_admin_delete_empresa_solicitudes_cleanup_failed", error);
+    }
 
     if (curEmp?.id === targetId) {
-      setCurEmp(null);
+        setCurEmp(null);
       if (curUser?.role !== "superadmin") {
         setCurUser(null);
-        try { localStorage.removeItem(localLabKey("session")); } catch {}
+        try { localStorage.removeItem(localLabKey("session")); } catch (error) { console.warn("tenant_admin_delete_empresa_session_cleanup_failed", error); }
         setStoredSession(null);
       }
     }

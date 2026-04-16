@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   requiresProduCollectionTracking,
   resolveProduBillingDocumentType,
 } from "../lib/integrations/billingDomain";
+import { requestConfirm } from "../lib/ui/confirmService";
 
 export function useLabInvoiceList({
   empresa,
@@ -32,14 +33,14 @@ export function useLabInvoiceList({
 
   const allDocs = useMemo(() => (facturas || []).filter((x) => x.empId === empId), [empId, facturas]);
 
-  const sortDocs = (arr = []) => [...arr].sort((a, b) => {
+  const sortDocs = useCallback((arr = []) => [...arr].sort((a, b) => {
     if (sortMode === "az") return invoiceEntityName(a, clientes, auspiciadores).localeCompare(invoiceEntityName(b, clientes, auspiciadores));
     if (sortMode === "za") return invoiceEntityName(b, clientes, auspiciadores).localeCompare(invoiceEntityName(a, clientes, auspiciadores));
     if (sortMode === "amount-desc") return Number(b.total || 0) - Number(a.total || 0);
     if (sortMode === "amount-asc") return Number(a.total || 0) - Number(b.total || 0);
     if (sortMode === "oldest") return String(a.fechaEmision || a.cr || "").localeCompare(String(b.fechaEmision || b.cr || ""));
     return String(b.fechaEmision || b.cr || "").localeCompare(String(a.fechaEmision || a.cr || ""));
-  });
+  }), [auspiciadores, clientes, invoiceEntityName, sortMode]);
 
   const fd = useMemo(() => sortDocs(
     allDocs.filter((f) => {
@@ -47,7 +48,7 @@ export function useLabInvoiceList({
       return (ent.toLowerCase().includes(q.toLowerCase()) || (f.correlativo || "").toLowerCase().includes(q.toLowerCase()))
         && (!fe || f.estado === fe);
     })
-  ), [allDocs, clientes, auspiciadores, fe, invoiceEntityName, q, sortMode]);
+  ), [allDocs, clientes, auspiciadores, fe, invoiceEntityName, q, sortDocs]);
 
   const cobranzaDocs = useMemo(() => sortDocs(
     (invoices || []).filter((f) => {
@@ -55,7 +56,7 @@ export function useLabInvoiceList({
       return (ent.toLowerCase().includes(q.toLowerCase()) || (f.correlativo || "").toLowerCase().includes(q.toLowerCase()))
         && (!fc || cobranzaState(f) === fc);
     })
-  ), [invoices, clientes, auspiciadores, cobranzaState, fc, invoiceEntityName, q, sortMode]);
+  ), [invoices, clientes, auspiciadores, cobranzaState, fc, invoiceEntityName, q, sortDocs]);
 
   const currentPageIds = useMemo(
     () => (tab === 1 ? cobranzaDocs : fd).slice((pg - 1) * PP, pg * PP).map((item) => item.id),
@@ -104,9 +105,14 @@ export function useLabInvoiceList({
     setSelectedIds([]);
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = async () => {
     if (!canEdit) return false;
-    if (!confirm(`¿Eliminar ${selectedIds.length} documento${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
+    const confirmed = await requestConfirm({
+      title: "Eliminar documentos",
+      message: `¿Eliminar ${selectedIds.length} documento${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`,
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
     const removableIds = new Set(
       (facturas || [])
         .filter((item) => selectedIds.includes(item.id) && !isProtectedElectronicDocument(item))

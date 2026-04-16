@@ -63,13 +63,47 @@ export function crmDefaultStageId(stages = []) {
   return normalizeCrmStages(stages)[0]?.id || CRM_STAGE_SEED[0].id;
 }
 
+function resolveCrmStageReference(item = {}, stages = []) {
+  const normalizedStages = normalizeCrmStages(stages);
+  const rawReference = [
+    item.stageId,
+    item.etapaId,
+    item.stage,
+    item.etapa,
+    item.stageName,
+    item.etapaNombre,
+  ].find(Boolean);
+  const ref = String(rawReference || "").trim();
+  if (!ref) return normalizedStages[0] || CRM_STAGE_SEED[0];
+  const byId = normalizedStages.find(stage => stage.id === ref);
+  if (byId) return byId;
+  const byName = normalizedStages.find(stage => String(stage.name || "").trim().toLowerCase() === ref.toLowerCase());
+  return byName || normalizedStages[0] || CRM_STAGE_SEED[0];
+}
+
+function normalizeCrmBusinessType(value = "") {
+  const safe = String(value || "").trim().toLowerCase();
+  if (["auspiciador", "sponsor", "sponsorship"].includes(safe)) return "auspiciador";
+  return "cliente";
+}
+
+function normalizeCrmStatus(value = "", stage = CRM_STAGE_SEED[0]) {
+  const safe = String(value || "").trim().toLowerCase();
+  if (["ganada", "ganado", "won", "cerrada ganada"].includes(safe)) return "Ganada";
+  if (["perdida", "perdido", "lost", "cerrada perdida"].includes(safe)) return "Perdida";
+  if (["en seguimiento", "seguimiento", "follow_up"].includes(safe)) return "En seguimiento";
+  if (["pausada", "pausado", "hold"].includes(safe)) return "Pausada";
+  if (safe) return CRM_STATUS_OPTIONS.find(option => option.toLowerCase() === safe) || String(value).trim();
+  return stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : "Activa";
+}
+
 export function crmStageMeta(stageId, stages = []) {
   return normalizeCrmStages(stages).find(stage => stage.id === stageId) || normalizeCrmStages(stages)[0] || CRM_STAGE_SEED[0];
 }
 
 export function crmNormalizeOpportunity(item = {}, stages = []) {
-  const stage = crmStageMeta(item.stageId || item.etapaId || crmDefaultStageId(stages), stages);
-  const status = item.status || item.estado || (stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : "Activa");
+  const stage = resolveCrmStageReference(item, stages);
+  const status = normalizeCrmStatus(item.status || item.estado || item.est || "", stage);
   return {
     id: item.id || uid(),
     empId: item.empId || "",
@@ -79,7 +113,7 @@ export function crmNormalizeOpportunity(item = {}, stages = []) {
     contacto: item.contacto || item.con || "",
     email: item.email || item.ema || "",
     telefono: item.telefono || item.tel || "",
-    tipo_negocio: item.tipo_negocio || item.tipoNegocio || "cliente",
+    tipo_negocio: normalizeCrmBusinessType(item.tipo_negocio || item.tipoNegocio || item.tipo || ""),
     stageId: stage.id,
     status,
     monto_estimado: Number(item.monto_estimado ?? item.monto ?? 0),

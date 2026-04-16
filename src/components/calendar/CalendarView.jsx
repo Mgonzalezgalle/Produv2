@@ -1103,7 +1103,7 @@ export function ViewCalendario(props) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : calendarViewport === "week" ? "280px minmax(0,1fr) 340px" : "minmax(0,1fr) 340px", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : calendarViewport === "week" ? "240px minmax(0,1fr) 290px" : "minmax(0,1fr) 340px", gap: 16, alignItems: "start" }}>
         {!isMobile && calendarViewport === "week" && <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <CalendarSidebarSection title={MESES[mes.m]} sub={String(mes.y)}>
             {canManageCalendar ? <div style={{ marginBottom: 12 }}><Btn onClick={() => openCalendarCreate({ date: toDateKey(new Date()) })} sm>+ Crear</Btn></div> : null}
@@ -1171,26 +1171,26 @@ export function ViewCalendario(props) {
 
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 22, overflow: "hidden", boxShadow: "0 18px 50px rgba(0,0,0,.12)" }}>
           {calendarViewport === "week" ? (
-            <div style={{ overflowX: "auto" }}>
-              <div style={{ minWidth: 960 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "72px repeat(7,minmax(120px,1fr))", borderBottom: "1px solid var(--bdr)", background: "color-mix(in srgb, var(--sur) 82%, transparent)" }}>
+            <div style={{ overflowX: "hidden" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,minmax(0,1fr))", borderBottom: "1px solid var(--bdr)", background: "color-mix(in srgb, var(--sur) 82%, transparent)" }}>
                   <div />
                   {weekDayMap.map(day => {
                     const current = esHoy(day.date.getDate()) && day.date.getMonth() === mes.m && day.date.getFullYear() === mes.y;
                     return (
                       <div
                         key={day.dateKey}
-                        style={{ padding: "14px 10px", borderLeft: "1px solid var(--bdr)", cursor: canManageCalendar ? "pointer" : "default" }}
+                        style={{ padding: "12px 6px", borderLeft: "1px solid var(--bdr)", cursor: canManageCalendar ? "pointer" : "default" }}
                         onClick={() => {
                           setDiaSelec(day.date.getDate());
                           openCalendarCreate({ date: day.dateKey });
                         }}
                       >
-                        <div style={{ fontSize: 10, color: "var(--gr2)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" }}>{DIAS_SEMANA[(day.date.getDay() + 6) % 7]}</div>
-                        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 999, background: current ? "var(--cy)" : "transparent", color: current ? "var(--bg)" : "var(--wh)", fontSize: 18, fontWeight: 800 }}>{day.date.getDate()}</div>
-                        <div style={{ marginTop: 10, display: "grid", gap: 4 }}>
+                        <div style={{ fontSize: 8, color: "var(--gr2)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>{DIAS_SEMANA[(day.date.getDay() + 6) % 7].slice(0, 3)}</div>
+                        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 999, background: current ? "var(--cy)" : "transparent", color: current ? "var(--bg)" : "var(--wh)", fontSize: 15, fontWeight: 800 }}>{day.date.getDate()}</div>
+                        <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
                           {day.allDay.slice(0, 2).map(ev => (
-                            <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "4px 6px", borderRadius: 8, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 10, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "4px 5px", borderRadius: 8, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 9, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</span>
                               {canDeleteCalendarItem(ev) ? <button onClick={e => { e.stopPropagation(); delEvento(ev); }} style={{ width: 18, height: 18, borderRadius: 999, border: "none", background: "transparent", color: ev.color, cursor: "pointer", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>×</button> : null}
                             </div>
@@ -1203,26 +1203,26 @@ export function ViewCalendario(props) {
                 </div>
                 <div>
                   {WEEK_HOURS.map(hour => (
-                    <div key={hour} style={{ display: "grid", gridTemplateColumns: "72px repeat(7,minmax(120px,1fr))", minHeight: 64, borderBottom: "1px solid var(--bdr)" }}>
-                      <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--gr2)", borderRight: "1px solid var(--bdr)", background: "color-mix(in srgb, var(--sur) 82%, transparent)" }}>{String(hour).padStart(2, "0")}:00</div>
+                    <div key={hour} style={{ display: "grid", gridTemplateColumns: "56px repeat(7,minmax(0,1fr))", minHeight: 60, borderBottom: "1px solid var(--bdr)" }}>
+                      <div style={{ padding: "8px 6px", fontSize: 10, color: "var(--gr2)", borderRight: "1px solid var(--bdr)", background: "color-mix(in srgb, var(--sur) 82%, transparent)" }}>{String(hour).padStart(2, "0")}:00</div>
                       {weekDayMap.map(day => {
                         const hourEvents = day.timed.filter(ev => hourNumber(ev.hora) === hour);
                         return (
                           <div
                             key={`${day.dateKey}-${hour}`}
-                            style={{ padding: "6px 8px", borderRight: "1px solid var(--bdr)", position: "relative", cursor: canManageCalendar ? "pointer" : "default" }}
+                            style={{ padding: "5px 4px", borderRight: "1px solid var(--bdr)", position: "relative", cursor: canManageCalendar ? "pointer" : "default" }}
                             onClick={() => {
                               setDiaSelec(day.date.getDate());
                               openCalendarCreate({ date: day.dateKey, hour: `${String(hour).padStart(2, "0")}:00` });
                             }}
                           >
                             {hourEvents.map(ev => (
-                              <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "6px 8px", borderRadius: 10, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 11, fontWeight: 700, marginBottom: 4, cursor: "pointer", overflow: "hidden" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "5px 6px", borderRadius: 10, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 10, fontWeight: 700, marginBottom: 4, cursor: "pointer", overflow: "hidden" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                                   <div style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.label}</div>
                                   {canDeleteCalendarItem(ev) ? <button onClick={e => { e.stopPropagation(); delEvento(ev); }} style={{ width: 18, height: 18, borderRadius: 999, border: "none", background: "transparent", color: ev.color, cursor: "pointer", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>×</button> : null}
                                 </div>
-                                <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>{ev.hora || `${String(hour).padStart(2, "0")}:00`}</div>
+                                <div style={{ fontSize: 9, opacity: 0.8, marginTop: 2 }}>{ev.hora || `${String(hour).padStart(2, "0")}:00`}</div>
                               </div>
                             ))}
                           </div>

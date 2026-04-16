@@ -16,7 +16,7 @@ export function AppShellFrame({
   const resolvedSidebarWidth = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
 
   return (
-    <div style={{ display: isMobile ? "block" : "flex", minHeight: "100vh", background: "var(--bg)" }}>
+    <div style={{ display: "block", minHeight: "100vh", background: "var(--bg)" }}>
       <div
         id="mob-overlay"
         onClick={closeMobileSidebar}
@@ -27,9 +27,8 @@ export function AppShellFrame({
         className="app-main"
         style={{
           marginLeft: isMobile ? 0 : sidebarWidth,
-          width: "100%",
-          maxWidth: "100%",
-          flex: 1,
+          width: isMobile ? "100%" : `calc(100% - ${resolvedSidebarWidth})`,
+          maxWidth: isMobile ? "100%" : `calc(100% - ${resolvedSidebarWidth})`,
           display: "flex",
           flexDirection: "column",
           minWidth: 0,

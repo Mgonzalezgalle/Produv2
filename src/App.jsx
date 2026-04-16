@@ -500,7 +500,7 @@ export default function App(){
     const events = ["mousemove","keydown","scroll","touchstart"];
     events.forEach(evt=>window.addEventListener(evt,onActivity,{passive:true}));
     return ()=>events.forEach(evt=>window.removeEventListener(evt,onActivity));
-  },[curUser?.id,storedSession?.lastActivityAt,refreshSessionActivity]);
+  },[curUser, storedSession, refreshSessionActivity]);
 
   useEffect(()=>{
     if(!curUser || !storedSession) return;
@@ -511,7 +511,7 @@ export default function App(){
       }
     },5000);
     return ()=>clearInterval(interval);
-  },[curUser?.id,storedSession,logout,setToast]);
+  },[curUser, storedSession, logout]);
 
   useLabFreshdeskWidget({ user: curUser, empresa: curEmp });
 
@@ -659,7 +659,7 @@ export default function App(){
     ntf(url.searchParams.get("google_calendar_message") || "No pudimos conectar Google Calendar.", "warn");
     navTo("calendario");
     cleanUrl();
-  }, [curUser?.id, users, saveUsers, navTo, ntf]);
+  }, [curUser, users, saveUsers, navTo, ntf]);
   const { deleteEmpresa } = useLabTenantAdmin({
     dbGet,
     dbSet,
@@ -778,22 +778,7 @@ export default function App(){
     companyBillingNet,
     companyReferralDiscountMonthsPending,
     fmtMoney,
-  }), [
-    commentAttachmentFromFile,
-    normalizeCommentAttachments,
-    getAssignedIds,
-    uid,
-    today,
-    fmtD,
-    fmtM,
-    ini,
-    companyPrintColor,
-    companyBillingStatus,
-    companyBillingBaseNet,
-    companyBillingNet,
-    companyReferralDiscountMonthsPending,
-    fmtMoney,
-  ]);
+  }), []);
 
   const {
     currentEmpresa,
@@ -919,7 +904,7 @@ export default function App(){
     empresas: domainEmpresas,
     platformApi,
     platformGateway,
-  }), [uid, today, dbGet, dbSet, sha256Hex, authGateway, sessionKey, domainUsers, domainEmpresas, platformApi, platformGateway]);
+  }), [authGateway, sessionKey, domainUsers, domainEmpresas, platformApi, platformGateway]);
   const superAdminHelpers = useMemo(() => ({
     dbGet, dbSet, uid, today, nowIso, fmtD, fmtMoney, normalizePrintLayouts, DEFAULT_PRINT_LAYOUTS, normalizeEmpresasModel,
     companyBillingDiscountPct, companyReferralDiscountMonthsPending, companyReferralDiscountHistory, companyBillingBaseNet, companyBillingNet,
@@ -927,7 +912,7 @@ export default function App(){
     shouldConsumeReferralDiscountMonth, normalizeEmailValue, sha256Hex, sanitizeAssignableRole, ini, addons: ADDONS,
     exportActiveClientsCSV: exportActiveClientsCsvHelper, exportActiveClientsPDF: exportActiveClientsPdfHelper,
     userGoogleCalendar, SYSTEM_MESSAGE_PRESETS, XBtn, RichTextBlock,
-  }), [dbGet, dbSet, uid, today, nowIso, fmtD, fmtMoney, normalizePrintLayouts, normalizeEmpresasModel, companyBillingDiscountPct, companyReferralDiscountMonthsPending, companyReferralDiscountHistory, companyBillingBaseNet, companyBillingNet, companyBillingStatus, companyPaymentDayLabel, companyIsUpToDate, companyGoogleCalendarEnabled, shouldConsumeReferralDiscountMonth, normalizeEmailValue, sha256Hex, sanitizeAssignableRole, ini, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, userGoogleCalendar]);
+  }), [exportActiveClientsCsvHelper, exportActiveClientsPdfHelper]);
   const superAdminContext = useMemo(() => ({
     actorUser: curUser,
     empresas: empresas || [],
@@ -953,7 +938,7 @@ export default function App(){
     TareaCard,
     COLS_TAREAS,
     getRoleConfig,
-  }), [comentariosBlockComponent, movBlockComponent, miniCalComponent, tareasContextoComponent, ausCardComponent, exportMovCsvHelper, exportMovPdfHelper, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, TareaCard, getRoleConfig]);
+  }), [comentariosBlockComponent, movBlockComponent, miniCalComponent, tareasContextoComponent, ausCardComponent, exportMovCsvHelper, exportMovPdfHelper, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, TareaCard]);
 
   const sidebarCollapsed=isMobile?false:collapsed;
   const SW=sidebarCollapsed?64:240;
@@ -1021,7 +1006,7 @@ export default function App(){
     Tabs,
     XBtn,
     releaseMode: LAB_DATA_CONFIG.releaseMode,
-  }), [adminOpen, theme, saveTheme, curEmp, curUser, users, empresas, saveUsers, saveEmpresas, platformServices, L, ntf, dbGet, uid, sha256Hex, ini]);
+  }), [adminOpen, theme, saveTheme, curEmp, curUser, users, empresas, saveUsers, saveEmpresas, platformServices, L, ntf, dbGet, uid, sha256Hex, empId, setListas]);
   const sidebarProps = useMemo(() => ({
     user: curUser,
     empresa: curEmp,
@@ -1038,7 +1023,7 @@ export default function App(){
     isMobile,
     ini,
     includeTreasury: treasuryEnabled,
-  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, ini, treasuryEnabled]);
+  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, treasuryEnabled]);
   const alertsPanelProps = useMemo(() => ({
     open: alertasOpen,
     AlertasPanelView,
@@ -1049,7 +1034,7 @@ export default function App(){
     setAlertasOcultas,
     setAlertasOpen,
     fmtD,
-  }), [alertasOpen, AlertasPanelView, alertas, alertasOcultas, alertasLeidas, fmtD]);
+  }), [alertasOpen, alertas, alertasOcultas, alertasLeidas]);
   const systemPanelProps = useMemo(() => ({
     open: systemOpen,
     SystemMessagesPanelView,
@@ -1060,7 +1045,7 @@ export default function App(){
     markAllSystemRead,
     setSystemOpen,
     RichTextBlock,
-  }), [systemOpen, SystemMessagesPanelView, currentEmpresa, systemMessages, systemLeidas, markSystemRead, markAllSystemRead]);
+  }), [systemOpen, currentEmpresa, systemMessages, systemLeidas, markSystemRead, markAllSystemRead]);
   const modalLayerProps = useMemo(() => ({
     mOpen,
     CoreModalRouter,
@@ -1071,7 +1056,7 @@ export default function App(){
     stateSetters: modalStateSetters,
     actions: { ntf, cSave, saveMov, saveFacturaDoc, uid, today },
     helpers: { normalizeSocialPiece, crmNormalizeOpportunity },
-  }), [mOpen, CoreModalRouter, mData, closeM, VP, operationModalComponents, modalStateSetters, ntf, cSave, saveMov, saveFacturaDoc, uid, today, normalizeSocialPiece]);
+  }), [mOpen, mData, closeM, VP, operationModalComponents, modalStateSetters, ntf, cSave, saveMov, saveFacturaDoc]);
   const adminOverlayProps = useMemo(() => ({
     adminOpen,
     curEmp,
@@ -1140,7 +1125,7 @@ export default function App(){
       syncFacturaWithBsale,
       inspectFacturaBsaleSync,
     },
-  }), [curUser, curEmp, setters, openM, crmSavingRef, normalizeSocialPiece, treasuryProps, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync]);
+  }), [curUser, curEmp, setters, openM, crmSavingRef, treasuryProps, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync]);
   const viewRendererProps = useMemo(() => ({
     navigation: navigationProps,
     VP,

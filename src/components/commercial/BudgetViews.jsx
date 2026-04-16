@@ -121,7 +121,6 @@ export function BudgetListSection({
   total, aceptados, acceptedCount, clientes, producciones, programas, piezas, contratos,
   recurringSummary, budgetRefLabel, today, fmtM, fmtMoney,
   setEstadoRapido, navTo, onOpenPdf, onSendWhatsApp, onSendEmail, onDelete,
-  Stat, SearchBar, FilterSel, Btn, FSl, GBtn, DBtn, Card, TH, TD, Badge, Empty, Paginator, XBtn,
 }) {
   return <div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
@@ -267,7 +266,9 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
       const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
       if (remoteResult?.ok) return remoteResult;
       if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
-    } catch {}
+    } catch (error) {
+      console.warn("[budget-email] No pudimos entregar el correo remoto del presupuesto", error);
+    }
     if (Array.isArray(draft?.attachments) && draft.attachments.length) {
       window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
     }
@@ -369,8 +370,6 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
       }}
       onSendEmail={openBudgetEmailComposer}
       onDelete={(id) => cDel(presupuestos, setPresupuestos, id, null, "Presupuesto eliminado")}
-      Stat={Stat} SearchBar={SearchBar} FilterSel={FilterSel} Btn={Btn} FSl={FSl} GBtn={GBtn} DBtn={DBtn}
-      Card={Card} TH={TH} TD={TD} Badge={Badge} Empty={Empty} Paginator={Paginator} XBtn={XBtn}
     />
     <TransactionalEmailComposerModal
       open={emailComposerOpen}
@@ -382,7 +381,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
   </div>;
 }
 
-export function ViewCts({ empresa, user, platformApi, contratos, clientes, presupuestos, facturas, openM, canDo, cDel, setContratos }) {
+export function ViewCts({ empresa, user, platformApi, contratos, clientes, presupuestos, openM, canDo, cDel, setContratos }) {
   const empId = empresa?.id;
   const [q, setQ] = React.useState("");
   const [fe, setFe] = React.useState("");
@@ -436,7 +435,9 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
       if (remoteResult?.ok) return remoteResult;
       if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
-    } catch {}
+    } catch (error) {
+      console.warn("[contract-email] No pudimos entregar el correo remoto del contrato", error);
+    }
     if (Array.isArray(draft?.attachments) && draft.attachments.length) {
       window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
     }
@@ -666,7 +667,9 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
       const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
       if (remoteResult?.ok) return remoteResult;
       if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
-    } catch {}
+    } catch (error) {
+      console.warn("[budget-detail-email] No pudimos entregar el correo remoto del presupuesto", error);
+    }
     if (Array.isArray(draft?.attachments) && draft.attachments.length) {
       window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
     }
@@ -832,12 +835,9 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
     exchangeRate,
     subtotalOrigen,
     subtotal,
-    ivaValOrigen,
     ivaVal,
-    totalOrigen,
     total,
     recurringMonths,
-    projectedTotalOrigen,
     projectedTotal,
     contratosCli,
     draftRestored,

@@ -1,11 +1,8 @@
 import React, { useState } from "react";
 import { ContactBtns } from "../shared/ContactButtons";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
-
-const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
-const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
-const RESPONSIVE_CLIENT_CARD_GRID = "repeat(auto-fit,minmax(min(100%,240px),1fr))";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
   Badge,
@@ -70,7 +67,7 @@ export function ViewClientes({
   );
 
   return (
-    <div style={{ width: "100%", minWidth: 0 }}>
+    <div>
       <ModuleHeader
         module="Clientes"
         title="Clientes"
@@ -85,7 +82,7 @@ export function ViewClientes({
       </div>
       {vista === "cards" ? (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CLIENT_CARD_GRID, gap: 16, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
             {fd.slice((pg - 1) * PP, pg * PP).map(c => {
               const pr = (producciones || []).filter(p => p.cliId === c.id).length;
               let ti = 0;
@@ -185,16 +182,10 @@ export function ViewCliDet({
   const empId = empresa?.id;
   const canManageClients = !!canDo?.("clientes");
   const bal = useBal(movimientos, empId);
+  const c = (clientes || []).find(x => x.id === id);
   const [proSort, setProSort] = useState("name-asc");
   const [pgSort, setPgSort] = useState("name-asc");
   const [pzSort, setPzSort] = useState("name-asc");
-  const [emailChoice, setEmailChoice] = useState(null);
-  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
-  const [emailComposerDraft, setEmailComposerDraft] = useState(null);
-  const [emailComposerSending, setEmailComposerSending] = useState(false);
-  const [emailPreview, setEmailPreview] = useState(null);
-  const c = (clientes || []).find(x => x.id === id);
-  if (!c) return <Empty text="No encontrado" />;
   const prs = (producciones || []).filter(p => p.cliId === id);
   const pgs = (programas || []).filter(p => p.cliId === id);
   const ctn = (piezas || []).filter(p => p.cliId === id);
@@ -234,6 +225,13 @@ export function ViewCliDet({
     if (pzSort === "balance-asc") return ba - bb;
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
+  const [emailChoice, setEmailChoice] = useState(null);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [emailComposerDraft, setEmailComposerDraft] = useState(null);
+  const [emailComposerSending, setEmailComposerSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(null);
+  const [deleteClientConfirmOpen, setDeleteClientConfirmOpen] = useState(false);
+  if (!c) return <Empty text="No encontrado" />;
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const recordClientEmail = async ({ draft, recipients, delivery = null, source = "remote" }) => {
     if (!c?.id) return;
@@ -354,14 +352,14 @@ export function ViewCliDet({
 
   return (
     <div>
-      <DetHeader title={c.nom} tag={c.ind} meta={[c.rut && `RUT: ${c.rut}`, c.dir].filter(Boolean)} actions={canManageClients && <><GBtn onClick={() => openM("cli", c)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageClients) return; if (!confirm("¿Eliminar?")) return; cDel(clientes, setClientes, id, () => navTo("clientes"), "Cliente eliminado"); }}>🗑 Eliminar</DBtn></>} />
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+      <DetHeader title={c.nom} tag={c.ind} meta={[c.rut && `RUT: ${c.rut}`, c.dir].filter(Boolean)} actions={canManageClients && <><GBtn onClick={() => openM("cli", c)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageClients) return; setDeleteClientConfirmOpen(true); }}>🗑 Eliminar</DBtn></>} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <Stat label="Asociaciones" value={prs.length + pgs.length + ctn.length} accent="var(--cy)" vc="var(--cy)" />
         <Stat label="Contratos" value={cts.length} />
         <Stat label="Ingresos" value={fmtM(ti)} accent="#00e08a" vc="#00e08a" />
         <Stat label="Balance" value={fmtM(ti - tg)} accent={ti - tg >= 0 ? "#00e08a" : "#ff5566"} vc={ti - tg >= 0 ? "#00e08a" : "#ff5566"} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         <Card title="Contactos">
           {(c.contactos || []).length > 0 ? (c.contactos || []).map(co => <div key={co.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--cg)", border: "1px solid var(--cm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--cy)", flexShrink: 0 }}>{ini(co.nom)}</div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{co.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{co.car || "—"}</div></div></div><div style={{ fontSize: 11, color: "var(--gr3)", paddingLeft: 38, marginBottom: 8 }}>✉ {co.ema || "—"} &nbsp;·&nbsp; ☎ {co.tel || "—"}</div>{co.not && <div style={{ fontSize: 11, color: "var(--gr2)", paddingLeft: 38, marginBottom: 8 }}>{co.not}</div>}<div style={{ paddingLeft: 38 }}><ContactBtns tel={co.tel} ema={co.ema} nombre={co.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${co.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} onEmail={co?.ema ? () => openClientEmailChoice(co) : null} emailLabel="Correo" /></div></div>) : <Empty text="Sin contactos registrados" />}
         </Card>
@@ -447,6 +445,17 @@ export function ViewCliDet({
         sending={emailComposerSending}
         onClose={closeClientEmailComposer}
         onSend={sendClientEmail}
+      />
+      <ConfirmActionDialog
+        open={deleteClientConfirmOpen}
+        title="Eliminar cliente"
+        message={`Vamos a eliminar a ${c.nom || "este cliente"} del laboratorio. Esta acción quitará su ficha comercial actual.`}
+        confirmLabel="Sí, eliminar cliente"
+        onClose={() => setDeleteClientConfirmOpen(false)}
+        onConfirm={() => {
+          setDeleteClientConfirmOpen(false);
+          cDel(clientes, setClientes, id, () => navTo("clientes"), "Cliente eliminado");
+        }}
       />
     </div>
   );

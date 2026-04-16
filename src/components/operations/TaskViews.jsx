@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Btn, Card, Empty, GBtn, ModuleHeader } from "../../lib/ui/components";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 
-const RESPONSIVE_TASK_SUMMARY_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
-
-export function ViewTareas({
+export function ViewTareas(props) {
+  const {
   empresa,
   user,
   tareas,
@@ -15,17 +15,18 @@ export function ViewTareas({
   openM,
   canDo,
   setTareas,
-  TareaCard,
   COLS_TAREAS,
   normalizeTaskAssignees,
   getAssignedIds,
-}) {
+  } = props;
+  const TareaCardComponent = props.TareaCard || props.tareaCardComponent;
   const empId = empresa?.id;
   const canManageTasks = !!(canDo && canDo("tareas"));
   const [filtro, setFiltro] = useState("mis");
   const [filtroRef, setFiltroRef] = useState("");
   const [dragId, setDragId] = useState(null);
   const [dropCol, setDropCol] = useState("");
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth <= 768 : false);
   const [mobileCol, setMobileCol] = useState("Pendiente");
   const dragIdRef = useRef(null);
@@ -66,14 +67,13 @@ export function ViewTareas({
 
   const deleteTarea = id => {
     if (!canManageTasks) return;
-    if (!confirm("¿Eliminar tarea?")) return;
     setTareas(normalizedTareas.filter(t => t.id !== id));
   };
 
   const colColors = { Pendiente: "var(--bdr2)", "En Progreso": "#60a5fa", "En Revisión": "#fbbf24", Completada: "#4ade80" };
   const mobileItems = porColumna(mobileCol);
 
-  return <div style={{ width: "100%", minWidth: 0 }}>
+  return <div>
     <ModuleHeader
       module="Tareas"
       title="Pipeline de Tareas"
@@ -96,7 +96,7 @@ export function ViewTareas({
     />
 
     {isMobile ? <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_TASK_SUMMARY_GRID, gap: 10, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
         {COLS_TAREAS.map(col => {
           const count = porColumna(col).length;
           const active = mobileCol === col;
@@ -107,19 +107,21 @@ export function ViewTareas({
         })}
       </div>
       <Card title={mobileCol} sub={`${mobileItems.length} tarea${mobileItems.length !== 1 ? "s" : ""}`} action={canManageTasks ? { label: "+ Tarea", fn: () => openM("tarea", { estado: mobileCol }) } : null}>
-        {mobileItems.length === 0
+        {!TareaCardComponent
+          ? <Empty text="No pudimos cargar la vista de tareas" sub="Recarga el módulo o vuelve a abrirlo desde el menú principal." />
+          : mobileItems.length === 0
           ? <Empty text="Sin tareas en este estado" sub="Cambia de estado o crea una tarea nueva." />
           : mobileItems.map(t => (
-            <TareaCard key={t.id} tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
+            <TareaCardComponent key={t.id} tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
               onEdit={canManageTasks ? item => openM("tarea", item) : undefined}
-              onDelete={deleteTarea}
+              onDelete={id => setPendingDeleteTaskId(id)}
               onChangeEstado={changeEstado}
               onOpen={canManageTasks ? item => openM("tarea", item) : undefined}
             />
           ))
         }
       </Card>
-    </> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, alignItems: "start" }}>
+    </> : <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, alignItems: "start" }}>
       {COLS_TAREAS.map(col => {
         const items = porColumna(col);
         return (
@@ -141,13 +143,15 @@ export function ViewTareas({
               onDrop={async e => { e.preventDefault(); e.stopPropagation(); await handleDrop(e, col); }}
               style={{ minHeight: 80, padding: dropCol === col ? 6 : 0, borderRadius: 10, background: dropCol === col ? "var(--cg)" : "transparent", transition: ".12s" }}
             >
-              {items.length === 0
+              {!TareaCardComponent
+                ? <div style={{ padding: 16, textAlign: "center", color: "var(--gr)", fontSize: 12, fontStyle: "italic", border: "1px dashed var(--bdr)", borderRadius: 10 }}>No pudimos cargar las tarjetas de tareas</div>
+                : items.length === 0
                 ? <div style={{ padding: 16, textAlign: "center", color: "var(--gr)", fontSize: 12, fontStyle: "italic", border: "1px dashed var(--bdr)", borderRadius: 10 }}>Sin tareas</div>
                 : items.map(t => (
                   <div key={t.id} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dropCol !== col) setDropCol(col); }} onDrop={async e => { e.preventDefault(); e.stopPropagation(); await handleDrop(e, col); }}>
-                    <TareaCard tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
+                    <TareaCardComponent tarea={t} producciones={producciones} programas={programas} piezas={piezas} oportunidades={crmOpps} crew={crew}
                       onEdit={canManageTasks ? item => openM("tarea", item) : undefined}
-                      onDelete={deleteTarea}
+                      onDelete={id => setPendingDeleteTaskId(id)}
                       onChangeEstado={changeEstado}
                       onOpen={canManageTasks ? item => openM("tarea", item) : undefined}
                       draggable
@@ -162,5 +166,17 @@ export function ViewTareas({
         );
       })}
     </div>}
+    <ConfirmActionDialog
+      open={Boolean(pendingDeleteTaskId)}
+      title="Eliminar tarea"
+      message="¿Eliminar tarea?"
+      confirmLabel="Eliminar tarea"
+      onClose={() => setPendingDeleteTaskId(null)}
+      onConfirm={() => {
+        if (!pendingDeleteTaskId) return;
+        deleteTarea(pendingDeleteTaskId);
+        setPendingDeleteTaskId(null);
+      }}
+    />
   </div>;
 }

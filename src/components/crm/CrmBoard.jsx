@@ -2,10 +2,6 @@ import React from "react";
 import { Badge, Btn, Card, DBtn, Empty, FilterSel, FSl, GBtn, Paginator, SearchBar, Stat, TD, TH, ViewModeToggle } from "../../lib/ui/components";
 import { exportCrmCsv } from "../../lib/utils/crm";
 
-const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
-const CRM_STAGE_WIDTH = 240;
-const CRM_COLLAPSED_STAGE_WIDTH = 82;
-
 export function CrmBoard({
   scopedOpps,
   scopedStages,
@@ -63,7 +59,7 @@ export function CrmBoard({
 }) {
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <Stat label="Oportunidades" value={scopedOpps.length} accent="var(--cy)" vc="var(--cy)" />
         <Stat label="Pipeline activo" value={scopedOpps.filter(opp => !crmStageMeta(opp.stageId, scopedStages).closedWon && !crmStageMeta(opp.stageId, scopedStages).closedLost).length} />
         <Stat label="Ganadas" value={scopedOpps.filter(opp => crmStageMeta(opp.stageId, scopedStages).closedWon || opp.status === "Ganada").length} accent="#00e08a" vc="#00e08a" />
@@ -138,12 +134,12 @@ export function CrmBoard({
           </Card>
         </>
       ) : (
-        <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8, alignItems: "stretch", width: "100%", minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8, alignItems: "stretch" }}>
           {scopedStages.map(stage => {
             const stageItems = sorted.filter(opp => opp.stageId === stage.id);
             const totalStage = stageItems.reduce((sum, opp) => sum + Number(opp.monto_estimado || 0), 0);
             const collapsed = collapsedStages.includes(stage.id);
-            return <Card key={stage.id} title={collapsed ? <span style={{ writingMode: "vertical-rl", textOrientation: "mixed", display: "inline-block", minHeight: 120 }}>{stage.name}</span> : stage.name} sub={collapsed ? `${stageItems.length}` : `${stageItems.length} oportunidad${stageItems.length === 1 ? "" : "es"} · ${fmtM(totalStage)}`} style={{ padding: 14, minWidth: collapsed ? CRM_COLLAPSED_STAGE_WIDTH : CRM_STAGE_WIDTH, width: collapsed ? CRM_COLLAPSED_STAGE_WIDTH : CRM_STAGE_WIDTH, flexShrink: 0, transition: "width .2s ease" }} action={{ label: collapsed ? "›" : "‹", fn: () => toggleStageCollapsed(stage.id) }}>
+            return <Card key={stage.id} title={collapsed ? <span style={{ writingMode: "vertical-rl", textOrientation: "mixed", display: "inline-block", minHeight: 120 }}>{stage.name}</span> : stage.name} sub={collapsed ? `${stageItems.length}` : `${stageItems.length} oportunidad${stageItems.length === 1 ? "" : "es"} · ${fmtM(totalStage)}`} style={{ padding: 14, minWidth: collapsed ? 86 : 240, width: collapsed ? 86 : 280, flexShrink: 0, transition: "width .2s ease" }} action={{ label: collapsed ? "›" : "‹", fn: () => toggleStageCollapsed(stage.id) }}>
               <div onDragOver={e => e.preventDefault()} onDrop={async e => { e.preventDefault(); const oppId = e.dataTransfer.getData("text/plain"); const opp = scopedOpps.find(item => item.id === oppId); if (opp && opp.stageId !== stage.id) await updateStage(opp, stage.id); }} style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 220, alignItems: collapsed ? "stretch" : "initial" }}>
                 {!collapsed && canManageCrm && <GBtn sm onClick={() => openM("crm-opp", { stageId: stage.id, status: stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : "Activa" })}>+ Nuevo</GBtn>}
                 {collapsed && <div style={{ display: "grid", placeItems: "center", minHeight: 180, color: "var(--gr2)", fontSize: 28, fontWeight: 800 }}>{stageItems.length}</div>}

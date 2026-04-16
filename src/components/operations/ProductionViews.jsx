@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ContactBtns } from "../shared/ContactButtons";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import {
   Badge,
   Btn,
@@ -26,10 +27,6 @@ import {
 import { DEFAULT_LISTAS, contractsForReference, hasAddon, today as helperToday, uid as helperUid } from "../../lib/utils/helpers";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
-const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,220px),1fr))";
-const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
-const RESPONSIVE_COMPACT_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
 
 function parseTarifa(t) {
   return parseInt(String(t || 0).replace(/[^0-9]/g, ""), 10) || 0;
@@ -41,7 +38,7 @@ function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, i
   const todos = safeCrew.filter(x => x.empId === empId);
   const asig = todos.filter(x => safeAssigned.includes(x.id));
   const disp = todos.filter(x => !safeAssigned.includes(x.id) && x.active !== false);
-  return <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
     <Card title={`Crew Asignado (${asig.length})`}>
       {asig.length ? asig.map(m => <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}>
         <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--bg)", flexShrink: 0 }}>{ini(m.nom)}</div>
@@ -74,6 +71,7 @@ export function ViewPros({
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("list");
   const [pg, setPg] = useState(1);
   const PP = 10;
@@ -114,15 +112,11 @@ export function ViewPros({
         setProducciones((producciones || []).map(item => selectedIds.includes(item.id) ? { ...item, est: bulkEstado } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {canManageProjects && <DBtn sm onClick={() => {
-        if (!confirm(`¿Eliminar ${selectedIds.length} proyecto${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setProducciones((producciones || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionados</DBtn>}
+      {canManageProjects && <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionados</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(p => {
           const c = (clientes || []).find(x => x.id === p.cliId);
           const b = bal(p.id);
@@ -138,7 +132,7 @@ export function ViewPros({
               <Badge label={p.tip || "Sin tipo"} color="gray" sm />
               {p.ini && <Badge label={`Ini ${fmtD(p.ini)}`} color="cyan" sm />}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
               <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Ingresos</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: "#00e08a", marginTop: 4 }}>{fmtM(b.i)}</div></div>
               <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Balance</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: b.b >= 0 ? "#00e08a" : "#ff5566", marginTop: 4 }}>{fmtM(b.b)}</div></div>
             </div>
@@ -169,12 +163,24 @@ export function ViewPros({
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
     </Card>}
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar proyectos"
+      message={`¿Eliminar ${selectedIds.length} proyecto${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`}
+      confirmLabel="Eliminar seleccionados"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setBulkDeleteConfirmOpen(false);
+        setProducciones((producciones || []).filter(item => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }
 
 export function ViewProDet(props) {
   const {
-    id, empresa, user, clientes, producciones, programas, piezas, contratos, movimientos, crew, eventos, tareas, navTo, openM, canDo, cSave, cDel, saveMov, delMov, setProducciones, setMovimientos, setTareas, ntf,
+    id, empresa, user, clientes, producciones, programas, piezas, contratos, movimientos, crew, eventos, tareas, navTo, openM, canDo, cDel, saveMov, delMov, setProducciones, setEventos, setTareas, ntf,
     useBal, fmtM, fmtD, ini, ComentariosBlock, MovBlock, MiniCal, TareasContexto, exportMovCSV, exportMovPDF, normalizeTaskAssignees, getAssignedIds,
     today = helperToday, uid = helperUid,
   } = props;
@@ -184,23 +190,24 @@ export function ViewProDet(props) {
   const canManageMoves = !!(canDo && canDo("movimientos"));
   const canManageCalendar = !!(canDo && canDo("calendario"));
   const bal = useBal(movimientos, empId);
+  const [tab, setTab] = useState(0);
+  const [deleteProjectConfirmOpen, setDeleteProjectConfirmOpen] = useState(false);
   const p = (producciones || []).find(x => x.id === id); if (!p) return <Empty text="No encontrado" />;
   const c = (clientes || []).find(x => x.id === p.cliId);
   const contratosRel = contractsForReference(contratos || [], p.cliId, "produccion", id);
   const b = bal(id); const mv = (movimientos || []).filter(m => m.eid === id);
   const pCrew = (crew || []).filter(x => x.empId === empId && (p.crewIds || []).includes(x.id));
   const cContacto = (c?.contactos || [])[0];
-  const [tab, setTab] = useState(0);
   const addCrew = async crId => { if (!canManageProjects) return; const next = (producciones || []).map(x => x.id === id ? { ...x, crewIds: [...(x.crewIds || []), crId] } : x); await setProducciones(next); };
   const remCrew = async crId => { if (!canManageProjects) return; const next = (producciones || []).map(x => x.id === id ? { ...x, crewIds: (x.crewIds || []).filter(i => i !== crId) } : x); await setProducciones(next); };
   return <div style={{ width: "100%", minWidth: 0 }}>
     <DetHeader title={p.nom} tag={p.tip} badges={[<Badge key={0} label={p.est} />]} meta={[c && `Cliente: ${c.nom}`, p.ini && `Inicio: ${fmtD(p.ini)}`, p.fin && `Entrega: ${fmtD(p.fin)}`].filter(Boolean)} des={p.des}
-      actions={canManageProjects && <><GBtn onClick={() => openM("pro", p)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageProjects) return; if (!confirm("¿Eliminar?")) return; cDel(producciones, setProducciones, id, () => navTo("producciones"), "Proyecto eliminado"); }}>🗑</DBtn></>} />
+      actions={canManageProjects && <><GBtn onClick={() => openM("pro", p)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageProjects) return; setDeleteProjectConfirmOpen(true); }}>🗑</DBtn></>} />
     {cContacto && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 8, marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
       <span style={{ fontSize: 12, color: "var(--gr2)" }}>Contacto: <b style={{ color: "var(--wh)" }}>{cContacto.nom}</b> {cContacto.car ? `· ${cContacto.car}` : ""}</span>
       <ContactBtns tel={cContacto.tel} ema={cContacto.ema} nombre={cContacto.nom} origen={empresa?.nombre || "tu empresa"} mensaje={`Hola ${cContacto.nom}, te contactamos desde ${empresa?.nombre || "tu empresa"}.`} />
     </div>}
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
@@ -215,18 +222,29 @@ export function ViewProDet(props) {
     {tab === 1 && <MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pro" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 2 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pro" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 3 && <CrewTab crew={crew || []} empId={empId} asignados={p.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManageProjects} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pro", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={ini} fmtM={fmtM} />}
-    {tab === 4 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, alignItems: "start" }}>
+    {tab === 4 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
       <Card title="Fechas Base del Proyecto" action={canDo && canDo("producciones") ? { label: "✏ Editar Fechas", fn: () => openM("pro", p) } : null}>
         <KV label="Inicio" value={p.ini ? fmtD(p.ini) : "Por definir"} />
         <KV label="Entrega" value={p.fin ? fmtD(p.fin) : "Por definir"} />
       </Card>
-      <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "produccion" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await cSave((eventos || []).filter(x => x.id !== evId), () => { }, {}); }} canEdit={canManageCalendar} titulo={p.nom} />
+      <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "produccion" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await setEventos((eventos || []).filter(x => x.id !== evId)); }} canEdit={canManageCalendar} titulo={p.nom} />
     </div>}
     {tab === 5 && <Card title="Contratos Relacionados" action={canDo && canDo("contratos") ? { label: "+ Nuevo", fn: () => openM("ct", { cliId: p.cliId, pids: [`p:${id}`], tip: "Producción", nom: `Contrato ${p.nom}` }) } : null}>
       {contratosRel.map(ct => <div key={ct.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 18 }}>📄</span><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{ct.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{ct.tip}{ct.vig ? ` · ${fmtD(ct.vig)}` : ""}</div></div><Badge label={ct.est} />{ct.mon && <span style={{ fontFamily: "var(--fm)", fontSize: 12 }}>{fmtM(ct.mon)}</span>}</div>)}
       {!contratosRel.length && <Empty text="Sin contratos relacionados" />}
     </Card>}
     {tasksEnabled && tab === 6 && <TareasContexto title="Tareas del Proyecto" refTipo="pro" refId={id} tareas={Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object" && t.empId === empId) : []} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={canDo && canDo("producciones")} />}
+    <ConfirmActionDialog
+      open={deleteProjectConfirmOpen}
+      title="Eliminar proyecto"
+      message={`Vamos a eliminar el proyecto ${p.nom || ""} del laboratorio.`}
+      confirmLabel="Sí, eliminar proyecto"
+      onClose={() => setDeleteProjectConfirmOpen(false)}
+      onConfirm={() => {
+        setDeleteProjectConfirmOpen(false);
+        cDel(producciones, setProducciones, id, () => navTo("producciones"), "Proyecto eliminado");
+      }}
+    />
   </div>;
 }
 
@@ -242,6 +260,7 @@ export function ViewPgs({
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("cards");
   const [pg, setPg] = useState(1);
   const PP = 9;
@@ -278,14 +297,10 @@ export function ViewPgs({
         setProgramas((programas || []).map(item => selectedIds.includes(item.id) ? { ...item, est: bulkEstado } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {canManagePrograms && <DBtn sm onClick={() => {
-        if (!confirm(`¿Eliminar ${selectedIds.length} producción${selectedIds.length === 1 ? "" : "es"} seleccionada${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setProgramas((programas || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionadas</DBtn>}
+      {canManagePrograms && <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionadas</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
       {fd.slice((pg - 1) * PP, pg * PP).map(pg_ => {
         const eps = (episodios || []).filter(e => e.pgId === pg_.id);
         const pub = eps.filter(e => e.estado === "Publicado").length;
@@ -297,7 +312,7 @@ export function ViewPgs({
           <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800, marginBottom: 5, lineHeight: 1.2 }}>{pg_.nom}</div>
           <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>{pg_.can || "Sin canal"} · {pg_.fre || ""}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}><Badge label={pg_.est} />{pg_.totalEp && <Badge label={`${pg_.totalEp} ep.`} color="gray" />}</div>
-          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 6, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
             {[["Total", eps.length, "var(--wh)"], ["Pub.", pub, "#00e08a"], ["Aus.", aus, "var(--cy)"]].map(([l, v, c]) => <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{v}</div><div style={{ fontSize: 9, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{l}</div></div>)}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 10 }}>
@@ -327,6 +342,18 @@ export function ViewPgs({
     </Card>}
     {!fd.length && vista === "cards" && <Empty text="Sin producciones" sub="Crea la primera con el botón superior" />}
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar producciones"
+      message={`¿Eliminar ${selectedIds.length} producción${selectedIds.length === 1 ? "" : "es"} seleccionada${selectedIds.length === 1 ? "" : "s"}?`}
+      confirmLabel="Eliminar seleccionadas"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setBulkDeleteConfirmOpen(false);
+        setProgramas((programas || []).filter(item => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }
 
@@ -344,6 +371,7 @@ export function ViewContenidos({
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("list");
   const [pg, setPg] = useState(1);
   const PP = 10;
@@ -364,7 +392,7 @@ export function ViewContenidos({
   const totalScheduled = fd.reduce((s, p) => s + (p.piezas || []).filter(pc => pc.est === "Programado").length, 0);
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
-  return <div style={{ width: "100%", minWidth: 0 }}>
+  return <div>
     <ModuleHeader
       module="Contenidos"
       title="Contenidos"
@@ -391,22 +419,17 @@ export function ViewContenidos({
         setPiezas((piezas || []).map(item => selectedIds.includes(item.id) ? { ...item, est: bulkEstado } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      <DBtn sm onClick={() => {
-        if (!canDo || !canDo("contenidos")) return;
-        if (!confirm(`¿Eliminar ${selectedIds.length} campaña${selectedIds.length === 1 ? "" : "s"} seleccionada${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setPiezas((piezas || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionadas</DBtn>
+      <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionadas</DBtn>
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 12, marginBottom: 18 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
       <Stat label="Planificadas" value={totalPlanned} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Creadas" value={totalCreated} accent="#7c5cff" vc="#7c5cff" />
       <Stat label="Programadas" value={totalScheduled} accent="#38bdf8" vc="#38bdf8" />
       <Stat label="Publicadas" value={totalPublished} accent="#00e08a" vc="#00e08a" />
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(pz => { const c = (clientes || []).find(x => x.id === pz.cliId); const b = bal(pz.id); return <div key={pz.id} onClick={() => navTo("contenido-det", pz.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
@@ -419,7 +442,7 @@ export function ViewContenidos({
             <Badge label={[pz.mes, pz.ano].filter(Boolean).join(" ") || "Sin mes"} color="cyan" sm />
             <Badge label={pz.plataforma || "Multi-plataforma"} color="gray" sm />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
             <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Piezas</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, marginTop: 4 }}>{countCampaignPieces(pz)}/{pz.plannedPieces || countCampaignPieces(pz)}</div></div>
             <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Balance</div><div style={{ fontFamily: "var(--fm)", fontSize: 14, color: b.b >= 0 ? "#00e08a" : "#ff5566", marginTop: 4 }}>{fmtM(b.b)}</div></div>
           </div>
@@ -447,12 +470,25 @@ export function ViewContenidos({
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
     </Card>}
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar campañas"
+      message={`¿Eliminar ${selectedIds.length} campaña${selectedIds.length === 1 ? "" : "s"} seleccionada${selectedIds.length === 1 ? "" : "s"}?`}
+      confirmLabel="Eliminar seleccionadas"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setBulkDeleteConfirmOpen(false);
+        if (!canDo || !canDo("contenidos")) return;
+        setPiezas((piezas || []).filter(item => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }
 
 export function ViewContenidoDet(props) {
   const {
-    id, empresa, user, clientes, piezas, movimientos, crew, eventos, tareas, navTo, openM, canDo, cSave, cDel, saveMov, delMov, setPiezas, setMovimientos, setTareas, ntf, producciones, programas,
+    id, empresa, user, clientes, piezas, movimientos, crew, eventos, tareas, navTo, openM, canDo, cDel, saveMov, delMov, setPiezas, setEventos, setTareas, ntf, producciones, programas,
     useBal, fmtM, fmtD, countCampaignPieces, ComentariosBlock, MovBlock, MiniCal, TareasContexto, exportMovCSV, exportMovPDF, normalizeTaskAssignees, getAssignedIds, normalizeSocialPiece,
     today = helperToday, uid = helperUid,
   } = props;
@@ -462,16 +498,18 @@ export function ViewContenidoDet(props) {
   const canManageMoves = !!(canDo && canDo("movimientos"));
   const canManageCalendar = !!(canDo && canDo("calendario"));
   const bal = useBal(movimientos, empId);
-  const pz = (piezas || []).find(x => x.id === id); if (!pz) return <Empty text="No encontrado" />;
-  const cli = (clientes || []).find(x => x.id === pz.cliId);
-  const b = bal(id); const mv = (movimientos || []).filter(m => m.eid === id);
-  const pCrew = (crew || []).filter(x => x.empId === empId && (pz.crewIds || []).includes(x.id));
   const [tab, setTab] = useState(0);
   const [piezaQ, setPiezaQ] = useState("");
   const [piezaEstado, setPiezaEstado] = useState("");
   const [piezaResp, setPiezaResp] = useState("");
   const [piezaSort, setPiezaSort] = useState("name-asc");
   const [piezaDetailId, setPiezaDetailId] = useState("");
+  const [deletePieceConfirmId, setDeletePieceConfirmId] = useState(null);
+  const [deleteCampaignConfirmOpen, setDeleteCampaignConfirmOpen] = useState(false);
+  const pz = (piezas || []).find(x => x.id === id); if (!pz) return <Empty text="No encontrado" />;
+  const cli = (clientes || []).find(x => x.id === pz.cliId);
+  const b = bal(id); const mv = (movimientos || []).filter(m => m.eid === id);
+  const pCrew = (crew || []).filter(x => x.empId === empId && (pz.crewIds || []).includes(x.id));
   const piezasCamp = (pz.piezas || []).filter(pc => (pc.nom || "").toLowerCase().includes(piezaQ.toLowerCase()) && (!piezaEstado || pc.est === piezaEstado));
   const piezasFiltradas = piezasCamp.filter(pc => (!piezaResp || pc.responsableId === piezaResp)).sort((a, b) => {
     if (piezaSort === "name-desc") return String(b.nom || "").localeCompare(String(a.nom || ""));
@@ -498,7 +536,6 @@ export function ViewContenidoDet(props) {
   };
   const deletePiece = async pieceId => {
     if (!canManageContent) return;
-    if (!confirm("¿Eliminar pieza?")) return;
     const next = (piezas || []).map(x => x.id !== id ? x : { ...x, piezas: (x.piezas || []).filter(p => p.id !== pieceId) });
     await setPiezas(next);
     ntf && ntf("Pieza eliminada", "warn");
@@ -510,10 +547,10 @@ export function ViewContenidoDet(props) {
     if (!base) return;
     await savePiece({ ...base, ...patch });
   };
-  return <div style={{ width: "100%", minWidth: 0 }}>
+  return <div>
     <DetHeader title={pz.nom} tag="Campaña" badges={[<Badge key={0} label={pz.est || "Planificada"} />]} meta={[cli && `Cliente: ${cli.nom}`, pz.plataforma && `Plataforma: ${pz.plataforma}`, [pz.mes, pz.ano].filter(Boolean).join(" "), pz.fin && `Cierre: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
-      actions={canManageContent && <><GBtn onClick={() => openM("contenido", pz)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageContent) return; if (!confirm("¿Eliminar campaña?")) return; cDel(piezas, setPiezas, id, () => navTo("contenidos"), "Campaña eliminada"); }}>🗑</DBtn></>} />
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+      actions={canManageContent && <><GBtn onClick={() => openM("contenido", pz)}>✏ Editar</GBtn><DBtn onClick={() => setDeleteCampaignConfirmOpen(true)}>🗑</DBtn></>} />
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)" />
@@ -526,7 +563,7 @@ export function ViewContenidoDet(props) {
     </div>}
     {tab === 0 && <ComentariosBlock items={pz.comentarios || []} onSave={async comentarios => { if (!canManageContent) return; await setPiezas((piezas || []).map(x => x.id === id ? { ...x, comentarios } : x)); }} onCreateTask={tasksEnabled ? async comment => { if (!canManageContent) return; const task = normalizeTaskAssignees({ id: uid(), empId, cr: today(), titulo: comment.text?.split("\n")[0]?.slice(0, 80) || `Seguimiento ${pz.nom}`, desc: comment.text || "", estado: "Pendiente", prioridad: "Media", fechaLimite: "", refTipo: "pz", refId: id, assignedIds: getAssignedIds(comment), asignadoA: getAssignedIds(comment)[0] || "" }); await setTareas([...(Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object") : []), task]); ntf && ntf("Comentario guardado y tarea creada ✓"); } : null} crewOptions={pCrew} canEdit={canManageContent} title="Comentarios de la Campaña" empresa={empresa} currentUser={user} />}
     {tab === 1 && <div>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 14 }}>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Publicadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#00e08a" }}>{piezasPub}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Programadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--cy)" }}>{piezasProgramadas}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
@@ -566,7 +603,7 @@ export function ViewContenidoDet(props) {
         </table></div>
       </Card>
     </div>}
-    {tab === 2 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+    {tab === 2 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <Card title="Calendario editorial" sub="Qué se viene, qué está atrasado y qué ya salió.">
         <div style={{ display: "grid", gap: 12 }}>
           <div>
@@ -610,8 +647,8 @@ export function ViewContenidoDet(props) {
     {tab === 3 && <MovBlock movimientos={mv} tipo="ingreso" eid={id} etype="pz" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 4 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pz" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 5 && <CrewTab crew={crew || []} empId={empId} asignados={pz.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManageContent} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pz", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={(name="")=>String(name||"").split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()} fmtM={fmtM} />}
-    {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "contenido" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await cSave((eventos || []).filter(x => x.id !== evId), () => {}, {}); }} canEdit={canManageCalendar} titulo={pz.nom} />}
-    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+    {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "contenido" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await setEventos((eventos || []).filter(x => x.id !== evId)); }} canEdit={canManageCalendar} titulo={pz.nom} />}
+    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <Card title="Datos de la Campaña">
         {[["Cliente", cli?.nom || "—"], ["Plataforma", pz.plataforma || "—"], ["Mes", pz.mes || "—"], ["Año", pz.ano || "—"], ["Estado", <Badge key={0} label={pz.est || "Planificada"} />], ["Piezas creadas", countCampaignPieces(pz)], ["Piezas mensuales", pz.plannedPieces || countCampaignPieces(pz)]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -623,7 +660,7 @@ export function ViewContenidoDet(props) {
     {tasksEnabled && tab === 8 && <TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object" && t.empId === empId) : []} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={canDo && canDo("contenidos")} />}
     <Modal open={!!pieceDetail} onClose={() => setPiezaDetailId("")} title={pieceDetail?.nom || "Pieza"} sub="Revisión completa de la pieza" wide>
       {pieceDetail && <>
-        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <Card title="Resumen">
             <KV label="Estado" value={<Badge label={pieceDetail.est || "Planificado"} />} />
             <KV label="Formato" value={pieceDetail.formato || "—"} />
@@ -640,7 +677,7 @@ export function ViewContenidoDet(props) {
             <KV label="Link final" value={pieceDetail.finalLink ? <a href={pieceDetail.finalLink} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
           </Card>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
           <Card title="Brief">
             <KV label="Objetivo" value={pieceDetail.objetivo || "—"} />
             <KV label="CTA" value={pieceDetail.cta || "—"} />
@@ -657,21 +694,46 @@ export function ViewContenidoDet(props) {
         </div>
       </>}
     </Modal>
+    <ConfirmActionDialog
+      open={Boolean(deletePieceConfirmId)}
+      title="Eliminar pieza"
+      message="¿Eliminar pieza?"
+      confirmLabel="Eliminar pieza"
+      onClose={() => setDeletePieceConfirmId(null)}
+      onConfirm={() => {
+        if (!deletePieceConfirmId) return;
+        void deletePiece(deletePieceConfirmId);
+        setDeletePieceConfirmId(null);
+      }}
+    />
+    <ConfirmActionDialog
+      open={deleteCampaignConfirmOpen}
+      title="Eliminar campaña"
+      message="¿Eliminar campaña?"
+      confirmLabel="Eliminar campaña"
+      onClose={() => setDeleteCampaignConfirmOpen(false)}
+      onConfirm={() => {
+        setDeleteCampaignConfirmOpen(false);
+        if (!canManageContent) return;
+        cDel(piezas, setPiezas, id, () => navTo("contenidos"), "Campaña eliminada");
+      }}
+    />
   </div>;
 }
 
 export function ViewEpDet(props) {
   const {
-    id, empresa, user, episodios, programas, movimientos, crew, eventos, navTo, openM, canDo, cSave, cDel, saveMov, delMov, setEpisodios, setMovimientos,
+    id, empresa, user, episodios, programas, movimientos, crew, navTo, openM, canDo, cDel, delMov, setEpisodios,
     useBal, fmtM, fmtD, ComentariosBlock, MovBlock,
   } = props;
   const empId = empresa?.id;
   const canManagePrograms = !!(canDo && canDo("programas"));
   const bal = useBal(movimientos, empId);
+  const [tab, setTab] = useState(0);
+  const [deleteEpisodeConfirmOpen, setDeleteEpisodeConfirmOpen] = useState(false);
   const ep = (episodios || []).find(x => x.id === id); if (!ep) return <Empty text="No encontrado" />;
   const pg_ = (programas || []).find(x => x.id === ep.pgId);
   const mv = (movimientos || []).filter(m => m.eid === id); const b = bal(id);
-  const [tab, setTab] = useState(0);
   const NEXT = { Planificado: "Grabado", Grabado: "En Edición", "En Edición": "Programado", Programado: "Publicado" };
   const STATUS = ["Planificado", "Grabado", "En Edición", "Programado", "Publicado", "Cancelado"];
   const changeStatus = async s => { if (!canManagePrograms) return; const next = (episodios || []).map(x => x.id === id ? { ...x, estado: s } : x); await setEpisodios(next); };
@@ -695,10 +757,10 @@ export function ViewEpDet(props) {
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {canDo && canDo("programas") && NEXT[ep.estado] && <Btn onClick={() => changeStatus(NEXT[ep.estado])}>→ {NEXT[ep.estado]}</Btn>}
-        {canDo && canDo("programas") && <><GBtn onClick={() => openM("ep", ep)}>✏ Editar</GBtn><DBtn onClick={() => { if (!confirm("¿Eliminar?")) return; cDel(episodios, setEpisodios, id, () => navTo("pg-det", ep.pgId), "Episodio eliminado"); }}>🗑</DBtn></>}
+        {canDo && canDo("programas") && <><GBtn onClick={() => openM("ep", ep)}>✏ Editar</GBtn><DBtn onClick={() => setDeleteEpisodeConfirmOpen(true)}>🗑</DBtn></>}
       </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Gastos Ep." value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} ítems`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Grabación" value={ep.fechaGrab ? fmtD(ep.fechaGrab) : "—"} accent="var(--cy)" />
       <Stat label="Emisión" value={ep.fechaEmision ? fmtD(ep.fechaEmision) : "—"} accent="#00e08a" />
@@ -706,7 +768,7 @@ export function ViewEpDet(props) {
     </div>
     <Tabs tabs={["Comentarios", "Información", "Gastos", "Crew"]} active={tab} onChange={setTab} />
     {tab === 0 && <ComentariosBlock items={ep.comentarios || []} onSave={async comentarios => { if (!canManagePrograms) return; const next = (episodios || []).map(x => x.id === id ? { ...x, comentarios } : x); await setEpisodios(next); }} crewOptions={pCrew} canEdit={canManagePrograms} title="Comentarios del Episodio" empresa={empresa} currentUser={user} />}
-    {tab === 1 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+    {tab === 1 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <Card title="Datos del Episodio">
         {[["Número", `#${String(ep.num).padStart(2, "0")}`], ["Invitado / Tema", ep.invitado || "—"], ["Locación", ep.locacion || "—"], ["Descripción", ep.descripcion || "—"], ["Notas", ep.notas || "—"]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -719,12 +781,23 @@ export function ViewEpDet(props) {
     </div>}
     {tab === 2 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="ep" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 3 && <CrewTab crew={crew || []} empId={empId} asignados={ep.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManagePrograms} />}
+    <ConfirmActionDialog
+      open={deleteEpisodeConfirmOpen}
+      title="Eliminar episodio"
+      message="¿Eliminar episodio?"
+      confirmLabel="Eliminar episodio"
+      onClose={() => setDeleteEpisodeConfirmOpen(false)}
+      onConfirm={() => {
+        setDeleteEpisodeConfirmOpen(false);
+        cDel(episodios, setEpisodios, id, () => navTo("pg-det", ep.pgId), "Episodio eliminado");
+      }}
+    />
   </div>;
 }
 
 export function ViewPgDet(props) {
   const {
-    id, empresa, user, clientes, producciones, programas, piezas, episodios, auspiciadores, movimientos, crew, eventos, tareas, navTo, openM, canDo, cSave, cDel, saveMov, delMov, setProgramas, setEpisodios, setMovimientos, setTareas, ntf,
+    id, empresa, user, clientes, producciones, programas, piezas, episodios, auspiciadores, movimientos, crew, eventos, tareas, navTo, openM, canDo, cDel, saveMov, delMov, setProgramas, setEventos, setTareas, ntf,
     useBal, fmtM, fmtD, ini, ComentariosBlock, MovBlock, MiniCal, TareasContexto, exportMovCSV, exportMovPDF, normalizeTaskAssignees, getAssignedIds, AusCard,
     today = helperToday, uid = helperUid,
   } = props;
@@ -734,13 +807,14 @@ export function ViewPgDet(props) {
   const canManageMoves = !!(canDo && canDo("movimientos"));
   const canManageCalendar = !!(canDo && canDo("calendario"));
   const bal = useBal(movimientos, empId);
+  const [tab, setTab] = useState(0);
+  const [deleteProgramConfirmOpen, setDeleteProgramConfirmOpen] = useState(false);
+  const [epQ, setEpQ] = useState(""); const [epF, setEpF] = useState(""); const [epSort, setEpSort] = useState("num-asc"); const [epPg, setEpPg] = useState(1); const EPP = 8;
   const pg_ = (programas || []).find(x => x.id === id); if (!pg_) return <Empty text="No encontrado" />;
   const eps = (episodios || []).filter(e => e.pgId === id).sort((a, b) => a.num - b.num);
   const aus = (auspiciadores || []).filter(a => (a.pids || []).includes(id));
   const b = bal(id); const mv = (movimientos || []).filter(m => m.eid === id);
   const tauz = aus.reduce((s, a) => s + Number(a.mon || 0), 0);
-  const [tab, setTab] = useState(0);
-  const [epQ, setEpQ] = useState(""); const [epF, setEpF] = useState(""); const [epSort, setEpSort] = useState("num-asc"); const [epPg, setEpPg] = useState(1); const EPP = 8;
   const epStats = { plan: eps.filter(e => e.estado === "Planificado").length, grab: eps.filter(e => e.estado === "Grabado").length, edit: eps.filter(e => e.estado === "En Edición").length, prog: eps.filter(e => e.estado === "Programado").length, pub: eps.filter(e => e.estado === "Publicado").length, can: eps.filter(e => e.estado === "Cancelado").length };
   const fdEps = eps.filter(e => (!epF || e.estado === epF) && (e.titulo.toLowerCase().includes(epQ.toLowerCase()) || (e.invitado || "").toLowerCase().includes(epQ.toLowerCase()))).sort((a, b) => {
     if (epSort === "title-asc") return String(a.titulo || "").localeCompare(String(b.titulo || ""));
@@ -756,8 +830,8 @@ export function ViewPgDet(props) {
   const cliAsoc = (clientes || []).find(x => x.id === pg_.cliId);
   return <div>
     <DetHeader title={pg_.nom} tag={pg_.tip} badges={[<Badge key={0} label={pg_.est} />]} meta={[pg_.can, pg_.fre, pg_.temporada && `Temp: ${pg_.temporada}`, pg_.conductor && `🎙 ${pg_.conductor}`, cliAsoc && `Cliente: ${cliAsoc.nom}`].filter(Boolean)} des={pg_.des}
-      actions={canManagePrograms && <><GBtn onClick={() => openM("pg", pg_)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManagePrograms) return; if (!confirm("¿Eliminar producción y episodios?")) return; cDel(programas, setProgramas, id, () => navTo("programas"), "Eliminado"); }}>🗑</DBtn></>} />
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+      actions={canManagePrograms && <><GBtn onClick={() => openM("pg", pg_)}>✏ Editar</GBtn><DBtn onClick={() => setDeleteProgramConfirmOpen(true)}>🗑</DBtn></>} />
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Episodios" value={eps.length} sub={`${epStats.plan} planificados`} />
       <Stat label="Publicados" value={epStats.pub} accent="#00e08a" vc="#00e08a" sub={`${epStats.grab} grabados`} />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
@@ -779,7 +853,7 @@ export function ViewPgDet(props) {
         <FilterSel value={epF} onChange={v => { setEpF(v); setEpPg(1); }} options={["Planificado", "Grabado", "En Edición", "Programado", "Publicado", "Cancelado"]} placeholder="Todo estados" />
         {canDo && canDo("programas") && <Btn onClick={() => openM("ep", { pgId: id, num: eps.length ? Math.max(...eps.map(e => e.num)) + 1 : 1 })}>+ Nuevo Episodio</Btn>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_COMPACT_GRID, gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 16 }}>
         {[["Planificado", epStats.plan, "#ffcc44"], ["Grabado", epStats.grab, "var(--cy)"], ["En Edición", epStats.edit, "var(--cy)"], ["Programado", epStats.prog, "#a855f7"], ["Publicado", epStats.pub, "#00e08a"], ["Cancelado", epStats.can, "#ff5566"]].map(([s, cnt, c]) => (
           <div key={s} onClick={() => setEpF(epF === s ? "" : s)} style={{ background: "var(--card)", border: `1px solid ${epF === s ? c : "var(--bdr)"}`, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}>
             <div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{cnt}</div>
@@ -811,11 +885,11 @@ export function ViewPgDet(props) {
     {tab === 3 && <MovBlock movimientos={mv} tipo="gasto" eid={id} etype="pg" onAdd={(eid, et, tipo) => openM("mov", { eid, et, tipo })} onDel={delMov} canEdit={canDo && canDo("movimientos")} />}
     {tab === 4 && <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>{canDo && canDo("auspiciadores") && <Btn onClick={() => openM("aus", { pids: [id] })}>+ Auspiciador</Btn>}</div>
-      {aus.length ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 12 }}>{aus.map(a => <AusCard key={a.id} a={a} pgs={[pg_]} onEdit={canDo && canDo("auspiciadores") ? () => openM("aus", a) : null} />)}</div> : <Empty text="Sin auspiciadores" />}
+      {aus.length ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>{aus.map(a => <AusCard key={a.id} a={a} pgs={[pg_]} onEdit={canDo && canDo("auspiciadores") ? () => openM("aus", a) : null} />)}</div> : <Empty text="Sin auspiciadores" />}
     </div>}
     {tab === 5 && <CrewTab crew={crew || []} empId={empId} asignados={pg_.crewIds || []} onAdd={addCrew} onRem={remCrew} canEdit={canManagePrograms} onHonorario={m => { if (!canManageMoves) return; saveMov({ eid: id, et: "pg", tipo: "gasto", cat: "Honorarios", des: `Honorarios ${m.nom}`, mon: parseTarifa(m.tarifa), fec: today() }); }} ini={ini} fmtM={fmtM} />}
-    {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "programa" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await cSave((eventos || []).filter(x => x.id !== evId), () => { }, {}); }} canEdit={canManageCalendar} titulo={pg_.nom} />}
-    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+    {tab === 6 && <MiniCal refId={id} eventos={eventos || []} onAdd={() => openM("evento", { ref: id, refTipo: "programa" })} onEdit={ev => openM("evento", ev)} onDel={async evId => { if (!canManageCalendar) return; await setEventos((eventos || []).filter(x => x.id !== evId)); }} canEdit={canManageCalendar} titulo={pg_.nom} />}
+    {tab === 7 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <Card title="Datos de la Producción">
         {[["Tipo", pg_.tip], ["Canal", pg_.can || "—"], ["Frecuencia", pg_.fre || "—"], ["Temporada", pg_.temporada || "—"], ["Total Ep.", pg_.totalEp || "—"], ["Estado", <Badge key={0} label={pg_.est} />], ["Cliente", cliAsoc?.nom || "—"]].map(([l, v]) => <KV key={l} label={l} value={v} />)}
       </Card>
@@ -825,6 +899,18 @@ export function ViewPgDet(props) {
       </Card>
     </div>}
     {tasksEnabled && tab === 8 && <TareasContexto title="Tareas de la Producción" refTipo="pg" refId={id} tareas={Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object" && t.empId === empId) : []} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={canDo && canDo("programas")} />}
+    <ConfirmActionDialog
+      open={deleteProgramConfirmOpen}
+      title="Eliminar producción"
+      message="¿Eliminar producción y episodios?"
+      confirmLabel="Eliminar producción"
+      onClose={() => setDeleteProgramConfirmOpen(false)}
+      onConfirm={() => {
+        setDeleteProgramConfirmOpen(false);
+        if (!canManagePrograms) return;
+        cDel(programas, setProgramas, id, () => navTo("programas"), "Eliminado");
+      }}
+    />
   </div>;
 }
 
@@ -838,6 +924,7 @@ export function ViewAus(props) {
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("cards");
   const [pg, setPg] = useState(1);
   const [detailId, setDetailId] = useState("");
@@ -880,15 +967,10 @@ export function ViewAus(props) {
         setAuspiciadores((auspiciadores || []).map(item => selectedIds.includes(item.id) ? { ...item, est: bulkEstado } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      <DBtn sm onClick={() => {
-        if (!canDo || !canDo("auspiciadores")) return;
-        if (!confirm(`¿Eliminar ${selectedIds.length} auspiciador${selectedIds.length === 1 ? "" : "es"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setAuspiciadores((auspiciadores || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionados</DBtn>
+      <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionados</DBtn>
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
-    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+    {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
       {fd.slice((pg - 1) * PP, pg * PP).map(a => {
         const pgs = (a.pids || []).map(pid => (programas || []).find(x => x.id === pid)).filter(Boolean);
         return <div key={a.id} onClick={() => setDetailId(a.id)} style={{ cursor: "pointer" }}><AusCard a={a} pgs={pgs} onEdit={canManageSponsors ? () => openM("aus", a) : null} onDel={canManageSponsors ? () => cDel(auspiciadores, setAuspiciadores, a.id, null, "Auspiciador eliminado") : null} /></div>;
@@ -915,7 +997,7 @@ export function ViewAus(props) {
     <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
     <Modal open={!!detail} onClose={() => setDetailId("")} title={detail?.nom || "Auspiciador"} sub="Ficha de auspiciador" wide>
       {detail && <>
-        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_DETAIL_GRID, gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <Card title="Información general">
             <KV label="Tipo" value={<Badge label={detail.tip || "—"} sm />} />
             <KV label="Estado" value={<Badge label={detail.est || "Activo"} color={(detail.est || "Activo") === "Activo" ? "green" : "gray"} sm />} />
@@ -941,6 +1023,19 @@ export function ViewAus(props) {
         </div>
       </>}
     </Modal>
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar auspiciadores"
+      message={`¿Eliminar ${selectedIds.length} auspiciador${selectedIds.length === 1 ? "" : "es"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`}
+      confirmLabel="Eliminar seleccionados"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setBulkDeleteConfirmOpen(false);
+        if (!canDo || !canDo("auspiciadores")) return;
+        setAuspiciadores((auspiciadores || []).filter(item => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }
 
@@ -953,6 +1048,7 @@ export function ViewCrew(props) {
   const [sortMode, setSortMode] = useState("az");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("list");
   const [pg, setPg] = useState(1);
   const PP = 10;
@@ -963,7 +1059,7 @@ export function ViewCrew(props) {
     if (sortMode === "recent") return String(b.cr || "").localeCompare(String(a.cr || ""));
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
-  const canEditMember = m => canManageCrew;
+  const canEditMember = () => canManageCrew;
   const canDeleteMember = m => canManageCrew && !m?.managedByUser;
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
@@ -1000,21 +1096,15 @@ export function ViewCrew(props) {
         setCrew((crew || []).map(item => selectedIds.includes(item.id) ? { ...item, active: bulkEstado === "Activo" } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {canManageCrew && <DBtn sm onClick={() => {
-        const removable = (crew || []).filter(item => selectedIds.includes(item.id) && !item?.managedByUser);
-        if (!removable.length) { alert("No hay seleccionados eliminables."); return; }
-        if (!confirm(`¿Eliminar ${removable.length} miembro${removable.length === 1 ? "" : "s"} seleccionado${removable.length === 1 ? "" : "s"}?`)) return;
-        setCrew((crew || []).filter(item => !removable.some(rem => rem.id === item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionados</DBtn>}
+      {canManageCrew && <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionados</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 16 }}>El crew interno proviene de `Usuarios`. Desde aquí puedes completar sus datos operativos; para cambiar nombre, cargo o estado base, usa `Panel Administrador &gt; Usuarios`.</div>
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_COMPACT_GRID, gap: 10, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginBottom: 20 }}>
       {AREAS.slice(0, 6).map(a => { const cnt = (crew || []).filter(x => x.empId === empId && x.area === a).length; return <div key={a} onClick={() => setFa(fa === a ? "" : a)} style={{ background: "var(--card)", border: `1px solid ${fa === a ? "var(--cy)" : "var(--bdr)"}`, borderRadius: 8, padding: "10px 12px", cursor: "pointer", textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: fa === a ? "var(--cy)" : "var(--wh)" }}>{cnt}</div><div style={{ fontSize: 9, color: "var(--gr2)", marginTop: 2 }}>{a}</div></div>; })}
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(m => <div key={m.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "var(--bg)", flexShrink: 0 }}>{ini(m.nom)}</div>
@@ -1070,6 +1160,24 @@ export function ViewCrew(props) {
         </table></div>
         <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />
       </Card>}
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar miembros"
+      message={(() => {
+        const removable = (crew || []).filter(item => selectedIds.includes(item.id) && !item?.managedByUser);
+        if (!removable.length) return "No hay seleccionados eliminables.";
+        return `¿Eliminar ${removable.length} miembro${removable.length === 1 ? "" : "s"} seleccionado${removable.length === 1 ? "" : "s"}?`;
+      })()}
+      confirmLabel="Eliminar seleccionados"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        const removable = (crew || []).filter(item => selectedIds.includes(item.id) && !item?.managedByUser);
+        setBulkDeleteConfirmOpen(false);
+        if (!removable.length) return;
+        setCrew((crew || []).filter(item => !removable.some(rem => rem.id === item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }
 
@@ -1083,6 +1191,7 @@ export function ViewActivos(props) {
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [vista, setVista] = useState("list");
   const [pg, setPg] = useState(1);
   const PP = 10;
@@ -1109,7 +1218,7 @@ export function ViewActivos(props) {
       description="Mantén control del equipamiento, su estado, valor y asignación dentro de la operación."
       actions={canManageAssets ? <Btn onClick={() => openM("activo", {})}>+ Nuevo Activo</Btn> : null}
     />
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Total Activos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Disponibles" value={dispCount} accent="#00e08a" vc="#00e08a" />
       <Stat label="En Uso" value={enUsoCount} accent="var(--cy)" vc="var(--cy)" />
@@ -1134,18 +1243,14 @@ export function ViewActivos(props) {
         setActivos((activos || []).map(item => selectedIds.includes(item.id) ? { ...item, estado: bulkEstado } : item));
         setSelectedIds([]);
       }}>Aplicar estado</GBtn>
-      {canManageAssets && <DBtn sm onClick={() => {
-        if (!confirm(`¿Eliminar ${selectedIds.length} activo${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`)) return;
-        setActivos((activos || []).filter(item => !selectedIds.includes(item.id)));
-        setSelectedIds([]);
-      }}>Eliminar seleccionados</DBtn>}
+      {canManageAssets && <DBtn sm onClick={() => setBulkDeleteConfirmOpen(true)}>Eliminar seleccionados</DBtn>}
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
       {ESTADOS.map(s => { const cnt = (activos || []).filter(a => a.empId === empId && a.estado === s).length; return <div key={s} onClick={() => setFe(fe === s ? "" : s)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, border: `1px solid ${fe === s ? statColor(s) : "var(--bdr2)"}`, background: fe === s ? statColor(s) + "22" : "transparent", cursor: "pointer", fontSize: 11, fontWeight: 600, color: fe === s ? statColor(s) : "var(--gr3)" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: statColor(s), flexShrink: 0 }} />{s} ({cnt})</div>; })}
     </div>
     {vista === "cards" ? <>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
@@ -1195,7 +1300,7 @@ export function ViewActivos(props) {
       </Card>}
     {CATS.filter(c => (activos || []).some(a => a.empId === empId && a.categoria === c)).length > 0 && <div style={{ marginTop: 16 }}>
       <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Por Categoría</div>
-      <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
         {CATS.filter(c => (activos || []).some(a => a.empId === empId && a.categoria === c)).map(c => {
           const items = (activos || []).filter(a => a.empId === empId && a.categoria === c);
           const val = items.reduce((s, a) => s + Number(a.valorCompra || 0), 0);
@@ -1207,5 +1312,17 @@ export function ViewActivos(props) {
         })}
       </div>
     </div>}
+    <ConfirmActionDialog
+      open={bulkDeleteConfirmOpen}
+      title="Eliminar activos"
+      message={`¿Eliminar ${selectedIds.length} activo${selectedIds.length === 1 ? "" : "s"} seleccionado${selectedIds.length === 1 ? "" : "s"}?`}
+      confirmLabel="Eliminar seleccionados"
+      onClose={() => setBulkDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setBulkDeleteConfirmOpen(false);
+        setActivos((activos || []).filter(item => !selectedIds.includes(item.id)));
+        setSelectedIds([]);
+      }}
+    />
   </div>;
 }

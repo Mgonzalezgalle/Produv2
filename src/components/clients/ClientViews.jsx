@@ -5,6 +5,7 @@ import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transa
 
 const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
 const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
+const RESPONSIVE_CLIENT_CARD_GRID = "repeat(auto-fit,minmax(min(100%,240px),1fr))";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
   Badge,
@@ -69,7 +70,7 @@ export function ViewClientes({
   );
 
   return (
-    <div>
+    <div style={{ width: "100%", minWidth: 0 }}>
       <ModuleHeader
         module="Clientes"
         title="Clientes"
@@ -84,7 +85,7 @@ export function ViewClientes({
       </div>
       {vista === "cards" ? (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CLIENT_CARD_GRID, gap: 16, marginBottom: 12 }}>
             {fd.slice((pg - 1) * PP, pg * PP).map(c => {
               const pr = (producciones || []).filter(p => p.cliId === c.id).length;
               let ti = 0;

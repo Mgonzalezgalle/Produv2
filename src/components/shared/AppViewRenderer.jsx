@@ -3,6 +3,8 @@ import { Card, Empty, GBtn } from "../../lib/ui/components";
 import { LoadingScreen } from "./ShellLayout";
 import { TREASURY_MODULE_ID } from "../../lib/utils/treasury";
 
+const withFullFrame = node => <div style={{ width: "100%", minWidth: 0 }}>{node}</div>;
+
 export function AppViewRenderer({
   navigation,
   VP,
@@ -89,47 +91,47 @@ export function AppViewRenderer({
 
   switch (view) {
     case "dashboard":
-      return <ViewDashboard {...VP} alertas={alertas} useBal={useBal} fmtM={fmtM} />;
+      return withFullFrame(<ViewDashboard {...VP} alertas={alertas} useBal={useBal} fmtM={fmtM} />);
     case "tareas":
-      return <ViewTareas {...VP} setTareas={modules.setters.setTareas} openM={modules.openM} canDo={VP.canDo} TareaCard={TareaCard} COLS_TAREAS={COLS_TAREAS} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />;
+      return withFullFrame(<ViewTareas {...VP} setTareas={modules.setters.setTareas} openM={modules.openM} canDo={VP.canDo} TareaCard={TareaCard} COLS_TAREAS={COLS_TAREAS} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />);
     case "clientes":
-      return <ViewClientes {...VP} useBal={useBal} ini={modules.ini} fmtM={fmtM} />;
+      return withFullFrame(<ViewClientes {...VP} useBal={useBal} ini={modules.ini} fmtM={fmtM} />);
     case "cli-det":
-      return <ViewCliDet {...VP} id={detId} setClientes={modules.setters.setClientes} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ini={modules.ini} />;
+      return withFullFrame(<ViewCliDet {...VP} id={detId} setClientes={modules.setters.setClientes} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ini={modules.ini} />);
     case "producciones":
-      return <ViewPros {...VP} setProducciones={modules.setters.setProducciones} useBal={useBal} fmtM={fmtM} fmtD={fmtD} />;
+      return withFullFrame(<ViewPros {...VP} setProducciones={modules.setters.setProducciones} useBal={useBal} fmtM={fmtM} fmtD={fmtD} />);
     case "pro-det":
-      return <ViewProDet {...VP} id={detId} setProducciones={modules.setters.setProducciones} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />;
+      return withFullFrame(<ViewProDet {...VP} id={detId} setProducciones={modules.setters.setProducciones} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} />);
     case "programas":
-      return <ViewPgs {...VP} setProgramas={modules.setters.setProgramas} useBal={useBal} fmtM={fmtM} />;
+      return withFullFrame(<ViewPgs {...VP} setProgramas={modules.setters.setProgramas} useBal={useBal} fmtM={fmtM} />);
     case "pg-det":
-      return <ViewPgDet {...VP} id={detId} setProgramas={modules.setters.setProgramas} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} AusCard={ausCardComponent} />;
+      return withFullFrame(<ViewPgDet {...VP} id={detId} setProgramas={modules.setters.setProgramas} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} AusCard={ausCardComponent} />);
     case "contenidos":
-      return <ViewContenidos {...VP} setPiezas={modules.setters.setPiezas} useBal={useBal} fmtM={fmtM} countCampaignPieces={countCampaignPieces} />;
+      return withFullFrame(<ViewContenidos {...VP} setPiezas={modules.setters.setPiezas} useBal={useBal} fmtM={fmtM} countCampaignPieces={countCampaignPieces} />);
     case "contenido-det":
-      return <ViewContenidoDet {...VP} id={detId} setPiezas={modules.setters.setPiezas} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} normalizeSocialPiece={modules.normalizeSocialPiece} />;
+      return withFullFrame(<ViewContenidoDet {...VP} id={detId} setPiezas={modules.setters.setPiezas} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} normalizeSocialPiece={modules.normalizeSocialPiece} />);
     case "ep-det":
-      return <ViewEpDet {...VP} id={detId} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} />;
+      return withFullFrame(<ViewEpDet {...VP} id={detId} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} />);
     case "crm":
-      return <CrmModule {...VP} setClientes={modules.setters.setClientes} setAuspiciadores={modules.setters.setAuspiciadores} setCrmOpps={modules.setters.setCrmOpps} setCrmActivities={modules.setters.setCrmActivities} setCrmStages={modules.setters.setCrmStages} setTareas={modules.setters.setTareas} crmSavingRef={modules.crmSavingRef} TareaCard={TareaCard} getRoleConfig={getRoleConfig} uid={uid} fmtM={fmtM} fmtD={fmtD} canDo={action => modules.canDo(action)} />;
+      return withFullFrame(<CrmModule {...VP} setClientes={modules.setters.setClientes} setAuspiciadores={modules.setters.setAuspiciadores} setCrmOpps={modules.setters.setCrmOpps} setCrmActivities={modules.setters.setCrmActivities} setCrmStages={modules.setters.setCrmStages} setTareas={modules.setters.setTareas} crmSavingRef={modules.crmSavingRef} TareaCard={TareaCard} getRoleConfig={getRoleConfig} uid={uid} fmtM={fmtM} fmtD={fmtD} canDo={action => modules.canDo(action)} />);
     case "crew":
-      return <ViewCrew {...VP} setCrew={modules.setters.setCrew} ini={modules.ini} />;
+      return withFullFrame(<ViewCrew {...VP} setCrew={modules.setters.setCrew} ini={modules.ini} />);
     case "calendario":
-      return <ViewCalendario {...VP} setEventos={modules.setters.setEventos} assignedNameList={assignedNameList} />;
+      return withFullFrame(<ViewCalendario {...VP} setEventos={modules.setters.setEventos} assignedNameList={assignedNameList} />);
     case "auspiciadores":
-      return <ViewAus {...VP} setAuspiciadores={modules.setters.setAuspiciadores} AusCard={ausCardComponent} />;
+      return withFullFrame(<ViewAus {...VP} setAuspiciadores={modules.setters.setAuspiciadores} AusCard={ausCardComponent} />);
     case "contratos":
-      return <ViewCts {...VP} setContratos={modules.setters.setContratos} />;
+      return withFullFrame(<ViewCts {...VP} setContratos={modules.setters.setContratos} />);
     case "presupuestos":
-      return <ViewPres {...VP} setPresupuestos={modules.setters.setPresupuestos} />;
+      return withFullFrame(<ViewPres {...VP} setPresupuestos={modules.setters.setPresupuestos} />);
     case "pres-det":
-      return <ViewPresDet {...VP} id={detId} setPresupuestos={modules.setters.setPresupuestos} setProducciones={modules.setters.setProducciones} setProgramas={modules.setters.setProgramas} setPiezas={modules.setters.setPiezas} setMovimientos={modules.setters.setMovimientos} />;
+      return withFullFrame(<ViewPresDet {...VP} id={detId} setPresupuestos={modules.setters.setPresupuestos} setProducciones={modules.setters.setProducciones} setProgramas={modules.setters.setProgramas} setPiezas={modules.setters.setPiezas} setMovimientos={modules.setters.setMovimientos} />);
     case "facturacion":
-      return <ViewFact {...VP} treasury={modules.treasuryProps} setFacturas={modules.setters.setFacturas} setMovimientos={modules.setters.setMovimientos} emitFacturaToBsale={modules.emitFacturaToBsale} syncFacturaWithBsale={modules.syncFacturaWithBsale} inspectFacturaBsaleSync={modules.inspectFacturaBsaleSync} />;
+      return withFullFrame(<ViewFact {...VP} treasury={modules.treasuryProps} setFacturas={modules.setters.setFacturas} setMovimientos={modules.setters.setMovimientos} emitFacturaToBsale={modules.emitFacturaToBsale} syncFacturaWithBsale={modules.syncFacturaWithBsale} inspectFacturaBsaleSync={modules.inspectFacturaBsaleSync} />);
     case treasuryModuleId:
-      return <TreasuryModule {...VP} treasury={modules.treasuryProps} />;
+      return withFullFrame(<TreasuryModule {...VP} treasury={modules.treasuryProps} />);
     case "activos":
-      return <ViewActivos {...VP} setActivos={modules.setters.setActivos} fmtM={fmtM} fmtD={fmtD} />;
+      return withFullFrame(<ViewActivos {...VP} setActivos={modules.setters.setActivos} fmtM={fmtM} fmtD={fmtD} />);
     default:
       return <Empty text="Módulo no disponible" />;
   }

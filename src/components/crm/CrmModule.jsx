@@ -218,7 +218,7 @@ export function CrmModule({
     }
   }, [addActivity, empresa?.id, ntf, platformApi, setActivityForm]);
 
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <ModuleHeader
       module="CRM"
       title="CRM Comercial"

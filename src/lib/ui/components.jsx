@@ -313,7 +313,7 @@ export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding
 
 export function Card({ title, sub, action, children, style = {} }) {
   return (
-    <div style={{ width: "100%", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 16, padding: 20, boxShadow: "0 12px 32px rgba(0,0,0,.08)", ...style }}>
+    <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, display: "block", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 16, padding: 20, boxShadow: "0 12px 32px rgba(0,0,0,.08)", ...style }}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid var(--bdr)" }}>
           <div>

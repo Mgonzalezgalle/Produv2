@@ -27,7 +27,7 @@ import { DEFAULT_LISTAS, contractsForReference, hasAddon, today as helperToday, 
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
-const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,240px),1fr))";
+const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,220px),1fr))";
 const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))";
 const RESPONSIVE_COMPACT_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
 
@@ -364,7 +364,7 @@ export function ViewContenidos({
   const totalScheduled = fd.reduce((s, p) => s + (p.piezas || []).filter(pc => pc.est === "Programado").length, 0);
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <ModuleHeader
       module="Contenidos"
       title="Contenidos"
@@ -510,7 +510,7 @@ export function ViewContenidoDet(props) {
     if (!base) return;
     await savePiece({ ...base, ...patch });
   };
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <DetHeader title={pz.nom} tag="Campaña" badges={[<Badge key={0} label={pz.est || "Planificada"} />]} meta={[cli && `Cliente: ${cli.nom}`, pz.plataforma && `Plataforma: ${pz.plataforma}`, [pz.mes, pz.ano].filter(Boolean).join(" "), pz.fin && `Cierre: ${fmtD(pz.fin)}`].filter(Boolean)} des={pz.des}
       actions={canManageContent && <><GBtn onClick={() => openM("contenido", pz)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageContent) return; if (!confirm("¿Eliminar campaña?")) return; cDel(piezas, setPiezas, id, () => navTo("contenidos"), "Campaña eliminada"); }}>🗑</DBtn></>} />
     <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>

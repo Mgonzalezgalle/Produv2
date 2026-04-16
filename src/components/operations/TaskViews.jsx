@@ -73,7 +73,7 @@ export function ViewTareas({
   const colColors = { Pendiente: "var(--bdr2)", "En Progreso": "#60a5fa", "En Revisión": "#fbbf24", Completada: "#4ade80" };
   const mobileItems = porColumna(mobileCol);
 
-  return <div>
+  return <div style={{ width: "100%", minWidth: 0 }}>
     <ModuleHeader
       module="Tareas"
       title="Pipeline de Tareas"

@@ -5,6 +5,13 @@ const SESSION_IDLE_DEFAULT_MS = 60 * 60 * 1000;
 const SESSION_MAX_AGE_PRIVILEGED_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_PRIVILEGED_MS = 15 * 60 * 1000;
 
+function warnSessionStorage(message, error, extra = {}) {
+  console.warn(message, {
+    ...extra,
+    error: error?.message || String(error || ""),
+  });
+}
+
 export function getSessionPolicy(role = "") {
   if (["superadmin", "admin"].includes(role || "")) {
     return {
@@ -60,14 +67,18 @@ export function isStoredSessionExpired(session = null, now = Date.now()) {
 function getSessionStore() {
   try {
     if (typeof sessionStorage !== "undefined") return sessionStorage;
-  } catch {}
+  } catch (error) {
+    warnSessionStorage("Session storage is unavailable", error);
+  }
   return null;
 }
 
 function getLegacyStore() {
   try {
     if (typeof localStorage !== "undefined") return localStorage;
-  } catch {}
+  } catch (error) {
+    warnSessionStorage("Legacy local storage is unavailable", error);
+  }
   return null;
 }
 
@@ -84,7 +95,8 @@ export function loadStoredJson(storageKey) {
       legacy?.removeItem(storageKey);
     }
     return JSON.parse(legacyRaw);
-  } catch {
+  } catch (error) {
+    warnSessionStorage("Unable to load stored session payload", error, { storageKey });
     return null;
   }
 }
@@ -96,7 +108,9 @@ export function saveStoredJson(storageKey, value) {
     const legacy = getLegacyStore();
     primary?.setItem(storageKey, raw);
     legacy?.removeItem(storageKey);
-  } catch {}
+  } catch (error) {
+    warnSessionStorage("Unable to save session payload", error, { storageKey });
+  }
 }
 
 export function touchStoredSession(storageKey, currentSession = null, patch = {}) {
@@ -114,5 +128,7 @@ export function removeStoredJson(storageKey) {
   try {
     getSessionStore()?.removeItem(storageKey);
     getLegacyStore()?.removeItem(storageKey);
-  } catch {}
+  } catch (error) {
+    warnSessionStorage("Unable to remove session payload", error, { storageKey });
+  }
 }

@@ -1,6 +1,13 @@
 import { sb } from "./supabaseClient";
 import { findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 
+function warnSupabaseAuth(message, error, extra = {}) {
+  console.warn(message, {
+    ...extra,
+    error: error?.message || String(error || ""),
+  });
+}
+
 export async function authenticateSupabaseUser({ users = [], empresas = [], email = "", password = "" }) {
   try {
     const { data, error } = await sb.auth.signInWithPassword({
@@ -35,7 +42,10 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
       empresa: resolveTenantForUser(linkedUser, empresas, null),
       error: "",
     };
-  } catch {
+  } catch (error) {
+    warnSupabaseAuth("Supabase sign-in failed unexpectedly", error, {
+      email: normalizeAuthEmail(email),
+    });
     return {
       user: null,
       empresa: null,
@@ -87,7 +97,10 @@ export async function activateSupabaseAccount({ users = [], empresas = [], email
         ? "Cuenta activada correctamente. Ya puedes entrar al laboratorio."
         : `Cuenta creada para ${safeEmail}. Si Supabase exige confirmación, revisa ese correo para terminar la activación.`,
     };
-  } catch {
+  } catch (error) {
+    warnSupabaseAuth("Supabase account activation failed unexpectedly", error, {
+      email: safeEmail,
+    });
     return {
       ok: false,
       user: null,
@@ -112,7 +125,8 @@ export async function restoreSupabaseSession({ users = [], empresas = [], stored
       empresa: resolveTenantForUser(domainUser, empresas, storedSession),
       clearSession: false,
     };
-  } catch {
+  } catch (error) {
+    warnSupabaseAuth("Supabase session restore failed unexpectedly", error);
     return { user: null, empresa: null, clearSession: false };
   }
 }
@@ -120,7 +134,9 @@ export async function restoreSupabaseSession({ users = [], empresas = [], stored
 export async function signOutSupabaseUser() {
   try {
     await sb.auth.signOut();
-  } catch {}
+  } catch (error) {
+    warnSupabaseAuth("Supabase sign-out failed unexpectedly", error);
+  }
 }
 
 export async function requestSupabasePasswordReset({ email = "" }) {
@@ -137,7 +153,10 @@ export async function requestSupabasePasswordReset({ email = "" }) {
       ok: true,
       message: `Si ${email} existe en Supabase Auth, enviamos instrucciones de recuperación.`,
     };
-  } catch {
+  } catch (error) {
+    warnSupabaseAuth("Supabase password reset failed unexpectedly", error, {
+      email: normalizeAuthEmail(email),
+    });
     return {
       ok: false,
       message: "La recuperación de contraseña aún no está disponible en este entorno.",
@@ -162,7 +181,8 @@ export async function signInWithSupabaseGoogle() {
       ok: true,
       message: "Redirigiendo a Google…",
     };
-  } catch {
+  } catch (error) {
+    warnSupabaseAuth("Supabase Google sign-in failed unexpectedly", error);
     return {
       ok: false,
       message: "Google Sign-In aún no está disponible en este entorno.",

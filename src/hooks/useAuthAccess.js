@@ -9,17 +9,32 @@ export function useAuthAccess({ users, empresas, sessionKey, strategy }) {
   const [curEmp, setCurEmp] = useState(null);
   const [storedSession, setStoredSession] = useState(() => loadStoredJson(sessionKey));
   const [authReady, setAuthReady] = useState(false);
+  const restorePayload = useMemo(() => ({
+    storedSession,
+    users,
+    empresas,
+    sessionKey,
+  }), [storedSession, users, empresas, sessionKey]);
 
   useEffect(() => {
     let cancelled = false;
     setAuthReady(false);
-    Promise.resolve(gateway.restoreSession({ storedSession, users, empresas, sessionKey }))
+    Promise.resolve(gateway.restoreSession(restorePayload))
       .then(next => {
         if (cancelled || !next) return;
         setCurUser(next.user);
         setCurEmp(next.empresa);
         if (next.clearSession) {
+          removeStoredJson(sessionKey);
           setStoredSession(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn("Auth session restore failed", {
+            strategy: gateway.strategy,
+            error: error?.message || String(error || ""),
+          });
         }
       })
       .finally(() => {
@@ -28,7 +43,7 @@ export function useAuthAccess({ users, empresas, sessionKey, strategy }) {
     return () => {
       cancelled = true;
     };
-  }, [gateway, storedSession, users, empresas, sessionKey]);
+  }, [gateway, restorePayload, sessionKey]);
 
   const login = (user, options = {}) => {
     if (!user) return;
@@ -43,7 +58,12 @@ export function useAuthAccess({ users, empresas, sessionKey, strategy }) {
   const logout = () => {
     setCurUser(null);
     setCurEmp(null);
-    Promise.resolve(gateway.clearSession({ sessionKey }));
+    Promise.resolve(gateway.clearSession({ sessionKey })).catch((error) => {
+      console.warn("Auth session clear failed", {
+        strategy: gateway.strategy,
+        error: error?.message || String(error || ""),
+      });
+    });
     setStoredSession(null);
   };
 

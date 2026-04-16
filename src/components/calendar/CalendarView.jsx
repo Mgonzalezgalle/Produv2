@@ -81,16 +81,6 @@ function hourNumber(value = "") {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatCalendarHour(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "America/Santiago",
-  });
-}
-
 function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
   const start = item?.start?.dateTime || item?.start?.date || item?.originalStartTime?.dateTime || item?.originalStartTime?.date || "";
   if (!start) return null;
@@ -107,7 +97,7 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
     label: `📅 ${item.summary || "Evento Google"}`,
     sub: item.organizer?.email || userCalendar.email || "Google Calendar",
     color: "#4285f4",
-    hora: startDateTime ? formatCalendarHour(startDateTime) : "",
+    hora: startDateTime ? startDateTime.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "",
     modulo: "google",
     estado: item.status === "cancelled" ? "Cancelado" : "Google Calendar",
     desc: item.description || "",
@@ -123,15 +113,6 @@ function mapGoogleEventToCalendarItem(item = {}, userCalendar = {}) {
     htmlLink: item.htmlLink || "",
     sortDateTime: item?.start?.dateTime || buildSortDateTime(start.slice(0, 10), ""),
   };
-}
-
-function mergeGoogleCalendarEventItems(current = [], incoming = null) {
-  if (!incoming?.googleEventId) return Array.isArray(current) ? current : [];
-  const base = Array.isArray(current) ? current : [];
-  const next = base.filter(item => item?.googleEventId !== incoming.googleEventId);
-  next.push(incoming);
-  next.sort(byCalendarDateTime);
-  return next;
 }
 
 function googleSyncBadgeState(event = {}) {
@@ -346,6 +327,7 @@ export function ViewCalendario(props) {
         }));
         if (!result?.ok) {
           if (!cancelled) {
+            setGoogleCalendarEvents([]);
             setGoogleCalendarError(result?.message || "No pudimos leer los eventos de Google Calendar.");
           }
           return;
@@ -358,6 +340,7 @@ export function ViewCalendario(props) {
         }
       } catch (error) {
         if (!cancelled) {
+          setGoogleCalendarEvents([]);
           setGoogleCalendarError(error?.message || "No pudimos leer los eventos de Google Calendar.");
         }
       } finally {
@@ -411,7 +394,6 @@ export function ViewCalendario(props) {
             throw new Error(result?.message || result?.error || "google_event_create_failed");
           }
           if (cancelled) return;
-          const remoteEvent = mapGoogleEventToCalendarItem(result.event, { email: userCalendarEmail });
           await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
             ...item,
             googleEventId: result.event.id,
@@ -420,9 +402,6 @@ export function ViewCalendario(props) {
             googleCalendarSyncState: "synced",
             googleCalendarSyncError: "",
           } : item)));
-          if (remoteEvent) {
-            setGoogleCalendarEvents((current = []) => mergeGoogleCalendarEventItems(current, remoteEvent));
-          }
           setGoogleCalendarRefreshTick(tick => tick + 1);
         })
         .catch(error => {
@@ -444,7 +423,7 @@ export function ViewCalendario(props) {
     return () => {
       cancelled = true;
     };
-  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken, userCalendarEmail]);
+  }, [empId, eventos, googleCalendarReady, ntf, platformApi?.calendar, setEventos, userCalendar.calendarId, userCalendar.refreshToken]);
 
   useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos) return;
@@ -464,22 +443,27 @@ export function ViewCalendario(props) {
       const remote = remoteMap.get(item.googleEventId);
       const localCurrentHash = calendarSyncHash(item);
       if (!remote) {
-        if (
-          item.googleCalendarSyncedAt &&
-          (!googleCalendarLastPullAt || new Date(item.googleCalendarSyncedAt).getTime() >= new Date(googleCalendarLastPullAt).getTime())
-        ) {
-          return [item];
+        if (item.googleCalendarSyncHash === localCurrentHash) {
+          changed = true;
+          removedCount += 1;
+          return [];
         }
         if (item.googleCalendarSyncState === "orphan") return [item];
         changed = true;
         return [{
           ...item,
           googleCalendarSyncState: "orphan",
-          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual. Se mantiene en Produ para no perderlo.",
+          googleCalendarSyncError: "No encontramos este evento en Google Calendar dentro del rango visible actual.",
         }];
       }
       const remoteHash = remoteCalendarSyncHash(remote);
       if (remote.rawStatus === "cancelled") {
+        if (item.googleCalendarSyncHash === localCurrentHash) {
+          changed = true;
+          cancelledCount += 1;
+          removedCount += 1;
+          return [];
+        }
         if (item.googleCalendarSyncState === "cancelled" && item.googleCalendarSyncHash === remoteHash) return [item];
         changed = true;
         cancelledCount += 1;
@@ -535,7 +519,7 @@ export function ViewCalendario(props) {
     if (conflictCount) ntf?.(`${conflictCount} evento(s) tienen conflicto entre Produ y Google Calendar.`, "warn");
     if (cancelledCount) ntf?.(`${cancelledCount} evento(s) fueron cancelados en Google Calendar.`, "warn");
     if (removedCount) ntf?.(`${removedCount} evento(s) eliminados en Google dejaron de mostrarse en Produ.`, "warn");
-  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, googleCalendarLastPullAt, ntf, setEventos, userCalendarEmail, visibleDateRange]);
+  }, [empId, eventos, googleCalendarEvents, googleCalendarReady, ntf, setEventos, visibleDateRange]);
 
   const DIAS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
   const moveCalendarRange = delta => {

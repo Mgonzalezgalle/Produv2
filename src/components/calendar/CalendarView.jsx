@@ -958,9 +958,6 @@ export function ViewCalendario(props) {
     </Card>}
 
     {subTab === 1 && <>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : "repeat(4,1fr)", gap: 12, marginBottom: 16 }}>
-        {[["Hoy", agendaHoy.length, "var(--cy)"], ["Próx. 7 días", agendaSemana.length, "#00e08a"], ["Equipo", agendaEquipo.length, "#7c5cff"], ["Críticos", hitosCriticos.length, "#ff5566"]].map(([l, v, c]) => <Stat key={l} label={l} value={v} accent={c} vc={c} sub={MESES[mes.m]} />)}
-      </div>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr .8fr", gap: 16 }}>
         <Card title="Próximos eventos">
           {agendaSemana.length ? agendaSemana.map(ev => <div key={ev.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--bdr)", alignItems: "flex-start" }}>
@@ -992,32 +989,6 @@ export function ViewCalendario(props) {
                   </div>
                 </div>
               </div>
-              {googleCalendarEnabled && userCalendarConnected && <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Eventos Google</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#4285f4" }}>{googleCalendarEvents.length}</div>
-                </div>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Pendientes sync</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: pendingSyncEvents ? "#f59e0b" : "#22c55e" }}>{pendingSyncEvents}</div>
-                </div>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Eventos Produ vinculados</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "var(--cy)" }}>{syncedCustomEvents}</div>
-                </div>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Reuniones con Meet</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#7c5cff" }}>{googleMeetEvents}</div>
-                </div>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Conflictos</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: syncConflictCount ? "#f59e0b" : "#22c55e" }}>{syncConflictCount}</div>
-                </div>
-                <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 12 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "var(--gr2)", marginBottom: 4 }}>Sin remoto / cancelados</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: syncRemovedCount ? "#ef4444" : "#22c55e" }}>{syncRemovedCount}</div>
-                </div>
-              </div>}
               {googleCalendarEnabled && userCalendarConnected && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Badge label={googleCalendarLoading ? "Sincronizando..." : "Sync activo"} color={googleCalendarLoading ? "yellow" : "green"} sm />
                 <Badge label={userCalendar.calendarName || "Calendario principal"} color="cyan" sm />

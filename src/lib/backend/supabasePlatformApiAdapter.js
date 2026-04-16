@@ -1,4 +1,5 @@
 import { sb } from "../auth/supabaseClient";
+import { getSupabaseProjectConfig } from "./supabaseProjectConfig";
 
 function buildUnavailable(message = "Esta capacidad todavía no está abierta en Supabase foundation.", source = "degraded") {
   return { ok: false, message, error: message, source };
@@ -24,6 +25,37 @@ async function callEdgeFunction(name, payload = {}) {
     body: payload,
   });
   if (error) {
+    const project = getSupabaseProjectConfig();
+    const anonKey = String(import.meta.env?.VITE_SUPABASE_ANON_KEY || "").trim();
+    const url = project?.url ? `${project.url.replace(/\/$/, "")}/functions/v1/${name}` : "";
+    if (url && anonKey) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anonKey,
+            Authorization: `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify(payload || {}),
+        });
+        const raw = await response.text();
+        let parsed = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        return {
+          ok: response.ok,
+          error: parsed?.message || parsed?.error || raw || error.message || `Function ${name} falló.`,
+          data: parsed,
+          status: response.status,
+        };
+      } catch {
+        // Keep original invoke error as fallback below.
+      }
+    }
     return {
       ok: false,
       error: error.message || `Function ${name} falló.`,
@@ -147,6 +179,28 @@ export function createSupabasePlatformApiAdapter({
 
       async listTransactionalEmailLogs() {
         return buildUnavailable("Los logs de correo transaccional todavía no están expuestos desde Supabase foundation.");
+      },
+    },
+
+    payments: {
+      async createMercadoPagoPaymentLink(payload = {}) {
+        const fn = await callEdgeFunction("mercadopago-create-payment-link", payload);
+        if (!fn.ok) {
+          return buildUnavailable(fn.error || "No pudimos crear el link de pago en Mercado Pago.");
+        }
+        return fn.data || { ok: false, source: "degraded", message: "La función de Mercado Pago no devolvió respuesta." };
+      },
+
+      async handleMercadoPagoPayment(payload = {}) {
+        const fn = await callEdgeFunction("mercadopago-handle-webhook", payload);
+        if (!fn.ok) {
+          return buildUnavailable(fn.error || "No pudimos procesar el webhook de Mercado Pago.");
+        }
+        return fn.data || { ok: false, source: "degraded", message: "La función webhook de Mercado Pago no devolvió respuesta." };
+      },
+
+      async listMercadoPagoLogs() {
+        return buildUnavailable("Los logs de Mercado Pago todavía no están expuestos desde Supabase foundation.");
       },
     },
 

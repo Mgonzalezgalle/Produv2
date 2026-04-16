@@ -116,6 +116,21 @@ export const PLATFORM_DOMAINS = {
       "treasury_audit",
     ],
   },
+  payments: {
+    id: "payments",
+    label: "Payments",
+    priority: 3,
+    status: "in_design",
+    owner: "backend",
+    description: "Links de pago por documento, webhooks, estados remotos y conciliación financiera por tenant.",
+    capabilities: [
+      "invoice_payment_link_create",
+      "payment_provider_connection",
+      "payment_webhook_ingestion",
+      "payment_status_translation",
+      "payment_reconciliation",
+    ],
+  },
   notifications: {
     id: "notifications",
     label: "Notificaciones",
@@ -165,7 +180,7 @@ export const BACKEND_MIGRATION_PHASES = [
   {
     id: "phase_3_finops",
     label: "Fase 3 · FinOps",
-    domains: ["treasury", "notifications", "calendar"],
+    domains: ["treasury", "payments", "notifications", "calendar"],
     goal: "Consolidar automatización financiera, comunicación operacional e integraciones de agenda.",
   },
 ];

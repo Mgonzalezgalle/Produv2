@@ -5,6 +5,7 @@ import { loadBsaleEmissionSessions, saveBsaleEmissionSessions } from "../lab/bsa
 import { buildResendEmailRequest } from "../integrations/resendTransactionalEmail";
 import { getTransactionalEmailProviderSnapshot } from "../integrations/transactionalEmailConfig";
 import { getGoogleCalendarConfig, getGoogleCalendarProviderSnapshot } from "../integrations/googleCalendarConfig";
+import { buildMercadoPagoPreferenceRequest } from "../integrations/mercadoPagoPaymentsProvider";
 
 export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
   const loadEmpresas = async () => normalizeEmpresasModel((await dbGet("produ:empresas")) || []);
@@ -45,6 +46,31 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
     };
     await saveEmailDeliveryLogs([delivery, ...(Array.isArray(logs) ? logs : [])]);
     return delivery;
+  };
+  const loadMercadoPagoLogs = async () => (await dbGet("produ:mercadoPagoLogs")) || [];
+  const saveMercadoPagoLogs = async next => {
+    await dbSet("produ:mercadoPagoLogs", Array.isArray(next) ? next : []);
+    return Array.isArray(next) ? next : [];
+  };
+  const recordMercadoPagoLog = async (draft = {}) => {
+    const logs = await loadMercadoPagoLogs();
+    const entry = {
+      id: draft.id || uid(),
+      tenantId: String(draft.tenantId || "").trim(),
+      invoiceId: String(draft.invoiceId || "").trim(),
+      provider: "mercadopago",
+      action: String(draft.action || "unknown").trim(),
+      status: String(draft.status || "draft").trim(),
+      paymentId: String(draft.paymentId || "").trim(),
+      preferenceId: String(draft.preferenceId || "").trim(),
+      externalReference: String(draft.externalReference || "").trim(),
+      amount: Number(draft.amount || 0),
+      currency: String(draft.currency || "CLP").trim(),
+      metadata: draft.metadata && typeof draft.metadata === "object" ? draft.metadata : {},
+      createdAt: draft.createdAt || new Date().toISOString(),
+    };
+    await saveMercadoPagoLogs([entry, ...(Array.isArray(logs) ? logs : [])]);
+    return entry;
   };
   const buildTenantSnapshot = async tenantId => {
     const tenant = await loadEmpresas().then(empresas => empresas.find(emp => emp.id === tenantId) || null);
@@ -310,6 +336,99 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
     async listTransactionalEmailLogs({ tenantId = "" } = {}) {
       const logs = await loadEmailDeliveryLogs();
       return (Array.isArray(logs) ? logs : []).filter(item => !tenantId || item.tenantId === tenantId);
+    },
+
+    async createMercadoPagoPaymentLink(payload = {}) {
+      const request = buildMercadoPagoPreferenceRequest(payload);
+      if (!request?.ok) {
+        return {
+          ok: false,
+          source: "mock",
+          provider: "mercadopago",
+          status: "invalid",
+          message: request?.error || "No pudimos preparar el link de pago.",
+          validation: request?.validation || null,
+        };
+      }
+      const suffix = Math.random().toString(36).slice(2, 10);
+      const paymentLink = {
+        provider: "mercadopago",
+        mode: "mock",
+        status: "active",
+        preferenceId: `mp_pref_${payload?.invoiceId || suffix}_${suffix}`,
+        externalReference: request.externalReference,
+        initPoint: `https://www.mercadopago.cl/checkout/v1/redirect?pref_id=mp_pref_${payload?.invoiceId || suffix}_${suffix}`,
+        amount: Number(payload?.amount || 0),
+        currency: String(payload?.currency || "CLP").trim(),
+        customerName: String(payload?.customer?.name || "").trim(),
+        createdAt: new Date().toISOString(),
+        expiresAt: payload?.payload?.expiration_date_to || "",
+      };
+      const delivery = await recordMercadoPagoLog({
+        tenantId: payload?.tenantId || "",
+        invoiceId: payload?.invoiceId || "",
+        action: "payment_link_created",
+        status: "active",
+        preferenceId: paymentLink.preferenceId,
+        externalReference: paymentLink.externalReference,
+        amount: paymentLink.amount,
+        currency: paymentLink.currency,
+        metadata: payload?.metadata || {},
+      });
+      return {
+        ok: true,
+        source: "mock",
+        provider: "mercadopago",
+        status: "active",
+        paymentLink,
+        delivery,
+      };
+    },
+
+    async handleMercadoPagoPayment(payload = {}) {
+      const normalizedStatus = String(payload?.status || "pending").trim().toLowerCase();
+      const approved = normalizedStatus === "approved";
+      const rejected = normalizedStatus === "rejected";
+      const pending = !approved && !rejected;
+      const paymentResult = {
+        provider: "mercadopago",
+        paymentId: String(payload?.paymentId || `mp_pay_${Date.now()}`).trim(),
+        preferenceId: String(payload?.preferenceId || "").trim(),
+        externalReference: String(payload?.externalReference || "").trim(),
+        status: approved ? "approved" : rejected ? "rejected" : "pending",
+        amount: Number(payload?.amount || 0),
+        currency: String(payload?.currency || "CLP").trim(),
+        invoiceId: String(payload?.invoiceId || "").trim(),
+        tenantId: String(payload?.tenantId || "").trim(),
+        approved,
+        rejected,
+        pending,
+        paidAt: approved ? new Date().toISOString() : "",
+      };
+      const delivery = await recordMercadoPagoLog({
+        tenantId: paymentResult.tenantId,
+        invoiceId: paymentResult.invoiceId,
+        action: "payment_webhook_processed",
+        status: paymentResult.status,
+        paymentId: paymentResult.paymentId,
+        preferenceId: paymentResult.preferenceId,
+        externalReference: paymentResult.externalReference,
+        amount: paymentResult.amount,
+        currency: paymentResult.currency,
+        metadata: payload?.metadata || {},
+      });
+      return {
+        ok: true,
+        source: "mock",
+        provider: "mercadopago",
+        paymentResult,
+        delivery,
+      };
+    },
+
+    async listMercadoPagoLogs({ tenantId = "", invoiceId = "" } = {}) {
+      const logs = await loadMercadoPagoLogs();
+      return (Array.isArray(logs) ? logs : []).filter(item => (!tenantId || item.tenantId === tenantId) && (!invoiceId || item.invoiceId === invoiceId));
     },
 
     async recordTransactionalEmailLog(draft = {}) {

@@ -198,6 +198,26 @@ export const API_ROUTE_GROUPS = {
       },
     ],
   },
+  payments: {
+    label: "Payments",
+    basePath: "/api/integrations/payments",
+    routes: [
+      {
+        method: "POST",
+        path: "/mercadopago/invoice-link",
+        action: "invoice_payment_link_create",
+        requestShape: ["tenantId", "invoiceId", "documentNumber", "amount", "currency", "customer", "externalReference"],
+        responseShape: ["paymentLink"],
+      },
+      {
+        method: "POST",
+        path: "/mercadopago/webhooks/payment",
+        action: "payment_webhook_ingestion",
+        requestShape: ["tenantId", "invoiceId", "paymentId", "status", "amount", "metadata"],
+        responseShape: ["paymentResult"],
+      },
+    ],
+  },
   calendar: {
     label: "Calendar",
     basePath: "/api/integrations/google-calendar",

@@ -106,6 +106,18 @@ export function createPlatformMockGateway({
       return services.listTransactionalEmailLogs({ tenantId });
     },
 
+    async createMercadoPagoPaymentLink(payload = {}) {
+      return services.createMercadoPagoPaymentLink(payload);
+    },
+
+    async handleMercadoPagoPayment(payload = {}) {
+      return services.handleMercadoPagoPayment(payload);
+    },
+
+    async listMercadoPagoLogs({ tenantId = "", invoiceId = "" } = {}) {
+      return services.listMercadoPagoLogs({ tenantId, invoiceId });
+    },
+
     async startGoogleCalendarOAuth(payload = {}) {
       return services.startGoogleCalendarOAuth(payload);
     },

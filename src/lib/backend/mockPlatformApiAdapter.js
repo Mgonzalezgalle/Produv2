@@ -80,6 +80,29 @@ export function createMockPlatformApiAdapter({
       },
     },
 
+    payments: {
+      async createMercadoPagoPaymentLink(payload = {}) {
+        if (!platformGateway?.createMercadoPagoPaymentLink) {
+          throw new Error("createMercadoPagoPaymentLink no está configurado.");
+        }
+        return platformGateway.createMercadoPagoPaymentLink(payload);
+      },
+
+      async handleMercadoPagoPayment(payload = {}) {
+        if (!platformGateway?.handleMercadoPagoPayment) {
+          throw new Error("handleMercadoPagoPayment no está configurado.");
+        }
+        return platformGateway.handleMercadoPagoPayment(payload);
+      },
+
+      async listMercadoPagoLogs({ tenantId = "", invoiceId = "" } = {}) {
+        if (!platformGateway?.listMercadoPagoLogs) {
+          throw new Error("listMercadoPagoLogs no está configurado.");
+        }
+        return platformGateway.listMercadoPagoLogs({ tenantId, invoiceId });
+      },
+    },
+
     calendar: {
       async startGoogleCalendarOAuth(payload = {}) {
         if (!platformGateway?.startGoogleCalendarOAuth) {

@@ -28,6 +28,7 @@ export const INTEGRATION_MODE = {
 
 export const INTEGRATION_CAPABILITY = {
   CHECKOUT: "checkout",
+  PAYMENT_LINKS: "payment_links",
   RECURRING_PAYMENTS: "recurring_payments",
   ELECTRONIC_INVOICING: "electronic_invoicing",
   TICKETING: "ticketing",
@@ -35,6 +36,7 @@ export const INTEGRATION_CAPABILITY = {
   OUTBOUND_EMAIL: "outbound_email",
   EVENT_SYNC: "event_sync",
   INBOUND_WEBHOOKS: "inbound_webhooks",
+  PAYMENT_RECONCILIATION: "payment_reconciliation",
 };
 
 export function normalizeIntegrationRecord(record = {}) {

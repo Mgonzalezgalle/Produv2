@@ -1203,7 +1203,12 @@ export function ViewCalendario(props) {
                         <div style={{ fontSize: 10, color: "var(--gr2)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em" }}>{DIAS_SEMANA[(day.date.getDay() + 6) % 7]}</div>
                         <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 999, background: current ? "var(--cy)" : "transparent", color: current ? "var(--bg)" : "var(--wh)", fontSize: 18, fontWeight: 800 }}>{day.date.getDate()}</div>
                         <div style={{ marginTop: 10, display: "grid", gap: 4 }}>
-                          {day.allDay.slice(0, 2).map(ev => <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "4px 6px", borderRadius: 8, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 10, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{ev.label}</div>)}
+                          {day.allDay.slice(0, 2).map(ev => (
+                            <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "4px 6px", borderRadius: 8, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 10, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</span>
+                              {canDeleteCalendarItem(ev) ? <button onClick={e => { e.stopPropagation(); delEvento(ev); }} style={{ width: 18, height: 18, borderRadius: 999, border: "none", background: "transparent", color: ev.color, cursor: "pointer", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>×</button> : null}
+                            </div>
+                          ))}
                           {day.allDay.length > 2 ? <div style={{ fontSize: 10, color: "var(--gr2)" }}>+{day.allDay.length - 2} más</div> : null}
                         </div>
                       </div>
@@ -1227,7 +1232,10 @@ export function ViewCalendario(props) {
                           >
                             {hourEvents.map(ev => (
                               <div key={ev.id} onClick={e => { e.stopPropagation(); openCalendarItem(ev); }} style={{ padding: "6px 8px", borderRadius: 10, background: `${ev.color}18`, color: ev.color, border: `1px solid ${ev.color}30`, fontSize: 11, fontWeight: 700, marginBottom: 4, cursor: "pointer", overflow: "hidden" }}>
-                                <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.label}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <div style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.label}</div>
+                                  {canDeleteCalendarItem(ev) ? <button onClick={e => { e.stopPropagation(); delEvento(ev); }} style={{ width: 18, height: 18, borderRadius: 999, border: "none", background: "transparent", color: ev.color, cursor: "pointer", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>×</button> : null}
+                                </div>
                                 <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>{ev.hora || `${String(hour).padStart(2, "0")}:00`}</div>
                               </div>
                             ))}
@@ -1295,11 +1303,17 @@ export function ViewCalendario(props) {
                               whiteSpace: "nowrap",
                               border: `1px solid ${ev.color}30`,
                               cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
                             }}
                             title={`${ev.label} · ${ev.sub}${ev.hora ? ` · ${ev.hora}` : ""}`}
                           >
-                            {ev.hora ? <span style={{ opacity: 0.8 }}>{ev.hora} </span> : null}
-                            {ev.label}
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {ev.hora ? <span style={{ opacity: 0.8 }}>{ev.hora} </span> : null}
+                              {ev.label}
+                            </span>
+                            {canDeleteCalendarItem(ev) ? <button onClick={e => { e.stopPropagation(); delEvento(ev); }} style={{ width: 18, height: 18, borderRadius: 999, border: "none", background: "transparent", color: ev.color, cursor: "pointer", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>×</button> : null}
                           </div>
                         ))}
                         {evs.length > (isMobile ? 2 : 4) ? <div style={{ fontSize: 10, color: "var(--gr2)", paddingLeft: 2 }}>+{evs.length - (isMobile ? 2 : 4)} más</div> : null}

@@ -1157,6 +1157,7 @@ export default function App(){
     <AppShellFrame
       sidebarProps={sidebarProps}
       sidebarWidth={SW}
+      isMobile={isMobile}
       mobileSidebarOpen={mobileSidebarOpen}
       closeMobileSidebar={closeMobileSidebar}
       openMobileSidebar={openMobileSidebar}

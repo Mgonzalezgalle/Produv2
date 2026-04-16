@@ -10,7 +10,7 @@ export const APP_SHELL_CSS = `
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px;-webkit-font-smoothing:antialiased}
-body{background:var(--bg);color:var(--wh);font-family:var(--fb);min-height:100vh}
+body{background:var(--bg);color:var(--wh);font-family:var(--fb);min-height:100vh;overflow-x:hidden}
 ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
 input:focus,select:focus,textarea:focus{outline:none!important;border-color:var(--cy)!important;box-shadow:0 0 0 3px var(--cg)!important}
 tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:var(--card2)!important}
@@ -55,14 +55,19 @@ body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow
 @media(max-width:768px){
   aside{transform:translateX(-100%);transition:transform .25s ease!important;width:260px!important;z-index:300!important}
   aside.mob-open{transform:translateX(0)!important}
-  main,.app-main{margin-left:0!important;width:100%!important}
+  main,.app-main{margin-left:0!important;width:100%!important;max-width:100%!important}
   .topbar{padding:0 14px!important;height:auto!important;min-height:60px;flex-wrap:wrap}
   .app-page{padding:14px!important}
   .app-breadcrumbs{min-width:0!important}
-  .app-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  .app-actions{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  .app-actions > *{max-width:100%}
   [style*="repeat(4,1fr)"],[style*="repeat(6,1fr)"],[style*="repeat(3,1fr)"],[style*="1fr 1fr 1fr"],[style*="1fr 1fr"]{grid-template-columns:1fr!important}
   [style*="width:260px"]{width:100%!important;max-width:100%!important}
   [style*="min-width:190"]{min-width:0!important}
+  [style*="min-width:220"]{min-width:0!important}
+  [style*="min-width:260"]{min-width:0!important}
+  [style*="min-width:280"]{min-width:0!important}
+  [style*="min-width:300"]{min-width:0!important}
   [style*="justify-content:space-between"][style*="width:260px"]{width:100%!important}
   .login-shell,.company-shell{padding:16px!important}
   .login-card,.company-card{width:100%!important;max-width:100%!important;padding:24px 18px!important}
@@ -72,6 +77,7 @@ body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe2ea;box-shadow
   .ham-btn{display:flex!important}
   .modal-wrap{align-items:flex-end!important;padding:0!important}
   .modal-box{border-radius:16px 16px 0 0!important;width:100%!important;max-width:100%!important;max-height:92vh!important}
+  table{min-width:640px}
   input,select,textarea{font-size:16px!important}
 }
 @media(max-width:1024px){

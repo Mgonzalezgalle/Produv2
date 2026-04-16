@@ -3,6 +3,7 @@ import { Sidebar } from "./ShellLayout";
 export function AppShellFrame({
   sidebarProps,
   sidebarWidth,
+  isMobile,
   mobileSidebarOpen,
   closeMobileSidebar,
   openMobileSidebar,
@@ -25,9 +26,9 @@ export function AppShellFrame({
       <main
         className="app-main"
         style={{
-          marginLeft: sidebarWidth,
-          width: `calc(100vw - ${resolvedSidebarWidth})`,
-          maxWidth: `calc(100vw - ${resolvedSidebarWidth})`,
+          marginLeft: isMobile ? 0 : sidebarWidth,
+          width: "100%",
+          maxWidth: "100%",
           flex: 1,
           display: "flex",
           flexDirection: "column",
@@ -42,7 +43,7 @@ export function AppShellFrame({
         <div
           className="topbar"
           style={{
-            height: 64,
+            minHeight: 64,
             background: "transparent",
             display: "flex",
             alignItems: "center",

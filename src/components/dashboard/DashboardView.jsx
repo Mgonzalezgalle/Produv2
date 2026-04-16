@@ -146,7 +146,7 @@ export function ViewDashboard({
           <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Hola, {user?.name}</div>
           <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, maxWidth: 720 }}>Aquí tienes una vista corta de lo importante en {empresa?.nombre}: qué está activo, qué requiere atención y a dónde conviene entrar primero.</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, minWidth: 280, flex: "1 1 320px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 8, minWidth: 0, flex: "1 1 320px", width: "100%", maxWidth: 520 }}>
           <div style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
             <div style={summaryLabelStyle}>Estado</div>
             <div style={{ ...summaryTextStyle, marginTop: 14 }}>{dashboardStatus}</div>

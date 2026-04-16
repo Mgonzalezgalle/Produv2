@@ -381,6 +381,83 @@ export function ViewCalendario(props) {
   }, [googleCalendarReady, googleCalendarRange.timeMax, googleCalendarRange.timeMin, userCalendar.calendarId, userCalendar.calendarName, userCalendar.refreshToken, userCalendarEmail, platformApi?.calendar, googleCalendarRefreshTick]);
 
   useEffect(() => {
+    if (!googleCalendarReady || !empId || !setEventos || !Array.isArray(googleCalendarEvents) || !googleCalendarEvents.length) return;
+    const pulledAt = new Date().toISOString();
+    void Promise.resolve(setEventos((current = []) => {
+      const base = Array.isArray(current) ? current : [];
+      const currentByGoogleId = new Map(
+        base
+          .filter(item => item?.empId === empId && item?.googleEventId)
+          .map(item => [item.googleEventId, item])
+      );
+      let changed = false;
+      const additions = [];
+      const next = base.map(item => {
+        if (item?.empId !== empId || !item?.googleEventId) return item;
+        const remote = googleCalendarEvents.find(entry => entry?.googleEventId === item.googleEventId);
+        if (!remote) return item;
+        const remoteHash = remoteCalendarSyncHash(remote);
+        const nextItem = {
+          ...item,
+          titulo: remote.rawSummary || item.titulo,
+          desc: remote.rawDescription || "",
+          fecha: remote.fecha || item.fecha,
+          hora: remote.hora || "",
+          tipo: item.tipo || "reunion",
+          invitados: Array.isArray(remote.rawAttendees) ? remote.rawAttendees : item.invitados || [],
+          addMeet: remote.addMeet === true,
+          googleEventId: remote.googleEventId,
+          googleCalendarId: remote.googleCalendarId,
+          googleCalendarName: remote.googleCalendarName,
+          googleCalendarSyncHash: remoteHash,
+          googleCalendarSyncState: remote.rawStatus === "cancelled" ? "cancelled" : "synced",
+          googleCalendarSyncError: remote.rawStatus === "cancelled" ? "Este evento fue cancelado directamente en Google Calendar." : "",
+          googleCalendarSyncedAt: item.googleCalendarSyncHash === remoteHash && item.googleCalendarSyncState === "synced"
+            ? (item.googleCalendarSyncedAt || pulledAt)
+            : pulledAt,
+          htmlLink: remote.htmlLink || item.htmlLink || "",
+          meetLink: remote.meetLink || item.meetLink || "",
+          importedFromGoogle: item.importedFromGoogle === true ? true : Boolean(item.googleEventId),
+        };
+        if (JSON.stringify(nextItem) !== JSON.stringify(item)) {
+          changed = true;
+          return nextItem;
+        }
+        return item;
+      });
+      googleCalendarEvents.forEach(remote => {
+        if (!remote?.googleEventId || currentByGoogleId.has(remote.googleEventId)) return;
+        changed = true;
+        additions.push({
+          id: `gcal_${remote.googleEventId}`,
+          empId,
+          titulo: remote.rawSummary || "Evento Google",
+          tipo: "reunion",
+          fecha: remote.fecha || "",
+          hora: remote.hora || "",
+          desc: remote.rawDescription || "",
+          ref: "",
+          refTipo: "",
+          invitados: Array.isArray(remote.rawAttendees) ? remote.rawAttendees : [],
+          addMeet: remote.addMeet === true,
+          cr: pulledAt.slice(0, 10),
+          googleEventId: remote.googleEventId,
+          googleCalendarId: remote.googleCalendarId,
+          googleCalendarName: remote.googleCalendarName,
+          googleCalendarSyncHash: remoteCalendarSyncHash(remote),
+          googleCalendarSyncState: remote.rawStatus === "cancelled" ? "cancelled" : "synced",
+          googleCalendarSyncError: remote.rawStatus === "cancelled" ? "Este evento fue cancelado directamente en Google Calendar." : "",
+          googleCalendarSyncedAt: pulledAt,
+          importedFromGoogle: true,
+          htmlLink: remote.htmlLink || "",
+          meetLink: remote.meetLink || "",
+        });
+      });
+      return changed ? [...next, ...additions] : base;
+    }));
+  }, [empId, googleCalendarEvents, googleCalendarReady, setEventos]);
+
+  useEffect(() => {
     if (!googleCalendarReady || !Array.isArray(eventos) || !setEventos || !platformApi?.calendar?.createGoogleCalendarEvent) return;
     const pending = eventos.filter(ev =>
       ev?.empId === empId &&
@@ -626,6 +703,7 @@ export function ViewCalendario(props) {
   };
 
   const todosEvs = [];
+  const localGoogleEventIds = new Set((eventos || []).filter(e => e?.empId === empId && e?.googleEventId).map(e => e.googleEventId));
   (eventos || []).filter(e => e.empId === empId).forEach(ev => {
     if (!ev.fecha) return;
     const d = new Date(`${ev.fecha}T12:00:00`);
@@ -716,7 +794,7 @@ export function ViewCalendario(props) {
   }).filter(Boolean);
   todosEvs.push(...dueInvoices, ...dueContracts);
 
-  todosEvs.push(...googleCalendarEvents);
+  todosEvs.push(...googleCalendarEvents.filter(ev => !localGoogleEventIds.has(ev.googleEventId)));
   const eventosFiltrados = todosEvs.filter(e =>
     (filtro === "todos" || e.tipo === filtro) &&
     (!filtroModulo || e.modulo === filtroModulo) &&

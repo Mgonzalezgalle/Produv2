@@ -561,7 +561,6 @@ export function ViewCalendario(props) {
     { v: "emision", ico: "📡", lbl: "Emisión", c: "#00e08a" },
     ...(tasksEnabled ? [{ v: "tarea", ico: "✅", lbl: "Tarea", c: "#7c5cff" }] : []),
     { v: "entrega", ico: "✓", lbl: "Entrega", c: "#ff8844" },
-    { v: "cobranza", ico: "💸", lbl: "Cobranza", c: "#ff5566" },
     { v: "estreno", ico: "🌟", lbl: "Publicado", c: "#22c55e" },
     { v: "reunion", ico: "💬", lbl: "Reunión", c: "#ffcc44" },
     { v: "otro", ico: "📌", lbl: "Otro", c: "#7c7c8a" },
@@ -1434,7 +1433,7 @@ export function ViewCalendario(props) {
       </Card>
       <Card title="Resumen por tipo">
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
-          {TIPOS.filter(t => ["grabacion", "emision", "entrega", "estreno", "tarea", "cobranza"].includes(t.v)).map(t => <div key={t.v} style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 14 }}>
+          {TIPOS.filter(t => ["grabacion", "emision", "entrega", "estreno", "tarea"].includes(t.v)).map(t => <div key={t.v} style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{t.lbl}</div>
             <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: t.c }}>{eventosFiltrados.filter(ev => ev.tipo === t.v).length}</div>
           </div>)}

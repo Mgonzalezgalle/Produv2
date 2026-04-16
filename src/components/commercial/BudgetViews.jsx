@@ -57,6 +57,22 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 let commercialPdfRuntimePromise = null;
 
+function budgetUsesFx(pres = null) {
+  return !!pres && String(pres.moneda || "CLP").toUpperCase() !== "CLP";
+}
+
+function budgetSummaryCurrency(pres = null) {
+  return budgetUsesFx(pres) ? "CLP" : (pres?.moneda || "CLP");
+}
+
+function budgetItemOriginPrice(item = {}) {
+  return Number(item.precioOrigen ?? item.precio ?? 0);
+}
+
+function budgetItemOriginTotal(item = {}) {
+  return Number(item.totalOrigen ?? (Number(item.qty || 0) * budgetItemOriginPrice(item)));
+}
+
 async function getCommercialPdfRuntime() {
   if (!commercialPdfRuntimePromise) {
     commercialPdfRuntimePromise = Promise.all([
@@ -140,7 +156,10 @@ export function BudgetListSection({
               <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
               <TD><Badge label={p.estado||"Borrador"}/></TD>
               <TD mono style={{fontSize:11}}>{(p.items||[]).length}{p.recurring && <div style={{fontSize:10,color:"#00e08a",marginTop:4}}>{p.recMonths || 1} mes(es)</div>}</TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtMoney(p.total||0,p.moneda||"CLP")}</TD>
+              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>
+                {fmtMoney(p.total||0,budgetSummaryCurrency(p))}
+                {budgetUsesFx(p) && <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(p.totalOrigen || 0,p.moneda||"CLP")} origen</div>}
+              </TD>
               <TD style={{fontSize:11,color:"var(--gr2)"}}>{(contratos||[]).find(ct=>ct.id===p.contratoId)?.nom||"—"}</TD>
               <TD><div style={{display:"flex",gap:4}}>
                 <GBtn sm onClick={e=>{e.stopPropagation();navTo("pres-det",p.id);}}>Ver</GBtn>
@@ -261,7 +280,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
       companyName: empresa?.nombre || empresa?.nom || "Produ",
       entityLabel: client?.nom || contact?.nom || "cliente",
       documentNumber: pres?.correlativo || pres?.titulo || "sin correlativo",
-      totalFormatted: fmtMoney(pres?.total || 0, pres?.moneda || empresa?.moneda || "CLP"),
+      totalFormatted: fmtMoney(pres?.total || 0, budgetSummaryCurrency(pres)),
       validityLabel: `${pres?.validez || 30} días`,
       referenceLabel: budgetRefLabel(pres, producciones, programas, piezas) || "Sin referencia",
     });
@@ -662,7 +681,7 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
       companyName: empresa?.nombre || empresa?.nom || "Produ",
       entityLabel: c?.nom || contact?.nom || "cliente",
       documentNumber: p?.correlativo || p?.titulo || "sin correlativo",
-      totalFormatted: fmtMoney(p?.total || 0, p?.moneda || empresa?.moneda || "CLP"),
+      totalFormatted: fmtMoney(p?.total || 0, budgetSummaryCurrency(p)),
       validityLabel: `${p?.validez || 30} días`,
       referenceLabel: budgetRefLabel(p, producciones, programas, piezas) || "Sin referencia",
     });
@@ -731,14 +750,14 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
       </Card>}
     </div>}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <Stat label="Subtotal Neto" value={fmtMoney(p.subtotal||0,p.moneda||"CLP")}/>
-      <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtMoney(p.ivaVal||0,p.moneda||"CLP"):"No aplica"}/>
-      <Stat label="Total Final" value={fmtMoney(p.total||0,p.moneda||"CLP")} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtMoney(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1)),p.moneda||"CLP"):(p.items||[]).length}/>
+      <Stat label="Subtotal Neto" value={fmtMoney(p.subtotal||0,budgetSummaryCurrency(p))}/>
+      <Stat label={p.honorarios?"Boleta Hon. 15,25%":"IVA 19%"} value={p.iva||p.honorarios?fmtMoney(p.ivaVal||0,budgetSummaryCurrency(p)):"No aplica"}/>
+      <Stat label="Total Final" value={fmtMoney(p.total||0,budgetSummaryCurrency(p))} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label={p.recurring?"Proyección":"Ítems"} value={p.recurring?fmtMoney(p.projectedTotal || Number(p.total||0) * Math.max(1, Number(p.recMonths||1)),budgetSummaryCurrency(p)):(p.items||[]).length}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda",p.moneda||"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda origen",p.moneda||"CLP"],[budgetUsesFx(p)?"Tipo de cambio":"Moneda operativa",budgetUsesFx(p)?`${Number(p.tipoCambio || 1)} CLP`:"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"],["Notas de pago",p.notasPago||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -748,12 +767,13 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
     <Card title="Detalle de Ítems" style={{marginBottom:16}}>
       {(p.items||[]).length>0?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH onClick={()=>setItemSort(itemSort==="desc-asc"?"desc-desc":"desc-asc")} active={itemSort==="desc-asc"||itemSort==="desc-desc"} dir={itemSort==="desc-desc"?"desc":"asc"}>Descripción</TH><TH>Recurrencia</TH><TH onClick={()=>setItemSort(itemSort==="qty-asc"?"qty-desc":"qty-asc")} active={itemSort==="qty-asc"||itemSort==="qty-desc"} dir={itemSort==="qty-desc"?"desc":"asc"}>Cantidad</TH><TH onClick={()=>setItemSort(itemSort==="price-asc"?"price-desc":"price-asc")} active={itemSort==="price-asc"||itemSort==="price-desc"} dir={itemSort==="price-desc"?"desc":"asc"}>Precio Unit.</TH><TH onClick={()=>setItemSort(itemSort==="total-asc"?"total-desc":"total-asc")} active={itemSort==="total-asc"||itemSort==="total-desc"} dir={itemSort==="total-desc"?"desc":"asc"}>Total</TH></tr></thead>
-        <tbody>{sortedItems.map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD>{it.recurrence==="monthly"?"Mensual":"Única vez"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(it.precio||0,p.moneda||"CLP")}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),p.moneda||"CLP")}</TD></tr>)}</tbody>
+        <tbody>{sortedItems.map(it=><tr key={it.id}><TD bold>{it.desc||"—"}</TD><TD>{it.recurrence==="monthly"?"Mensual":"Única vez"}</TD><TD mono>{it.qty||0}</TD><TD mono style={{fontSize:12}}>{fmtMoney(budgetItemOriginPrice(it),p.moneda||"CLP")}{budgetUsesFx(p)&&<div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(it.precioCLP||0,"CLP")} CLP</div>}</TD><TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12}}>{fmtMoney(budgetItemOriginTotal(it),p.moneda||"CLP")}{budgetUsesFx(p)&&<div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(it.totalCLP||0,"CLP")} CLP</div>}</TD></tr>)}</tbody>
       </table></div>:<Empty text="Sin ítems"/>}
       <div style={{marginTop:16,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotal||0,p.moneda||"CLP")}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19%</span><span style={{fontFamily:"var(--fm)"}}>{p.iva||p.honorarios?fmtMoney(p.ivaVal||0,p.moneda||"CLP"):"—"}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtMoney(p.total||0,p.moneda||"CLP")}</span></div>
+        {budgetUsesFx(p) && <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal origen</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotalOrigen||0,p.moneda||"CLP")}</span></div>}
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>Subtotal Neto CLP</span><span style={{fontFamily:"var(--fm)"}}>{fmtMoney(p.subtotal||0,"CLP")}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:12,color:"var(--gr2)"}}><span>IVA 19% CLP</span><span style={{fontFamily:"var(--fm)"}}>{p.iva||p.honorarios?fmtMoney(p.ivaVal||0,"CLP"):"—"}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final CLP</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtMoney(p.total||0,"CLP")}</span></div>
       </div>
     </Card>
     {(p.notasPago||p.obs)&&<Card title="Observaciones">
@@ -805,10 +825,16 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
     delPieceLine,
     socialCampaign,
     pieceItems,
+    usesFx,
+    exchangeRate,
+    subtotalOrigen,
     subtotal,
+    ivaValOrigen,
     ivaVal,
+    totalOrigen,
     total,
     recurringMonths,
+    projectedTotalOrigen,
     projectedTotal,
     contratosCli,
     draftRestored,
@@ -869,7 +895,8 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
     </R2>
     <R3>
       <FG label="Validez (días)"><FI type="number" value={f.validez||"30"} onChange={e=>u("validez",e.target.value)} placeholder="30"/></FG>
-      <FG label="Moneda"><FSl value={f.moneda||"CLP"} onChange={e=>u("moneda",e.target.value)}>{(listas?.monedas||DEFAULT_LISTAS.monedas).map(o=><option key={o}>{o}</option>)}</FSl></FG>
+      <FG label="Moneda"><FSl value={f.moneda||"CLP"} onChange={e=>{ const next = e.target.value; u("moneda",next); if(next==="CLP") u("tipoCambio","1"); else if(!f.tipoCambio || Number(f.tipoCambio) <= 0) u("tipoCambio",""); }}>{(listas?.monedas||DEFAULT_LISTAS.monedas).map(o=><option key={o}>{o}</option>)}</FSl></FG>
+      <FG label="Tipo de cambio">{usesFx ? <FI type="number" min="0" step="0.0001" value={f.tipoCambio||""} onChange={e=>u("tipoCambio",e.target.value)} placeholder="Ej. 38120,55"/> : <FI value="1" disabled />}</FG>
       <FG label="Impuesto"><FSl value={f.honorarios?"hon":f.iva?"iva":"none"} onChange={e=>{const v=e.target.value;u("iva",v==="iva");u("honorarios",v==="hon");}}>
         {(listas?.impuestos||DEFAULT_LISTAS.impuestos).map(o=>{
           const value=o==="IVA 19%"?"iva":o==="Boleta Honorarios 15,25%"?"hon":"none";
@@ -925,7 +952,7 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
                 <td style={{padding:"6px 8px"}}><select value={it.recurrence||"monthly"} onChange={e=>updPieceLine(i,"recurrence",e.target.value)} style={{padding:"6px 8px",fontSize:12,borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}><option value="monthly">Mensual</option><option value="once">Única vez</option></select></td>
                 <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updPieceLine(i,"qty",e.target.value)} min="1" style={{padding:"6px 8px",fontSize:12,textAlign:"right",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}/></td>
                 <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updPieceLine(i,"precio",e.target.value)} min="0" style={{padding:"6px 8px",fontSize:12,textAlign:"right",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}/></td>
-                <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
+                <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(it.totalOrigen||0,f.moneda||"CLP")}{usesFx&&<div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(it.totalCLP||0,"CLP")} CLP</div>}</td>
                 <td style={{padding:"6px 8px",textAlign:"center"}}>{pieceItems.length>1&&<XBtn onClick={()=>delPieceLine(i)}/>}</td>
               </tr>)}</tbody>
             </table>
@@ -942,17 +969,19 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
           <td style={{padding:"6px 8px"}}><select value={it.recurrence||"once"} onChange={e=>updItem(i,"recurrence",e.target.value)} style={{padding:"6px 8px",fontSize:12,borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}><option value="once">Única vez</option><option value="monthly">Mensual</option></select></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.qty||""} onChange={e=>updItem(i,"qty",e.target.value)} min="1" style={{padding:"6px 8px",fontSize:12,textAlign:"right",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}/></td>
           <td style={{padding:"6px 8px"}}><input type="number" value={it.precio||""} onChange={e=>updItem(i,"precio",e.target.value)} min="0" style={{padding:"6px 8px",fontSize:12,textAlign:"right",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--card)",color:"var(--wh)",width:"100%"}}/></td>
-          <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(Number(it.qty||0)*Number(it.precio||0),f.moneda||"CLP")}</td>
+          <td style={{padding:"6px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:12,color:"var(--wh)",whiteSpace:"nowrap"}}>{fmtMoney(it.totalOrigen||0,f.moneda||"CLP")}{usesFx&&<div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(it.totalCLP||0,"CLP")} CLP</div>}</td>
           <td style={{padding:"6px 8px",textAlign:"center"}}><XBtn onClick={()=>delItem(i)}/></td>
         </tr>)}</tbody>
       </table>
     </div>}
     {!(canSocial && f.tipo==="contenido" && f.modoDetalle==="piezas") && !(f.items||[]).length&&<div style={{textAlign:"center",padding:14,color:"var(--gr2)",fontSize:12,border:"1px dashed var(--bdr2)",borderRadius:8,marginBottom:12}}>Sin ítems. Haz clic en "+ Agregar Ítem"</div>}
     <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:8,padding:"12px 16px",marginBottom:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtMoney(subtotal,f.moneda||"CLP")}</span></div>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>IVA 19%</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{f.iva?fmtMoney(ivaVal,f.moneda||"CLP"):"—"}</span></div>
-      <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:13,fontWeight:700}}>Total Final</span><span style={{fontFamily:"var(--fm)",fontSize:15,fontWeight:700,color:"var(--cy)"}}>{fmtMoney(total,f.moneda||"CLP")}</span></div>
-      {f.recurring && <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,marginTop:8,borderTop:"1px dashed var(--bdr2)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Proyección {recurringMonths} mes{recurringMonths===1?"":"es"}</span><span style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:700,color:"#00e08a"}}>{fmtMoney(projectedTotal,f.moneda||"CLP")}</span></div>}
+      {usesFx && <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Tipo de cambio</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{Number(exchangeRate || 0).toLocaleString("es-CL")} CLP</span></div>}
+      {usesFx && <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal origen</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtMoney(subtotalOrigen,f.moneda||"CLP")}</span></div>}
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>Subtotal Neto CLP</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{fmtMoney(subtotal,"CLP")}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,color:"var(--gr2)"}}>IVA 19% CLP</span><span style={{fontFamily:"var(--fm)",fontSize:13}}>{f.iva?fmtMoney(ivaVal,"CLP"):f.honorarios?fmtMoney(ivaVal,"CLP"):"—"}</span></div>
+      <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span style={{fontSize:13,fontWeight:700}}>Total Final CLP</span><span style={{fontFamily:"var(--fm)",fontSize:15,fontWeight:700,color:"var(--cy)"}}>{fmtMoney(total,"CLP")}</span></div>
+      {f.recurring && <div style={{display:"flex",justifyContent:"space-between",paddingTop:8,marginTop:8,borderTop:"1px dashed var(--bdr2)"}}><span style={{fontSize:12,color:"var(--gr2)"}}>Proyección {recurringMonths} mes{recurringMonths===1?"":"es"}</span><span style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:700,color:"#00e08a"}}>{fmtMoney(projectedTotal,"CLP")}</span></div>}
     </div>
     <R2>
       <FG label="Método de Pago"><FI value={f.metodoPago||""} onChange={e=>u("metodoPago",e.target.value)} placeholder="Transferencia, cuotas..."/></FG>
@@ -972,6 +1001,7 @@ export function MPres({open,data,clientes,producciones,programas,piezas,contrato
     </div>}
     <MFoot onClose={onClose} onSave={()=>{
       if(!f.titulo?.trim()||!f.cliId)return;
+      if(usesFx && Number(exchangeRate || 0) <= 0) return;
       onSave(buildPayload());
     }}/>
   </Modal>;

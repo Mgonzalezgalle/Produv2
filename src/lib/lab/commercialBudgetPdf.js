@@ -45,6 +45,9 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   const subtotal = Number(pres.subtotal || 0);
   const ivaVal = Number(pres.ivaVal || 0);
   const total = Number(pres.total || 0);
+  const subtotalOrigen = Number(pres.subtotalOrigen || 0);
+  const totalOrigen = Number(pres.totalOrigen || 0);
+  const usesFx = String(pres.moneda || "CLP").toUpperCase() !== "CLP";
   const legalRed = hexToRgb("#c1121f");
   const paymentInfo = companyPaymentInfoText(empresa, {
     dueDate: pres.fechaPago || "",
@@ -77,6 +80,9 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   page.drawText(`Fecha: ${fmtD(pres.cr || today())}`, { x: stampX, y: height - 146, size: layout.metaSize || 9, font, color: textColor });
   page.drawText(`Validez: ${pres.validez || 30} días`, { x: stampX, y: height - 160, size: layout.metaSize || 9, font, color: textColor });
   page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x: stampX, y: height - 174, size: layout.metaSize || 9, font, color: textColor });
+  if (usesFx) {
+    page.drawText(`Tipo cambio: ${Number(pres.tipoCambio || 1).toLocaleString("es-CL")} CLP`, { x: stampX, y: height - 188, size: layout.metaSize || 9, font, color: textColor });
+  }
 
   let y = height - 196;
   const clientText = [
@@ -146,8 +152,8 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
       maxWidth: columns.recurrence.width,
     });
     drawRightAlignedPdfText(page, String(item.qty || 0), columns.qty.x, valueY, columns.qty.width, font, layout.detailBodySize || 7.1, textColor);
-    drawRightAlignedPdfText(page, fmtMoney(item.precio || 0, pres.moneda || "CLP"), columns.unit.x, valueY, columns.unit.width, font, layout.detailBodySize || 7.1, textColor);
-    drawRightAlignedPdfText(page, fmtMoney(Number(item.qty || 0) * Number(item.precio || 0), pres.moneda || "CLP"), columns.total.x, valueY, columns.total.width, bold, Math.max((layout.detailBodySize || 7.1) + 0.2, 7.3), textColor);
+    drawRightAlignedPdfText(page, fmtMoney(Number(item.precioOrigen ?? item.precio ?? 0), pres.moneda || "CLP"), columns.unit.x, valueY, columns.unit.width, font, layout.detailBodySize || 7.1, textColor);
+    drawRightAlignedPdfText(page, fmtMoney(Number(item.totalOrigen ?? (Number(item.qty || 0) * Number(item.precioOrigen ?? item.precio ?? 0))), pres.moneda || "CLP"), columns.total.x, valueY, columns.total.width, bold, Math.max((layout.detailBodySize || 7.1) + 0.2, 7.3), textColor);
     y -= rowHeight + 4;
   });
 
@@ -179,9 +185,11 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     y: paymentCardY,
     width: cardWidth,
     rows: [
-      { label: "SubTotal", value: fmtMoney(subtotal, pres.moneda || "CLP"), bold: true, valueSize: 11 },
-      { label: "Impuestos", value: (pres.iva || pres.honorarios) ? fmtMoney(ivaVal, pres.moneda || "CLP") : "0", bold: true, valueSize: 9.6 },
-      { label: "TOTAL FINAL", value: fmtMoney(total, pres.moneda || "CLP"), bold: true, valueSize: 11, labelSize: 7.8, color: legalRed },
+      ...(usesFx ? [{ label: "SubTotal origen", value: fmtMoney(subtotalOrigen, pres.moneda || "CLP"), bold: true, valueSize: 9.4 }] : []),
+      { label: "SubTotal CLP", value: fmtMoney(subtotal, "CLP"), bold: true, valueSize: 11 },
+      { label: "Impuestos CLP", value: (pres.iva || pres.honorarios) ? fmtMoney(ivaVal, "CLP") : "0", bold: true, valueSize: 9.6 },
+      { label: "TOTAL FINAL CLP", value: fmtMoney(total, "CLP"), bold: true, valueSize: 11, labelSize: 7.8, color: legalRed },
+      ...(usesFx ? [{ label: "Referencia origen", value: fmtMoney(totalOrigen, pres.moneda || "CLP"), bold: false, valueSize: 8.6 }] : []),
     ],
     labelWidth: 116,
     accentColor,

@@ -776,7 +776,8 @@ export default function App(){
   const domainUsers = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS), [users]);
   const domainEmpresas = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS), [empresas]);
   const ef = useCallback(arr => (arr || []).filter(x => x.empId === empId), [empId]);
-  const socialCampaigns = normalizeSocialCampaigns(piezas);
+  const socialCampaigns = useMemo(() => normalizeSocialCampaigns(piezas), [piezas]);
+  const normalizedCrmStages = useMemo(() => normalizeCrmStages(CRM_STAGE_SEED), []);
   const counts = useMemo(() => ({
     cli: ef(clientes).length,
     pro: ef(producciones).length,
@@ -793,9 +794,7 @@ export default function App(){
     tar: tasksEnabled ? (Array.isArray(tareas) ? tareas : []).filter(t => t && t.empId === empId && getAssignedIds(t).includes(curUser?.id) && !["Completada", "Finalizada"].includes(t.estado)).length : 0,
   }), [clientes, producciones, programas, socialCampaigns, crew, auspiciadores, crmOpps, contratos, presupuestos, facturas, activos, tareas, tasksEnabled, empId, curUser?.id, ef]);
 
-  // Breadcrumb
-  const buildBc=()=>{
-    const L=MODULE_LABELS;
+  const bc = useMemo(() => {
     if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
     if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PROYECTOS",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
     if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
@@ -803,8 +802,8 @@ export default function App(){
     if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
     if(view==="crm"){return [{l:"CRM"}];}
-    return [{l:L[view]||view.toUpperCase()}];
-  };
+    return [{l:MODULE_LABELS[view]||view.toUpperCase()}];
+  }, [view, clientes, producciones, programas, socialCampaigns, episodios, presupuestos, detId, navTo]);
 
   const VP = useMemo(() => ({
     empresa:curEmp,
@@ -819,7 +818,7 @@ export default function App(){
     auspiciadores:auspiciadores||[],
     crmOpps:crmOpps||[],
     crmActivities:crmActivities||[],
-    crmStages:crmStages||normalizeCrmStages(CRM_STAGE_SEED),
+    crmStages:crmStages||normalizedCrmStages,
     contratos:contratos||[],
     movimientos:movimientos||[],
     crew:crew||[],
@@ -844,7 +843,7 @@ export default function App(){
     fmtD,
     platformApi,
     canDo:(a)=>canDo(curUser,a,curEmp),
-  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi]);
+  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, normalizedCrmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi]);
   const treasuryProps = useMemo(() => ({
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,
@@ -1052,7 +1051,6 @@ export default function App(){
 
   const sidebarCollapsed=isMobile?false:collapsed;
   const SW=sidebarCollapsed?64:240;
-  const bc=buildBc();
   const moduleLoadingOverlay = (
     <div
       style={{

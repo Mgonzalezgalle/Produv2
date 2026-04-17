@@ -26,10 +26,20 @@ export function buildResendEmailRequest(payload = {}) {
       subject: draft.subject,
       html: draft.html || undefined,
       text: draft.text || undefined,
-      attachments: draft.attachments.map(att => ({
-        filename: att.name,
-        path: att.src,
-      })),
+      attachments: draft.attachments.map(att => {
+        const match = String(att.src || "").match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          return {
+            filename: att.name,
+            content: match[2],
+            contentType: match[1],
+          };
+        }
+        return {
+          filename: att.name,
+          path: att.src,
+        };
+      }),
       tags: draft.tags.map(tag => ({ name: "context", value: String(tag) })),
       headers: draft.previewText ? { "X-Entity-Preview": draft.previewText } : undefined,
     },

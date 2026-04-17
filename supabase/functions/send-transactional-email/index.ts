@@ -73,12 +73,19 @@ function normalizeAttachments(input: Payload["attachments"] = []) {
   return raw
     .map((item) => {
       const src = String(item?.src || "").trim();
-      if (!src.startsWith("data:")) return null;
-      const match = src.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) return null;
+      if (!src) return null;
+      const dataMatch = src.match(/^data:([^;]+);base64,(.+)$/);
+      if (dataMatch) {
+        return {
+          filename: String(item?.name || "adjunto").trim(),
+          content: dataMatch[2],
+          contentType: dataMatch[1],
+        };
+      }
+      if (!/^https?:\/\//i.test(src)) return null;
       return {
         filename: String(item?.name || "adjunto").trim(),
-        content: match[2],
+        path: src,
       };
     })
     .filter(Boolean);

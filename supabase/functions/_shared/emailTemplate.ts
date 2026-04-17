@@ -32,7 +32,6 @@ function bodyTextFromPayload(payload: TemplatePayload) {
 export function renderTransactionalEmailTemplate(payload: TemplatePayload) {
   const bodyHtml = bodyHtmlFromPayload(payload);
   const bodyText = bodyTextFromPayload(payload);
-  const safeTemplateKey = escapeHtml(String(payload.templateKey || "correo"));
   const safeCompanyName = escapeHtml(String(payload.companyName || "Produ"));
   const footerHtml = `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #e8eef8;font-size:12px;line-height:1.7;color:#64748b">Correo creado con ♥ por <a href="https://www.produ.cl/" target="_blank" rel="noreferrer" style="color:#1e4ed8;text-decoration:none;font-weight:700">Produ</a>.</div>`;
   const footerText = `\n\nCorreo creado con ♥ por Produ: https://www.produ.cl/`;
@@ -45,7 +44,6 @@ export function renderTransactionalEmailTemplate(payload: TemplatePayload) {
               <div style="font-size:30px;line-height:1;font-weight:800;letter-spacing:-.04em;color:#12233f">Produ</div>
               <div style="margin-top:6px;font-size:13px;line-height:1.2;color:#55708e">Gestión de Productoras</div>
               <div style="margin-top:16px;font-size:16px;line-height:1.4;color:#1f3655;font-weight:700">Notificación de ${safeCompanyName}</div>
-              <div style="margin-top:10px;font-size:11px;line-height:1.4;color:#5f7898;text-transform:uppercase;letter-spacing:.14em;font-weight:700">${safeTemplateKey}</div>
             </div>
           </div>
           <div style="background:#ffffff;border:1px solid #d5e3f7;border-top:none;border-radius:0 0 24px 24px;padding:34px 36px 30px 36px;box-shadow:0 26px 50px rgba(15,23,42,.06)">

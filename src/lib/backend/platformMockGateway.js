@@ -1,15 +1,23 @@
 import { createMockPlatformServices } from "./mockPlatformServices";
 import { createAuthMockService } from "./authMockService";
 import { createTenantBootstrapMockService } from "./tenantBootstrapMockService";
-import {
-  activateSelfServeTenantMockEndpoint,
-  confirmSelfServePaymentMockEndpoint,
-  createSelfServeCheckoutSessionMockEndpoint,
-} from "../lab/selfServeMockApi";
-import {
-  createBsaleManualEmissionMockEndpoint,
-  getBsaleDocumentStatusMockEndpoint,
-} from "../lab/bsaleMockApi";
+
+let selfServeMockApiPromise = null;
+let bsaleMockApiPromise = null;
+
+async function loadSelfServeMockApi() {
+  if (!selfServeMockApiPromise) {
+    selfServeMockApiPromise = import("../lab/selfServeMockApi");
+  }
+  return selfServeMockApiPromise;
+}
+
+async function loadBsaleMockApi() {
+  if (!bsaleMockApiPromise) {
+    bsaleMockApiPromise = import("../lab/bsaleMockApi");
+  }
+  return bsaleMockApiPromise;
+}
 
 export function createPlatformMockGateway({
   dbGet,
@@ -43,6 +51,7 @@ export function createPlatformMockGateway({
     },
 
     async createSelfServeCheckoutSession({ acquisitionLead = {}, pricingSnapshot } = {}) {
+      const { createSelfServeCheckoutSessionMockEndpoint } = await loadSelfServeMockApi();
       return createSelfServeCheckoutSessionMockEndpoint({
         dbGet,
         dbSet,
@@ -52,6 +61,7 @@ export function createPlatformMockGateway({
     },
 
     async confirmSelfServePayment({ leadId = "", checkoutSessionId = "" } = {}) {
+      const { confirmSelfServePaymentMockEndpoint } = await loadSelfServeMockApi();
       return confirmSelfServePaymentMockEndpoint({
         dbGet,
         dbSet,
@@ -61,6 +71,7 @@ export function createPlatformMockGateway({
     },
 
     async activateSelfServeTenant({ leadId = "", checkoutSessionId = "" } = {}) {
+      const { activateSelfServeTenantMockEndpoint } = await loadSelfServeMockApi();
       return activateSelfServeTenantMockEndpoint({
         dbGet,
         dbSet,
@@ -77,6 +88,7 @@ export function createPlatformMockGateway({
       lineItems = [],
       references = [],
     } = {}) {
+      const { createBsaleManualEmissionMockEndpoint } = await loadBsaleMockApi();
       return createBsaleManualEmissionMockEndpoint({
         dbGet,
         dbSet,
@@ -91,6 +103,7 @@ export function createPlatformMockGateway({
     async getBillingDocumentStatus({
       facturaId = "",
     } = {}) {
+      const { getBsaleDocumentStatusMockEndpoint } = await loadBsaleMockApi();
       return getBsaleDocumentStatusMockEndpoint({
         dbGet,
         dbSet,

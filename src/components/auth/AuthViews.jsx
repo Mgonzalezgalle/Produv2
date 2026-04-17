@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
 import { completeLocalPasswordReset } from "../../lib/auth/localAuthProvider";
 import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
@@ -16,8 +16,6 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from "../../lib/auth/localTwoFactor";
-
-const SelfServeAcquisitionWizard = lazy(() => import("./SelfServeAcquisitionWizard").then(module => ({ default: module.SelfServeAcquisitionWizard })));
 
 class AuthModalErrorBoundary extends React.Component {
   constructor(props) {
@@ -58,6 +56,8 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
   const [showPass,setShowPass]=useState(false);
   const { solOpen, solF, solSent, setSolF, setSolSent, open: openSelfServe, close: closeSelfServe } = useLabSelfServeAccess();
+  const [SelfServeModalView, setSelfServeModalView] = useState(null);
+  const [selfServeLoading, setSelfServeLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
@@ -93,6 +93,23 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setNewPass2("");
     setResetInfo("");
     setResetRevealCode("");
+  };
+
+  const handleOpenSelfServe = async () => {
+    if (!SelfServeModalView) {
+      setSelfServeLoading(true);
+      try {
+        const module = await import("./SelfServeAcquisitionWizard");
+        setSelfServeModalView(() => module.SelfServeAcquisitionWizard);
+      } catch (error) {
+        console.error("Self-serve wizard load error", error);
+        setErr("No pudimos abrir la contratación guiada. Intenta nuevamente.");
+        return;
+      } finally {
+        setSelfServeLoading(false);
+      }
+    }
+    openSelfServe();
   };
 
   useEffect(() => {
@@ -353,7 +370,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
               <div>• Activación guiada y supervisada por el equipo de Produ</div>
             </div>
           </div>
-          <button type="button" onClick={openSelfServe} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)"}}>¿Quieres contratar Produ?</button>
+          <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:selfServeLoading?"wait":"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)",opacity:selfServeLoading?0.8:1}}>{selfServeLoading?"Cargando...":"¿Quieres contratar Produ?"}</button>
         </div>
       </div>
       <div className="login-form" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
@@ -479,7 +496,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
               <div>
                 <>
                   <span style={{fontSize:12,color:"var(--gr2)"}}>¿No tienes cuenta? </span>
-                  <button type="button" onClick={openSelfServe} style={{background:"none",border:"none",color:"var(--cy)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Solicitar acceso</button>
+                  <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{background:"none",border:"none",color:"var(--cy)",cursor:selfServeLoading?"wait":"pointer",fontSize:12,fontWeight:600,textDecoration:"underline",opacity:selfServeLoading?0.8:1}}>Solicitar acceso</button>
                 </>
               </div>
             </>}
@@ -490,9 +507,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     </div>
   </div>
   {solOpen&&<AuthModalErrorBoundary onClose={closeSelfServe}>
-    <Suspense fallback={null}>
-      <SelfServeAcquisitionWizard onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
-    </Suspense>
+    {SelfServeModalView
+      ? <SelfServeModalView onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
+      : null}
   </AuthModalErrorBoundary>}
   </>;
 }

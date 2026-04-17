@@ -38,6 +38,9 @@ export function IntegracionesAdminPanel({
   const mercadoPagoMode = mercadoPagoGovernance.mode || "disabled";
   const mercadoPagoEnabled = mercadoPagoMode !== "disabled";
   const mercadoPagoSnapshot = getMercadoPagoPaymentsProviderSnapshot();
+  const freshdeskEnabled = selectedIntegrationEmp?.freshdeskEnabled === true;
+  const supportChatEnabled = selectedIntegrationEmp?.supportChatEnabled === true;
+  const freshdeskMode = freshdeskEnabled || supportChatEnabled ? "enabled" : "disabled";
   const localModules = Array.isArray(selectedIntegrationEmp?.addons) ? selectedIntegrationEmp.addons : [];
   const modulesAligned = JSON.stringify([...localModules].sort()) === JSON.stringify([...remoteModules].sort());
   const bsaleAligned = (remoteBsale?.governanceMode || "disabled") === bsaleMode;
@@ -354,6 +357,44 @@ export function IntegracionesAdminPanel({
         <KV label="Modo del provider" value={emailProviderSnapshot.mode || "disabled"} />
         <KV label="Reply-to" value={emailProviderSnapshot.replyTo || "—"} />
         <KV label="Uso inicial" value="Recuperación, invitación y documentos" />
+      </Card>
+      <Card title="Freshdesk" sub={selectedIntegrationEmp.nombre}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <Badge label={freshdeskMode === "enabled" ? "Habilitado" : "Deshabilitado"} color={freshdeskMode === "enabled" ? "green" : "gray"} sm />
+          <Badge label={freshdeskEnabled ? "Provider listo" : "Provider apagado"} color={freshdeskEnabled ? "purple" : "gray"} sm />
+          <Badge label={supportChatEnabled ? "Chat visible" : "Chat oculto"} color={supportChatEnabled ? "green" : "yellow"} sm />
+        </div>
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, marginBottom: 14 }}>
+          Freshdesk vive como widget de soporte por tenant. Desde Torre de Control definimos si el provider queda habilitado y si el chat puede mostrarse a usuarios normales de esa empresa.
+        </div>
+        <R2>
+          <FG label="Provisionamiento">
+            <FSl
+              value={freshdeskMode}
+              onChange={e => {
+                const enabled = e.target.value === "enabled";
+                return persistIntegration(emp => ({
+                  ...emp,
+                  freshdeskEnabled: enabled,
+                  supportChatEnabled: enabled,
+                }), {
+                  action: "tenant_freshdesk_governance_updated",
+                  integration: "freshdesk_support",
+                  field: "enabled",
+                  value: enabled ? "enabled" : "disabled",
+                });
+              }}
+            >
+              <option value="disabled">Desactivado</option>
+              <option value="enabled">Habilitado</option>
+            </FSl>
+          </FG>
+          <FG label="Estado widget">
+            <FI value={freshdeskMode === "enabled" ? "Visible para usuarios tenant" : ""} readOnly placeholder="No visible" />
+          </FG>
+        </R2>
+        <KV label="Regla de visibilidad" value="Solo usuarios tenant activos, no superadmin" />
+        <KV label="Snippet" value="fw-cdn.com/16062405/7053033.js" />
       </Card>
       <Card title="Gobierno SaaS" sub="Qué decide Torre de Control para este tenant">
         <KV label="Motor tributario" value={bsaleProvisioned ? (bsaleMode === "production" ? "Activo en producción" : "Activo en sandbox") : "Desactivado"} />

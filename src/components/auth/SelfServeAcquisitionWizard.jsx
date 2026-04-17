@@ -59,18 +59,18 @@ export function SelfServeAcquisitionWizard({
   releaseMode = false,
 }) {
   const {
-    today,
-    dbGet,
-    dbSet,
+    today = () => new Date().toISOString().slice(0, 10),
+    dbGet = async () => [],
+    dbSet = async () => null,
     nextTenantCode,
     sha256Hex,
     authGateway,
     sessionKey,
-    users,
+    users = [],
     empresas: helperEmpresas,
     platformApi,
     platformGateway: providedPlatformGateway,
-  } = helpers;
+  } = helpers || {};
   const platformGateway = useMemo(
     () => providedPlatformGateway || createPlatformMockGateway({
       dbGet,

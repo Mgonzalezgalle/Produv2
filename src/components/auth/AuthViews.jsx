@@ -454,7 +454,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     </div>
   </div>
   {solOpen&&<AuthModalErrorBoundary onClose={closeSelfServe}>
-    <SolicitudModal onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
+    <SelfServeAcquisitionWizard onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
   </AuthModalErrorBoundary>}
   </>;
 }

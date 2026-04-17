@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
 import { completeLocalPasswordReset } from "../../lib/auth/localAuthProvider";
-import { AuthModalErrorBoundary, SelfServeAcquisitionWizard } from "./SelfServeAcquisitionWizard";
 import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
 import QRCode from "qrcode";
 import {
@@ -17,6 +16,43 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from "../../lib/auth/localTwoFactor";
+
+const SelfServeAcquisitionWizard = lazy(() => import("./SelfServeAcquisitionWizard").then(module => ({ default: module.SelfServeAcquisitionWizard })));
+
+class AuthModalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: String(error?.message || "No pudimos renderizar este flujo.") };
+  }
+
+  componentDidCatch(error) {
+    console.error("Auth modal render error", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:18,width:560,maxWidth:"100%",padding:28}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,marginBottom:8}}>No pudimos abrir este flujo</div>
+            <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.7,marginBottom:18}}>
+              El login siguió estable, pero el wizard de contratación encontró un error de render. Ya lo tomamos para corregirlo sin tocar `productivo`.
+            </div>
+            <div style={{padding:"12px 14px",borderRadius:12,border:"1px solid #ff556635",background:"#ff556615",color:"var(--red)",fontSize:12,marginBottom:18}}>
+              {this.state.message}
+            </div>
+            <GBtn onClick={this.props.onClose}>Cerrar</GBtn>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, sha256Hex, dbHelpers, authGateway, authModeLabel = "", releaseMode = false }) {
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");const [err,setErr]=useState("");const [load,setLoad]=useState(false);
@@ -454,7 +490,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     </div>
   </div>
   {solOpen&&<AuthModalErrorBoundary onClose={closeSelfServe}>
-    <SelfServeAcquisitionWizard onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
+    <Suspense fallback={null}>
+      <SelfServeAcquisitionWizard onClose={closeSelfServe} solF={solF} setSolF={setSolF} solSent={solSent} setSolSent={setSolSent} empresas={empresas} helpers={dbHelpers} releaseMode={releaseMode}/>
+    </Suspense>
   </AuthModalErrorBoundary>}
   </>;
 }

@@ -92,7 +92,7 @@ export function SelfServeAcquisitionWizard({
   const selectedModules = normalizeSelfServeSelection(solF.modules || []);
   const baseProduct = useMemo(() => buildSelfServeBaseProduct(selfServeSettings), [selfServeSettings]);
   const pricingSnapshot = buildSelfServePricingSnapshot(selectedModules, selfServeSettings);
-  const commercialSummary = buildSelfServeCommercialSummary(pricingSnapshot);
+  const commercialSummary = buildSelfServeCommercialSummary(pricingSnapshot, { ufValueClp: selfServeSettings.ufValueClp });
   const recommendations = getSelfServeRecommendations(selectedModules, selfServeSettings);
   const groupedModules = SELF_SERVE_ADDON_GROUPS.map(group => ({
     ...group,
@@ -407,12 +407,16 @@ export function SelfServeAcquisitionWizard({
               <div style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--cm)",background:"var(--cg)",marginBottom:14}}>
                 <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:8}}>Estimación para checkout</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,fontSize:12}}>
-                  <span>Total mensual en UF</span>
-                  <strong>{commercialSummary.totalUF} {SELF_SERVE_PRICE_UNIT}</strong>
+                  <span>Total promocional</span>
+                  <strong>{commercialSummary.promoTotalUF} {SELF_SERVE_PRICE_UNIT}</strong>
                   <span>Valor referencial UF</span>
                   <strong>{commercialSummary.ufValueClp.toLocaleString("es-CL")} CLP</strong>
                   <span>Total estimado a cobrar</span>
-                  <strong style={{color:"var(--cy)"}}>{commercialSummary.totalClpFormatted}</strong>
+                  <strong style={{color:"var(--cy)"}}>{commercialSummary.promoTotalClpFormatted}</strong>
+                  {pricingSnapshot.base.promoMonths > 0 && <>
+                    <span>Luego del mes {pricingSnapshot.base.promoMonths + 1}</span>
+                    <strong>{commercialSummary.totalUF} {SELF_SERVE_PRICE_UNIT} · {commercialSummary.totalClpFormatted}</strong>
+                  </>}
                 </div>
               </div>
               <div style={{display:"grid",gap:10,marginBottom:14}}>
@@ -486,6 +490,11 @@ export function SelfServeAcquisitionWizard({
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--gr2)"}}><span>Addons</span><span>{pricingSnapshot.addonSubtotalUF} UF</span></div>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:16,fontWeight:800}}><span>Total estimado</span><span style={{color:"var(--cy)"}}>{pricingSnapshot.totalUF} {SELF_SERVE_PRICE_UNIT}</span></div>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--gr2)"}}><span>Equivalente referencial</span><span>{commercialSummary.totalClpFormatted}</span></div>
+              {pricingSnapshot.base.promoMonths > 0 && (
+                <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--cm)",background:"var(--cg)",fontSize:12,lineHeight:1.6,color:"var(--gr3)"}}>
+                  Pagarás <strong style={{color:"var(--wh)"}}>{commercialSummary.totalUF} {SELF_SERVE_PRICE_UNIT}</strong> desde el mes {pricingSnapshot.base.promoMonths + 1}, equivalente referencial a <strong style={{color:"var(--cy)"}}>{commercialSummary.totalClpFormatted}</strong> con UF en <strong>{commercialSummary.ufValueClp.toLocaleString("es-CL")} CLP</strong>.
+                </div>
+              )}
             </div>
           </div>
         </div>}

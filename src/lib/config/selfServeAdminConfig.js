@@ -7,6 +7,7 @@ export const DEFAULT_SELF_SERVE_SETTINGS = {
   baseMonthlyUF: 1,
   promoMonthlyUF: 0,
   promoMonths: 3,
+  ufValueClp: 39000,
   addonPrices: {},
   addonOverrides: {},
 };
@@ -21,6 +22,7 @@ export function normalizeSelfServeSettings(raw = {}) {
     baseMonthlyUF: Math.max(0, Number(raw?.baseMonthlyUF ?? DEFAULT_SELF_SERVE_SETTINGS.baseMonthlyUF) || 0),
     promoMonthlyUF: Math.max(0, Number(raw?.promoMonthlyUF ?? DEFAULT_SELF_SERVE_SETTINGS.promoMonthlyUF) || 0),
     promoMonths: Math.max(0, Number(raw?.promoMonths ?? DEFAULT_SELF_SERVE_SETTINGS.promoMonths) || 0),
+    ufValueClp: Math.max(0, Number(raw?.ufValueClp ?? DEFAULT_SELF_SERVE_SETTINGS.ufValueClp) || 0),
     addonPrices: Object.fromEntries(
       Object.entries(rawAddonPrices).map(([code, value]) => [code, Math.max(0, Number(value || 0) || 0)]),
     ),

@@ -65,6 +65,21 @@ export function WizardAdminPanel({ dbGet, dbSet }) {
           <FI type="number" min="0" step="1" value={selfServeSettings.promoMonths} onChange={e => setSelfServeSettings(prev => ({ ...prev, promoMonths: Number(e.target.value || 0) }))} placeholder="3" />
         </FG>
       </R3>
+      <R2>
+        <FG label="Tipo de cambio UF (CLP)">
+          <FI
+            type="number"
+            min="0"
+            step="1"
+            value={selfServeSettings.ufValueClp}
+            onChange={e => setSelfServeSettings(prev => ({ ...prev, ufValueClp: Number(e.target.value || 0) }))}
+            placeholder="39000"
+          />
+        </FG>
+        <FG label="Referencia comercial">
+          <FI value="Usado para mostrar equivalentes en CLP dentro del wizard" disabled />
+        </FG>
+      </R2>
       <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", marginBottom: 14 }}>
         <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, marginBottom: 10 }}>Catálogo de addons</div>
         <div style={{ display: "grid", gap: 10 }}>
@@ -115,6 +130,8 @@ export function WizardAdminPanel({ dbGet, dbSet }) {
           <strong style={{ color: "var(--cy)" }}>{selfServeSettings.promoMonthlyUF === 0 && selfServeSettings.promoMonths > 0 ? `$0 por ${selfServeSettings.promoMonths} meses` : `${selfServeSettings.promoMonthlyUF} UF / mes`}</strong>
           <span>Luego</span>
           <strong>{selfServeSettings.baseMonthlyUF} UF / mes</strong>
+          <span>UF referencial</span>
+          <strong>${Number(selfServeSettings.ufValueClp || 0).toLocaleString("es-CL")} CLP</strong>
           <span>Modalidad</span>
           <strong>{selfServeSettings.assistedOnly ? "Asistida" : "Checkout habilitado"}</strong>
         </div>

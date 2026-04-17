@@ -7,7 +7,9 @@ import {
 export const SELF_SERVE_CHECKOUT_CURRENCY = "CLP";
 export const DEFAULT_UF_VALUE_CLP = 39000;
 
-export function getSelfServeUfValueClp() {
+export function getSelfServeUfValueClp(value) {
+  const direct = Number(value || 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
   const configured = Number(import.meta.env?.VITE_SELF_SERVE_UF_VALUE_CLP || 0);
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_UF_VALUE_CLP;
 }
@@ -28,12 +30,15 @@ export function formatClp(amount = 0) {
   }
 }
 
-export function buildSelfServeCommercialSummary(pricingSnapshot = buildSelfServePricingSnapshot([])) {
+export function buildSelfServeCommercialSummary(pricingSnapshot = buildSelfServePricingSnapshot([]), options = {}) {
   const addons = Array.isArray(pricingSnapshot?.addons) ? pricingSnapshot.addons : [];
   const baseAmount = Number(pricingSnapshot?.base?.monthlyUF || SELF_SERVE_BASE_PRODUCT.monthlyUF || 0);
+  const promoBaseAmount = Number(pricingSnapshot?.base?.promoMonthlyUF ?? baseAmount);
   const addonAmount = Number(pricingSnapshot?.addonSubtotalUF || 0);
   const totalUF = Number(pricingSnapshot?.totalUF || baseAmount + addonAmount);
-  const ufValueClp = getSelfServeUfValueClp();
+  const promoTotalUF = promoBaseAmount + addonAmount;
+  const ufValueClp = getSelfServeUfValueClp(options?.ufValueClp);
+  const promoTotalClp = convertUfToClp(promoTotalUF, ufValueClp);
   const totalClp = convertUfToClp(totalUF, ufValueClp);
 
   return {
@@ -41,7 +46,11 @@ export function buildSelfServeCommercialSummary(pricingSnapshot = buildSelfServe
     checkoutCurrency: SELF_SERVE_CHECKOUT_CURRENCY,
     ufValueClp,
     baseUF: baseAmount,
+    promoBaseUF: promoBaseAmount,
     addonUF: addonAmount,
+    promoTotalUF,
+    promoTotalClp,
+    promoTotalClpFormatted: formatClp(promoTotalClp),
     totalUF,
     totalClp,
     totalClpFormatted: formatClp(totalClp),
@@ -148,4 +157,3 @@ export function buildSelfServeCheckoutDraft({
     createdAt: new Date().toISOString(),
   };
 }
-

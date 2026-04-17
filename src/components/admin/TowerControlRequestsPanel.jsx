@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../../lib/ui/components";
 
 export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD, addons }) {
@@ -7,14 +7,36 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
   const [busyId, setBusyId] = useState("");
   const [feedback, setFeedback] = useState(null);
 
-  useEffect(() => {
-    dbGet("produ:solicitudes").then(v => {
-      setSols(v || []);
-      setLoading(false);
-    });
+  const loadSolicitudes = useCallback(async () => {
+    setLoading(true);
+    const next = await dbGet("produ:solicitudes");
+    setSols(next || []);
+    setLoading(false);
   }, [dbGet]);
 
-  const pendientes = sols.filter(s => s.estado === "pendiente");
+  useEffect(() => {
+    void loadSolicitudes();
+  }, [loadSolicitudes]);
+
+  const pendientes = sols.filter(s => !["aprobada", "rechazada", "activated"].includes(String(s.estado || "")));
+
+  const statusBadges = (sol) => {
+    const items = [];
+    const estado = String(sol.estado || "pendiente");
+
+    if (estado === "awaiting_review") items.push({ label: "En revisión", color: "yellow" });
+    else if (estado === "checkout_started") items.push({ label: "Checkout iniciado", color: "cyan" });
+    else if (estado === "payment_confirmed") items.push({ label: "Pago confirmado", color: "green" });
+    else items.push({ label: "Pendiente", color: "yellow" });
+
+    if (sol.tipo === "empresa") items.push({ label: "Empresa solicitante", color: "cyan" });
+    if (sol.referred) items.push({ label: "Referido", color: "purple" });
+    if (sol.checkoutState && sol.checkoutState !== "draft") items.push({ label: `Checkout: ${sol.checkoutState}`, color: "gray" });
+    if (sol.paymentState && sol.paymentState !== "draft") items.push({ label: `Pago: ${sol.paymentState}`, color: sol.paymentState === "payment_confirmed" ? "green" : "gray" });
+    if (sol.activationState && sol.activationState !== "draft") items.push({ label: `Activación: ${sol.activationState}`, color: sol.activationState === "activated" ? "green" : "gray" });
+
+    return items;
+  };
 
   if (loading) {
     return <div style={{ padding: 20, color: "var(--gr2)" }}>Cargando...</div>;
@@ -47,15 +69,14 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
             </div>
             {sol.tel && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>Teléfono: {sol.tel}</div>}
             {sol.teamSize && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>Equipo: {sol.teamSize}</div>}
+            {sol.checkoutSession?.sessionId && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>Checkout session: {sol.checkoutSession.sessionId}</div>}
             {!!(sol.requestedModules || []).length && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
               {(sol.requestedModules || []).map(mod => <Badge key={mod} label={addons?.[mod]?.label || mod} color="gray" sm />)}
             </div>}
             {sol.msg && <div style={{ fontSize: 12, color: "var(--gr3)", marginTop: 6, fontStyle: "italic" }}>"{sol.msg}"</div>}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <Badge label="Pendiente" color="yellow" sm />
-            {sol.tipo === "empresa" && <Badge label="Empresa solicitante" color="cyan" sm />}
-            {sol.referred && <Badge label="Referido" color="purple" sm />}
+            {statusBadges(sol).map(item => <Badge key={`${sol.id}-${item.label}`} label={item.label} color={item.color} sm />)}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -72,8 +93,7 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
               const result = await onAceptar(sol, empId);
               if (result?.message) setFeedback({ type: result?.ok === false ? "error" : "success", message: result.message });
               if (result?.error) setFeedback({ type: "error", message: result.error });
-              const next = await dbGet("produ:solicitudes");
-              setSols(next || []);
+              await loadSolicitudes();
             } finally {
               setBusyId("");
             }
@@ -84,8 +104,7 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
               const result = await onRechazar(sol);
               if (result?.message) setFeedback({ type: result?.ok === false ? "error" : "success", message: result.message });
               if (result?.error) setFeedback({ type: "error", message: result.error });
-              const next = await dbGet("produ:solicitudes");
-              setSols(next || []);
+              await loadSolicitudes();
             } finally {
               setBusyId("");
             }

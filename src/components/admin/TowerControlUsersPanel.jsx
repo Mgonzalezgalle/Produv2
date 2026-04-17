@@ -1,4 +1,6 @@
-import { Badge, Btn, Empty, FG, FI, FSl, FilterSel, GBtn, R2, R3, SearchBar } from "../../lib/ui/components";
+import React from "react";
+import { Badge, Btn, DBtn, Empty, FG, FI, FSl, FilterSel, GBtn, R2, R3, SearchBar } from "../../lib/ui/components";
+import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 
 export function SystemUsersPanel({
   empresas,
@@ -24,6 +26,7 @@ export function SystemUsersPanel({
   getRoleConfig,
   userGoogleCalendar,
 }) {
+  const [pendingDeleteUser, setPendingDeleteUser] = React.useState(null);
   return <div>
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 12 }}>
       Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde Torre de Control.
@@ -89,9 +92,21 @@ export function SystemUsersPanel({
         <Badge label={userGoogleCalendar(u).connected ? "Google conectado" : "Sin Google"} color={userGoogleCalendar(u).connected ? "cyan" : "gray"} sm />
         <GBtn sm onClick={() => editSystemUser(u)}>Editar</GBtn>
         <GBtn sm onClick={() => resetSystemUserAccess(u)}>Reset clave</GBtn>
-        {u.role !== "superadmin" && <DBtn sm onClick={() => deleteSystemUser(u)}>Eliminar</DBtn>}
+        {u.role !== "superadmin" && <DBtn sm onClick={() => setPendingDeleteUser(u)}>Eliminar</DBtn>}
       </div>;
     })}
     {!filteredUsers.length && <Empty text="Sin usuarios para este filtro" />}
+    <ConfirmActionDialog
+      open={Boolean(pendingDeleteUser)}
+      title="Eliminar usuario del sistema"
+      message={`¿Eliminar a ${pendingDeleteUser?.name || pendingDeleteUser?.email || "este usuario"} del sistema?`}
+      confirmLabel="Eliminar usuario"
+      onClose={() => setPendingDeleteUser(null)}
+      onConfirm={() => {
+        if (!pendingDeleteUser) return;
+        deleteSystemUser(pendingDeleteUser);
+        setPendingDeleteUser(null);
+      }}
+    />
   </div>;
 }

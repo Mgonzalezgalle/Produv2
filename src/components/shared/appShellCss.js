@@ -6,7 +6,7 @@ export const APP_SHELL_CSS = `
   --cg:#00d4e820;--cm:#00d4e840;--wh:#f4f4f6;
   --gr:#52525e;--gr2:#7c7c8a;--gr3:#a8a8b8;
   --red:#ff5566;--grn:#00e08a;--yel:#ffcc44;--org:#ff8844;--pur:#a855f7;
-  --fh:'Syne',sans-serif;--fb:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
+  --fl:'Syne',sans-serif;--fh:'Inter',sans-serif;--fb:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px;-webkit-font-smoothing:antialiased}

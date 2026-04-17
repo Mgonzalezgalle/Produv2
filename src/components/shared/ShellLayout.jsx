@@ -22,7 +22,7 @@ export function BrandLockup({
       <svg viewBox="0 0 24 24" fill="var(--bg)" width={presets.iconGlyph} height={presets.iconGlyph}><polygon points="5,3 20,12 5,21"/></svg>
     </div>
     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"center",width:"fit-content",textAlign:"left"}}>
-      <div style={{fontFamily:"var(--fh)",fontSize:presets.title,fontWeight:800,color:wordColor,letterSpacing:-1.2,lineHeight:.92}}>Produ</div>
+      <div style={{fontFamily:"var(--fl,var(--fh))",fontSize:presets.title,fontWeight:800,color:wordColor,letterSpacing:-1.2,lineHeight:.92}}>Produ</div>
       <div style={{fontSize:presets.subtitle,color:subtitleColor,letterSpacing:0,fontWeight:presets.subtitleWeight,lineHeight:1,marginTop:presets.subtitleOffset,whiteSpace:"nowrap"}}>Gestión de Productoras</div>
     </div>
   </div>;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Badge, FG, FI, FTA, GBtn, Modal } from "../../lib/ui/components";
+import { getTransactionalEmailTemplateDefinition } from "../../lib/integrations/transactionalEmailTemplates";
 import { commentAttachmentFromFile, normalizeCommentAttachments } from "../../lib/utils/helpers";
 
 export function TransactionalEmailComposerModal({
@@ -11,6 +12,7 @@ export function TransactionalEmailComposerModal({
 }) {
   const [form, setForm] = useState({ to: "", subject: "", body: "" });
   const [attachments, setAttachments] = useState([]);
+  const templateLabel = getTransactionalEmailTemplateDefinition(draft?.templateKey)?.label || "Correo";
 
   useEffect(() => {
     if (!open) return;
@@ -36,7 +38,7 @@ export function TransactionalEmailComposerModal({
       wide
     >
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-        <Badge sm label={draft?.templateKey || "correo"} color="purple" />
+        <Badge sm label={templateLabel} color="purple" />
         {draft?.metadata?.entityLabel && <Badge sm label={String(draft.metadata.entityLabel)} color="cyan" />}
       </div>
       <FG label="Destinatario">

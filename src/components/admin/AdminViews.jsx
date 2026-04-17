@@ -2,7 +2,7 @@ import React from "react";
 import { Badge, Btn, Card, GBtn, Modal } from "../../lib/ui/components";
 import { useLabAdminPanelModule } from "../../hooks/useLabAdminPanelModule";
 import { SuperAdminPanel as TowerControlSuperAdminPanel } from "./TowerControlViews";
-import { CarteraAdminPanel, ComunicacionesAdminPanel, EmpresasAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel } from "./TowerControlPanels";
+import { CarteraAdminPanel, ComunicacionesAdminPanel, EmpresasAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel, WizardAdminPanel } from "./TowerControlPanels";
 import { ListasEditor } from "./AdminListasEditor";
 import { RolesEditor } from "./AdminRolesEditor";
 import { SolicitudesAdmin } from "./AdminSolicitudes";
@@ -41,6 +41,7 @@ export function SuperAdminPanel({
     EmpresasAdminPanel={EmpresasAdminPanel}
     CarteraAdminPanel={CarteraAdminPanel}
     SystemUsersPanel={SystemUsersPanel}
+    WizardAdminPanel={WizardAdminPanel}
     IntegracionesAdminPanel={IntegracionesAdminPanel}
     ComunicacionesAdminPanel={ComunicacionesAdminPanel}
     SolicitudesPanel={SolicitudesPanel}

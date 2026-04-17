@@ -4,6 +4,8 @@ import { Badge } from "../../lib/ui/components";
 export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD, addons }) {
   const [sols, setSols] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
+  const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
     dbGet("produ:solicitudes").then(v => {
@@ -26,6 +28,9 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
   }
 
   return <div>
+    {feedback && <div style={{ padding: "12px 14px", marginBottom: 14, borderRadius: 12, border: `1px solid ${feedback.type === "error" ? "#ff556640" : "#22c55e35"}`, background: feedback.type === "error" ? "#ff556615" : "#22c55e12", color: feedback.type === "error" ? "var(--red)" : "#22c55e", fontSize: 12, lineHeight: 1.6 }}>
+      {feedback.message}
+    </div>}
     <div style={{ fontSize: 12, color: "var(--gr2)", marginBottom: 16 }}>
       {pendientes.length} solicitud{pendientes.length !== 1 ? "es" : ""} pendiente{pendientes.length !== 1 ? "s" : ""}
     </div>
@@ -60,15 +65,31 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
               {(empresas || []).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
             </select>
           </div>}
-          <button onClick={() => {
+          <button disabled={busyId === sol.id} onClick={async () => {
             const empId = document.getElementById(`emp-${sol.id}`)?.value || "";
-            onAceptar(sol, empId);
-            setSols(p => p.map(s => s.id === sol.id ? { ...s, estado: "aprobada" } : s));
-          }} style={{ padding: "7px 16px", borderRadius: 6, border: "none", background: "#4ade80", color: "#ffffff", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>✓ Aceptar</button>
-          <button onClick={() => {
-            onRechazar(sol);
-            setSols(p => p.map(s => s.id === sol.id ? { ...s, estado: "rechazada" } : s));
-          }} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid #ff556640", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>✕ Rechazar</button>
+            setBusyId(sol.id);
+            try {
+              const result = await onAceptar(sol, empId);
+              if (result?.message) setFeedback({ type: result?.ok === false ? "error" : "success", message: result.message });
+              if (result?.error) setFeedback({ type: "error", message: result.error });
+              const next = await dbGet("produ:solicitudes");
+              setSols(next || []);
+            } finally {
+              setBusyId("");
+            }
+          }} style={{ padding: "7px 16px", borderRadius: 6, border: "none", background: "#4ade80", color: "#ffffff", cursor: busyId === sol.id ? "wait" : "pointer", fontSize: 12, fontWeight: 700, opacity: busyId === sol.id ? 0.7 : 1 }}>{busyId === sol.id ? "Procesando..." : "✓ Aceptar"}</button>
+          <button disabled={busyId === sol.id} onClick={async () => {
+            setBusyId(sol.id);
+            try {
+              const result = await onRechazar(sol);
+              if (result?.message) setFeedback({ type: result?.ok === false ? "error" : "success", message: result.message });
+              if (result?.error) setFeedback({ type: "error", message: result.error });
+              const next = await dbGet("produ:solicitudes");
+              setSols(next || []);
+            } finally {
+              setBusyId("");
+            }
+          }} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid #ff556640", background: "transparent", color: "var(--red)", cursor: busyId === sol.id ? "wait" : "pointer", fontSize: 12, fontWeight: 700, opacity: busyId === sol.id ? 0.7 : 1 }}>✕ Rechazar</button>
         </div>
       </div>
     ))}

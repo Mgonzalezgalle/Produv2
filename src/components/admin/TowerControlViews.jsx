@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FTA, FilterSel, GBtn, KV, MultiSelect, R2, R3, SearchBar, Stat, Tabs, TD, TH, ViewModeToggle } from "../../lib/ui/components";
 import { useLabSuperAdminModule } from "../../hooks/useLabSuperAdminModule";
 import { assignableRoleOptions, getRoleConfig } from "../../lib/auth/authorization";
@@ -37,26 +37,6 @@ const SUPER_ADMIN_DARK_VARS = {
   "--cy": "#5ab4ff",
   "--cy2": "#93c5fd",
 };
-const sidePanelBackdropStyle = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(8,12,18,.32)",
-  backdropFilter: "blur(2px)",
-  zIndex: 70,
-};
-const sidePanelCardStyle = {
-  position: "fixed",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: "min(920px, calc(100vw - 36px))",
-  maxHeight: "calc(100vh - 72px)",
-  overflow: "auto",
-  zIndex: 71,
-  borderRadius: 22,
-  boxShadow: "0 24px 60px rgba(0,0,0,.26)",
-};
-
 export function SuperAdminPanel({
   controlProps,
   actorUser,
@@ -68,26 +48,22 @@ export function SuperAdminPanel({
   releaseMode = false,
   printLayouts,
   savePrintLayouts,
-  EmpresasAdminPanel,
-  CarteraAdminPanel,
-  SystemUsersPanel,
-  IntegracionesAdminPanel,
-  ComunicacionesAdminPanel,
-  SolicitudesPanel,
-  ImpresosAdminPanel,
   helpers,
+  ...panelComponents
 }) {
-  const resolvedProps = controlProps || {
-    actorUser,
-    empresas,
-    users,
-    onSave,
-    platformServices,
-    onDeleteEmpresa,
-    releaseMode,
-    printLayouts,
-    savePrintLayouts,
-    helpers,
+  const resolvedProps = {
+    ...(controlProps || {}),
+    actorUser: actorUser ?? controlProps?.actorUser,
+    empresas: empresas ?? controlProps?.empresas,
+    users: users ?? controlProps?.users,
+    onSave: onSave ?? controlProps?.onSave,
+    platformServices: platformServices ?? controlProps?.platformServices,
+    onDeleteEmpresa: onDeleteEmpresa ?? controlProps?.onDeleteEmpresa,
+    releaseMode: releaseMode ?? controlProps?.releaseMode,
+    printLayouts: printLayouts ?? controlProps?.printLayouts,
+    savePrintLayouts: savePrintLayouts ?? controlProps?.savePrintLayouts,
+    ...panelComponents,
+    helpers: helpers ?? controlProps?.helpers,
   };
   const {
     actorUser: resolvedActorUser,
@@ -99,6 +75,14 @@ export function SuperAdminPanel({
     releaseMode: resolvedReleaseMode = false,
     printLayouts: resolvedPrintLayouts,
     savePrintLayouts: resolvedSavePrintLayouts,
+    EmpresasAdminPanel: ResolvedEmpresasAdminPanel,
+    CarteraAdminPanel: ResolvedCarteraAdminPanel,
+    SystemUsersPanel: ResolvedSystemUsersPanel,
+    WizardAdminPanel: ResolvedWizardAdminPanel,
+    IntegracionesAdminPanel: ResolvedIntegracionesAdminPanel,
+    ComunicacionesAdminPanel: ResolvedComunicacionesAdminPanel,
+    SolicitudesPanel: ResolvedSolicitudesPanel,
+    ImpresosAdminPanel: ResolvedImpresosAdminPanel,
     helpers: resolvedHelpers,
   } = resolvedProps;
   const {
@@ -136,7 +120,7 @@ export function SuperAdminPanel({
   } = resolvedHelpers;
 
   const {
-    tab,setTab,q,setQ,stateF,setStateF,portfolioQ,setPortfolioQ,portfolioStatus,setPortfolioStatus,portfolioEmpId,setPortfolioEmpId,
+    tab,setTab,q,setQ,stateF,setStateF,portfolioQ,setPortfolioQ,portfolioStatus,setPortfolioStatus,setPortfolioEmpId,
     uq,setUQ,uRole,setURole,uState,setUState,uEmp,setUEmp,ef,setEf,eid,setEid,sysUf,setSysUf,sysUid,setSysUid,integrationEmpId,setIntegrationEmpId,commEmpId,setCommEmpId,sysMsg,setSysMsg,
     bannerForm,setBannerForm,printForm,activePrintDoc,setActivePrintDoc,sysMsgBodyRef,totalEmp,activeEmp,totalUsers,grossMRR,netMRR,totalDiscountMRR,overdueEmp,
     activePortfolioClients,filteredEmp,filteredPortfolio,selectedPortfolioEmp,filteredUsers,selectedIntegrationEmp,selectedCommEmp,saveSystemUser,editSystemUser,resetSystemUserAccess,deleteSystemUser,updatePrint,resetPrintLayouts,
@@ -200,12 +184,13 @@ export function SuperAdminPanel({
         <Tabs tabs={SUPER_TABS} active={tab} onChange={setTab}/>
       </div>
     </div>
-    {tab===0&&<EmpresasAdminPanel totalEmp={totalEmp} activeEmp={activeEmp} totalUsers={totalUsers} q={q} setQ={setQ} stateF={stateF} setStateF={setStateF} filteredEmp={filteredEmp} ini={ini} addons={addons} setEid={setEid} setEf={setEf} onSave={guardedOnSave} empresas={resolvedEmpresas} users={resolvedUsers} platformServices={resolvedPlatformServices} onDeleteEmpresa={resolvedOnDeleteEmpresa} eid={eid} ef={ef} saveEmp={saveEmp} releaseMode={resolvedReleaseMode} />}
-    {tab===1&&<CarteraAdminPanel activeEmp={activeEmp} grossMRR={grossMRR} totalDiscountMRR={totalDiscountMRR} netMRR={netMRR} overdueEmp={overdueEmp} portfolioQ={portfolioQ} setPortfolioQ={setPortfolioQ} portfolioStatus={portfolioStatus} setPortfolioStatus={setPortfolioStatus} exportActiveClientsCSV={exportActiveClientsCSV} exportActiveClientsPDF={exportActiveClientsPDF} activePortfolioClients={activePortfolioClients} filteredPortfolio={filteredPortfolio} selectedPortfolioEmp={selectedPortfolioEmp} setPortfolioEmpId={setPortfolioEmpId} companyBillingStatus={companyBillingStatus} companyBillingNet={companyBillingNet} companyBillingBaseNet={companyBillingBaseNet} companyReferralDiscountMonthsPending={companyReferralDiscountMonthsPending} companyReferralDiscountHistory={companyReferralDiscountHistory} companyPaymentDayLabel={companyPaymentDayLabel} companyBillingDiscountPct={companyBillingDiscountPct} companyIsUpToDate={companyIsUpToDate} fmtMoney={fmtMoney} fmtD={fmtD} savePortfolio={savePortfolio} addons={addons} ini={ini} users={resolvedUsers} platformServices={resolvedPlatformServices} />}
-    {tab===2&&<SystemUsersPanel empresas={resolvedEmpresas} sysUf={sysUf} setSysUf={setSysUf} sysUid={sysUid} setSysUid={setSysUid} systemRoleOptions={assignableRoleOptions(null, {role:"superadmin"}, true)} saveSystemUser={saveSystemUser} editSystemUser={editSystemUser} resetSystemUserAccess={resetSystemUserAccess} deleteSystemUser={deleteSystemUser} uq={uq} setUQ={setUQ} uRole={uRole} setURole={setURole} uState={uState} setUState={setUState} uEmp={uEmp} setUEmp={setUEmp} filteredUsers={filteredUsers} ini={ini} getRoleConfig={getRoleConfig} userGoogleCalendar={userGoogleCalendar} />}
-    {tab===3&&<IntegracionesAdminPanel empresas={resolvedEmpresas} integrationEmpId={integrationEmpId} setIntegrationEmpId={setIntegrationEmpId} selectedIntegrationEmp={selectedIntegrationEmp} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} onSave={guardedOnSave} saveIntegrationProvisioning={saveIntegrationProvisioning} platformServices={resolvedPlatformServices} />}
-    {tab===4&&<ComunicacionesAdminPanel empresas={resolvedEmpresas} commEmpId={commEmpId} setCommEmpId={setCommEmpId} selectedCommEmp={selectedCommEmp} bannerForm={bannerForm} setBannerForm={setBannerForm} onSave={guardedOnSave} SYSTEM_MESSAGE_PRESETS={SYSTEM_MESSAGE_PRESETS} applySystemPreset={applySystemPreset} wrapSystemSelection={wrapSystemSelection} insertSystemBlock={insertSystemBlock} sysMsgBodyRef={sysMsgBodyRef} FTA={FTA} sysMsg={sysMsg} setSysMsg={setSysMsg} RichTextBlock={resolvedHelpers.RichTextBlock} publishSystemMessage={publishSystemMessage} removeSystemMessage={removeSystemMessage} fmtD={fmtD} XBtn={XBtn} saveBanner={saveBanner} />}
-    {tab===5&&<SolicitudesPanel empresas={resolvedEmpresas} dbGet={dbGet} fmtD={fmtD} addons={addons} onAceptar={handleAceptarSolicitud} onRechazar={handleRechazarSolicitud}/>}
-    {tab===6&&<ImpresosAdminPanel activePrintDoc={activePrintDoc} setActivePrintDoc={setActivePrintDoc} printForm={printForm} defaultPrintLayouts={DEFAULT_PRINT_LAYOUTS} updatePrint={updatePrint} applyPrintPreset={applyPrintPreset} resetPrintLayouts={resetPrintLayouts} persistPrintLayouts={persistPrintLayouts} renderPrintPreview={renderPrintPreview} />}
+    {tab===0&&<ResolvedEmpresasAdminPanel totalEmp={totalEmp} activeEmp={activeEmp} totalUsers={totalUsers} q={q} setQ={setQ} stateF={stateF} setStateF={setStateF} filteredEmp={filteredEmp} ini={ini} addons={addons} setEid={setEid} setEf={setEf} onSave={guardedOnSave} empresas={resolvedEmpresas} users={resolvedUsers} platformServices={resolvedPlatformServices} onDeleteEmpresa={resolvedOnDeleteEmpresa} eid={eid} ef={ef} saveEmp={saveEmp} releaseMode={resolvedReleaseMode} />}
+    {tab===1&&<ResolvedCarteraAdminPanel activeEmp={activeEmp} grossMRR={grossMRR} totalDiscountMRR={totalDiscountMRR} netMRR={netMRR} overdueEmp={overdueEmp} portfolioQ={portfolioQ} setPortfolioQ={setPortfolioQ} portfolioStatus={portfolioStatus} setPortfolioStatus={setPortfolioStatus} exportActiveClientsCSV={exportActiveClientsCSV} exportActiveClientsPDF={exportActiveClientsPDF} activePortfolioClients={activePortfolioClients} filteredPortfolio={filteredPortfolio} selectedPortfolioEmp={selectedPortfolioEmp} setPortfolioEmpId={setPortfolioEmpId} companyBillingStatus={companyBillingStatus} companyBillingNet={companyBillingNet} companyBillingBaseNet={companyBillingBaseNet} companyReferralDiscountMonthsPending={companyReferralDiscountMonthsPending} companyReferralDiscountHistory={companyReferralDiscountHistory} companyPaymentDayLabel={companyPaymentDayLabel} companyBillingDiscountPct={companyBillingDiscountPct} companyIsUpToDate={companyIsUpToDate} fmtMoney={fmtMoney} fmtD={fmtD} savePortfolio={savePortfolio} addons={addons} ini={ini} users={resolvedUsers} platformServices={resolvedPlatformServices} />}
+    {tab===2&&<ResolvedSystemUsersPanel empresas={resolvedEmpresas} sysUf={sysUf} setSysUf={setSysUf} sysUid={sysUid} setSysUid={setSysUid} systemRoleOptions={assignableRoleOptions(null, {role:"superadmin"}, true)} saveSystemUser={saveSystemUser} editSystemUser={editSystemUser} resetSystemUserAccess={resetSystemUserAccess} deleteSystemUser={deleteSystemUser} uq={uq} setUQ={setUQ} uRole={uRole} setURole={setURole} uState={uState} setUState={setUState} uEmp={uEmp} setUEmp={setUEmp} filteredUsers={filteredUsers} ini={ini} getRoleConfig={getRoleConfig} userGoogleCalendar={userGoogleCalendar} />}
+    {tab===3&&<ResolvedWizardAdminPanel dbGet={dbGet} dbSet={dbSet} />}
+    {tab===4&&<ResolvedIntegracionesAdminPanel empresas={resolvedEmpresas} integrationEmpId={integrationEmpId} setIntegrationEmpId={setIntegrationEmpId} selectedIntegrationEmp={selectedIntegrationEmp} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} onSave={guardedOnSave} saveIntegrationProvisioning={saveIntegrationProvisioning} platformServices={resolvedPlatformServices} />}
+    {tab===5&&<ResolvedComunicacionesAdminPanel empresas={resolvedEmpresas} commEmpId={commEmpId} setCommEmpId={setCommEmpId} selectedCommEmp={selectedCommEmp} bannerForm={bannerForm} setBannerForm={setBannerForm} onSave={guardedOnSave} SYSTEM_MESSAGE_PRESETS={SYSTEM_MESSAGE_PRESETS} applySystemPreset={applySystemPreset} wrapSystemSelection={wrapSystemSelection} insertSystemBlock={insertSystemBlock} sysMsgBodyRef={sysMsgBodyRef} FTA={FTA} sysMsg={sysMsg} setSysMsg={setSysMsg} RichTextBlock={resolvedHelpers.RichTextBlock} publishSystemMessage={publishSystemMessage} removeSystemMessage={removeSystemMessage} fmtD={fmtD} XBtn={XBtn} saveBanner={saveBanner} />}
+    {tab===6&&<ResolvedSolicitudesPanel empresas={resolvedEmpresas} dbGet={dbGet} fmtD={fmtD} addons={addons} onAceptar={handleAceptarSolicitud} onRechazar={handleRechazarSolicitud}/>}
+    {tab===7&&<ResolvedImpresosAdminPanel activePrintDoc={activePrintDoc} setActivePrintDoc={setActivePrintDoc} printForm={printForm} defaultPrintLayouts={DEFAULT_PRINT_LAYOUTS} updatePrint={updatePrint} applyPrintPreset={applyPrintPreset} resetPrintLayouts={resetPrintLayouts} persistPrintLayouts={persistPrintLayouts} renderPrintPreview={renderPrintPreview} />}
   </div>;
 }

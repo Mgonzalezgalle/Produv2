@@ -458,11 +458,12 @@ export function useLabSuperAdminModule({
     </div>;
   };
 
-  const SUPER_TABS = ["Empresas", "Cartera", "Usuarios del sistema", "Integraciones", "Comunicaciones", "Solicitudes", "Impresos"];
+  const SUPER_TABS = ["Empresas", "Cartera", "Usuarios del sistema", "Wizard", "Integraciones", "Comunicaciones", "Solicitudes", "Impresos"];
   const SUPER_TAB_META = {
     "Empresas": { eyebrow: "Estructura", desc: "Administra tenants, niveles, módulos y configuración base de cada instancia." },
     "Cartera": { eyebrow: "Control comercial", desc: "Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants." },
     "Usuarios del sistema": { eyebrow: "Accesos", desc: "Revisa usuarios creados, roles y conectividad operativa por empresa." },
+    "Wizard": { eyebrow: "Autoadministración comercial", desc: "Gobierna el pricing, la promo y el copy comercial del wizard sin mover la estructura fija del plan Starter." },
     "Integraciones": { eyebrow: "Base técnica", desc: "Activa o desactiva integraciones preparadas por tenant sin exponer funciones incompletas." },
     "Comunicaciones": { eyebrow: "Mensajería", desc: "Envía mensajes sistémicos y banners visibles para cada empresa usuaria." },
     "Solicitudes": { eyebrow: "Pipeline", desc: "Aprueba accesos, solicitudes y referidos desde una sola bandeja de control." },
@@ -714,13 +715,13 @@ export function useLabSuperAdminModule({
   };
 
   const handleAceptarSolicitud = async (sol, empId) => {
-    if (!canWriteGlobal()) return false;
+    if (!canWriteGlobal()) return { ok: false, error: "No tienes permisos para activar solicitudes." };
     const cur = await dbGet("produ:solicitudes") || [];
     if (sol.tipo === "empresa") {
       const liveEmpresas = normalizeEmpresasModel((await dbGet("produ:empresas")) || empresas || []);
       const liveUsers = (await dbGet("produ:users")) || users || [];
       const targetEmpId = sol.empresaId || empId || "";
-      if (!targetEmpId) { alert("No se encontró la empresa pendiente para activar."); return; }
+      if (!targetEmpId) return { ok: false, error: "No se encontró la empresa pendiente para activar." };
       const tempPassword = uid().slice(1, 9);
       const alreadyExists = (liveUsers || []).find(u => u.email?.toLowerCase() === sol.ema?.toLowerCase() && u.empId === targetEmpId);
       const nextUsers = alreadyExists
@@ -802,8 +803,7 @@ export function useLabSuperAdminModule({
             password: tempPassword,
             mode: "tenant_activated",
           });
-      alert("Empresa activada. Email: " + sol.ema + (alreadyExists ? "" : " / Contrasena temporal: " + tempPassword) + (emailResult?.ok ? " / Correo enviado." : "") + (sol.referred ? " / Se acreditó 1 mes de descuento al referido." : ""));
-      return;
+      return { ok: true, message: "Empresa activada. Email: " + sol.ema + (alreadyExists ? "" : " / Contrasena temporal: " + tempPassword) + (emailResult?.ok ? " / Correo enviado." : "") + (sol.referred ? " / Se acreditó 1 mes de descuento al referido." : "") };
     }
     const tempPassword = uid().slice(1, 9);
     const newUser = { id: uid(), name: sol.nom, email: sol.ema, passwordHash: await sha256Hex(tempPassword), role: sol.rol || "productor", empId: empId || "", active: true };
@@ -816,20 +816,21 @@ export function useLabSuperAdminModule({
       password: tempPassword,
       mode: "tenant_activated",
     });
-    alert("Usuario creado. Email: " + sol.ema + " / Contrasena temporal: " + tempPassword + (emailResult?.ok ? " / Correo enviado." : ""));
+    return { ok: true, message: "Usuario creado. Email: " + sol.ema + " / Contrasena temporal: " + tempPassword + (emailResult?.ok ? " / Correo enviado." : "") };
   };
 
   const handleRechazarSolicitud = async sol => {
-    if (!canWriteGlobal()) return false;
+    if (!canWriteGlobal()) return { ok: false, error: "No tienes permisos para rechazar solicitudes." };
     const cur = await dbGet("produ:solicitudes") || [];
     if (sol.tipo === "empresa") {
       if ((empresas || []).some(e => e.id === sol.empresaId)) {
         guardedOnSave("empresas", (empresas || []).filter(e => e.id !== sol.empresaId));
       }
       await dbSet("produ:solicitudes", cur.map(s => s.id === sol.id ? { ...s, estado: "rechazada", rejectedAt: today() } : s));
-      return;
+      return { ok: true, message: "Solicitud rechazada y empresa pendiente limpiada." };
     }
     await dbSet("produ:solicitudes", cur.filter(s => s.id !== sol.id));
+    return { ok: true, message: "Solicitud rechazada." };
   };
 
   return {

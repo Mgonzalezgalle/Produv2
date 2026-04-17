@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FilterSel, GBtn, KV, MultiSelect, R2, R3, SearchBar, Stat, TD, TH, ViewModeToggle } from "../../lib/ui/components";
-import { buildTenantHealth, getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "./towerControlHealth";
+import { buildTenantHealth } from "./towerControlHealth";
 import { TenantHealthBadgeRow } from "./TowerControlHealthViews";
 import { SolicitudesPanel } from "./TowerControlRequestsPanel";
 import { SystemUsersPanel } from "./TowerControlUsersPanel";
 import { ComunicacionesAdminPanel } from "./TowerControlCommunicationsPanel";
 import { ImpresosAdminPanel } from "./TowerControlPrintsPanel";
 import { IntegracionesAdminPanel } from "./TowerControlIntegrationsPanel";
+import { WizardAdminPanel } from "./TowerControlWizardPanel";
 
-export { ComunicacionesAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel };
+export { ComunicacionesAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel, WizardAdminPanel };
 
 const sidePanelBackdropStyle = {
   position: "fixed",
@@ -57,7 +58,7 @@ export function EmpresasAdminPanel({
   const [remoteSnapshots, setRemoteSnapshots] = useState({});
   useEffect(() => {
     if (!platformServices?.getTenantPlatformSnapshot || !filteredEmp.length) {
-      setRemoteSnapshots({});
+      queueMicrotask(() => setRemoteSnapshots({}));
       return;
     }
     let cancelled = false;
@@ -256,11 +257,13 @@ export function CarteraAdminPanel({
   const allVisibleSelected = filteredPortfolio.length > 0 && filteredPortfolio.every(emp => selectedPortfolioIds.includes(emp.id));
   useEffect(() => {
     if (!detailOpen || !selectedPortfolioEmp?.id || !platformServices?.getTenantPlatformSnapshot) {
-      setDetailSnapshot(null);
+      queueMicrotask(() => setDetailSnapshot(null));
       return;
     }
     let cancelled = false;
-    setDetailSnapshotLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setDetailSnapshotLoading(true);
+    });
     Promise.resolve(platformServices.getTenantPlatformSnapshot(selectedPortfolioEmp.id))
       .then(snapshot => {
         if (!cancelled) setDetailSnapshot(snapshot || null);

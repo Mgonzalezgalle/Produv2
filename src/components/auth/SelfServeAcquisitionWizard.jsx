@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Badge, Btn, GBtn } from "../../lib/ui/components";
 import {
   SELF_SERVE_ADDON_GROUPS,
-  SELF_SERVE_BASE_PRODUCT,
+  buildSelfServeBaseProduct,
   SELF_SERVE_PRICE_UNIT,
   buildSelfServePricingSnapshot,
   getSelfServeAddonCatalog,
@@ -10,6 +10,7 @@ import {
   normalizeSelfServeSelection,
 } from "../../lib/config/selfServeCatalog";
 import { buildSelfServeCommercialSummary } from "../../lib/config/selfServeCheckout";
+import { DEFAULT_SELF_SERVE_SETTINGS, normalizeSelfServeSettings, SELF_SERVE_SETTINGS_KEY } from "../../lib/config/selfServeAdminConfig";
 import { createPlatformMockGateway } from "../../lib/backend/platformMockGateway";
 
 export class AuthModalErrorBoundary extends React.Component {
@@ -86,18 +87,37 @@ export function SelfServeAcquisitionWizard({
   );
 
   const [step, setStep] = useState(1);
-  const addonCatalog = useMemo(() => getSelfServeAddonCatalog(), []);
+  const [selfServeSettings, setSelfServeSettings] = useState(DEFAULT_SELF_SERVE_SETTINGS);
+  const addonCatalog = useMemo(() => getSelfServeAddonCatalog(selfServeSettings), [selfServeSettings]);
   const selectedModules = normalizeSelfServeSelection(solF.modules || []);
-  const pricingSnapshot = buildSelfServePricingSnapshot(selectedModules);
+  const baseProduct = useMemo(() => buildSelfServeBaseProduct(selfServeSettings), [selfServeSettings]);
+  const pricingSnapshot = buildSelfServePricingSnapshot(selectedModules, selfServeSettings);
   const commercialSummary = buildSelfServeCommercialSummary(pricingSnapshot);
-  const recommendations = getSelfServeRecommendations(selectedModules);
+  const recommendations = getSelfServeRecommendations(selectedModules, selfServeSettings);
   const groupedModules = SELF_SERVE_ADDON_GROUPS.map(group => ({
     ...group,
     items: addonCatalog.filter(item => item.group === group.code),
   })).filter(group => group.items.length > 0);
   const canAdvanceFromStep1 = !!(solF.emp && solF.ema && solF.tel);
   const canAdvanceFromStep2 = !!(solF.nom && solF.adminLastName && solF.adminEmail);
-  const canAdvanceFromStep5 = !!(solF.checkoutMethod || "contacto");
+  const effectiveCheckoutMethod = selfServeSettings.assistedOnly ? "contacto" : (solF.checkoutMethod || "contacto");
+  const canAdvanceFromStep5 = !!effectiveCheckoutMethod;
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSettings = async () => {
+      try {
+        const stored = await dbGet(SELF_SERVE_SETTINGS_KEY);
+        if (!cancelled) setSelfServeSettings(normalizeSelfServeSettings(stored || DEFAULT_SELF_SERVE_SETTINGS));
+      } catch {
+        if (!cancelled) setSelfServeSettings(DEFAULT_SELF_SERVE_SETTINGS);
+      }
+    };
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [dbGet]);
 
   const setField = (key, value) => setSolF(prev => ({ ...prev, [key]: value }));
   const toggleModule = (code) => {
@@ -185,11 +205,11 @@ export function SelfServeAcquisitionWizard({
         cargo: solF.adminRole || "Administrador",
       },
       moduleSelection: {
-        baseCode: SELF_SERVE_BASE_PRODUCT.code,
+        baseCode: baseProduct.code,
         addonCodes: selectedModules,
       },
       pricingSnapshot,
-      checkoutState: solF.checkoutMethod || "contacto",
+      checkoutState: effectiveCheckoutMethod,
       paymentState: "pending",
       activationState: "awaiting_review",
       nom: `${solF.nom || ""} ${solF.adminLastName || ""}`.trim(),
@@ -207,7 +227,7 @@ export function SelfServeAcquisitionWizard({
     };
     const cur = await dbGet("produ:solicitudes") || [];
     let nextLead = { ...acquisitionLead };
-    if ((solF.checkoutMethod || "contacto") === "link_pago") {
+    if (effectiveCheckoutMethod === "link_pago") {
       const checkoutResult = await platformGateway.createSelfServeCheckoutSession({
         acquisitionLead,
         pricingSnapshot,
@@ -326,12 +346,12 @@ export function SelfServeAcquisitionWizard({
                 <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:10}}>
                   <div>
                     <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:4}}>Base obligatoria</div>
-                    <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{SELF_SERVE_BASE_PRODUCT.label}</div>
+                    <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800}}>{baseProduct.label}</div>
                   </div>
-                  <div style={{fontSize:16,fontWeight:800,color:"var(--cy)"}}>{SELF_SERVE_BASE_PRODUCT.monthlyUF} {SELF_SERVE_PRICE_UNIT}</div>
+                  <div style={{fontSize:16,fontWeight:800,color:"var(--cy)"}}>{pricingSnapshot.base.monthlyUF} {SELF_SERVE_PRICE_UNIT}</div>
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                  {SELF_SERVE_BASE_PRODUCT.includes.map(item => <Badge key={item.code} label={item.label} color="cyan" sm />)}
+                  {baseProduct.includes.map(item => <Badge key={item.code} label={item.label} color="cyan" sm />)}
                 </div>
               </div>
               <div style={{display:"grid",gap:14}}>
@@ -397,14 +417,15 @@ export function SelfServeAcquisitionWizard({
               </div>
               <div style={{display:"grid",gap:10,marginBottom:14}}>
                 {[
-                  ["contacto","Quiero que me contacte el equipo de Produ"],
-                  ["link_pago","Quiero recibir link de pago para activar"],
+                  ...(selfServeSettings.assistedOnly
+                    ? [["contacto","Quiero activarlo con el equipo de Produ"]]
+                    : [["contacto","Quiero que me contacte el equipo de Produ"], ["link_pago","Quiero recibir link de pago para activar"]]),
                 ].map(([value,label]) => {
-                  const active = (solF.checkoutMethod || "contacto") === value;
+                  const active = effectiveCheckoutMethod === value;
                   return <button key={value} type="button" onClick={() => setField("checkoutMethod", value)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:14,borderRadius:14,border:`1px solid ${active ? "var(--cy)" : "var(--bdr2)"}`,background:active ? "var(--cg)" : "var(--sur)",cursor:"pointer",textAlign:"left"}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:800,marginBottom:4}}>{label}</div>
-                      <div style={{fontSize:11,color:"var(--gr2)"}}>
+                    <div style={{fontSize:11,color:"var(--gr2)"}}>
                         {value === "contacto" ? "Registro inmediato y seguimiento comercial." : "Dejamos todo listo para cobro y activación."}
                       </div>
                     </div>
@@ -415,7 +436,7 @@ export function SelfServeAcquisitionWizard({
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                 <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Código de referido</div>
                 <input value={solF.referralCode||""} onChange={e=>setField("referralCode", e.target.value.toUpperCase())} placeholder="PLAYMEDIASPA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
-                <div style={{display:"flex",alignItems:"end",fontSize:12,color:"var(--gr2)"}}>La activación inicial queda asistida por el equipo de Produ.</div>
+                  <div style={{display:"flex",alignItems:"end",fontSize:12,color:"var(--gr2)"}}>{selfServeSettings.assistedOnly ? "Hoy el cierre queda asistido por el equipo de Produ." : "La activación inicial puede continuar por checkout o por seguimiento asistido."}</div>
               </div>
             </>}
             <div style={{display:"flex",justifyContent:"space-between",gap:12,marginTop:18}}>
@@ -430,13 +451,17 @@ export function SelfServeAcquisitionWizard({
             <div style={{paddingBottom:14,borderBottom:"1px solid var(--bdr2)",marginBottom:14}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:6}}>
                 <div>
-                  <div style={{fontSize:14,fontWeight:800}}>{SELF_SERVE_BASE_PRODUCT.label}</div>
+                  <div style={{fontSize:14,fontWeight:800}}>{baseProduct.label}</div>
                   <div style={{fontSize:11,color:"var(--gr2)"}}>Incluye dashboard, calendario, clientes y proyectos</div>
                 </div>
-                <div style={{fontSize:14,fontWeight:800,color:"var(--cy)"}}>{SELF_SERVE_BASE_PRODUCT.monthlyUF} UF</div>
+                <div style={{fontSize:14,fontWeight:800,color:"var(--cy)"}}>
+                  {pricingSnapshot.base.promoMonthlyUF === 0 && pricingSnapshot.base.promoMonths > 0
+                    ? `$0 por ${pricingSnapshot.base.promoMonths} meses`
+                    : `${baseProduct.monthlyUF} UF`}
+                </div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {SELF_SERVE_BASE_PRODUCT.includes.map(item => <Badge key={item.code} label={item.label} color="gray" sm />)}
+                {baseProduct.includes.map(item => <Badge key={item.code} label={item.label} color="gray" sm />)}
               </div>
             </div>
             <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>Addons elegidos</div>

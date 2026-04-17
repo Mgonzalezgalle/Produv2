@@ -1,14 +1,17 @@
 import { TREASURY_MODULE_ID } from "../utils/treasury";
+import { normalizeSelfServeSettings } from "./selfServeAdminConfig";
 
 export const SELF_SERVE_PRICE_UNIT = "UF / mes";
 export const SELF_SERVE_BASE_CODE = "base_produ";
 
 export const SELF_SERVE_BASE_PRODUCT = {
   code: SELF_SERVE_BASE_CODE,
-  label: "Base Produ",
-  shortLabel: "Base",
+  label: "Plan Starter",
+  shortLabel: "Starter",
   required: true,
   monthlyUF: 1,
+  promoMonthlyUF: 0,
+  promoMonths: 3,
   description: "Entrada mínima obligatoria para operar en Produ con una estructura clara y lista para crecer.",
   includes: [
     { code: "dashboard", label: "Dashboard" },
@@ -17,6 +20,18 @@ export const SELF_SERVE_BASE_PRODUCT = {
     { code: "producciones", label: "Proyectos" },
   ],
 };
+
+export function buildSelfServeBaseProduct(settings = {}) {
+  const normalized = normalizeSelfServeSettings(settings);
+  return {
+    ...SELF_SERVE_BASE_PRODUCT,
+    label: normalized.basePlanLabel,
+    shortLabel: normalized.basePlanShortLabel,
+    monthlyUF: normalized.baseMonthlyUF,
+    promoMonthlyUF: normalized.promoMonthlyUF,
+    promoMonths: normalized.promoMonths,
+  };
+}
 
 export const SELF_SERVE_ADDON_GROUPS = [
   { code: "comercial", label: "Comercial" },
@@ -140,12 +155,37 @@ export const SELF_SERVE_ADDON_CATALOG = [
 
 export const SELF_SERVE_ADDON_ORDER = SELF_SERVE_ADDON_CATALOG.map(item => item.code);
 
-export function getSelfServeAddonCatalog() {
-  return SELF_SERVE_ADDON_CATALOG.map(item => ({ ...item }));
+function resolveAddonMonthlyUf(item, settings = {}) {
+  const configured = Number(settings?.addonPrices?.[item.code]);
+  return Number.isFinite(configured) && configured >= 0 ? configured : Number(item.monthlyUF || 0);
 }
 
-export function getSelfServeAddon(code = "") {
-  return SELF_SERVE_ADDON_CATALOG.find(item => item.code === code) || null;
+function resolveAddonCopy(item, settings = {}) {
+  const override = settings?.addonOverrides?.[item.code] || {};
+  return {
+    label: String(override?.label || "").trim() || item.label,
+    badge: String(override?.badge || "").trim() || item.badge,
+    audience: String(override?.audience || "").trim() || item.audience,
+    description: String(override?.description || "").trim() || item.description,
+  };
+}
+
+export function getSelfServeAddonCatalog(settings = {}) {
+  return SELF_SERVE_ADDON_CATALOG.map(item => ({
+    ...item,
+    ...resolveAddonCopy(item, settings),
+    monthlyUF: resolveAddonMonthlyUf(item, settings),
+  }));
+}
+
+export function getSelfServeAddon(code = "", settings = {}) {
+  const item = SELF_SERVE_ADDON_CATALOG.find(entry => entry.code === code);
+  if (!item) return null;
+  return {
+    ...item,
+    ...resolveAddonCopy(item, settings),
+    monthlyUF: resolveAddonMonthlyUf(item, settings),
+  };
 }
 
 export function isSelfServeAddonCode(code = "") {
@@ -173,18 +213,22 @@ export function groupSelfServeAddons(selection = []) {
   })).filter(group => group.items.length > 0);
 }
 
-export function buildSelfServePricingSnapshot(selection = []) {
+export function buildSelfServePricingSnapshot(selection = [], settings = {}) {
+  const baseProduct = buildSelfServeBaseProduct(settings);
   const selectedCodes = normalizeSelfServeSelection(selection);
-  const addons = selectedCodes.map(code => getSelfServeAddon(code)).filter(Boolean);
+  const addons = selectedCodes.map(code => getSelfServeAddon(code, settings)).filter(Boolean);
   const addonSubtotalUF = addons.reduce((sum, item) => sum + Number(item.monthlyUF || 0), 0);
-  const totalUF = Number(SELF_SERVE_BASE_PRODUCT.monthlyUF || 0) + addonSubtotalUF;
+  const totalUF = Number(baseProduct.monthlyUF || 0) + addonSubtotalUF;
 
   return {
     currency: SELF_SERVE_PRICE_UNIT,
     base: {
-      code: SELF_SERVE_BASE_PRODUCT.code,
-      label: SELF_SERVE_BASE_PRODUCT.label,
-      monthlyUF: Number(SELF_SERVE_BASE_PRODUCT.monthlyUF || 0),
+      code: baseProduct.code,
+      label: baseProduct.label,
+      shortLabel: baseProduct.shortLabel,
+      monthlyUF: Number(baseProduct.monthlyUF || 0),
+      promoMonthlyUF: Number(baseProduct.promoMonthlyUF || 0),
+      promoMonths: Number(baseProduct.promoMonths || 0),
     },
     addons,
     addonCount: addons.length,
@@ -194,20 +238,19 @@ export function buildSelfServePricingSnapshot(selection = []) {
   };
 }
 
-export function getSelfServeRecommendations(selection = []) {
+export function getSelfServeRecommendations(selection = [], settings = {}) {
   const selectedCodes = normalizeSelfServeSelection(selection);
   const selectedSet = new Set(selectedCodes);
   const recommendationMap = new Map();
 
   selectedCodes.forEach(code => {
-    const addon = getSelfServeAddon(code);
+    const addon = getSelfServeAddon(code, settings);
     (addon?.recommendedWith || []).forEach(recommendedCode => {
       if (!selectedSet.has(recommendedCode) && isSelfServeAddonCode(recommendedCode)) {
-        recommendationMap.set(recommendedCode, getSelfServeAddon(recommendedCode));
+        recommendationMap.set(recommendedCode, getSelfServeAddon(recommendedCode, settings));
       }
     });
   });
 
   return Array.from(recommendationMap.values()).filter(Boolean);
 }
-

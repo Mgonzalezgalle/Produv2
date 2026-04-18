@@ -123,6 +123,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     rut: empresa?.rut || "",
     docType: "Presupuesto",
     docNumber: pres.correlativo || "",
+    docNumberOffsetY: 3,
   });
   const stampMetaX = metaCardX + 14;
   page.drawText(`Fecha: ${fmtD(pres.cr || today())}`, { x: stampMetaX, y: metaCardY + 10, size: layout.metaSize || 9, font, color: textColor });

@@ -69,7 +69,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   });
   page.drawText(compactDocTitle, {
     x: margin,
-    y: height - 80,
+    y: height - 79,
     size: 10,
     font: bold,
     color: accentColor,

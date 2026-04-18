@@ -139,7 +139,20 @@ export function drawDocumentSectionBox(page, {
   return height;
 }
 
-export function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white, bold, font, rut = "", docType = "", docNumber = "" }) {
+export function drawLegalDocStamp(page, {
+  x,
+  y,
+  width = 160,
+  height = 78,
+  white,
+  bold,
+  font,
+  rut = "",
+  docType = "",
+  docNumber = "",
+  docTypeOffsetY = 0,
+  docNumberOffsetY = 0,
+}) {
   const legalRed = hexToRgb("#c1121f");
   const centerText = (text, size, yy, color, useBold = false) => {
     const safe = String(text || "");
@@ -155,8 +168,8 @@ export function drawLegalDocStamp(page, { x, y, width = 160, height = 78, white,
   };
   drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
   centerText(rut || "RUT —", 8.8, y + height - 18, legalRed, true);
-  centerText(String(docType || "DOCUMENTO").toUpperCase(), 11.8, y + height - 42, legalRed, true);
-  centerText(`N° ${docNumber || "S/C"}`, 10.6, y + height - 64, legalRed, true);
+  centerText(String(docType || "DOCUMENTO").toUpperCase(), 11.8, y + height - 42 + docTypeOffsetY, legalRed, true);
+  centerText(`N° ${docNumber || "S/C"}`, 10.6, y + height - 64 + docNumberOffsetY, legalRed, true);
 }
 
 export function createCommercialPdfDeps({

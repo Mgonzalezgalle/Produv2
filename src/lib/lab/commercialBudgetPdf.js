@@ -88,7 +88,6 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
       maxWidth: heroContentWidth - 10,
     });
   }
-  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + heroContentWidth - totalBadgeWidth + 6, heroY + 14, totalBadgeWidth, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
     y: heroY + 82,

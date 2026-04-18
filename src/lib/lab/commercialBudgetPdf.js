@@ -81,7 +81,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   if (budgetSubtitle) {
     page.drawText(budgetSubtitle, {
       x: margin + 18,
-      y: heroY + heroHeight - 74,
+      y: heroY + heroHeight - 70,
       size: 12,
       font: bold,
       color: textColor,
@@ -91,7 +91,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + heroContentWidth - totalBadgeWidth + 6, heroY + 14, totalBadgeWidth, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
-    y: heroY + 104,
+    y: heroY + 101,
     size: layout.companyTitleSize || 15.5,
     font: bold,
     color: textColor,

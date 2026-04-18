@@ -832,7 +832,14 @@ export function ViewCalendario(props) {
         ntf?.(result?.message || "No pudimos iniciar la conexión con Google Calendar.", "warn");
         return;
       }
-      window.location.href = result.authUrl;
+      const popup = typeof window !== "undefined"
+        ? window.open(result.authUrl, "produ_google_calendar_oauth", "popup=yes,width=560,height=720,noopener=false,noreferrer=false")
+        : null;
+      if (!popup) {
+        ntf?.("Tu navegador bloqueó la ventana de Google Calendar. Habilita popups para continuar.", "warn");
+        return;
+      }
+      popup.focus?.();
     } catch (error) {
       ntf?.(error?.message || "No pudimos iniciar Google Calendar.", "warn");
     } finally {

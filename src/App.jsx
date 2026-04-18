@@ -690,8 +690,6 @@ export default function App(){
   useEffect(() => {
     if (typeof window === "undefined" || !curUser?.id || !saveUsers || !Array.isArray(users)) return;
     const url = new URL(window.location.href);
-    const status = url.searchParams.get("google_calendar_status");
-    if (!status) return;
 
     const cleanUrl = () => {
       url.searchParams.delete("google_calendar_status");
@@ -700,20 +698,22 @@ export default function App(){
       window.history.replaceState({}, document.title, url.toString());
     };
 
-    if (status === "connected") {
-      const rawConnection = url.searchParams.get("google_calendar_connection") || "";
+    const applyGoogleCalendarConnection = (connection = null) => {
+      if (!connection || typeof connection !== "object") {
+        ntf("No pudimos leer la conexión devuelta por Google Calendar.", "warn");
+        cleanUrl();
+        return false;
+      }
       try {
-        const connection = JSON.parse(rawConnection);
         const targetUserId = String(connection?.userId || curUser.id).trim() || curUser.id;
         if (targetUserId !== curUser.id) {
           ntf("La conexión devuelta por Google Calendar no coincide con la sesión activa.", "warn");
           cleanUrl();
-          return;
+          return false;
         }
         saveGoogleCalendarSession(curUser.id, {
           tokenType: String(connection?.tokenType || "Bearer").trim(),
           scope: String(connection?.scope || "").trim(),
-          accessToken: String(connection?.accessToken || "").trim(),
           refreshToken: String(connection?.refreshToken || "").trim(),
           expiresIn: Number(connection?.expiresIn || 0),
           connectedAt: String(connection?.connectedAt || new Date().toISOString()).trim(),
@@ -744,17 +744,54 @@ export default function App(){
         Promise.resolve(saveUsers(nextUsers)).catch(() => {
           ntf("Conectamos Google Calendar, pero no pudimos persistir la conexión localmente.", "warn");
         });
-        return;
+        return true;
       } catch {
         ntf("No pudimos leer la conexión devuelta por Google Calendar.", "warn");
         cleanUrl();
-        return;
+        return false;
       }
+    };
+
+    const handleOauthPayload = (payload = null) => {
+      if (!payload || typeof payload !== "object") return false;
+      const status = String(payload?.status || "").trim();
+      if (!status) return false;
+      if (status === "connected") return applyGoogleCalendarConnection(payload?.connection || null);
+      ntf(String(payload?.message || "No pudimos conectar Google Calendar."), "warn");
+      navTo("calendario");
+      cleanUrl();
+      return true;
+    };
+
+    const onMessage = (event) => {
+      if (event?.data?.type !== "produ_google_calendar_oauth") return;
+      handleOauthPayload(event.data);
+    };
+
+    window.addEventListener("message", onMessage);
+
+    const status = url.searchParams.get("google_calendar_status");
+    if (status === "connected") {
+      const rawConnection = url.searchParams.get("google_calendar_connection") || "";
+      try {
+        handleOauthPayload({
+          type: "produ_google_calendar_oauth",
+          status,
+          connection: rawConnection ? JSON.parse(rawConnection) : null,
+        });
+      } catch {
+        ntf("No pudimos leer la conexión devuelta por Google Calendar.", "warn");
+        cleanUrl();
+      }
+    } else if (status) {
+      handleOauthPayload({
+        type: "produ_google_calendar_oauth",
+        status,
+        message: url.searchParams.get("google_calendar_message") || "",
+      });
     }
 
-    ntf(url.searchParams.get("google_calendar_message") || "No pudimos conectar Google Calendar.", "warn");
-    navTo("calendario");
-    cleanUrl();
+    return () => window.removeEventListener("message", onMessage);
   }, [curUser, users, saveUsers, navTo, ntf]);
   const { deleteEmpresa } = useLabTenantAdmin({
     dbGet,

@@ -34,6 +34,65 @@ function appendRedirectParams(redirectTo = "", params: Record<string, string>) {
   return target.toString();
 }
 
+function html(body = "", status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+function safeOrigin(value = "") {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "*";
+  }
+}
+
+function buildPopupResponse({ redirectTo = "", payload = {}, close = true }) {
+  const origin = safeOrigin(redirectTo);
+  const serializedPayload = JSON.stringify(payload)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+  const safeRedirectTo = JSON.stringify(String(redirectTo || ""));
+  return html(`<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Google Calendar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="font-family: system-ui, sans-serif; padding: 24px; color: #0f172a;">
+    <p>Completando conexión con Google Calendar...</p>
+    <script>
+      (function () {
+        const payload = ${serializedPayload};
+        const targetOrigin = ${JSON.stringify(origin)};
+        const redirectTo = ${safeRedirectTo};
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(payload, targetOrigin);
+          } else if (redirectTo) {
+            const target = new URL(redirectTo);
+            target.searchParams.set("google_calendar_status", String(payload?.status || "error"));
+            if (payload?.message) target.searchParams.set("google_calendar_message", String(payload.message));
+            window.location.replace(target.toString());
+            return;
+          }
+        } catch (error) {
+          console.error(error);
+        }
+        ${close ? "window.close();" : ""}
+      })();
+    </script>
+  </body>
+</html>`);
+}
+
 async function exchangeGoogleCalendarCode(code: string, state: Record<string, unknown>) {
   const clientId = Deno.env.get("GOOGLE_CLIENT_ID") || "";
   const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
@@ -103,7 +162,6 @@ async function exchangeGoogleCalendarCode(code: string, state: Record<string, un
       userId: String(state?.userId || "").trim(),
       userEmail: String(state?.userEmail || "").trim(),
       redirectTo: String(state?.redirectTo || "").trim(),
-      accessToken,
       refreshToken,
       expiresIn,
       scope: String(tokenData.scope || "").trim(),
@@ -140,19 +198,28 @@ Deno.serve(async (req) => {
     const result = await exchangeGoogleCalendarCode(code, state);
     if (!result.ok) {
       if (redirectTo) {
-        return Response.redirect(appendRedirectParams(redirectTo, {
-          google_calendar_status: "error",
-          google_calendar_message: String(result.message || "No pudimos completar la conexión con Google Calendar."),
-        }), 302);
+        return buildPopupResponse({
+          redirectTo,
+          payload: {
+            type: "produ_google_calendar_oauth",
+            status: "error",
+            message: String(result.message || "No pudimos completar la conexión con Google Calendar."),
+          },
+          close: false,
+        });
       }
       return json(result, result.status || 502);
     }
 
     if (redirectTo) {
-      return Response.redirect(appendRedirectParams(redirectTo, {
-        google_calendar_status: "connected",
-        google_calendar_connection: JSON.stringify(result.connection || {}),
-      }), 302);
+      return buildPopupResponse({
+        redirectTo,
+        payload: {
+          type: "produ_google_calendar_oauth",
+          status: "connected",
+          connection: result.connection || {},
+        },
+      });
     }
 
     return json(result);

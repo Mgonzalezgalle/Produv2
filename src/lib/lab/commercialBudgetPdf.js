@@ -60,49 +60,57 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     cliente?.nom ? `Propuesta para ${cliente.nom}` : "",
     items.length ? `${items.length} ${items.length === 1 ? "ítem" : "ítems"}` : "",
   ].filter(Boolean).join(" · ");
-  const heroHeight = 118;
+  const heroHeight = 136;
   const heroY = height - margin - heroHeight;
   const metaCardWidth = 184;
   const heroContentWidth = contentWidth - metaCardWidth - 18;
+  const heroTitleLines = wrapPdfText(budgetTitle, heroContentWidth - 12, bold, 17.8);
+  const heroTitleLineHeight = 18.8;
+  const titleStartY = heroY + heroHeight - 66;
+  const issuerLines = [
+    empresa?.rut,
+    empresa?.dir,
+    [empresa?.ema, empresa?.tel].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+  const clientBodySize = layout.sectionBodySize || 8.6;
+  const clientBodyGap = 2.2;
+  const clientTitleSize = layout.sectionTitleSize || 9.4;
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
   page.drawRectangle({ x: 0, y: height - 96, width, height: 96, color: accentColor });
   drawRoundedPdfBox(page, margin, heroY, contentWidth, heroHeight, white, border, 1.1);
   drawRoundedPdfBox(page, margin + 1, heroY + heroHeight - 5, contentWidth - 2, 4, accentColor, accentColor, 0);
   drawCommercialLabel(page, "Propuesta comercial", margin + 18, heroY + heroHeight - 36, 132, accentColor, bold, white, 9.4);
-  page.drawText(budgetTitle, {
-    x: margin + 18,
-    y: heroY + heroHeight - 66,
-    size: 19,
-    font: bold,
-    color: textColor,
-    maxWidth: heroContentWidth - 10,
+  heroTitleLines.forEach((line, index) => {
+    page.drawText(line, {
+      x: margin + 18,
+      y: titleStartY - (index * heroTitleLineHeight),
+      size: 17.8,
+      font: bold,
+      color: textColor,
+      maxWidth: heroContentWidth - 10,
+    });
   });
   if (budgetSubtitle) {
     page.drawText(budgetSubtitle, {
       x: margin + 18,
-      y: heroY + heroHeight - 88,
-      size: 9.4,
+      y: titleStartY - (heroTitleLines.length * heroTitleLineHeight) - 6,
+      size: 9.2,
       font,
       color: muted,
       maxWidth: heroContentWidth - 10,
     });
   }
-  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + 18, heroY + 22, 152, accentColor, bold, white, 8.8);
+  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + 18, heroY + 14, 152, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
-    y: heroY + 44,
-    size: layout.companyTitleSize || 17,
+    y: heroY + 58,
+    size: layout.companyTitleSize || 15.5,
     font: bold,
     color: textColor,
     maxWidth: heroContentWidth - 12,
   });
-  const issuerLines = [
-    empresa?.rut,
-    empresa?.dir,
-    [empresa?.ema, empresa?.tel].filter(Boolean).join(" · "),
-  ].filter(Boolean);
-  let issuerY = heroY + 29;
+  let issuerY = heroY + 42;
   issuerLines.forEach((line) => {
     page.drawText(line, {
       x: margin + 18,
@@ -120,9 +128,9 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   drawRoundedPdfBox(page, metaCardX, metaCardY, metaCardWidth, heroHeight - 28, surface, border, 1);
   drawLegalDocStamp(page, {
     x: metaCardX + 12,
-    y: metaCardY + 22,
+    y: metaCardY + 30,
     width: metaCardWidth - 24,
-    height: 62,
+    height: 70,
     white,
     bold,
     font,
@@ -142,9 +150,12 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     contact ? `Contacto: ${contact.nom}${contact.car ? ` · ${contact.car}` : ""}` : "",
     contact ? [contact.ema, contact.tel].filter(Boolean).join(" · ") : "",
   ].filter(Boolean).join("\n");
-  const clientHeight = drawDocumentSectionBox(page, {
+  const clientTextHeight = Math.max(clientBodySize + 2, measurePdfTextBlock(clientText || " ", contentWidth - 28, font, clientBodySize, clientBodyGap));
+  const clientHeight = 14 + 16 + clientTextHeight + 12;
+  const clientBoxY = y - clientHeight;
+  drawDocumentSectionBox(page, {
     x: margin,
-    y: y - 94,
+    y: clientBoxY,
     width: contentWidth,
     title: "Cliente",
     text: clientText,
@@ -155,11 +166,12 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     bold,
     textColor,
     muted,
-    titleSize: layout.sectionTitleSize || 9.4,
-    bodySize: layout.sectionBodySize || 8.6,
-    bodyGap: 2.2,
+    titleSize: clientTitleSize,
+    bodySize: clientBodySize,
+    bodyGap: clientBodyGap,
   });
-  const clientMetaY = y - 26;
+  const clientTopY = clientBoxY + clientHeight;
+  const clientMetaY = clientTopY - 18;
   page.drawText(`Moneda: ${pres.moneda || "CLP"}`, {
     x: width - margin - 170,
     y: clientMetaY,
@@ -176,7 +188,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
       color: muted,
     });
   }
-  y -= clientHeight + 20;
+  y = clientBoxY - 22;
 
   const columns = {
     detail: { label: "Detalle", x: margin + 14, width: layout.detailColWidth || 300 },

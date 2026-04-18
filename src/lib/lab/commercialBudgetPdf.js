@@ -66,7 +66,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   const heroContentWidth = contentWidth - metaCardWidth - 18;
   const heroTitleLines = wrapPdfText(budgetTitle, heroContentWidth - 12, bold, 17.8);
   const heroTitleLineHeight = 18.8;
-  const titleStartY = heroY + heroHeight - 66;
+  const titleStartY = heroY + heroHeight - 52;
   const issuerLines = [
     empresa?.rut,
     empresa?.dir,
@@ -95,7 +95,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   if (budgetSubtitle) {
     page.drawText(budgetSubtitle, {
       x: margin + 18,
-      y: titleStartY - (heroTitleLines.length * heroTitleLineHeight) - 6,
+      y: titleStartY - (heroTitleLines.length * heroTitleLineHeight) - 10,
       size: 9.2,
       font,
       color: muted,
@@ -105,13 +105,13 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + heroContentWidth - totalBadgeWidth + 6, heroY + 14, totalBadgeWidth, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
-    y: heroY + 58,
+    y: heroY + 72,
     size: layout.companyTitleSize || 15.5,
     font: bold,
     color: textColor,
     maxWidth: heroContentWidth - 12,
   });
-  let issuerY = heroY + 42;
+  let issuerY = heroY + 56;
   issuerLines.forEach((line) => {
     page.drawText(line, {
       x: margin + 18,

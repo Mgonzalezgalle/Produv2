@@ -143,10 +143,24 @@ export function useLabBudgetForm({
   const canInvoices = hasAddon(empresa, "facturacion");
 
   const addItem = () => setF((p) => ({ ...p, items: [...(p.items || []), { id: uid(), desc: "", qty: 1, precio: 0, precioOrigen: 0, precioCLP: 0, totalOrigen: 0, totalCLP: 0, und: "Unidad", recurrence: "once" }] }));
-  const updItem = (i, k, v) => setF((p) => ({ ...p, items: (p.items || []).map((it, j) => (j === i ? { ...it, [k]: v } : it)) }));
+  const updItem = (i, k, v) => setF((p) => ({
+    ...p,
+    items: (p.items || []).map((it, j) => {
+      if (j !== i) return it;
+      if (k === "precio") return { ...it, precio: v, precioOrigen: v };
+      return { ...it, [k]: v };
+    }),
+  }));
   const delItem = (i) => setF((p) => ({ ...p, items: (p.items || []).filter((_, j) => j !== i) }));
   const addPieceLine = () => setF((p) => ({ ...p, pieceLines: [...(p.pieceLines || []), pieceLine()] }));
-  const updPieceLine = (i, k, v) => setF((p) => ({ ...p, pieceLines: (p.pieceLines || []).map((it, j) => (j === i ? { ...it, [k]: v } : it)) }));
+  const updPieceLine = (i, k, v) => setF((p) => ({
+    ...p,
+    pieceLines: (p.pieceLines || []).map((it, j) => {
+      if (j !== i) return it;
+      if (k === "precio") return { ...it, precio: v, precioOrigen: v };
+      return { ...it, [k]: v };
+    }),
+  }));
   const delPieceLine = (i) => setF((p) => ({ ...p, pieceLines: (p.pieceLines || []).filter((_, j) => j !== i) }));
 
   const socialCampaign = useMemo(() => (piezas || []).find((x) => x.id === f.refId), [f.refId, piezas]);

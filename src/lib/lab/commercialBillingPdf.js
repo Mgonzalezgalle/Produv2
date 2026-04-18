@@ -302,7 +302,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   if (trailingNotes) {
     drawDocumentSectionBox(page, {
       x: margin,
-      y: sectionY - Math.max(84, measurePdfTextBlock(trailingNotes, contentWidth - 28, font, 8.6, 2.2) + 34),
+      y: sectionY - Math.max(84, measurePdfTextBlock(trailingNotes, contentWidth - 28, font, 8.6, 2.2) + 34) + 3,
       width: contentWidth,
       title: "Observaciones",
       text: trailingNotes,

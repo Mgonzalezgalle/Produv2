@@ -5,7 +5,6 @@ import {
   drawLegalDocStamp,
   drawRightAlignedPdfText,
   drawRoundedPdfBox,
-  drawSummaryPanel,
   facturaPdfFileName,
   measurePdfTextBlock,
 } from "./commercialPdfBase";
@@ -48,6 +47,16 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     dueDate: fact.fechaVencimiento || "",
   });
   const compactDocTitle = String(docType || "Documento").trim();
+  const drawLedgerRow = ({ x, y, width, label, value, strong = false, accent = false }) => {
+    page.drawText(label, {
+      x,
+      y,
+      size: strong ? 9 : 8.6,
+      font: strong ? bold : font,
+      color: accent ? accentColor : muted,
+    });
+    drawRightAlignedPdfText(page, value, x + 120, y, width - 120, strong ? bold : font, strong ? 10 : 9, accent ? accentColor : textColor);
+  };
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: white });
   page.drawRectangle({ x: margin, y: height - 42, width: contentWidth, height: 4, color: accentColor });
@@ -155,50 +164,80 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   });
   y -= detailHeight + 18;
 
-  const leftCardY = y - 150;
-  const cardWidth = (contentWidth - 22) / 2;
-  drawSummaryPanel(page, {
-    x: margin,
-    y: leftCardY,
-    width: cardWidth,
-    rows: [
-      { label: docType === "Invoice" ? "Pago esperado" : "Monto neto", value: fmtM(mn), bold: true, valueSize: 11, labelSize: 7.8 },
-      { label: "Fecha de pago", value: fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"), bold: true, valueSize: 9.4, labelSize: 7.9 },
-    ],
-    labelWidth: 140,
-    accentColor,
-    bold,
-    font,
-    white,
-    textColor,
-    fillColor: surface,
-    borderColor: border,
-    labelSize: layout.summaryLabelSize || 7.5,
-    valueSize: layout.summaryValueSize || 10,
+  const summaryY = y - 126;
+  drawRoundedPdfBox(page, margin, summaryY, contentWidth, 126, white, border, 1.1);
+  page.drawText("Resumen de facturación", {
+    x: margin + 14,
+    y: summaryY + 104,
+    size: 9.6,
+    font: bold,
+    color: accentColor,
   });
-  const factRightCardX = margin + cardWidth + 22;
-  drawSummaryPanel(page, {
-    x: factRightCardX,
-    y: leftCardY,
-    width: cardWidth,
-    rows: [
-      { label: "SubTotal", value: fmtM(mn), bold: true, valueSize: 11 },
-      { label: docType === "Invoice" ? "Impuestos" : "IVA", value: docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"), bold: true, valueSize: 9.6, labelSize: 7.9 },
-      { label: "Total", value: fmtM(total), bold: true, valueSize: 11 },
-    ],
-    labelWidth: 104,
-    accentColor,
-    bold,
+  page.drawText("Documento interno de control comercial y cobranza.", {
+    x: margin + 14,
+    y: summaryY + 89,
+    size: 8.4,
     font,
-    white,
-    textColor,
-    fillColor: surface,
-    borderColor: border,
-    labelSize: layout.summaryLabelSize || 7.5,
-    valueSize: layout.summaryValueSize || 10,
+    color: muted,
+  });
+  page.drawRectangle({
+    x: margin + 14,
+    y: summaryY + 74,
+    width: contentWidth - 28,
+    height: 1,
+    color: border,
+  });
+  const leftLedgerX = margin + 14;
+  const rightLedgerX = margin + (contentWidth / 2) + 6;
+  const ledgerWidth = (contentWidth - 34) / 2;
+  drawLedgerRow({
+    x: leftLedgerX,
+    y: summaryY + 56,
+    width: ledgerWidth,
+    label: docType === "Invoice" ? "Pago esperado" : "Monto neto",
+    value: fmtM(mn),
+    strong: true,
+  });
+  drawLedgerRow({
+    x: leftLedgerX,
+    y: summaryY + 36,
+    width: ledgerWidth,
+    label: "Fecha de pago",
+    value: fact.fechaPago ? fmtD(fact.fechaPago) : (fact.fechaVencimiento ? fmtD(fact.fechaVencimiento) : "Por definir"),
+  });
+  drawLedgerRow({
+    x: leftLedgerX,
+    y: summaryY + 16,
+    width: ledgerWidth,
+    label: "Cobranza",
+    value: cobranzaState(fact),
+  });
+  drawLedgerRow({
+    x: rightLedgerX,
+    y: summaryY + 56,
+    width: ledgerWidth,
+    label: "SubTotal",
+    value: fmtM(mn),
+    strong: true,
+  });
+  drawLedgerRow({
+    x: rightLedgerX,
+    y: summaryY + 36,
+    width: ledgerWidth,
+    label: docType === "Invoice" ? "Impuestos" : "IVA",
+    value: docType === "Invoice" ? "0" : (fact.iva ? fmtM(ivaV) : "0"),
+  });
+  drawLedgerRow({
+    x: rightLedgerX,
+    y: summaryY + 16,
+    width: ledgerWidth,
+    label: "TOTAL",
+    value: fmtM(total),
+    strong: true,
+    accent: true,
   });
 
-  let sectionY = leftCardY - 18;
+  let sectionY = summaryY - 18;
   if (paymentInfo) {
     const paymentHeight = drawDocumentSectionBox(page, {
       x: margin,

@@ -81,7 +81,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   if (budgetSubtitle) {
     page.drawText(budgetSubtitle, {
       x: margin + 18,
-      y: heroY + heroHeight - 70,
+      y: heroY + heroHeight - 68,
       size: 12,
       font: bold,
       color: textColor,

@@ -144,7 +144,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   });
   y -= entityHeight + 18;
 
-  const detailHeight = 108;
+  const detailHeight = 92;
   drawRoundedPdfBox(page, margin, y - detailHeight, contentWidth, detailHeight, surface, border, 0.8);
   page.drawText("Detalle del documento", { x: margin + 14, y: y - 18, size: layout.sectionTitleSize || 9.3, font: bold, color: accentColor });
   const detailRows = [
@@ -155,10 +155,49 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     ["Presupuesto", fact.presupuestoId || "—"],
     ["Contrato", fact.contratoId || "—"],
   ];
+  const detailLeftRows = detailRows.slice(0, 3);
+  const detailRightRows = detailRows.slice(3);
+  const detailColumnGap = 24;
+  const detailColumnWidth = (contentWidth - 28 - detailColumnGap) / 2;
+  const detailLabelWidth = 104;
+  const detailValueWidth = detailColumnWidth - detailLabelWidth - 6;
   let detailY = y - 42;
-  detailRows.forEach(([label, value]) => {
-    page.drawText(`${label}:`, { x: margin + 14, y: detailY, size: layout.sectionBodySize || 8.8, font: bold, color: textColor });
-    page.drawText(String(value || "—"), { x: margin + 118, y: detailY, size: layout.sectionBodySize || 8.8, font, color: textColor, maxWidth: contentWidth - 144 });
+  detailLeftRows.forEach(([label, value], index) => {
+    const rightLabel = detailRightRows[index]?.[0];
+    const rightValue = detailRightRows[index]?.[1];
+    page.drawText(`${label}:`, {
+      x: margin + 14,
+      y: detailY,
+      size: layout.sectionBodySize || 8.8,
+      font: bold,
+      color: textColor,
+    });
+    page.drawText(String(value || "—"), {
+      x: margin + 14 + detailLabelWidth,
+      y: detailY,
+      size: layout.sectionBodySize || 8.8,
+      font,
+      color: textColor,
+      maxWidth: detailValueWidth,
+    });
+    if (rightLabel) {
+      const rightColumnX = margin + 14 + detailColumnWidth + detailColumnGap;
+      page.drawText(`${rightLabel}:`, {
+        x: rightColumnX,
+        y: detailY,
+        size: layout.sectionBodySize || 8.8,
+        font: bold,
+        color: textColor,
+      });
+      page.drawText(String(rightValue || "—"), {
+        x: rightColumnX + detailLabelWidth,
+        y: detailY,
+        size: layout.sectionBodySize || 8.8,
+        font,
+        color: textColor,
+        maxWidth: detailValueWidth,
+      });
+    }
     detailY -= 16;
   });
   y -= detailHeight + 18;

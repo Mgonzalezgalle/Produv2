@@ -91,7 +91,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + heroContentWidth - totalBadgeWidth + 6, heroY + 14, totalBadgeWidth, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
-    y: heroY + 87,
+    y: heroY + 82,
     size: layout.companyTitleSize || 15.5,
     font: bold,
     color: textColor,

@@ -30,13 +30,12 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const printLayouts = normalizePrintLayouts((await dbGet("produ:printLayouts")) || DEFAULT_PRINT_LAYOUTS);
   const layout = printLayouts.billing;
-  const accent = layout.accent || companyPrintColor(empresa);
-  const accentColor = hexToRgb(accent);
+  const accentColor = hexToRgb("#344155");
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#667085");
   const white = hexToRgb("#ffffff");
-  const surface = hexToRgb("#f1f5f9");
-  const border = hexToRgb("#94a3b8");
+  const surface = hexToRgb("#f7f8fa");
+  const border = hexToRgb("#d4d8df");
   const margin = 38;
   const contentWidth = width - margin * 2;
   const mn = Number(fact.montoNeto || 0);
@@ -59,7 +58,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   };
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: white });
-  page.drawRectangle({ x: margin, y: height - 42, width: contentWidth, height: 4, color: accentColor });
+  page.drawRectangle({ x: margin, y: height - 40, width: contentWidth, height: 2, color: accentColor });
   page.drawText(empresa?.nombre || "", {
     x: margin,
     y: height - 58,
@@ -146,7 +145,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   y -= entityHeight + 18;
 
   const detailHeight = 108;
-  drawRoundedPdfBox(page, margin, y - detailHeight, contentWidth, detailHeight, white, border, 1.1);
+  drawRoundedPdfBox(page, margin, y - detailHeight, contentWidth, detailHeight, surface, border, 0.8);
   page.drawText("Detalle del documento", { x: margin + 14, y: y - 18, size: layout.sectionTitleSize || 9.3, font: bold, color: accentColor });
   const detailRows = [
     ["Tipo de documento", docType],
@@ -165,7 +164,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   y -= detailHeight + 18;
 
   const summaryY = y - 126;
-  drawRoundedPdfBox(page, margin, summaryY, contentWidth, 126, white, border, 1.1);
+  drawRoundedPdfBox(page, margin, summaryY, contentWidth, 126, surface, border, 0.8);
   page.drawText("Resumen de facturación", {
     x: margin + 14,
     y: summaryY + 104,
@@ -173,7 +172,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     font: bold,
     color: accentColor,
   });
-  page.drawText("Documento interno de control comercial y cobranza.", {
+  page.drawText("Documento interno para control comercial y seguimiento de cobranza.", {
     x: margin + 14,
     y: summaryY + 89,
     size: 8.4,
@@ -231,7 +230,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     x: rightLedgerX,
     y: summaryY + 16,
     width: ledgerWidth,
-    label: "TOTAL",
+    label: "TOTAL DOCUMENTO",
     value: fmtM(total),
     strong: true,
     accent: true,
@@ -245,7 +244,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
       width: contentWidth,
       title: "Datos de pago",
       text: paymentInfo,
-      fillColor: white,
+      fillColor: surface,
       borderColor: border,
       accentColor,
       font,

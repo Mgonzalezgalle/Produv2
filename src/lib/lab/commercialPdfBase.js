@@ -166,10 +166,22 @@ export function drawLegalDocStamp(page, {
       color,
     });
   };
+  const rutSize = 8.8;
+  const docTypeSize = 11.8;
+  const docNumberSize = 10.6;
+  const topInset = 9;
+  const bottomInset = 8;
+  const innerTop = y + height - topInset;
+  const innerBottom = y + bottomInset;
+  const availableGapSpace = Math.max(4, (innerTop - innerBottom) - (rutSize + docTypeSize + docNumberSize));
+  const lineGap = Math.max(2, Math.min(8, availableGapSpace / 2));
+  const docNumberY = innerBottom + docNumberOffsetY;
+  const docTypeY = docNumberY + docNumberSize + lineGap + docTypeOffsetY;
+  const rutY = innerTop - rutSize;
   drawRoundedPdfBox(page, x, y, width, height, white, legalRed, 1.6);
-  centerText(rut || "RUT —", 8.8, y + height - 18, legalRed, true);
-  centerText(String(docType || "DOCUMENTO").toUpperCase(), 11.8, y + height - 42 + docTypeOffsetY, legalRed, true);
-  centerText(`N° ${docNumber || "S/C"}`, 10.6, y + height - 64 + docNumberOffsetY, legalRed, true);
+  centerText(rut || "RUT —", rutSize, rutY, legalRed, true);
+  centerText(String(docType || "DOCUMENTO").toUpperCase(), docTypeSize, docTypeY, legalRed, true);
+  centerText(`N° ${docNumber || "S/C"}`, docNumberSize, docNumberY, legalRed, true);
 }
 
 export function createCommercialPdfDeps({

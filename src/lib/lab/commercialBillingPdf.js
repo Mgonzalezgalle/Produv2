@@ -103,6 +103,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     rut: empresa?.rut || "",
     docType,
     docNumber: fact.correlativo || "",
+    docTypeOffsetY: 1,
   });
   const stampMetaX = metaCardX + 14;
   page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x: stampMetaX, y: metaCardY + 8, size: layout.metaSize || 8.7, font, color: textColor });

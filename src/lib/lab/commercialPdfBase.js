@@ -124,6 +124,7 @@ export function drawDocumentSectionBox(page, {
   bodySize = 8.7,
   bodyGap = 2.5,
   padding = 14,
+  bodyOffsetY = 0,
 }) {
   const titleBlock = title ? 16 : 0;
   const bodyHeight = Math.max(bodySize + 2, measurePdfTextBlock(text || " ", width - padding * 2, font, bodySize, bodyGap));
@@ -134,7 +135,7 @@ export function drawDocumentSectionBox(page, {
     page.drawText(title, { x: x + padding, y: cursorY, size: titleSize, font: bold, color: accentColor });
     cursorY -= titleSize + 10;
   }
-  drawPdfTextBlock(page, text || " ", x + padding, cursorY, width - padding * 2, font, bodySize, textColor || muted, bodyGap);
+  drawPdfTextBlock(page, text || " ", x + padding, cursorY + bodyOffsetY, width - padding * 2, font, bodySize, textColor || muted, bodyGap);
   return height;
 }
 

@@ -156,6 +156,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     titleSize: clientTitleSize,
     bodySize: clientBodySize,
     bodyGap: clientBodyGap,
+    bodyOffsetY: 3,
   });
   const clientTopY = clientBoxY + clientHeight;
   const clientMetaY = clientTopY - 18;

@@ -219,11 +219,15 @@ export function exportCrmCsv(items = [], stages = [], users = []) {
     return;
   }
   const headers = Object.keys(rows[0]);
-  const csv = [headers.join(","), ...rows.map(row => headers.map(header => `"${String(row[header] ?? "").replace(/"/g, "\"\"")}"`).join(","))].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const lines = [
+    headers.join("\t"),
+    ...rows.map(row => headers.map(header => String(row[header] ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " ")).join("\t")),
+  ];
+  const content = `\uFEFF${lines.join("\n")}`;
+  const blob = new Blob([content], { type: "application/vnd.ms-excel;charset=utf-8;" });
   const anchor = document.createElement("a");
   anchor.href = URL.createObjectURL(blob);
-  anchor.download = `crm_oportunidades_${today()}.csv`;
+  anchor.download = `crm_oportunidades_${today()}.xls`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(anchor.href), 1200);
 }

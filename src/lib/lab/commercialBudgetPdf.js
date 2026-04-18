@@ -75,6 +75,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   const clientBodySize = layout.sectionBodySize || 8.6;
   const clientBodyGap = 2.2;
   const clientTitleSize = layout.sectionTitleSize || 9.4;
+  const totalBadgeWidth = 152;
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
   page.drawRectangle({ x: 0, y: height - 96, width, height: 96, color: accentColor });
@@ -101,7 +102,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
       maxWidth: heroContentWidth - 10,
     });
   }
-  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + 18, heroY + 14, 152, accentColor, bold, white, 8.8);
+  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + heroContentWidth - totalBadgeWidth + 6, heroY + 14, totalBadgeWidth, accentColor, bold, white, 8.8);
   page.drawText(empresa?.nombre || "", {
     x: margin + 18,
     y: heroY + 58,

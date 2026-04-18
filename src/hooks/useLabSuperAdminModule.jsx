@@ -458,7 +458,7 @@ export function useLabSuperAdminModule({
     </div>;
   };
 
-  const SUPER_TABS = ["Empresas", "Cartera", "Usuarios del sistema", "Wizard", "Integraciones", "Comunicaciones", "Solicitudes", "Impresos"];
+  const SUPER_TABS = ["Empresas", "Cartera", "Usuarios del sistema", "Wizard", "Integraciones", "Comunicaciones", "Solicitudes"];
   const SUPER_TAB_META = {
     "Empresas": { eyebrow: "Estructura", desc: "Administra tenants, niveles, módulos y configuración base de cada instancia." },
     "Cartera": { eyebrow: "Control comercial", desc: "Monitorea MRR, descuentos, pagos, referidos y salud financiera de los tenants." },
@@ -467,7 +467,6 @@ export function useLabSuperAdminModule({
     "Integraciones": { eyebrow: "Base técnica", desc: "Activa o desactiva integraciones preparadas por tenant sin exponer funciones incompletas." },
     "Comunicaciones": { eyebrow: "Mensajería", desc: "Envía mensajes sistémicos y banners visibles para cada empresa usuaria." },
     "Solicitudes": { eyebrow: "Pipeline", desc: "Aprueba accesos, solicitudes y referidos desde una sola bandeja de control." },
-    "Impresos": { eyebrow: "Diseño documental", desc: "Ajusta tamaños, pesos visuales y estructura base de los PDFs de Presupuestos y Facturación desde una consola central." },
   };
   const activeSuperTab = SUPER_TABS[tab];
 

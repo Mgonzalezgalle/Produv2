@@ -5,11 +5,10 @@ import { TenantHealthBadgeRow } from "./TowerControlHealthViews";
 import { SolicitudesPanel } from "./TowerControlRequestsPanel";
 import { SystemUsersPanel } from "./TowerControlUsersPanel";
 import { ComunicacionesAdminPanel } from "./TowerControlCommunicationsPanel";
-import { ImpresosAdminPanel } from "./TowerControlPrintsPanel";
 import { IntegracionesAdminPanel } from "./TowerControlIntegrationsPanel";
 import { WizardAdminPanel } from "./TowerControlWizardPanel";
 
-export { ComunicacionesAdminPanel, ImpresosAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel, WizardAdminPanel };
+export { ComunicacionesAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel, WizardAdminPanel };
 
 const sidePanelBackdropStyle = {
   position: "fixed",

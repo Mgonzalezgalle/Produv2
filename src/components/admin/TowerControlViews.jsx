@@ -82,7 +82,6 @@ export function SuperAdminPanel({
     IntegracionesAdminPanel: ResolvedIntegracionesAdminPanel,
     ComunicacionesAdminPanel: ResolvedComunicacionesAdminPanel,
     SolicitudesPanel: ResolvedSolicitudesPanel,
-    ImpresosAdminPanel: ResolvedImpresosAdminPanel,
     helpers: resolvedHelpers,
   } = resolvedProps;
   const {
@@ -122,9 +121,8 @@ export function SuperAdminPanel({
   const {
     tab,setTab,q,setQ,stateF,setStateF,portfolioQ,setPortfolioQ,portfolioStatus,setPortfolioStatus,setPortfolioEmpId,
     uq,setUQ,uRole,setURole,uState,setUState,uEmp,setUEmp,ef,setEf,eid,setEid,sysUf,setSysUf,sysUid,setSysUid,integrationEmpId,setIntegrationEmpId,commEmpId,setCommEmpId,sysMsg,setSysMsg,
-    bannerForm,setBannerForm,printForm,activePrintDoc,setActivePrintDoc,sysMsgBodyRef,totalEmp,activeEmp,totalUsers,grossMRR,netMRR,totalDiscountMRR,overdueEmp,
-    activePortfolioClients,filteredEmp,filteredPortfolio,selectedPortfolioEmp,filteredUsers,selectedIntegrationEmp,selectedCommEmp,saveSystemUser,editSystemUser,resetSystemUserAccess,deleteSystemUser,updatePrint,resetPrintLayouts,
-    persistPrintLayouts,applyPrintPreset,renderPrintPreview,SUPER_TABS,SUPER_TAB_META,activeSuperTab,saveEmp,savePortfolio,publishSystemMessage,wrapSystemSelection,insertSystemBlock,
+    bannerForm,setBannerForm,sysMsgBodyRef,totalEmp,activeEmp,totalUsers,grossMRR,netMRR,totalDiscountMRR,overdueEmp,
+    activePortfolioClients,filteredEmp,filteredPortfolio,selectedPortfolioEmp,filteredUsers,selectedIntegrationEmp,selectedCommEmp,saveSystemUser,editSystemUser,resetSystemUserAccess,deleteSystemUser,SUPER_TABS,SUPER_TAB_META,activeSuperTab,saveEmp,savePortfolio,publishSystemMessage,wrapSystemSelection,insertSystemBlock,
     applySystemPreset,saveBanner,removeSystemMessage,handleAceptarSolicitud,handleRechazarSolicitud,guardedOnSave,saveIntegrationProvisioning,lastGovernanceSync,
   } = useLabSuperAdminModule({
     actorUser: resolvedActorUser,
@@ -191,6 +189,5 @@ export function SuperAdminPanel({
     {tab===4&&<ResolvedIntegracionesAdminPanel empresas={resolvedEmpresas} integrationEmpId={integrationEmpId} setIntegrationEmpId={setIntegrationEmpId} selectedIntegrationEmp={selectedIntegrationEmp} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} onSave={guardedOnSave} saveIntegrationProvisioning={saveIntegrationProvisioning} platformServices={resolvedPlatformServices} />}
     {tab===5&&<ResolvedComunicacionesAdminPanel empresas={resolvedEmpresas} commEmpId={commEmpId} setCommEmpId={setCommEmpId} selectedCommEmp={selectedCommEmp} bannerForm={bannerForm} setBannerForm={setBannerForm} onSave={guardedOnSave} SYSTEM_MESSAGE_PRESETS={SYSTEM_MESSAGE_PRESETS} applySystemPreset={applySystemPreset} wrapSystemSelection={wrapSystemSelection} insertSystemBlock={insertSystemBlock} sysMsgBodyRef={sysMsgBodyRef} FTA={FTA} sysMsg={sysMsg} setSysMsg={setSysMsg} RichTextBlock={resolvedHelpers.RichTextBlock} publishSystemMessage={publishSystemMessage} removeSystemMessage={removeSystemMessage} fmtD={fmtD} XBtn={XBtn} saveBanner={saveBanner} />}
     {tab===6&&<ResolvedSolicitudesPanel empresas={resolvedEmpresas} dbGet={dbGet} fmtD={fmtD} addons={addons} onAceptar={handleAceptarSolicitud} onRechazar={handleRechazarSolicitud}/>}
-    {tab===7&&<ResolvedImpresosAdminPanel activePrintDoc={activePrintDoc} setActivePrintDoc={setActivePrintDoc} printForm={printForm} defaultPrintLayouts={DEFAULT_PRINT_LAYOUTS} updatePrint={updatePrint} applyPrintPreset={applyPrintPreset} resetPrintLayouts={resetPrintLayouts} persistPrintLayouts={persistPrintLayouts} renderPrintPreview={renderPrintPreview} />}
   </div>;
 }

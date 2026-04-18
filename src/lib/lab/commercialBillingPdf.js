@@ -141,6 +141,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     titleSize: layout.sectionTitleSize || 9.2,
     bodySize: layout.sectionBodySize || 8.8,
     bodyGap: 1.8,
+    bodyOffsetY: 3,
   });
   y -= entityHeight + 18;
 

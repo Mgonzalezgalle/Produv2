@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import {
+  drawCommercialLabel,
   downloadFile,
   drawDocumentSectionBox,
   drawLegalDocStamp,
@@ -35,6 +36,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#667085");
   const white = hexToRgb("#ffffff");
+  const pageTint = hexToRgb("#eef3fb");
   const surface = hexToRgb("#f1f5f9");
   const border = hexToRgb("#94a3b8");
   const margin = 38;
@@ -46,20 +48,70 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   const paymentInfo = companyPaymentInfoText(empresa, {
     dueDate: fact.fechaVencimiento || "",
   });
+  const docTitle = String(fact.correlativo || docType || "Documento comercial").trim();
+  const docSubtitle = [
+    entidad?.nom ? `Documento para ${entidad.nom}` : "",
+    fact.recurring ? recurringSummary(fact, fact.fechaEmision || today()) : "",
+  ].filter(Boolean).join(" · ");
+  const heroHeight = 118;
+  const heroY = height - margin - heroHeight;
+  const metaCardWidth = 188;
+  const heroContentWidth = contentWidth - metaCardWidth - 18;
 
-  page.drawRectangle({ x: 0, y: 0, width, height, color: white });
-  page.drawText(empresa?.nombre || "", { x: margin, y: height - 58, size: layout.companyTitleSize || 17, font: bold, color: textColor });
-  const issuerLines = [empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
-  let issuerY = height - 82;
-  issuerLines.forEach((line) => {
-    page.drawText(line, { x: margin, y: issuerY, size: layout.metaSize || 8.7, font, color: muted });
-    issuerY -= 11;
+  page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
+  page.drawRectangle({ x: 0, y: height - 96, width, height: 96, color: accentColor });
+  drawRoundedPdfBox(page, margin, heroY, contentWidth, heroHeight, white, border, 1.1);
+  drawRoundedPdfBox(page, margin + 1, heroY + heroHeight - 5, contentWidth - 2, 4, accentColor, accentColor, 0);
+  drawCommercialLabel(page, docType, margin + 18, heroY + heroHeight - 36, 146, accentColor, bold, white, 9.2);
+  page.drawText(docTitle, {
+    x: margin + 18,
+    y: heroY + heroHeight - 66,
+    size: 19,
+    font: bold,
+    color: textColor,
+    maxWidth: heroContentWidth - 10,
   });
+  if (docSubtitle) {
+    page.drawText(docSubtitle, {
+      x: margin + 18,
+      y: heroY + heroHeight - 88,
+      size: 9.4,
+      font,
+      color: muted,
+      maxWidth: heroContentWidth - 10,
+    });
+  }
+  drawCommercialLabel(page, `Total ${fmtM(total)}`, margin + 18, heroY + 22, 144, accentColor, bold, white, 8.8);
+  page.drawText(empresa?.nombre || "", {
+    x: margin + 18,
+    y: heroY + 44,
+    size: layout.companyTitleSize || 17,
+    font: bold,
+    color: textColor,
+    maxWidth: heroContentWidth - 12,
+  });
+  const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
+  let issuerY = heroY + 29;
+  issuerLines.forEach((line) => {
+    page.drawText(line, {
+      x: margin + 18,
+      y: issuerY,
+      size: layout.metaSize || 8.7,
+      font,
+      color: muted,
+      maxWidth: heroContentWidth - 10,
+    });
+    issuerY -= 12;
+  });
+
+  const metaCardX = width - margin - metaCardWidth - 14;
+  const metaCardY = heroY + 14;
+  drawRoundedPdfBox(page, metaCardX, metaCardY, metaCardWidth, heroHeight - 28, surface, border, 1);
   drawLegalDocStamp(page, {
-    x: width - margin - (layout.stampWidth || 170),
-    y: height - 24 - (layout.stampHeight || 82),
-    width: layout.stampWidth || 170,
-    height: layout.stampHeight || 82,
+    x: metaCardX + 12,
+    y: metaCardY + 22,
+    width: metaCardWidth - 24,
+    height: 62,
     white,
     bold,
     font,
@@ -67,14 +119,11 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     docType,
     docNumber: fact.correlativo || "",
   });
-  const stampX = width - margin - (layout.stampWidth || 170);
-  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x: stampX, y: height - 120, size: layout.metaSize || 8.7, font, color: textColor });
-  page.drawText(fact.fechaVencimiento ? `Vencimiento: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x: stampX, y: height - 132, size: layout.metaSize || 8.7, font, color: textColor });
-  if (fact.recurring) {
-    page.drawText(`Recurrencia: ${recurringSummary(fact, fact.fechaEmision || today())}`, { x: stampX, y: height - 144, size: layout.metaSize || 8.7, font, color: textColor });
-  }
+  const stampMetaX = metaCardX + 14;
+  page.drawText(`Fecha: ${fmtD(fact.fechaEmision || today())}`, { x: stampMetaX, y: metaCardY + 10, size: layout.metaSize || 8.7, font, color: textColor });
+  page.drawText(fact.fechaVencimiento ? `Vence: ${fmtD(fact.fechaVencimiento)}` : "Sin vencimiento", { x: stampMetaX + 90, y: metaCardY + 10, size: layout.metaSize || 8.7, font, color: textColor });
 
-  let y = height - 170;
+  let y = heroY - 18;
   const entityText = [
     entidad?.nom || "—",
     entidad?.rut ? `RUT: ${entidad.rut}` : "",
@@ -99,11 +148,26 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     bodySize: layout.sectionBodySize || 8.8,
     bodyGap: 1.8,
   });
+  const entityMetaY = y - 26;
+  page.drawText(`Estado: ${fact.estado || "Emitida"}`, {
+    x: width - margin - 184,
+    y: entityMetaY,
+    size: layout.metaSize || 8.8,
+    font: bold,
+    color: textColor,
+  });
+  page.drawText(`Cobranza: ${cobranzaState(fact)}`, {
+    x: width - margin - 184,
+    y: entityMetaY - 13,
+    size: layout.metaSize || 8.8,
+    font,
+    color: muted,
+  });
   y -= entityHeight + 18;
 
   const detailHeight = 108;
   drawRoundedPdfBox(page, margin, y - detailHeight, contentWidth, detailHeight, white, border, 1.1);
-  page.drawText("Detalle del documento", { x: margin + 14, y: y - 18, size: layout.sectionTitleSize || 9.2, font: bold, color: accentColor });
+  page.drawText("Detalle del documento", { x: margin + 14, y: y - 18, size: layout.sectionTitleSize || 9.8, font: bold, color: accentColor });
   const detailRows = [
     ["Tipo de documento", docType],
     ["Estado", fact.estado || "Emitida"],
@@ -136,7 +200,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     font,
     white,
     textColor,
-    fillColor: surface,
+    fillColor: white,
     borderColor: border,
     labelSize: layout.summaryLabelSize || 7.5,
     valueSize: layout.summaryValueSize || 10,
@@ -157,7 +221,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
     font,
     white,
     textColor,
-    fillColor: surface,
+    fillColor: white,
     borderColor: border,
     labelSize: layout.summaryLabelSize || 7.5,
     valueSize: layout.summaryValueSize || 10,
@@ -192,7 +256,7 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
       width: contentWidth,
       title: "Observaciones",
       text: trailingNotes,
-      fillColor: surface,
+      fillColor: white,
       borderColor: border,
       accentColor,
       font,
@@ -206,6 +270,8 @@ export async function buildFactPdfFile(fact, entidad, ref, empresa, deps) {
   }
 
   page.drawText("Documento generado desde Produ", { x: margin, y: 24, size: 8.5, font, color: muted });
+  const footerNote = docType === "Invoice" ? "Seguimiento comercial y cobranza centralizados en Produ." : "Documento interno de seguimiento comercial.";
+  drawRightAlignedPdfText(page, footerNote, width - margin - 240, 24, 240, font, 8.5, muted);
   const bytes = await pdf.save();
   return new File([bytes], facturaPdfFileName(fact), { type: "application/pdf" });
 }

@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import {
+  drawCommercialLabel,
   downloadFile,
   drawDocumentSectionBox,
   drawLegalDocStamp,
@@ -37,6 +38,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   const textColor = hexToRgb("#111827");
   const muted = hexToRgb("#5b6474");
   const white = hexToRgb("#ffffff");
+  const pageTint = hexToRgb("#eef3fb");
   const surface = hexToRgb("#f8fafc");
   const border = hexToRgb("#cbd5e1");
   const contact = (cliente?.contactos || [])[0];
@@ -53,22 +55,74 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     dueDate: pres.fechaPago || "",
   });
   const items = (pres.items || []).length ? (pres.items || []) : [{ id: "empty", desc: "Sin ítems", qty: 0, precio: 0, recurrence: "once" }];
+  const budgetTitle = String(pres.titulo || pres.correlativo || "Presupuesto comercial").trim();
+  const budgetSubtitle = [
+    cliente?.nom ? `Propuesta para ${cliente.nom}` : "",
+    items.length ? `${items.length} ${items.length === 1 ? "ítem" : "ítems"}` : "",
+  ].filter(Boolean).join(" · ");
+  const heroHeight = 118;
+  const heroY = height - margin - heroHeight;
+  const metaCardWidth = 184;
+  const heroContentWidth = contentWidth - metaCardWidth - 18;
 
-  page.drawRectangle({ x: 0, y: 0, width, height, color: white });
-
-  const issuerTextX = margin;
-  page.drawText(empresa?.nombre || "", { x: issuerTextX, y: height - 58, size: layout.companyTitleSize || 18, font: bold, color: textColor });
-  const issuerLines = [empresa?.rut, empresa?.dir, [empresa?.ema, empresa?.tel].filter(Boolean).join(" · ")].filter(Boolean);
-  let issuerY = height - 82;
-  issuerLines.forEach((line) => {
-    page.drawText(line, { x: issuerTextX, y: issuerY, size: layout.metaSize || 9, font, color: muted, maxWidth: 255 });
-    issuerY -= 13;
+  page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
+  page.drawRectangle({ x: 0, y: height - 96, width, height: 96, color: accentColor });
+  drawRoundedPdfBox(page, margin, heroY, contentWidth, heroHeight, white, border, 1.1);
+  drawRoundedPdfBox(page, margin + 1, heroY + heroHeight - 5, contentWidth - 2, 4, accentColor, accentColor, 0);
+  drawCommercialLabel(page, "Propuesta comercial", margin + 18, heroY + heroHeight - 36, 132, accentColor, bold, white, 9.4);
+  page.drawText(budgetTitle, {
+    x: margin + 18,
+    y: heroY + heroHeight - 66,
+    size: 19,
+    font: bold,
+    color: textColor,
+    maxWidth: heroContentWidth - 10,
   });
+  if (budgetSubtitle) {
+    page.drawText(budgetSubtitle, {
+      x: margin + 18,
+      y: heroY + heroHeight - 88,
+      size: 9.4,
+      font,
+      color: muted,
+      maxWidth: heroContentWidth - 10,
+    });
+  }
+  drawCommercialLabel(page, `Total ${fmtMoney(total, "CLP")}`, margin + 18, heroY + 22, 152, accentColor, bold, white, 8.8);
+  page.drawText(empresa?.nombre || "", {
+    x: margin + 18,
+    y: heroY + 44,
+    size: layout.companyTitleSize || 17,
+    font: bold,
+    color: textColor,
+    maxWidth: heroContentWidth - 12,
+  });
+  const issuerLines = [
+    empresa?.rut,
+    empresa?.dir,
+    [empresa?.ema, empresa?.tel].filter(Boolean).join(" · "),
+  ].filter(Boolean);
+  let issuerY = heroY + 29;
+  issuerLines.forEach((line) => {
+    page.drawText(line, {
+      x: margin + 18,
+      y: issuerY,
+      size: layout.metaSize || 9,
+      font,
+      color: muted,
+      maxWidth: heroContentWidth - 12,
+    });
+    issuerY -= 12;
+  });
+
+  const metaCardX = width - margin - metaCardWidth - 14;
+  const metaCardY = heroY + 14;
+  drawRoundedPdfBox(page, metaCardX, metaCardY, metaCardWidth, heroHeight - 28, surface, border, 1);
   drawLegalDocStamp(page, {
-    x: width - margin - (layout.stampWidth || 158),
-    y: height - 34 - (layout.stampHeight || 84),
-    width: layout.stampWidth || 158,
-    height: layout.stampHeight || 84,
+    x: metaCardX + 12,
+    y: metaCardY + 22,
+    width: metaCardWidth - 24,
+    height: 62,
     white,
     bold,
     font,
@@ -76,15 +130,11 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     docType: "Presupuesto",
     docNumber: pres.correlativo || "",
   });
-  const stampX = width - margin - (layout.stampWidth || 158);
-  page.drawText(`Fecha: ${fmtD(pres.cr || today())}`, { x: stampX, y: height - 146, size: layout.metaSize || 9, font, color: textColor });
-  page.drawText(`Validez: ${pres.validez || 30} días`, { x: stampX, y: height - 160, size: layout.metaSize || 9, font, color: textColor });
-  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, { x: stampX, y: height - 174, size: layout.metaSize || 9, font, color: textColor });
-  if (usesFx) {
-    page.drawText(`Tipo cambio: ${Number(pres.tipoCambio || 1).toLocaleString("es-CL")} CLP`, { x: stampX, y: height - 188, size: layout.metaSize || 9, font, color: textColor });
-  }
+  const stampMetaX = metaCardX + 14;
+  page.drawText(`Fecha: ${fmtD(pres.cr || today())}`, { x: stampMetaX, y: metaCardY + 10, size: layout.metaSize || 9, font, color: textColor });
+  page.drawText(`Validez: ${pres.validez || 30} días`, { x: stampMetaX + 86, y: metaCardY + 10, size: layout.metaSize || 9, font, color: textColor });
 
-  let y = height - 196;
+  let y = heroY - 18;
   const clientText = [
     cliente?.nom || "—",
     cliente?.rut ? `RUT: ${cliente.rut}` : "",
@@ -98,7 +148,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     width: contentWidth,
     title: "Cliente",
     text: clientText,
-    fillColor: white,
+    fillColor: surface,
     borderColor: border,
     accentColor,
     font,
@@ -109,6 +159,23 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     bodySize: layout.sectionBodySize || 8.6,
     bodyGap: 2.2,
   });
+  const clientMetaY = y - 26;
+  page.drawText(`Moneda: ${pres.moneda || "CLP"}`, {
+    x: width - margin - 170,
+    y: clientMetaY,
+    size: layout.metaSize || 9,
+    font: bold,
+    color: textColor,
+  });
+  if (usesFx) {
+    page.drawText(`Tipo cambio: ${Number(pres.tipoCambio || 1).toLocaleString("es-CL")} CLP`, {
+      x: width - margin - 170,
+      y: clientMetaY - 13,
+      size: layout.metaSize || 9,
+      font,
+      color: muted,
+    });
+  }
   y -= clientHeight + 20;
 
   const columns = {
@@ -118,6 +185,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     unit: { label: "Valor Unit.", x: margin + 42 + (layout.detailColWidth || 300) + (layout.recurrenceColWidth || 78) + (layout.qtyColWidth || 34), width: layout.unitColWidth || 74 },
     total: { label: "Total", x: width - margin - (layout.totalColWidth || 42), width: layout.totalColWidth || 42 },
   };
+  page.drawText("Detalle económico", { x: margin, y: y + 8, size: 10.5, font: bold, color: accentColor });
   drawRoundedPdfBox(page, margin, y - 30, contentWidth, 30, accentColor, accentColor, 1);
   page.drawText(columns.detail.label, { x: columns.detail.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
   page.drawText(columns.recurrence.label, { x: columns.recurrence.x, y: y - 20, size: layout.detailHeaderSize || 7.7, font: bold, color: white });
@@ -129,7 +197,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   items.forEach((item, idx) => {
     const detailLines = wrapPdfText(item.desc || "Ítem sin descripción", columns.detail.width, font, layout.detailBodySize || 7.1);
     const rowHeight = Math.max(24, detailLines.length * 9 + 12);
-    drawRoundedPdfBox(page, margin, y - rowHeight + 6, contentWidth, rowHeight, idx % 2 === 0 ? white : surface, border, 0.8);
+    drawRoundedPdfBox(page, margin, y - rowHeight + 6, contentWidth, rowHeight, idx % 2 === 0 ? white : pageTint, border, 0.8);
     let lineY = y - 8;
     detailLines.forEach((line) => {
       page.drawText(line || " ", {
@@ -246,6 +314,7 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   }
 
   page.drawText("Documento generado desde Produ", { x: margin, y: 24, size: 8.5, font, color: muted });
+  drawRightAlignedPdfText(page, "Gracias por confiar en Produ.", width - margin - 156, 24, 156, font, 8.5, muted);
   const bytes = await pdf.save();
   return new File([bytes], presupuestoPdfFileName(pres), { type: "application/pdf" });
 }

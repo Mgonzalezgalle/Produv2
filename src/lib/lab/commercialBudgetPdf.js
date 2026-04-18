@@ -55,7 +55,6 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
     dueDate: pres.fechaPago || "",
   });
   const items = (pres.items || []).length ? (pres.items || []) : [{ id: "empty", desc: "Sin ítems", qty: 0, precio: 0, recurrence: "once" }];
-  const budgetTitle = String(pres.titulo || pres.correlativo || "Presupuesto comercial").trim();
   const budgetSubtitle = [
     cliente?.nom ? `Propuesta para ${cliente.nom}` : "",
     items.length ? `${items.length} ${items.length === 1 ? "ítem" : "ítems"}` : "",
@@ -64,9 +63,6 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   const heroY = height - margin - heroHeight;
   const metaCardWidth = 184;
   const heroContentWidth = contentWidth - metaCardWidth - 18;
-  const heroTitleLines = wrapPdfText(budgetTitle, heroContentWidth - 12, bold, 17.8);
-  const heroTitleLineHeight = 18.8;
-  const titleStartY = heroY + heroHeight - 52;
   const issuerLines = [
     empresa?.rut,
     empresa?.dir,
@@ -82,23 +78,13 @@ export async function buildBudgetPdfFile(pres, cliente, empresa, deps) {
   drawRoundedPdfBox(page, margin, heroY, contentWidth, heroHeight, white, border, 1.1);
   drawRoundedPdfBox(page, margin + 1, heroY + heroHeight - 5, contentWidth - 2, 4, accentColor, accentColor, 0);
   drawCommercialLabel(page, "Propuesta comercial", margin + 18, heroY + heroHeight - 36, 132, accentColor, bold, white, 9.4);
-  heroTitleLines.forEach((line, index) => {
-    page.drawText(line, {
-      x: margin + 18,
-      y: titleStartY - (index * heroTitleLineHeight),
-      size: 17.8,
-      font: bold,
-      color: textColor,
-      maxWidth: heroContentWidth - 10,
-    });
-  });
   if (budgetSubtitle) {
     page.drawText(budgetSubtitle, {
       x: margin + 18,
-      y: titleStartY - (heroTitleLines.length * heroTitleLineHeight) - 10,
-      size: 9.2,
-      font,
-      color: muted,
+      y: heroY + heroHeight - 74,
+      size: 12,
+      font: bold,
+      color: textColor,
       maxWidth: heroContentWidth - 10,
     });
   }

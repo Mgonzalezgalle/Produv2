@@ -56,6 +56,10 @@ export function CrmDetailModal({
   onComposeEmail,
 }) {
   const [selectedActivity, setSelectedActivity] = React.useState(null);
+  const [expandedActivityIds, setExpandedActivityIds] = React.useState([]);
+  const toggleExpandedActivity = React.useCallback((activityId) => {
+    setExpandedActivityIds(prev => prev.includes(activityId) ? prev.filter(id => id !== activityId) : [...prev, activityId]);
+  }, []);
   return (
     <Modal open={!!detail} onClose={() => { setDetailId(""); setActivityForm({ type: "note", text: "" }); }} title={detail?.nombre || "Detalle CRM"} sub={detail ? `${detail.empresaMarca} · ${crmEntityLabel(detail)}` : ""} extraWide>
       {detail && <>
@@ -123,16 +127,34 @@ export function CrmDetailModal({
               {detailActivities.map(act => {
                 const meta = crmActivityMeta(act.type);
                 const attachments = normalizeCommentAttachments(act);
+                const expanded = expandedActivityIds.includes(act.id);
                 return <ActivityTimelineCard
                   key={act.id}
                   meta={meta}
                   headline={crmActivityHeadline(act)}
                   secondary={crmActivitySecondary(act)}
                   preview={act.text || "Sin contenido"}
-                  attachments={attachments}
+                  previewLines={expanded ? null : 2}
+                  attachments={expanded ? attachments : []}
                   dateLabel={act.createdAt ? fmtD(act.createdAt) : "—"}
                   authorLabel={act.byName || "Sistema"}
-                  onClick={() => setSelectedActivity(act)}
+                  footer={<div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 11, color: "var(--gr2)", fontWeight: 700 }}>{expanded ? "Ocultar" : "Ver más"}</div>
+                    {!!attachments.length && !expanded && <div style={{ fontSize: 11, color: "var(--cy)" }}>Abrir para ver adjuntos</div>}
+                  </div>}
+                  actions={<div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ fontSize: 12, color: "var(--gr2)", fontWeight: 800, padding: "6px 4px" }}>{expanded ? "⌃" : "⌄"}</div>
+                    <Btn
+                      sm
+                      onClick={event => {
+                        event.stopPropagation();
+                        setSelectedActivity(act);
+                      }}
+                    >
+                      Detalle
+                    </Btn>
+                  </div>}
+                  onClick={() => toggleExpandedActivity(act.id)}
                   interactive
                 />;
               })}

@@ -3,6 +3,7 @@ import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat } from 
 import { ContactBtns } from "../shared/ContactButtons";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
+import { ActivityTimelinePreviewModal } from "../shared/ActivityTimelinePreviewModal";
 
 function crmActivityMeta(type = "") {
   const safe = String(type || "").trim().toLowerCase();
@@ -54,6 +55,7 @@ export function CrmDetailModal({
   getRoleConfig,
   onComposeEmail,
 }) {
+  const [selectedActivity, setSelectedActivity] = React.useState(null);
   return (
     <Modal open={!!detail} onClose={() => { setDetailId(""); setActivityForm({ type: "note", text: "" }); }} title={detail?.nombre || "Detalle CRM"} sub={detail ? `${detail.empresaMarca} · ${crmEntityLabel(detail)}` : ""} extraWide>
       {detail && <>
@@ -130,6 +132,8 @@ export function CrmDetailModal({
                   attachments={attachments}
                   dateLabel={act.createdAt ? fmtD(act.createdAt) : "—"}
                   authorLabel={act.byName || "Sistema"}
+                  onClick={() => setSelectedActivity(act)}
+                  interactive
                 />;
               })}
               {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas." />}
@@ -141,6 +145,18 @@ export function CrmDetailModal({
             {tasksEnabled ? (detailTasks.length ? detailTasks.map(task => <TareaCard key={task.id} tarea={task} producciones={[]} programas={[]} piezas={[]} oportunidades={scopedOpps} crew={tenantUsers.map(u => ({ id: u.id, nom: u.name, rol: getRoleConfig(u.role, empresa).label }))} onEdit={item => openM("tarea", item)} onDelete={() => {}} onChangeEstado={() => {}} canEdit={false} />) : <Empty text="Sin tareas vinculadas" sub="Crea una tarea para convertir este lead en siguiente acción real." />) : null}
           </Card>
         </div>
+        <ActivityTimelinePreviewModal
+          open={!!selectedActivity}
+          item={selectedActivity}
+          title={selectedActivity ? crmActivityHeadline(selectedActivity) : "Detalle de actividad"}
+          subtitle={selectedActivity ? crmActivitySecondary(selectedActivity) : "Vista de actividad"}
+          dateLabel={selectedActivity?.createdAt ? fmtD(selectedActivity.createdAt) : "—"}
+          authorLabel={selectedActivity?.byName || "Sistema"}
+          originLabel={selectedActivity?.source === "diio" ? "Diio" : "Produ"}
+          meta={selectedActivity ? crmActivityMeta(selectedActivity.type) : null}
+          preview={selectedActivity?.text || "Sin contenido"}
+          onClose={() => setSelectedActivity(null)}
+        />
       </>}
     </Modal>
   );

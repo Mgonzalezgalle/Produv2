@@ -3,6 +3,7 @@ import { ContactBtns } from "../shared/ContactButtons";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
+import { ActivityTimelinePreviewModal } from "../shared/ActivityTimelinePreviewModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
@@ -440,37 +441,18 @@ export function ViewCliDet({
           </button>
         </div>
       </Modal>
-      <Modal open={!!emailPreview} onClose={() => setEmailPreview(null)} title={emailPreview?.subject || "Correo enviado"} sub={emailPreview?.to ? `Para ${emailPreview.to}` : "Vista previa del correo enviado"} wide>
-        {emailPreview && <>
-          <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Fecha:</b> {emailPreview.createdAt ? new Date(emailPreview.createdAt).toLocaleString("es-CL") : "—"}</div>
-            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Enviado por:</b> {emailPreview.byName || "Usuario"}</div>
-            <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Origen:</b> {emailPreview.source === "mailto_fallback" ? "Tu cliente de correo" : "Produ"}</div>
-          </div>
-          <div style={{ padding: 14, borderRadius: 14, border: "1px solid var(--bdr)", background: "var(--sur)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#4f7cff" }}>Mensaje</span>
-              <Badge label="Correo" color="gray" sm />
-              {!!normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length && <Badge label={`${normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length} adjunto${normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length === 1 ? "" : "s"}`} color="cyan" sm />}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--gr3)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-            {emailPreview.text || "Sin contenido"}
-            </div>
-          </div>
-          {!!normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 14 }}>
-              {normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
-                {att.type === "pdf"
-                  ? <div style={{ display: "grid", placeItems: "center", height: 96, padding: 10, textAlign: "center" }}>
-                      <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
-                      <div style={{ fontSize: 10, color: "var(--gr3)", lineHeight: 1.35, wordBreak: "break-word" }}>{att.name || "Documento PDF"}</div>
-                    </div>
-                  : <img src={att.src} alt={att.name || "Adjunto email"} style={{ display: "block", width: "100%", height: 96, objectFit: "cover" }} />}
-              </a>)}
-            </div>
-          )}
-        </>}
-      </Modal>
+      <ActivityTimelinePreviewModal
+        open={!!emailPreview}
+        item={emailPreview}
+        title={emailPreview?.subject || "Correo enviado"}
+        subtitle={emailPreview?.to ? `Para ${emailPreview.to}` : "Vista previa del correo enviado"}
+        dateLabel={emailPreview?.createdAt ? new Date(emailPreview.createdAt).toLocaleString("es-CL") : "—"}
+        authorLabel={emailPreview?.byName || "Usuario"}
+        originLabel={emailPreview?.source === "mailto_fallback" ? "Tu cliente de correo" : "Produ"}
+        meta={emailPreview ? timelineMeta(emailPreview) : null}
+        preview={emailPreview?.text || "Sin contenido"}
+        onClose={() => setEmailPreview(null)}
+      />
       <TransactionalEmailComposerModal
         open={emailComposerOpen}
         draft={emailComposerDraft}

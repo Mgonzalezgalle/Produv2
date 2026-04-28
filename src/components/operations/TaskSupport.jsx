@@ -121,6 +121,7 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
   const [kindFilter,setKindFilter]=useState("");
   const [assignedFilter,setAssignedFilter]=useState("");
   const [importantOnly,setImportantOnly]=useState(false);
+  const [expandedIds,setExpandedIds]=useState([]);
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const normalizedItems = (items||[]).map(item => normalizeCommentItem(item, normalizeCommentAttachments));
   const sortedItems = [...normalizedItems].sort((a,b)=>{
@@ -173,6 +174,7 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
     await onSave(normalizedItems.filter(it=>it.id!==id));
     if(editingId===id) resetForm();
   };
+  const toggleExpanded = id => setExpandedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   return <Card title={title}>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
       {!!normalizedItems.length&&<GBtn sm onClick={()=>exportComentariosCSV(normalizedItems,title)}>⬇ Exportar CSV</GBtn>}
@@ -255,25 +257,34 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
         <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
       </div>
     </div>}
-    {filteredItems.length?filteredItems.map(it=>{ const kindMeta = commentKindMeta(it.kind); return <div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
-      <ActivityTimelineCard
-        meta={{ label: kindMeta.label, eyebrow: it.source === "diio" ? "Interacción" : "Comentario", accent: kindMeta.tone }}
-        headline={it.text?.split("\n")[0]?.trim() || "Comentario sin detalle"}
-        secondary={it.authorName ? `Registrado por ${it.authorName}` : "Registro interno"}
-        preview={it.text}
-        attachments={normalizeCommentAttachments(it)}
-        dateLabel={it.upd ? `Editado ${fmtD(it.upd)}` : it.cr ? `Creado ${fmtD(it.cr)}` : ""}
-        authorLabel={it.authorName || "Usuario"}
-        extraBadges={<>
-          {it.pasarATarea&&<span style={{fontSize:10,fontWeight:700,color:"var(--cy)",letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</span>}
-          {it.important&&<span style={{fontSize:10,fontWeight:800,padding:"4px 8px",borderRadius:999,background:"rgba(251,191,36,.12)",color:"#fbbf24",border:"1px solid rgba(251,191,36,.4)"}}>Importante</span>}
-          {it.source==="diio"&&<span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"rgba(79,124,255,.12)",color:"#4f7cff",border:"1px solid rgba(79,124,255,.35)"}}>Diio</span>}
-        </>}
-        footer={!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)"}}>
-          Asignado a: {getAssignedIds(it).map(id=>crewMap[id]?.nom).filter(Boolean).join(", ")}
-        </div>}
-        actions={canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
-      />
+    {filteredItems.length?filteredItems.map(it=>{ const kindMeta = commentKindMeta(it.kind); const expanded = expandedIds.includes(it.id); return <div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
+      <div onClick={()=>toggleExpanded(it.id)} style={{cursor:"pointer"}}>
+        <ActivityTimelineCard
+          meta={{ label: kindMeta.label, eyebrow: it.source === "diio" ? "Interacción" : "Comentario", accent: kindMeta.tone }}
+          headline={it.text?.split("\n")[0]?.trim() || "Comentario sin detalle"}
+          secondary={it.authorName ? `Registrado por ${it.authorName}` : "Registro interno"}
+          preview={it.text}
+          previewLines={expanded ? 12 : 2}
+          attachments={expanded ? normalizeCommentAttachments(it) : []}
+          dateLabel={it.upd ? `Editado ${fmtD(it.upd)}` : it.cr ? `Creado ${fmtD(it.cr)}` : ""}
+          authorLabel={it.authorName || "Usuario"}
+          extraBadges={<>
+            {it.pasarATarea&&<span style={{fontSize:10,fontWeight:700,color:"var(--cy)",letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</span>}
+            {it.important&&<span style={{fontSize:10,fontWeight:800,padding:"4px 8px",borderRadius:999,background:"rgba(251,191,36,.12)",color:"#fbbf24",border:"1px solid rgba(251,191,36,.4)"}}>Importante</span>}
+            {it.source==="diio"&&<span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"rgba(79,124,255,.12)",color:"#4f7cff",border:"1px solid rgba(79,124,255,.35)"}}>Diio</span>}
+          </>}
+          footer={<div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+            {!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)"}}>
+              Asignado a: {getAssignedIds(it).map(id=>crewMap[id]?.nom).filter(Boolean).join(", ")}
+            </div>}
+            <div style={{fontSize:11,color:"var(--gr2)",fontWeight:700}}>{expanded ? "Ocultar" : "Ver más"}</div>
+          </div>}
+          actions={<div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
+            <div style={{fontSize:12,color:"var(--gr2)",fontWeight:800,padding:"6px 4px"}}>{expanded ? "⌃" : "⌄"}</div>
+            {canEdit&&<><GBtn sm onClick={e=>{e.stopPropagation();editItem(it);}}>✏</GBtn><XBtn onClick={e=>{e.stopPropagation();delItem(it.id);}}/></>}
+          </div>}
+        />
+      </div>
     </div>; }):<Empty text={normalizedItems.length?"Sin resultados para este filtro":"Sin comentarios"} sub={normalizedItems.length?"Ajusta búsqueda o filtros para ver más comentarios.":canEdit?"Agrega la primera nota para este registro":""}/>}
   </Card>;
 }

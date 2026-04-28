@@ -281,8 +281,8 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     bodyOffsetY: 3,
   });
   const supplierTopY = y - 88 + supplierHeight;
-  drawCommercialLabel(page, "Moneda", width - margin - 152, supplierTopY - 24, 74, accentColor, bold, white, 8.6);
-  page.drawText(currency, { x: width - margin - 66, y: supplierTopY - 18, size: 9, font: bold, color: textColor });
+  drawCommercialLabel(page, "Moneda", width - margin - 152, supplierTopY - 18, 74, accentColor, bold, white, 8.6);
+  page.drawText(currency, { x: width - margin - 66, y: supplierTopY - 12, size: 9, font: bold, color: textColor });
   y -= supplierHeight + 18;
 
   const internalText = [
@@ -357,24 +357,6 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   });
   y -= notesHeight + 18;
 
-  drawColorInfoPanel(page, {
-    x: margin,
-    y: y - 86,
-    width: 250,
-    rows: [
-      { label: "Método de pago", value: safe(order?.paymentMethod, "Transferencia"), bold: true, valueSize: 9.8 },
-      { label: "Fecha emisión", value: fmtD(issueDate), bold: true, valueSize: 9.8 },
-      { label: "Estado", value: safe(order?.approvalStatus, "Emitida"), bold: true, valueSize: 9.8 },
-    ],
-    labelWidth: 128,
-    labelColor: alertColor,
-    valueColor: textColor,
-    fillColor: white,
-    borderColor: border,
-    bold,
-    font,
-    white,
-  });
   drawColorInfoPanel(page, {
     x: width - margin - 250,
     y: y - 86,

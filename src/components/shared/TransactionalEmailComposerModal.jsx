@@ -3,6 +3,25 @@ import { Badge, FG, FI, FTA, GBtn, Modal } from "../../lib/ui/components";
 import { getTransactionalEmailTemplateDefinition } from "../../lib/integrations/transactionalEmailTemplates";
 import { commentAttachmentFromFile, normalizeCommentAttachments } from "../../lib/utils/helpers";
 
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function composePreviewHtml(body = "", fixedHtmlBlocks = []) {
+  const bodyHtml = String(body || "")
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(Boolean)
+    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`)
+    .join("");
+  return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${bodyHtml}${fixedHtmlBlocks.join("")}</div>`;
+}
+
 export function TransactionalEmailComposerModal({
   open,
   draft,
@@ -13,6 +32,7 @@ export function TransactionalEmailComposerModal({
   const [form, setForm] = useState({ to: "", subject: "", body: "" });
   const [attachments, setAttachments] = useState([]);
   const templateLabel = getTransactionalEmailTemplateDefinition(draft?.templateKey)?.label || "Correo";
+  const fixedHtmlBlocks = Array.isArray(draft?.fixedHtmlBlocks) ? draft.fixedHtmlBlocks : [];
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +104,14 @@ export function TransactionalEmailComposerModal({
         <div style={{ fontSize: 11, color: "var(--gr3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>Vista previa</div>
         <div style={{ fontSize: 12, color: "var(--gr2)", marginBottom: 8 }}>Para: {form.to || "—"}</div>
         <div style={{ fontSize: 12, color: "var(--wh)", fontWeight: 700, marginBottom: 10 }}>{form.subject || "Sin asunto"}</div>
-        <div style={{ fontSize: 13, color: "var(--gr2)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{form.body || "Sin contenido"}</div>
+        {fixedHtmlBlocks.length ? (
+          <div
+            style={{ borderRadius: 10, overflow: "hidden", background: "#fff" }}
+            dangerouslySetInnerHTML={{ __html: composePreviewHtml(form.body, fixedHtmlBlocks) }}
+          />
+        ) : (
+          <div style={{ fontSize: 13, color: "var(--gr2)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{form.body || "Sin contenido"}</div>
+        )}
         {!!attachments.length && <div style={{ marginTop: 10, fontSize: 11, color: "var(--gr2)" }}>Adjuntos: {attachments.map(att => att.name || "archivo").join(", ")}</div>}
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--bdr)" }}>

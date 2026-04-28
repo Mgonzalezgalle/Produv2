@@ -401,7 +401,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   }];
   y = buildItemTable(page, {
     x: margin,
-    y,
+    y: y - 5,
     width: contentWidth,
     items: safeItems,
     font,
@@ -457,7 +457,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     textColor,
     lineGap: 1.2,
     bodySize: 7.1,
-    bodyOffsetY: 2,
+    bodyOffsetY: 4,
   });
 
   drawColorInfoPanel(page, {

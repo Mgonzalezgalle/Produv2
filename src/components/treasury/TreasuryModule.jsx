@@ -359,7 +359,8 @@ export function TreasuryModule(props) {
   const handleOpenIssuedOrderPdf = React.useCallback(async (row) => {
     if (!row) return;
     try {
-      if (String(row.pdfUrl || "").trim()) {
+      const isManualPdf = String(row.pdfSource || "").startsWith("manual");
+      if (isManualPdf && String(row.pdfUrl || "").trim()) {
         await openPdfSourceInNewTab(row.pdfUrl, row.pdfName || `${row.number || "orden-compra"}.pdf`);
         return;
       }
@@ -378,7 +379,7 @@ export function TreasuryModule(props) {
         ...row,
         pdfUrl: await buildIssuedOrderPdfDataUrl(row, props.empresa),
         pdfName: row.pdfName || file.name,
-        pdfSource: row.pdfSource || "generated",
+        pdfSource: isManualPdf ? row.pdfSource : "generated",
       });
     } catch (error) {
       console.warn("[treasury-issued-order-pdf] No pudimos abrir el PDF de la OC", error);

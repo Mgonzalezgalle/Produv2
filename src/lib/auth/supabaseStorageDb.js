@@ -17,8 +17,66 @@ function parseStoredValue(key, rawValue) {
   }
 }
 
+let legacyStorageRpcAvailability = "unknown";
+
+function shouldTryLegacyStorageRpc() {
+  return legacyStorageRpcAvailability !== "unavailable";
+}
+
+function markLegacyStorageRpcAvailable() {
+  legacyStorageRpcAvailability = "available";
+}
+
+function markLegacyStorageRpcUnavailable() {
+  legacyStorageRpcAvailability = "unavailable";
+}
+
+async function readViaLegacyStorageRpc(key) {
+  const { data, error } = await sb.rpc("get_legacy_storage_item", { p_key: key });
+  if (error) throw error;
+  markLegacyStorageRpcAvailable();
+  return {
+    ok: true,
+    exists: data?.exists === true,
+    value: data?.value ?? null,
+  };
+}
+
+async function writeViaLegacyStorageRpc(key, rawValue) {
+  const { data, error } = await sb.rpc("upsert_legacy_storage_item", {
+    p_key: key,
+    p_value: rawValue,
+  });
+  if (error) throw error;
+  markLegacyStorageRpcAvailable();
+  return {
+    ok: data?.ok === true,
+    value: rawValue,
+  };
+}
+
 export async function dbGetDetailed(key) {
   try {
+    if (shouldTryLegacyStorageRpc()) {
+      try {
+        const rpcResult = await readViaLegacyStorageRpc(key);
+        if (!rpcResult.exists) {
+          return {
+            ok: true,
+            exists: false,
+            value: null,
+          };
+        }
+        const parsed = parseStoredValue(key, rpcResult.value);
+        return {
+          exists: true,
+          ...parsed,
+        };
+      } catch (rpcError) {
+        markLegacyStorageRpcUnavailable();
+        console.warn("[lab-storage] RPC de lectura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+      }
+    }
     const { data, error } = await sb.from("storage").select("value").eq("key", key).maybeSingle();
     if (error) {
       console.error("[lab-storage] Error leyendo storage", { key, error });
@@ -61,7 +119,16 @@ export async function dbGet(key) {
 
 export async function dbSetDetailed(key, val) {
   try {
-    const { error } = await sb.from("storage").upsert({ key, value: JSON.stringify(val) }, { onConflict: "key" });
+    const rawValue = JSON.stringify(val);
+    if (shouldTryLegacyStorageRpc()) {
+      try {
+        return await writeViaLegacyStorageRpc(key, rawValue);
+      } catch (rpcError) {
+        markLegacyStorageRpcUnavailable();
+        console.warn("[lab-storage] RPC de escritura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+      }
+    }
+    const { error } = await sb.from("storage").upsert({ key, value: rawValue }, { onConflict: "key" });
     if (error) {
       console.error("[lab-storage] Error guardando storage", { key, error });
       return {

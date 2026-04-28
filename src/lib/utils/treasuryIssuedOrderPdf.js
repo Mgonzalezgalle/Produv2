@@ -206,7 +206,6 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
   page.drawRectangle({ x: 0, y: height - 112, width, height: 112, color: accentColor });
   drawRoundedPdfBox(page, margin, height - 196, contentWidth, 156, white, border, 1.1);
-  drawCommercialLabel(page, "Orden de compra emitida", margin + 16, height - 80, 168, accentColor, bold, white, 8.9);
   page.drawText(empresa?.nombre || empresa?.nom || "Produ", {
     x: margin + 16,
     y: height - 110,
@@ -394,32 +393,6 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     bold,
     font,
     white,
-  });
-
-  const footerY = y - 130;
-  drawDocumentSectionBox(page, {
-    x: margin,
-    y: footerY,
-    width: contentWidth,
-    title: "Datos de pago",
-    text: [
-      "Los pagos correspondientes a esta orden de compra deberán efectuarse según las condiciones acordadas con el proveedor.",
-      "",
-      `Solicitante: ${safe(order?.requesterName)}`,
-      `Proveedor: ${safe(order?.supplierLegalName || order?.supplier)}`,
-      `N° OC: ${safe(order?.number)}`,
-    ].join("\n"),
-    fillColor: white,
-    borderColor: border,
-    accentColor,
-    font,
-    bold,
-    textColor,
-    muted,
-    titleSize: 9.2,
-    bodySize: 8.7,
-    bodyGap: 2.1,
-    bodyOffsetY: 2,
   });
 
   page.drawText("Documento generado desde Produ", {

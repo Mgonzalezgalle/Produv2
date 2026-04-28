@@ -125,6 +125,58 @@ function buildItemTable(page, {
   return cursorY;
 }
 
+function drawColorInfoPanel(page, {
+  x,
+  y,
+  width,
+  rows = [],
+  labelWidth = 136,
+  labelColor,
+  valueColor,
+  valueAccentColor = null,
+  fillColor,
+  borderColor,
+  bold,
+  font,
+  white,
+}) {
+  const paddingX = 14;
+  const paddingTop = 14;
+  const labelHeight = 22;
+  const rowGap = 8;
+  const rowBlock = labelHeight + rowGap;
+  const height = paddingTop * 2 + rows.length * rowBlock - rowGap;
+  drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
+  const valueX = x + paddingX + labelWidth + 16;
+  const valueWidth = width - (paddingX * 2) - labelWidth - 16;
+  let rowY = y + height - paddingTop - labelHeight;
+  rows.forEach((row, index) => {
+    drawRoundedPdfBox(page, x + paddingX, rowY, labelWidth, labelHeight, labelColor, labelColor, 1);
+    const labelText = String(row.label || "");
+    const labelWidthText = bold.widthOfTextAtSize(labelText, 8.5);
+    page.drawText(labelText, {
+      x: x + paddingX + Math.max(10, (labelWidth - labelWidthText) / 2),
+      y: rowY + 6.5,
+      size: 8.5,
+      font: bold,
+      color: white,
+      maxWidth: labelWidth - 20,
+    });
+    drawRightAlignedPdfText(
+      page,
+      row.value,
+      valueX,
+      rowY + 5.5,
+      valueWidth,
+      row.bold ? bold : font,
+      row.valueSize || 9.8,
+      row.color || (valueAccentColor && index === rows.length - 1 ? valueAccentColor : valueColor),
+    );
+    rowY -= rowBlock;
+  });
+  return height;
+}
+
 export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
@@ -132,12 +184,14 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  const accentColor = hexToRgb("#344155");
-  const textColor = hexToRgb("#111827");
-  const muted = hexToRgb("#667085");
+  const accentColor = hexToRgb("#28386b");
+  const textColor = hexToRgb("#1b2232");
+  const muted = hexToRgb("#5f6b84");
   const white = hexToRgb("#ffffff");
-  const surface = hexToRgb("#f7f8fa");
-  const border = hexToRgb("#d4d8df");
+  const surface = hexToRgb("#f5f8ff");
+  const border = hexToRgb("#cad4e5");
+  const alertColor = hexToRgb("#cf1124");
+  const pageTint = hexToRgb("#edf3ff");
   const margin = 38;
   const contentWidth = width - margin * 2;
 
@@ -149,37 +203,39 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   const docType = "OC Emitida";
   const compactTitle = String(order?.number || title).trim();
 
-  page.drawRectangle({ x: 0, y: 0, width, height, color: white });
-  page.drawRectangle({ x: margin, y: height - 40, width: contentWidth, height: 2, color: accentColor });
+  page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
+  page.drawRectangle({ x: 0, y: height - 112, width, height: 112, color: accentColor });
+  drawRoundedPdfBox(page, margin, height - 196, contentWidth, 156, white, border, 1.1);
+  drawCommercialLabel(page, "Orden de compra emitida", margin + 16, height - 80, 168, accentColor, bold, white, 8.9);
   page.drawText(empresa?.nombre || empresa?.nom || "Produ", {
-    x: margin,
-    y: height - 58,
-    size: 17,
+    x: margin + 16,
+    y: height - 110,
+    size: 20,
     font: bold,
     color: textColor,
     maxWidth: 250,
   });
   page.drawText(title, {
-    x: margin,
-    y: height - 79,
-    size: 10,
+    x: margin + 16,
+    y: height - 133,
+    size: 11.5,
     font: bold,
-    color: accentColor,
+    color: textColor,
   });
   const issuerLines = [
     empresa?.rut,
     empresa?.dir,
     [empresa?.ema, empresa?.tel].filter(Boolean).join(" · "),
   ].filter(Boolean);
-  let issuerY = height - 96;
+  let issuerY = height - 151;
   issuerLines.forEach(line => {
-    page.drawText(line, { x: margin, y: issuerY, size: 8.7, font, color: muted, maxWidth: 260 });
+    page.drawText(line, { x: margin + 16, y: issuerY, size: 8.9, font, color: muted, maxWidth: 290 });
     issuerY -= 11;
   });
 
   const metaCardWidth = 188;
-  const metaCardX = width - margin - metaCardWidth;
-  const metaCardY = height - 138;
+  const metaCardX = width - margin - metaCardWidth - 16;
+  const metaCardY = height - 170;
   drawRoundedPdfBox(page, metaCardX, metaCardY, metaCardWidth, 96, surface, border, 1);
   drawLegalDocStamp(page, {
     x: metaCardX + 12,
@@ -198,7 +254,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   page.drawText(`Fecha: ${fmtD(issueDate)}`, { x: stampMetaX, y: metaCardY + 8, size: 8.7, font, color: textColor });
   page.drawText(`Estado: ${safe(order?.approvalStatus, "Emitida")}`, { x: stampMetaX + 82, y: metaCardY + 8, size: 8.7, font, color: textColor });
 
-  let y = height - 170;
+  let y = height - 232;
   const supplierText = [
     order?.supplierLegalName || order?.supplier || "—",
     order?.supplierRut ? `RUT: ${order.supplierRut}` : "",
@@ -209,11 +265,11 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   ].filter(Boolean).join("\n");
   const supplierHeight = drawDocumentSectionBox(page, {
     x: margin,
-    y: y - 86,
+    y: y - 88,
     width: contentWidth,
     title: "Proveedor",
     text: supplierText,
-    fillColor: surface,
+    fillColor: white,
     borderColor: border,
     accentColor,
     font,
@@ -225,7 +281,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     bodyGap: 1.8,
     bodyOffsetY: 3,
   });
-  const supplierTopY = y - 86 + supplierHeight;
+  const supplierTopY = y - 88 + supplierHeight;
   drawCommercialLabel(page, "Moneda", width - margin - 152, supplierTopY - 24, 74, accentColor, bold, white, 8.6);
   page.drawText(currency, { x: width - margin - 66, y: supplierTopY - 18, size: 9, font: bold, color: textColor });
   y -= supplierHeight + 18;
@@ -246,7 +302,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     width: contentWidth,
     title: "Contexto interno",
     text: internalText,
-    fillColor: surface,
+    fillColor: white,
     borderColor: border,
     accentColor,
     font,
@@ -288,7 +344,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     width: contentWidth,
     title: "Observaciones",
     text: safe(order?.notes, "Sin observaciones."),
-    fillColor: surface,
+    fillColor: white,
     borderColor: border,
     accentColor,
     font,
@@ -302,45 +358,85 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   });
   y -= notesHeight + 18;
 
-  drawSummaryPanel(page, {
+  drawColorInfoPanel(page, {
     x: margin,
     y: y - 86,
     width: 250,
     rows: [
-      { label: "Aprobada por", value: safe(order?.approvedBy || order?.requesterName), bold: true, valueSize: 9.4, labelSize: 7.8 },
-      { label: "Fecha aprobación", value: fmtD(order?.approvedAt || issueDate), bold: true, valueSize: 9.4, labelSize: 7.8 },
-      { label: "N° OC", value: safe(order?.number), bold: true, valueSize: 9.6, labelSize: 8.1 },
+      { label: "Método de pago", value: safe(order?.paymentMethod, "Transferencia"), bold: true, valueSize: 9.8 },
+      { label: "Fecha emisión", value: fmtD(issueDate), bold: true, valueSize: 9.8 },
+      { label: "Estado", value: safe(order?.approvalStatus, "Emitida"), bold: true, valueSize: 9.8 },
     ],
-    labelWidth: 122,
-    accentColor,
+    labelWidth: 128,
+    labelColor: alertColor,
+    valueColor: textColor,
+    fillColor: white,
+    borderColor: border,
     bold,
     font,
     white,
-    textColor,
-    fillColor: white,
-    borderColor: border,
-    labelSize: 7.5,
-    valueSize: 10,
   });
-  drawSummaryPanel(page, {
+  drawColorInfoPanel(page, {
     x: width - margin - 250,
     y: y - 86,
     width: 250,
     rows: [
       { label: "SubTotal", value: money(total, currency), bold: true, valueSize: 10.2 },
       { label: "Descuentos", value: money(safeItems.reduce((sum, item) => sum + Number(item.discount || 0), 0), currency), bold: false, valueSize: 9.2 },
-      { label: "TOTAL FINAL", value: money(total, currency), bold: true, valueSize: 11, color: accentColor, labelSize: 7.8 },
+      { label: "TOTAL FINAL", value: money(total, currency), bold: true, valueSize: 11, color: alertColor },
     ],
-    labelWidth: 118,
-    accentColor,
+    labelWidth: 128,
+    labelColor: accentColor,
+    valueColor: textColor,
+    valueAccentColor: alertColor,
+    fillColor: white,
+    borderColor: border,
     bold,
     font,
     white,
-    textColor,
+  });
+
+  const footerY = y - 130;
+  drawDocumentSectionBox(page, {
+    x: margin,
+    y: footerY,
+    width: contentWidth,
+    title: "Datos de pago",
+    text: [
+      "Los pagos correspondientes a esta orden de compra deberán efectuarse según las condiciones acordadas con el proveedor.",
+      "",
+      `Solicitante: ${safe(order?.requesterName)}`,
+      `Proveedor: ${safe(order?.supplierLegalName || order?.supplier)}`,
+      `N° OC: ${safe(order?.number)}`,
+    ].join("\n"),
     fillColor: white,
     borderColor: border,
-    labelSize: 7.5,
-    valueSize: 10,
+    accentColor,
+    font,
+    bold,
+    textColor,
+    muted,
+    titleSize: 9.2,
+    bodySize: 8.7,
+    bodyGap: 2.1,
+    bodyOffsetY: 2,
+  });
+
+  page.drawText("Documento generado desde Produ", {
+    x: margin,
+    y: 26,
+    size: 7.5,
+    font,
+    color: muted,
+  });
+  const closing = "Gracias por confiar en Produ.";
+  const closingWidth = font.widthOfTextAtSize(closing, 7.5);
+  page.drawText(closing, {
+    x: width - margin - closingWidth,
+    y: 26,
+    size: 7.5,
+    font,
+    color: muted,
   });
 
   const bytes = await pdf.save();

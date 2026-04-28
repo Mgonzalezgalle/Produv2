@@ -3,6 +3,28 @@ import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat } from 
 import { ContactBtns } from "../shared/ContactButtons";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 
+function crmActivityMeta(type = "") {
+  const safe = String(type || "").trim().toLowerCase();
+  if (safe === "email") return { label: "Correo", accent: "#4f7cff", eyebrow: "Mensaje" };
+  if (safe === "meeting") return { label: "Reunión", accent: "#a78bfa", eyebrow: "Interacción" };
+  if (safe === "call") return { label: "Llamada", accent: "#00e08a", eyebrow: "Interacción" };
+  if (safe === "note") return { label: "Comentario", accent: "#94a3b8", eyebrow: "Registro" };
+  return { label: type || "Actividad", accent: "#94a3b8", eyebrow: "Registro" };
+}
+
+function crmActivityHeadline(activity = {}) {
+  if (activity?.type === "email") return activity?.subject || "Correo sin asunto";
+  return activity?.text?.split("\n")[0]?.trim() || "Actividad sin detalle";
+}
+
+function crmActivitySecondary(activity = {}) {
+  if (activity?.type === "email") {
+    const recipient = String(activity?.to || "").trim();
+    return recipient ? `Para ${recipient}` : "Sin destinatario visible";
+  }
+  return activity?.byName ? `Registrado por ${activity.byName}` : "Registro interno";
+}
+
 export function CrmDetailModal({
   detail,
   setDetailId,
@@ -95,31 +117,49 @@ export function CrmDetailModal({
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 420, overflowY: "auto" }}>
-              {detailActivities.map(act => <div key={act.id} style={{ padding: 12, border: "1px solid var(--bdr2)", borderRadius: 10, background: "var(--sur)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                  <Badge label={act.type || "note"} color="gray" sm />
-                  <span style={{ fontSize: 10, color: "var(--gr2)" }}>{act.createdAt ? fmtD(act.createdAt) : "—"} · {act.byName || "Sistema"}</span>
-                </div>
-                {act.type === "email" && (
-                  <div style={{ marginBottom: 8, fontSize: 11, color: "var(--gr2)", lineHeight: 1.5 }}>
-                    <div><b>Para:</b> {act.to || "—"}</div>
-                    <div><b>Asunto:</b> {act.subject || "Sin asunto"}</div>
+              {detailActivities.map(act => {
+                const meta = crmActivityMeta(act.type);
+                const attachments = normalizeCommentAttachments(act);
+                return <div key={act.id} style={{ padding: 14, border: "1px solid var(--bdr2)", borderRadius: 14, background: "var(--sur)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 999, border: `1px solid ${meta.accent}`, color: meta.accent, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, marginTop: 2 }}>
+                      ›
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: meta.accent }}>{meta.eyebrow}</span>
+                        <Badge label={meta.label} color="gray" sm />
+                        {!!attachments.length && <Badge label={`${attachments.length} adjunto${attachments.length === 1 ? "" : "s"}`} color="cyan" sm />}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", lineHeight: 1.4, marginBottom: 4 }}>
+                        {crmActivityHeadline(act)}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--cy)", lineHeight: 1.45, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {crmActivitySecondary(act)}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.6, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {act.text || "Sin contenido"}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
+                      <div>{act.createdAt ? fmtD(act.createdAt) : "—"}</div>
+                      <div style={{ marginTop: 4 }}>{act.byName || "Sistema"}</div>
+                    </div>
                   </div>
-                )}
-                <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{act.text}</div>
-                {!!normalizeCommentAttachments(act).length && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 10 }}>
-                    {normalizeCommentAttachments(act).map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
+                  {!!attachments.length && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 12, paddingLeft: 36 }}>
+                      {attachments.map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
                       {att.type === "pdf"
                         ? <div style={{ display: "grid", placeItems: "center", height: 96, padding: 10, textAlign: "center" }}>
                             <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
                             <div style={{ fontSize: 10, color: "var(--gr3)", lineHeight: 1.35, wordBreak: "break-word" }}>{att.name || "Documento PDF"}</div>
                           </div>
                         : <img src={att.src} alt={att.name || "Adjunto email"} style={{ display: "block", width: "100%", height: 96, objectFit: "cover" }} />}
-                    </a>)}
-                  </div>
-                )}
-              </div>)}
+                      </a>)}
+                    </div>
+                  )}
+                </div>;
+              })}
               {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas." />}
             </div>
           </Card>

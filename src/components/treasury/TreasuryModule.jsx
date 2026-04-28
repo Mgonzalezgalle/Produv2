@@ -21,6 +21,28 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
 
+async function openPdfSourceInNewTab(src = "", fallbackName = "documento.pdf") {
+  const trimmedSrc = String(src || "").trim();
+  if (!trimmedSrc) return false;
+  if (/^https?:\/\//i.test(trimmedSrc)) {
+    window.open(trimmedSrc, "_blank", "noopener,noreferrer");
+    return true;
+  }
+  const response = await fetch(trimmedSrc);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.download = fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  return true;
+}
+
 export function TreasuryModule(props) {
   const [payablesTab, setPayablesTab] = useState("documentos");
   const [portfolioOpen, setPortfolioOpen] = useState(false);
@@ -338,12 +360,19 @@ export function TreasuryModule(props) {
     if (!row) return;
     try {
       if (String(row.pdfUrl || "").trim()) {
-        window.open(row.pdfUrl, "_blank", "noopener,noreferrer");
+        await openPdfSourceInNewTab(row.pdfUrl, row.pdfName || `${row.number || "orden-compra"}.pdf`);
         return;
       }
       const file = await buildIssuedOrderPdfFile(row, props.empresa);
       const objectUrl = URL.createObjectURL(file);
-      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.download = file.name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
       await saveIssuedOrder({
         ...row,

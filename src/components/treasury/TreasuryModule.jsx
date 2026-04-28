@@ -377,6 +377,7 @@ export function TreasuryModule(props) {
         to: email,
         body: resolved.body,
         fixedHtmlBlocks: [detailTableHtml, detailSummaryHtml],
+        fixedHtmlInsertAfterBlocks: 3,
         entityType: "supplier_statement",
         entityId: provider?.id || "",
         metadata: {

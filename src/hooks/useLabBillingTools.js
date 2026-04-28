@@ -13,13 +13,21 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#39;");
 }
 
-function composeEmailHtmlFromBody(body = "") {
-  return String(body || "")
+function composeEmailHtmlFromBody(body = "", fixedHtmlBlocks = [], insertAfterBlocks = null) {
+  const blocks = String(body || "")
     .split(/\n{2,}/)
     .map(block => block.trim())
     .filter(Boolean)
-    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`)
-    .join("");
+    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`);
+  if (!Array.isArray(fixedHtmlBlocks) || !fixedHtmlBlocks.length) return blocks.join("");
+  const insertIndex = Number.isFinite(Number(insertAfterBlocks))
+    ? Math.max(0, Math.min(blocks.length, Number(insertAfterBlocks)))
+    : blocks.length;
+  return [
+    ...blocks.slice(0, insertIndex),
+    ...fixedHtmlBlocks,
+    ...blocks.slice(insertIndex),
+  ].join("");
 }
 
 export function useLabBillingTools({
@@ -584,7 +592,7 @@ export function useLabBillingTools({
       to: recipients,
       text: body,
       html: Array.isArray(draft?.fixedHtmlBlocks) && draft.fixedHtmlBlocks.length
-        ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${composeEmailHtmlFromBody(body)}${draft.fixedHtmlBlocks.join("")}</div>`
+        ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${composeEmailHtmlFromBody(body, draft.fixedHtmlBlocks, draft?.fixedHtmlInsertAfterBlocks)}</div>`
         : draft?.html && draft?.htmlSourceBody === body
           ? String(draft.html)
           : `<p>${body.replace(/\n/g, "<br />")}</p>`,

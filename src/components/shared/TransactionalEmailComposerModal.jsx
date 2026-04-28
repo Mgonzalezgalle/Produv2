@@ -12,14 +12,20 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#39;");
 }
 
-function composePreviewHtml(body = "", fixedHtmlBlocks = []) {
-  const bodyHtml = String(body || "")
+function composePreviewHtml(body = "", fixedHtmlBlocks = [], insertAfterBlocks = null) {
+  const blocks = String(body || "")
     .split(/\n{2,}/)
     .map(block => block.trim())
     .filter(Boolean)
-    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`)
-    .join("");
-  return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${bodyHtml}${fixedHtmlBlocks.join("")}</div>`;
+    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`);
+  const insertIndex = Number.isFinite(Number(insertAfterBlocks))
+    ? Math.max(0, Math.min(blocks.length, Number(insertAfterBlocks)))
+    : blocks.length;
+  return `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${[
+    ...blocks.slice(0, insertIndex),
+    ...fixedHtmlBlocks,
+    ...blocks.slice(insertIndex),
+  ].join("")}</div>`;
 }
 
 export function TransactionalEmailComposerModal({
@@ -33,6 +39,7 @@ export function TransactionalEmailComposerModal({
   const [attachments, setAttachments] = useState([]);
   const templateLabel = getTransactionalEmailTemplateDefinition(draft?.templateKey)?.label || "Correo";
   const fixedHtmlBlocks = Array.isArray(draft?.fixedHtmlBlocks) ? draft.fixedHtmlBlocks : [];
+  const fixedHtmlInsertAfterBlocks = draft?.fixedHtmlInsertAfterBlocks ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +114,7 @@ export function TransactionalEmailComposerModal({
         {fixedHtmlBlocks.length ? (
           <div
             style={{ borderRadius: 10, overflow: "hidden", background: "#fff" }}
-            dangerouslySetInnerHTML={{ __html: composePreviewHtml(form.body, fixedHtmlBlocks) }}
+            dangerouslySetInnerHTML={{ __html: composePreviewHtml(form.body, fixedHtmlBlocks, fixedHtmlInsertAfterBlocks) }}
           />
         ) : (
           <div style={{ fontSize: 13, color: "var(--gr2)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{form.body || "Sin contenido"}</div>

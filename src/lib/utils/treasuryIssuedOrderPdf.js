@@ -375,17 +375,17 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   }) - 10;
 
   const closingCardWidth = 250;
-  const closingCardHeight = 110;
-  const closingGap = 12;
-  const notesY = y - closingCardHeight;
-  const summaryY = notesY - closingGap - closingCardHeight;
-  const totalY = summaryY + Math.round((closingCardHeight + closingGap) / 2);
+  const leftCardHeight = 52;
+  const closingGap = 6;
+  const notesY = y - leftCardHeight;
+  const summaryY = notesY - closingGap - leftCardHeight;
+  const totalY = summaryY;
 
   drawFixedInfoCard(page, {
     x: margin,
     y: notesY,
     width: closingCardWidth,
-    height: closingCardHeight,
+    height: leftCardHeight,
     title: "Observaciones",
     text: safe(order?.notes, "Sin observaciones."),
     fillColor: white,
@@ -394,15 +394,15 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     font,
     bold,
     textColor,
-    lineGap: 2,
-    bodySize: 8.6,
+    lineGap: 1.4,
+    bodySize: 7.7,
   });
 
   drawFixedInfoCard(page, {
     x: margin,
     y: summaryY,
     width: closingCardWidth,
-    height: closingCardHeight,
+    height: leftCardHeight,
     title: "Resumen OC",
     text: [
       `Fecha: ${fmtD(issueDate)}`,
@@ -415,8 +415,8 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     font,
     bold,
     textColor,
-    lineGap: 2.2,
-    bodySize: 8.5,
+    lineGap: 1.2,
+    bodySize: 7.1,
   });
 
   drawColorInfoPanel(page, {

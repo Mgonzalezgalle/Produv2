@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { sb } from "../lib/auth/supabaseClient";
 import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
+import { normalizeDiioTenantConnection } from "../lib/integrations/diioIntegration";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
 import { getCustomRoles } from "../lib/auth/authorization";
@@ -116,6 +118,31 @@ export function useLabAdminPanelModule({
     enablePaymentLinksInCollection: true,
   });
   const [tenantMercadoPagoSaving, setTenantMercadoPagoSaving] = useState(false);
+  const [tenantDiioConfig, setTenantDiioConfig] = useState({
+    status: "disconnected",
+    workspaceLabel: "",
+    companyUrl: "",
+    workspaceId: "",
+    adminEmail: "",
+    clientId: "",
+    clientSecret: "",
+    refreshToken: "",
+    webhookId: "",
+    webhookSecret: "",
+    connectedAt: "",
+    lastValidatedAt: "",
+    lastImportedAt: "",
+    lastImportCount: 0,
+    lastImportQueueSize: 0,
+    lastWebhookAt: "",
+    lastWebhookEvent: "",
+    lastWebhookObjectId: "",
+    lastError: "",
+    notes: "",
+  });
+  const [tenantDiioSaving, setTenantDiioSaving] = useState(false);
+  const [tenantDiioTesting, setTenantDiioTesting] = useState(false);
+  const [tenantDiioImporting, setTenantDiioImporting] = useState(false);
   const [criticalAuditEntries, setCriticalAuditEntries] = useState([]);
   const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
   const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
@@ -123,6 +150,10 @@ export function useLabAdminPanelModule({
   const mercadoPagoGovernance = empresa?.integrationConfigs?.mercadoPago?.governance || {};
   const mercadoPagoGovernanceMode = mercadoPagoGovernance.mode || "disabled";
   const tenantCanEditMercadoPagoConfig = mercadoPagoGovernanceMode !== "disabled";
+  const diioGovernance = empresa?.integrationConfigs?.diio?.governance || {};
+  const diioGovernanceMode = diioGovernance.mode || "disabled";
+  const tenantDiioEnabled = diioGovernance.enabled === true || diioGovernance.mode === "manual" || diioGovernance.mode === "webhook";
+  const tenantCanEditDiioConfig = tenantDiioEnabled;
 
   useEffect(() => {
     const nextEmpresaId = empresa?.id || "";
@@ -172,6 +203,17 @@ export function useLabAdminPanelModule({
       tenantCanEdit: tenantCanEditMercadoPagoConfig,
     });
   }, [empresa, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig]);
+
+  useEffect(() => {
+    const current = normalizeDiioTenantConnection(empresa?.integrationConfigs?.diio?.tenant || {});
+    const source = current.configured ? "tenant" : "unset";
+    setTenantDiioConfig({
+      ...current,
+      source,
+      governed: tenantDiioEnabled,
+      tenantCanEdit: tenantCanEditDiioConfig,
+    });
+  }, [empresa, tenantDiioEnabled, tenantCanEditDiioConfig]);
 
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const operationalHealth = useMemo(() => buildOperationalHealth(empresa, empUsers), [empresa, empUsers]);
@@ -604,6 +646,275 @@ export function useLabAdminPanelModule({
     }
   };
 
+  const saveTenantDiioConfig = async () => {
+    if (!empresa?.id) return;
+    if (!tenantCanEditDiioConfig) {
+      ntf("Diio debe habilitarse primero desde Torre de Control.", "warn");
+      return;
+    }
+    setTenantDiioSaving(true);
+    try {
+      const normalized = normalizeDiioTenantConnection(tenantDiioConfig);
+      const hasWorkspace = String(normalized.workspaceLabel || "").trim();
+      const hasCompanyUrl = String(normalized.companyUrl || "").trim();
+      const hasClientId = String(normalized.clientId || "").trim();
+      const hasRefreshToken = String(normalized.refreshToken || "").trim();
+      const hasWebhookSecret = String(normalized.webhookSecret || "").trim();
+      const inferredStatus = hasWorkspace && hasCompanyUrl && hasClientId && hasRefreshToken && hasWebhookSecret
+        ? "configured"
+        : (hasWorkspace || hasCompanyUrl || hasClientId || hasRefreshToken || hasWebhookSecret ? "draft" : "disconnected");
+      const nextTenantConfig = {
+        ...normalized,
+        status: inferredStatus,
+        connected: false,
+        connectedAt: "",
+      };
+      const nextIntegrationConfigs = {
+        ...(empresa?.integrationConfigs || {}),
+        diio: {
+          ...((empresa?.integrationConfigs || {}).diio || {}),
+          tenant: nextTenantConfig,
+        },
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
+      if (platformServices?.upsertIntegrationCredentialSnapshot) {
+        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+          provider: "diio",
+          environment: "tenant",
+          status: inferredStatus,
+          secretConfigured: Boolean(hasWebhookSecret || String(normalized.clientSecret || "").trim()),
+          config: {
+            workspaceLabel: hasWorkspace,
+            companyUrlConfigured: Boolean(hasCompanyUrl),
+            clientIdConfigured: Boolean(hasClientId),
+            refreshTokenConfigured: Boolean(hasRefreshToken),
+            webhookSecretConfigured: Boolean(hasWebhookSecret),
+            webhookIdConfigured: Boolean(String(normalized.webhookId || "").trim()),
+          },
+          metadata: {
+            source: "tenant_admin",
+            governedMode: diioGovernanceMode,
+          },
+        });
+      }
+      if (platformServices?.appendSyncAuditLog) {
+        await platformServices.appendSyncAuditLog(
+          empresa.id,
+          "tenant_diio_config_saved",
+          "integration_config",
+          "diio:tenant",
+          {
+            status: inferredStatus,
+            workspaceConfigured: Boolean(hasWorkspace),
+            companyUrlConfigured: Boolean(hasCompanyUrl),
+            clientIdConfigured: Boolean(hasClientId),
+            refreshTokenConfigured: Boolean(hasRefreshToken),
+            webhookSecretConfigured: Boolean(hasWebhookSecret),
+          },
+        );
+      }
+      setTenantDiioConfig(prev => ({
+        ...prev,
+        ...nextTenantConfig,
+        source: nextTenantConfig.configured ? "tenant" : "unset",
+        governed: true,
+        tenantCanEdit: true,
+      }));
+      if (platformServices?.getTenantPlatformSnapshot) {
+        refreshPlatformSnapshot();
+      }
+      ntf("Configuración Diio de la empresa guardada ✓");
+    } catch (err) {
+      ntf(err?.message || "No pudimos guardar la configuración de Diio.", "warn");
+    } finally {
+      setTenantDiioSaving(false);
+    }
+  };
+
+  const verifyTenantDiioConnection = async () => {
+    if (!empresa?.id) return false;
+    setTenantDiioTesting(true);
+    try {
+      const { data, error } = await sb.functions.invoke("diio-company-api", {
+        body: {
+          tenantId: empresa.id,
+          action: "health_check",
+        },
+      });
+      if (error) throw error;
+      const checkedAt = new Date().toISOString();
+      if (data?.ok !== true) {
+        const nextStatus = data?.error === "invalid_credentials" ? "invalid_credentials" : "configured";
+        const nextTenantConfig = {
+          ...normalizeDiioTenantConnection(tenantDiioConfig),
+          status: nextStatus,
+          connected: false,
+          connectedAt: "",
+          lastValidatedAt: checkedAt,
+          lastError: String(data?.message || "Diio no respondió con una conexión válida."),
+        };
+        await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+          ...em,
+          integrationConfigs: {
+            ...(em.integrationConfigs || {}),
+            diio: {
+              ...((em.integrationConfigs || {}).diio || {}),
+              tenant: nextTenantConfig,
+            },
+          },
+        } : em));
+        setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+        ntf(data?.message || "Diio no respondió con una conexión válida.", "warn");
+        return false;
+      }
+      const nextTenantConfig = {
+        ...normalizeDiioTenantConnection(tenantDiioConfig),
+        status: "connected",
+        connected: true,
+        connectedAt: checkedAt,
+        lastValidatedAt: checkedAt,
+        lastError: "",
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+        ...em,
+        integrationConfigs: {
+          ...(em.integrationConfigs || {}),
+          diio: {
+            ...((em.integrationConfigs || {}).diio || {}),
+            tenant: nextTenantConfig,
+          },
+        },
+      } : em));
+      if (platformServices?.appendSyncAuditLog) {
+        await platformServices.appendSyncAuditLog(
+          empresa.id,
+          "tenant_diio_connection_verified",
+          "integration_config",
+          "diio:tenant",
+          { status: "connected" },
+        );
+      }
+      setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+      ntf("Conexión real de Diio validada ✓");
+      return true;
+    } catch (err) {
+      const checkedAt = new Date().toISOString();
+      const nextTenantConfig = {
+        ...normalizeDiioTenantConnection(tenantDiioConfig),
+        status: "configured",
+        connected: false,
+        connectedAt: "",
+        lastValidatedAt: checkedAt,
+        lastError: String(err?.message || "No pudimos validar la conexión real con Diio."),
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+        ...em,
+        integrationConfigs: {
+          ...(em.integrationConfigs || {}),
+          diio: {
+            ...((em.integrationConfigs || {}).diio || {}),
+            tenant: nextTenantConfig,
+          },
+        },
+      } : em));
+      setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+      ntf(err?.message || "No pudimos validar la conexión real con Diio.", "warn");
+      return false;
+    } finally {
+      setTenantDiioTesting(false);
+    }
+  };
+
+  const importTenantDiioMeetings = async () => {
+    if (!empresa?.id) return false;
+    setTenantDiioImporting(true);
+    try {
+      const { data, error } = await sb.functions.invoke("diio-company-api", {
+        body: {
+          tenantId: empresa.id,
+          action: "import_meetings",
+        },
+      });
+      if (error) throw error;
+      if (data?.ok !== true) {
+        const nextTenantConfig = {
+          ...normalizeDiioTenantConnection(tenantDiioConfig),
+          lastError: String(data?.message || "No pudimos importar reuniones reales desde Diio."),
+        };
+        await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+          ...em,
+          integrationConfigs: {
+            ...(em.integrationConfigs || {}),
+            diio: {
+              ...((em.integrationConfigs || {}).diio || {}),
+              tenant: nextTenantConfig,
+            },
+          },
+        } : em));
+        setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+        ntf(data?.message || "No pudimos importar reuniones reales desde Diio.", "warn");
+        return false;
+      }
+      const importedAt = String(data?.importedAt || new Date().toISOString());
+      const previous = normalizeDiioTenantConnection(tenantDiioConfig);
+      const nextTenantConfig = {
+        ...previous,
+        status: "connected",
+        connected: true,
+        connectedAt: previous.connectedAt || importedAt,
+        lastImportedAt: importedAt,
+        lastImportCount: Number(data?.imported || 0),
+        lastImportQueueSize: Number(data?.queueSize || 0),
+        lastError: "",
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+        ...em,
+        integrationConfigs: {
+          ...(em.integrationConfigs || {}),
+          diio: {
+            ...((em.integrationConfigs || {}).diio || {}),
+            tenant: nextTenantConfig,
+          },
+        },
+      } : em));
+      if (platformServices?.appendSyncAuditLog) {
+        await platformServices.appendSyncAuditLog(
+          empresa.id,
+          "tenant_diio_meetings_imported",
+          "integration_config",
+          "diio:tenant",
+          {
+            imported: Number(data?.imported || 0),
+            queueSize: Number(data?.queueSize || 0),
+          },
+        );
+      }
+      setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+      ntf(`Importamos ${Number(data?.imported || 0)} reuniones reales desde Diio ✓`);
+      return true;
+    } catch (err) {
+      const nextTenantConfig = {
+        ...normalizeDiioTenantConnection(tenantDiioConfig),
+        lastError: String(err?.message || "No pudimos importar reuniones reales desde Diio."),
+      };
+      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
+        ...em,
+        integrationConfigs: {
+          ...(em.integrationConfigs || {}),
+          diio: {
+            ...((em.integrationConfigs || {}).diio || {}),
+            tenant: nextTenantConfig,
+          },
+        },
+      } : em));
+      setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
+      ntf(err?.message || "No pudimos importar reuniones reales desde Diio.", "warn");
+      return false;
+    } finally {
+      setTenantDiioImporting(false);
+    }
+  };
+
   return {
     canManageAdmin,
     isSuperAdmin,
@@ -648,9 +959,17 @@ export function useLabAdminPanelModule({
     tenantBsaleSaving,
     mercadoPagoGovernanceMode,
     tenantCanEditMercadoPagoConfig,
+    diioGovernanceMode,
+    tenantDiioEnabled,
+    tenantCanEditDiioConfig,
     tenantMercadoPagoConfig,
     setTenantMercadoPagoConfig,
     tenantMercadoPagoSaving,
+    tenantDiioConfig,
+    setTenantDiioConfig,
+    tenantDiioSaving,
+    tenantDiioTesting,
+    tenantDiioImporting,
     referralStatus,
     resetAccess,
     saveUser,
@@ -662,5 +981,8 @@ export function useLabAdminPanelModule({
     prepareMembershipTransitionQueue,
     saveTenantBsaleConfig,
     saveTenantMercadoPagoConfig,
+    saveTenantDiioConfig,
+    verifyTenantDiioConnection,
+    importTenantDiioMeetings,
   };
 }

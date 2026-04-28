@@ -4,6 +4,7 @@ import { LoadingScreen } from "./ShellLayout";
 export function AppOverlays({
   alertsPanel,
   systemPanel,
+  diioPanel,
   toastState,
   modalLayer,
   adminPanel,
@@ -30,6 +31,20 @@ export function AppOverlays({
     setSystemOpen,
     RichTextBlock,
   } = systemPanel;
+  const {
+    open: diioOpen,
+    DiioInboxPanelView,
+    currentEmpresa: diioEmpresa,
+    currentUser,
+    tenantDiioConnection,
+    interactions: diioInteractions,
+    targets: diioTargets,
+    onConfirm: confirmDiioInteraction,
+    onDismiss: dismissDiioInteraction,
+    onRefresh: refreshDiioInteractions,
+    setDiioOpen,
+    fmtD: fmtDiioDate,
+  } = diioPanel;
   const { toast, ToastView, setToast } = toastState;
   const {
     mOpen,
@@ -78,6 +93,20 @@ export function AppOverlays({
         onClose={() => setSystemOpen(false)}
         fmtD={fmtD}
         RichTextBlock={RichTextBlock}
+      />
+    </Suspense>}
+    {diioOpen && <Suspense fallback={null}>
+      <DiioInboxPanelView
+        empresa={diioEmpresa}
+        currentUser={currentUser}
+        tenantDiioConnection={tenantDiioConnection}
+        interactions={diioInteractions}
+        targets={diioTargets}
+        onConfirm={confirmDiioInteraction}
+        onDismiss={dismissDiioInteraction}
+        onRefresh={refreshDiioInteractions}
+        onClose={() => setDiioOpen(false)}
+        fmtD={fmtDiioDate}
       />
     </Suspense>}
     {toast && <Suspense fallback={null}>

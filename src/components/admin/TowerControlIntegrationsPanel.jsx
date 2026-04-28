@@ -4,6 +4,7 @@ import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "./towerCont
 import { getTransactionalEmailProviderSnapshot } from "../../lib/integrations/transactionalEmailConfig";
 import { getGoogleCalendarProviderSnapshot } from "../../lib/integrations/googleCalendarConfig";
 import { getMercadoPagoPaymentsProviderSnapshot } from "../../lib/integrations/mercadoPagoPaymentsConfig";
+import { getDiioProviderSnapshot, normalizeDiioGovernanceConfig } from "../../lib/integrations/diioIntegration";
 
 export function IntegracionesAdminPanel({
   empresas,
@@ -38,6 +39,12 @@ export function IntegracionesAdminPanel({
   const mercadoPagoMode = mercadoPagoGovernance.mode || "disabled";
   const mercadoPagoEnabled = mercadoPagoMode !== "disabled";
   const mercadoPagoSnapshot = getMercadoPagoPaymentsProviderSnapshot();
+  const diioProvisioning = normalizeDiioGovernanceConfig(selectedIntegrationEmp?.integrationConfigs?.diio || {});
+  const diioGovernance = diioProvisioning.governance;
+  const diioMapping = diioProvisioning.mapping;
+  const diioMode = diioGovernance.mode || "disabled";
+  const diioEnabled = diioGovernance.enabled;
+  const diioSnapshot = getDiioProviderSnapshot();
   const freshdeskEnabled = selectedIntegrationEmp?.freshdeskEnabled === true;
   const supportChatEnabled = selectedIntegrationEmp?.supportChatEnabled === true;
   const freshdeskMode = freshdeskEnabled || supportChatEnabled ? "enabled" : "disabled";
@@ -316,6 +323,155 @@ export function IntegracionesAdminPanel({
         <KV label="Uso inicial" value="Links de pago por factura desde Cobranza" />
         <KV label="Conciliación" value="Solo pagos aprobados registran Tesorería" />
         <KV label="Operación" value="Credenciales y cuenta seller se configuran en Administrador" />
+      </Card>
+      <Card title="Diio" sub={selectedIntegrationEmp.nombre}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <Badge label={diioEnabled ? "Provisionado" : "No provisionado"} color={diioEnabled ? "green" : "gray"} sm />
+          <Badge label={diioMode === "webhook" ? "Webhook" : diioMode === "manual" ? "Manual / asistido" : "Desactivado"} color={diioMode === "webhook" ? "purple" : diioMode === "manual" ? "cyan" : "gray"} sm />
+          <Badge label={diioGovernance.sellable ? "Comercializable" : "Uso interno"} color={diioGovernance.sellable ? "green" : "yellow"} sm />
+          <Badge label={diioSnapshot.ready ? "Provider listo" : "Provider base"} color={diioSnapshot.ready ? "green" : "yellow"} sm />
+        </div>
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, marginBottom: 14 }}>
+          Diio alimenta comentarios inteligentes e historial de interacción en CRM, Producciones, Proyectos y Contenidos. La asociación operativa queda asistida para evitar que una reunión termine en el módulo equivocado.
+        </div>
+        <R3>
+          <FG label="Provisionamiento">
+            <FSl
+              value={diioMode}
+              onChange={e => persistIntegration(emp => ({
+                ...emp,
+                integrationConfigs: {
+                  ...(emp.integrationConfigs || {}),
+                  diio: {
+                    ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}),
+                    governance: {
+                      ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}).governance,
+                      mode: e.target.value,
+                      enabled: e.target.value !== "disabled",
+                    },
+                  },
+                },
+              }), { action: "tenant_diio_governance_updated", integration: "diio", field: "governance.mode", value: e.target.value })}
+            >
+              <option value="disabled">Desactivado</option>
+              <option value="manual">Manual / asistido</option>
+              <option value="webhook">Webhook</option>
+            </FSl>
+          </FG>
+          <FG label="Comercialización">
+            <FSl
+              value={diioGovernance.sellable ? "sellable" : "internal"}
+              onChange={e => persistIntegration(emp => ({
+                ...emp,
+                integrationConfigs: {
+                  ...(emp.integrationConfigs || {}),
+                  diio: {
+                    ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}),
+                    governance: {
+                      ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}).governance,
+                      sellable: e.target.value === "sellable",
+                    },
+                  },
+                },
+              }), { action: "tenant_diio_governance_updated", integration: "diio", field: "governance.sellable", value: e.target.value })}
+            >
+              <option value="sellable">Comercializable</option>
+              <option value="internal">Uso interno</option>
+            </FSl>
+          </FG>
+          <FG label="Estrategia de asociación">
+            <FSl
+              value={diioMapping.strategy}
+              onChange={e => persistIntegration(emp => ({
+                ...emp,
+                integrationConfigs: {
+                  ...(emp.integrationConfigs || {}),
+                  diio: {
+                    ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}),
+                    mapping: {
+                      ...normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {}).mapping,
+                      strategy: e.target.value,
+                    },
+                  },
+                },
+              }), { action: "tenant_diio_mapping_updated", integration: "diio", field: "mapping.strategy", value: e.target.value })}
+            >
+              <option value="assisted">Asistida</option>
+              <option value="manual">Manual</option>
+              <option value="auto">Automática</option>
+            </FSl>
+          </FG>
+        </R3>
+        <R2>
+          <FG label="Cobertura por módulo">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
+              {[
+                ["crm", "CRM"],
+                ["productions", "Producciones"],
+                ["projects", "Proyectos"],
+                ["content", "Contenidos"],
+              ].map(([key, label]) => (
+                <label key={key} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--gr3)" }}>
+                  <input
+                    type="checkbox"
+                    checked={diioGovernance.modules?.[key] !== false}
+                    onChange={e => persistIntegration(emp => {
+                      const current = normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {});
+                      return {
+                        ...emp,
+                        integrationConfigs: {
+                          ...(emp.integrationConfigs || {}),
+                          diio: {
+                            ...current,
+                            governance: {
+                              ...current.governance,
+                              modules: {
+                                ...current.governance.modules,
+                                [key]: e.target.checked,
+                              },
+                            },
+                          },
+                        },
+                      };
+                    }, { action: "tenant_diio_governance_updated", integration: "diio", field: `governance.modules.${key}`, value: e.target.checked ? "enabled" : "disabled" })}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </FG>
+          <FG label="Confianza mínima">
+            <FI
+              type="number"
+              min="0.5"
+              max="0.99"
+              step="0.01"
+              value={diioMapping.minConfidence}
+              onChange={e => persistIntegration(emp => {
+                const current = normalizeDiioGovernanceConfig((emp.integrationConfigs || {}).diio || {});
+                return {
+                  ...emp,
+                  integrationConfigs: {
+                    ...(emp.integrationConfigs || {}),
+                    diio: {
+                      ...current,
+                      mapping: {
+                        ...current.mapping,
+                        minConfidence: Number(e.target.value || 0.82),
+                      },
+                    },
+                  },
+                };
+              }, { action: "tenant_diio_mapping_updated", integration: "diio", field: "mapping.minConfidence", value: e.target.value })}
+            />
+          </FG>
+        </R2>
+        <KV label="Webhook base" value={diioSnapshot.webhookBase || "No configurada en Produ"} />
+        <KV label="Operación visible" value="Inbox Diio de la empresa, al lado de mensajes y alertas" />
+        <KV label="Destino operativo" value="Comentarios e historial por oportunidad, producción general, campaña y proyecto" />
+        <div style={{ marginTop: 14, padding: 12, borderRadius: 12, border: "1px solid var(--bdr)", background: "var(--sur)", fontSize: 12, color: "var(--gr2)", lineHeight: 1.6 }}>
+          Torre de Control gobierna la activación, la comercialización y el estado técnico de Diio. Las interacciones reales viven en el inbox global de la empresa para que cualquier usuario operativo pueda confirmarlas sin depender de administración.
+        </div>
       </Card>
       <Card title="Correo transaccional" sub={selectedIntegrationEmp.nombre}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>

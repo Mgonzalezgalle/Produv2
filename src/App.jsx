@@ -98,6 +98,19 @@ import { useLabTenantAdmin } from "./hooks/useLabTenantAdmin";
 import { useLabFreshdeskWidget } from "./hooks/useLabFreshdeskWidget";
 import { useLabTheme } from "./hooks/useLabTheme";
 import { assignedNameList, COLS_TAREAS, getAssignedIds, normalizeTaskAssignees } from "./lib/utils/tasks";
+import {
+  attachDiioToCommentCollection,
+  attachDiioToCrmActivities,
+  confirmDiioInteractionAssignment,
+  getDiioIncomingStorageKey,
+  getLegacyDiioIncomingStorageKey,
+  normalizeDiioGovernanceConfig,
+  normalizeDiioInteractionRecord,
+  normalizeDiioTenantConnection,
+  refreshDiioCommentCollection,
+  refreshDiioCrmActivities,
+  suggestDiioInteractionTargets,
+} from "./lib/integrations/diioIntegration";
 
 // ── SUPABASE ─────────────────────────────────────────────────
 // ── UTILS ────────────────────────────────────────────────────
@@ -140,6 +153,7 @@ const SuperAdminPanelView = lazy(() => import("./components/admin/AdminViews").t
 const ToastView = lazy(() => import("./components/shared/CoreFeedback").then(module => ({ default: module.Toast })));
 const AlertasPanelView = lazy(() => import("./components/shared/SystemPanels").then(module => ({ default: module.AlertasPanel })));
 const SystemMessagesPanelView = lazy(() => import("./components/shared/SystemPanels").then(module => ({ default: module.SystemMessagesPanel })));
+const DiioInboxPanelView = lazy(() => import("./components/shared/SystemPanels").then(module => ({ default: module.DiioInboxPanel })));
 const ViewDashboard = lazy(() => import("./components/dashboard/DashboardView").then(module => ({ default: module.ViewDashboard })));
 const ViewCalendario = lazy(() => import("./components/calendar/CalendarView").then(module => ({ default: module.ViewCalendario })));
 const ViewCliDet = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewCliDet })));
@@ -196,6 +210,8 @@ export default function App(){
   const [alertasOcultas,setAlertasOcultas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
+  const [diioOpen,setDiioOpen]=useState(false);
+  const [diioIncoming,setDiioIncoming]=useState([]);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [moduleLoadingTimedOut, setModuleLoadingTimedOut] = useState(false);
   const sessionActivityRef = useRef(0);
@@ -293,6 +309,19 @@ export default function App(){
   } = useTenantLabData(eId);
   const L = listas || DEFAULT_LISTAS; // listas activas con fallback a defaults
   const empId = curEmp?.id;
+  const diioProvisioning = useMemo(() => normalizeDiioGovernanceConfig(curEmp?.integrationConfigs?.diio || {}), [curEmp?.integrationConfigs?.diio]);
+  const diioEnabled = !!curEmp && curUser?.role !== "superadmin" && diioProvisioning.governance.enabled;
+  const diioTenantConnection = useMemo(() => normalizeDiioTenantConnection(curEmp?.integrationConfigs?.diio?.tenant || {}), [curEmp?.integrationConfigs?.diio?.tenant]);
+  const diioStorageKey = useMemo(() => getDiioIncomingStorageKey(empId), [empId]);
+  const diioLegacyStorageKey = useMemo(() => getLegacyDiioIncomingStorageKey(empId), [empId]);
+  const diioPendingCount = useMemo(() => diioIncoming.filter(item => item?.matchStatus !== "confirmed").length, [diioIncoming]);
+  const diioTargets = useMemo(() => ({
+    crmOpps: Array.isArray(crmOpps) ? crmOpps : [],
+    producciones: Array.isArray(producciones) ? producciones : [],
+    programas: Array.isArray(programas) ? programas : [],
+    piezas: Array.isArray(piezas) ? piezas : [],
+    crew: Array.isArray(crew) ? crew : [],
+  }), [crmOpps, producciones, programas, piezas, crew]);
   const moduleLoadingMap = useMemo(() => ({
     listas: ldLst,
     tareas: ldTar,
@@ -592,6 +621,74 @@ export default function App(){
 
   useLabFreshdeskWidget({ user: curUser, empresa: curEmp });
 
+  const refreshExistingDiioAssociations = useCallback(async (interactions = []) => {
+    if (!empId || !Array.isArray(interactions) || !interactions.length) return false;
+    const nextPiezas = refreshDiioCommentCollection(piezas, interactions, diioTargets.crew);
+    const nextProducciones = refreshDiioCommentCollection(producciones, interactions, diioTargets.crew);
+    const nextProgramas = refreshDiioCommentCollection(programas, interactions, diioTargets.crew);
+    const nextCrmActivities = refreshDiioCrmActivities(crmActivities, interactions, empId);
+    await Promise.all([
+      JSON.stringify(nextPiezas) !== JSON.stringify(piezas) ? setPiezas(nextPiezas) : Promise.resolve(),
+      JSON.stringify(nextProducciones) !== JSON.stringify(producciones) ? setProducciones(nextProducciones) : Promise.resolve(),
+      JSON.stringify(nextProgramas) !== JSON.stringify(programas) ? setProgramas(nextProgramas) : Promise.resolve(),
+      JSON.stringify(nextCrmActivities) !== JSON.stringify(crmActivities) ? setCrmActivities(nextCrmActivities) : Promise.resolve(),
+    ]);
+    return true;
+  }, [crmActivities, diioTargets.crew, empId, piezas, producciones, programas, setCrmActivities, setPiezas, setProducciones, setProgramas]);
+
+  const loadDiioQueue = useCallback(async () => {
+    if (!empId || !diioEnabled) {
+      setDiioIncoming([]);
+      return;
+    }
+    try {
+      const [primaryItems, legacyItems] = await Promise.all([
+        dbGet(diioStorageKey),
+        diioLegacyStorageKey !== diioStorageKey ? dbGet(diioLegacyStorageKey) : Promise.resolve([]),
+      ]);
+      const merged = [...(Array.isArray(primaryItems) ? primaryItems : []), ...(Array.isArray(legacyItems) ? legacyItems : [])]
+        .map(normalizeDiioInteractionRecord)
+        .reduce((acc, item) => {
+          const dedupeKey = String(item?.sourceId || item?.id || "");
+          if (!dedupeKey || acc.seen.has(dedupeKey)) return acc;
+          acc.seen.add(dedupeKey);
+          acc.items.push(item);
+          return acc;
+        }, { seen: new Set(), items: [] }).items;
+      setDiioIncoming(merged);
+      await refreshExistingDiioAssociations(merged);
+      if (diioLegacyStorageKey !== diioStorageKey) {
+        await Promise.all([
+          dbSet(diioStorageKey, merged),
+          dbSet(diioLegacyStorageKey, []),
+        ]);
+      }
+    } catch {
+      setDiioIncoming([]);
+    }
+  }, [empId, diioEnabled, diioLegacyStorageKey, diioStorageKey, refreshExistingDiioAssociations]);
+
+  useEffect(() => {
+    void loadDiioQueue();
+  }, [loadDiioQueue]);
+
+  useEffect(() => {
+    if (!diioEnabled) return;
+    const interval = setInterval(() => {
+      void loadDiioQueue();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [diioEnabled, loadDiioQueue]);
+
+  useEffect(() => {
+    if (diioEnabled) return;
+    setDiioOpen(false);
+  }, [diioEnabled]);
+
+  useEffect(() => {
+    void refreshExistingDiioAssociations(diioIncoming);
+  }, [diioIncoming, refreshExistingDiioAssociations]);
+
   useEffect(()=>{
     if(curEmp) return;
     setAdminOpen(false);
@@ -605,6 +702,85 @@ export default function App(){
     setCollapsed(false);
     setMobileSidebarOpen(true);
   }, []);
+
+  const persistDiioQueue = useCallback(async nextOrUpdater => {
+    const currentQueue = Array.isArray(diioIncoming) ? diioIncoming : [];
+    const safeNext = typeof nextOrUpdater === "function"
+      ? nextOrUpdater(currentQueue)
+      : nextOrUpdater;
+    const normalizedNext = Array.isArray(safeNext) ? safeNext : [];
+    setDiioIncoming(normalizedNext);
+    if (!empId) return false;
+    await Promise.all([
+      dbSet(diioStorageKey, normalizedNext),
+      diioLegacyStorageKey !== diioStorageKey ? dbSet(diioLegacyStorageKey, []) : Promise.resolve(),
+    ]);
+    return true;
+  }, [diioIncoming, diioLegacyStorageKey, diioStorageKey, empId]);
+
+  const confirmDiioInteraction = useCallback(async (interaction, target) => {
+    if (!interaction?.id || !target?.entityId || !empId) return false;
+    if (target.entityType === "crm_opportunity") {
+      await setCrmActivities(attachDiioToCrmActivities(crmActivities, target.entityId, { ...interaction, crewOptions: diioTargets.crew }, empId));
+    } else if (target.entityType === "project") {
+      await setProducciones(attachDiioToCommentCollection(producciones, target.entityId, interaction, diioTargets.crew));
+    } else if (target.entityType === "production") {
+      await setProgramas(attachDiioToCommentCollection(programas, target.entityId, interaction, diioTargets.crew));
+    } else if (target.entityType === "content_campaign") {
+      await setPiezas(attachDiioToCommentCollection(piezas, target.entityId, interaction, diioTargets.crew));
+    } else {
+      return false;
+    }
+    await persistDiioQueue(currentQueue => confirmDiioInteractionAssignment(currentQueue, interaction, {
+      ...target,
+      matchConfidence: target.score || target.matchConfidence || 0,
+    }));
+    ntf("Interacción Diio asociada");
+    return true;
+  }, [crmActivities, diioTargets.crew, empId, ntf, persistDiioQueue, piezas, producciones, programas, setCrmActivities, setPiezas, setProducciones, setProgramas]);
+
+  const dismissDiioInteraction = useCallback(async interactionId => {
+    if (!interactionId) return false;
+    await persistDiioQueue(currentQueue => currentQueue.filter(item => item?.id !== interactionId));
+    return true;
+  }, [persistDiioQueue]);
+
+  const diioAutoConfirmRef = useRef(false);
+  useEffect(() => {
+    if (!diioEnabled || !diioProvisioning.mapping.autoConfirmHighConfidence || diioAutoConfirmRef.current) return;
+    const pendingInteraction = diioIncoming.find(item => item?.matchStatus !== "confirmed");
+    if (!pendingInteraction) return;
+    const suggestions = pendingInteraction?.suggestedTargets?.length
+      ? pendingInteraction.suggestedTargets
+      : suggestDiioInteractionTargets({
+          interaction: pendingInteraction,
+          crmOpps: diioTargets.crmOpps,
+          producciones: diioTargets.producciones,
+          programas: diioTargets.programas,
+          piezas: diioTargets.piezas,
+        });
+    const top = suggestions[0];
+    const second = suggestions[1];
+    const minConfidence = Number(diioProvisioning.mapping.minConfidence || 0.82);
+    const scoreGap = Number((top?.score || 0) - (second?.score || 0));
+    if (!top?.entityId || (top?.score || 0) < minConfidence || scoreGap < 0.08) return;
+    diioAutoConfirmRef.current = true;
+    Promise.resolve(confirmDiioInteraction(pendingInteraction, top))
+      .catch(() => {})
+      .finally(() => {
+        diioAutoConfirmRef.current = false;
+      });
+  }, [
+    confirmDiioInteraction,
+    diioEnabled,
+    diioIncoming,
+    diioProvisioning.mapping.autoConfirmHighConfidence,
+    diioProvisioning.mapping.minConfidence,
+    diioTargets.crmOpps,
+    diioTargets.piezas,
+    diioTargets.producciones,
+    diioTargets.programas,
+  ]);
 
   // CRUD
   const cSave=useCallback(async(arr,setArr,item)=>{
@@ -1203,6 +1379,20 @@ export default function App(){
     setSystemOpen,
     RichTextBlock,
   }), [systemOpen, currentEmpresa, systemMessages, systemLeidas, markSystemRead, markAllSystemRead]);
+  const diioPanelProps = useMemo(() => ({
+    open: diioOpen,
+    DiioInboxPanelView,
+    currentEmpresa,
+    currentUser: curUser,
+    tenantDiioConnection: diioTenantConnection,
+    interactions: diioIncoming,
+    targets: diioTargets,
+    onConfirm: confirmDiioInteraction,
+    onDismiss: dismissDiioInteraction,
+    onRefresh: loadDiioQueue,
+    setDiioOpen,
+    fmtD,
+  }), [diioOpen, currentEmpresa, curUser, diioTenantConnection, diioIncoming, diioTargets, confirmDiioInteraction, dismissDiioInteraction, loadDiioQueue]);
   const modalLayerProps = useMemo(() => ({
     mOpen,
     CoreModalRouter,
@@ -1235,7 +1425,11 @@ export default function App(){
     alertas,
     alertasLeidas,
     alertasOcultas,
-  }), [view, detId, curEmp, curUser, openM, systemOpen, unreadSystemCount, alertasOpen, alertas, alertasLeidas, alertasOcultas]);
+    diioEnabled,
+    diioOpen,
+    setDiioOpen,
+    diioPendingCount,
+  }), [view, detId, curEmp, curUser, openM, systemOpen, unreadSystemCount, alertasOpen, alertas, alertasLeidas, alertasOcultas, diioEnabled, diioOpen, diioPendingCount]);
   const navigationProps = useMemo(() => ({
     superPanel,
     setSuperPanel,
@@ -1316,6 +1510,7 @@ export default function App(){
     <AppOverlays
       alertsPanel={alertsPanelProps}
       systemPanel={systemPanelProps}
+      diioPanel={diioPanelProps}
       toastState={{ toast, ToastView, setToast }}
       modalLayer={modalLayerProps}
       adminPanel={adminOverlayProps}

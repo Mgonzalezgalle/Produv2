@@ -46,6 +46,22 @@ export const INTEGRATION_REGISTRY = [
     envKeys: ["VITE_MERCADOPAGO_MODE", "VITE_MERCADOPAGO_APP_ID", "VITE_MERCADOPAGO_PUBLIC_KEY", "VITE_MERCADOPAGO_MARKETPLACE"],
   },
   {
+    id: "diio",
+    name: "Diio",
+    domain: INTEGRATION_DOMAIN.WEBHOOKS,
+    provider: "diio",
+    stage: INTEGRATION_STAGE.READY_FOR_PRODUCTION,
+    modes: [INTEGRATION_MODE.API, INTEGRATION_MODE.WEBHOOK],
+    capabilities: [
+      INTEGRATION_CAPABILITY.INBOUND_WEBHOOKS,
+    ],
+    owner: "operations_platform",
+    priority: 88,
+    notes: "Inteligencia conversacional por reuniones, llamadas, compromisos y asociación operativa dentro de Produ.",
+    dependencies: ["meeting_ingestion_pipeline", "tenant_inbox_surface", "comment_association_engine", "server_side_webhook_validation"],
+    envKeys: ["VITE_DIIO_WEBHOOK_BASE"],
+  },
+  {
     id: "freshdesk",
     name: "Freshdesk",
     domain: INTEGRATION_DOMAIN.SUPPORT,
@@ -160,6 +176,14 @@ const TENANT_INTEGRATION_BINDINGS = [
     registryId: "transactional_email",
     isEnabled(empresa = {}) {
       return String(empresa?.integrationConfigs?.transactionalEmail?.governance?.mode || "disabled") !== "disabled";
+    },
+  },
+  {
+    tenantKey: "diio",
+    registryId: "diio",
+    isEnabled(empresa = {}) {
+      const mode = String(empresa?.integrationConfigs?.diio?.governance?.mode || "disabled");
+      return mode !== "disabled";
     },
   },
   {

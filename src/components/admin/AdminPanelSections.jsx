@@ -21,6 +21,17 @@ export function EmpresaEditSection({
   setTenantMercadoPagoConfig,
   tenantMercadoPagoSaving = false,
   saveTenantMercadoPagoConfig,
+  diioGovernanceMode = "disabled",
+  tenantDiioEnabled = false,
+  tenantCanEditDiioConfig = false,
+  tenantDiioConfig = {},
+  setTenantDiioConfig,
+  tenantDiioSaving = false,
+  tenantDiioTesting = false,
+  tenantDiioImporting = false,
+  saveTenantDiioConfig,
+  verifyTenantDiioConnection,
+  importTenantDiioMeetings,
   operationalHealth = null,
   criticalAuditEntries = [],
 }) {
@@ -110,6 +121,16 @@ export function EmpresaEditSection({
     mercadoPagoHasAccessToken &&
     tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false &&
     (tenantMercadoPagoConfig?.status === "connected" || tenantMercadoPagoConfig?.status === "draft");
+  const diioHasWorkspace = String(tenantDiioConfig?.workspaceLabel || "").trim();
+  const diioHasCompanyUrl = String(tenantDiioConfig?.companyUrl || "").trim();
+  const diioHasClientId = String(tenantDiioConfig?.clientId || "").trim();
+  const diioHasRefreshToken = String(tenantDiioConfig?.refreshToken || "").trim();
+  const diioHasWebhookSecret = String(tenantDiioConfig?.webhookSecret || "").trim();
+  const diioReady = tenantDiioEnabled && diioHasWorkspace && diioHasCompanyUrl && diioHasClientId && diioHasRefreshToken && diioHasWebhookSecret;
+  const diioWebhookBase = import.meta?.env?.VITE_DIIO_WEBHOOK_BASE || "";
+  const diioTenantWebhookUrl = diioWebhookBase && empresa?.id
+    ? `${diioWebhookBase}${diioWebhookBase.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(empresa.id)}`
+    : "";
 
   if (!editing) return (
     <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:10, padding:16 }}>
@@ -314,6 +335,141 @@ export function EmpresaEditSection({
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <Btn onClick={saveTenantMercadoPagoConfig} disabled={!tenantCanEditMercadoPagoConfig || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
                 <GBtn disabled>OAuth próximamente</GBtn>
+              </div>
+            </>}
+      </div>
+      <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Inteligencia conversacional · Diio</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Torre de Control habilita Diio para la empresa. Aquí se conecta el workspace y se deja operativo el webhook que alimenta CRM, Producciones, Proyectos y Contenidos.</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <Badge label={diioGovernanceMode === "disabled" ? "No habilitado" : "Habilitado por Torre"} color={diioGovernanceMode === "disabled" ? "gray" : "green"} sm />
+            <Badge label={tenantDiioConfig?.status || "disconnected"} color={tenantDiioConfig?.status === "connected" ? "cyan" : tenantDiioConfig?.status === "configured" ? "purple" : "yellow"} sm />
+          </div>
+        </div>
+        {diioGovernanceMode === "disabled"
+          ? <div style={{fontSize:11,color:"var(--gr2)"}}>Diio todavía no está habilitado para esta empresa. Debe activarse primero desde Torre de Control, en Integraciones.</div>
+          : <>
+              <R2>
+                <FG label="Workspace / cuenta empresa">
+                  <FI value={tenantDiioConfig?.workspaceLabel || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,workspaceLabel:e.target.value,status:p.status==="disconnected"&&e.target.value?"draft":p.status}))} placeholder="Ej: Play Media · Diio" />
+                </FG>
+                <FG label="Estado conexión">
+                  <FSl value={tenantDiioConfig?.status || "disconnected"} onChange={e=>setTenantDiioConfig?.(p=>({...p,status:e.target.value}))}>
+                    <option value="disconnected">disconnected</option>
+                    <option value="draft">draft</option>
+                    <option value="configured">configured</option>
+                    <option value="connected">connected</option>
+                    <option value="invalid_credentials">invalid_credentials</option>
+                    <option value="paused">paused</option>
+                  </FSl>
+                </FG>
+              </R2>
+              <R2>
+                <FG label="URL empresa Diio">
+                  <FI value={tenantDiioConfig?.companyUrl || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,companyUrl:e.target.value,status:(e.target.value || p.clientId || p.refreshToken || p.webhookSecret || p.workspaceLabel) ? "draft" : "disconnected"}))} placeholder="https://playmedia.diio.com" />
+                </FG>
+                <FG label="Webhook URL de Produ">
+                  <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8}}>
+                    <FI value={diioTenantWebhookUrl || "Activa primero la base webhook en Produ"} readOnly />
+                    <GBtn
+                      sm
+                      onClick={async ()=>{
+                        if (!diioTenantWebhookUrl) return;
+                        try {
+                          await navigator.clipboard.writeText(diioTenantWebhookUrl);
+                          ntf("Webhook URL copiada ✓");
+                        } catch {
+                          ntf("No pudimos copiar la URL del webhook.", "warn");
+                        }
+                      }}
+                      disabled={!diioTenantWebhookUrl}
+                    >
+                      Copiar
+                    </GBtn>
+                  </div>
+                </FG>
+              </R2>
+              <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)",marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:8}}>Activación rápida</div>
+                <div style={{display:"grid",gap:8,fontSize:11,color:"var(--gr3)",lineHeight:1.6}}>
+                  <div><b>1.</b> En Diio, crea el webhook usando la URL que entrega Produ arriba.</div>
+                  <div><b>2.</b> Copia desde Diio el `webhook secret` y pégalo aquí junto con `Client ID`, `Client Secret` y `Refresh Token`.</div>
+                  <div><b>3.</b> Guarda, prueba la conexión real e importa reuniones para dejar operativa la empresa.</div>
+                </div>
+              </div>
+              <R2>
+                <FG label="Administrador cuenta Diio">
+                  <FI type="email" value={tenantDiioConfig?.adminEmail || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,adminEmail:e.target.value}))} placeholder="admin@empresa.cl" />
+                </FG>
+                <FG label="Client ID">
+                  <FI value={tenantDiioConfig?.clientId || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,clientId:e.target.value,status:(e.target.value || p.refreshToken || p.webhookSecret || p.workspaceLabel) ? "draft" : "disconnected"}))} placeholder="Client ID de Diio" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Client Secret">
+                  <FI type="password" value={tenantDiioConfig?.clientSecret || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,clientSecret:e.target.value}))} placeholder="Client Secret de Diio" />
+                </FG>
+                <FG label="Refresh Token">
+                  <FI type="password" value={tenantDiioConfig?.refreshToken || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,refreshToken:e.target.value,status:(e.target.value || p.clientId || p.webhookSecret || p.workspaceLabel) ? "draft" : "disconnected"}))} placeholder="Refresh token del workspace" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Webhook secret">
+                  <FI type="password" value={tenantDiioConfig?.webhookSecret || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,webhookSecret:e.target.value,status:(e.target.value || p.clientId || p.refreshToken || p.workspaceLabel) ? "draft" : "disconnected"}))} placeholder="Secret de firma del webhook" />
+                </FG>
+                <FG label="Webhook ID (opcional)">
+                  <FI value={tenantDiioConfig?.webhookId || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,webhookId:e.target.value}))} placeholder="Identificador interno del webhook en Diio" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Conectado el">
+                  <FI value={tenantDiioConfig?.connectedAt || ""} readOnly placeholder="Se completa al validar la conexión" />
+                </FG>
+                <FG label="Workspace ID (opcional)">
+                  <FI value={tenantDiioConfig?.workspaceId || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,workspaceId:e.target.value}))} placeholder="UUID del workspace" />
+                </FG>
+              </R2>
+              <FG label="Notas internas">
+                <FTA value={tenantDiioConfig?.notes || ""} onChange={e=>setTenantDiioConfig?.(p=>({...p,notes:e.target.value}))} placeholder="Notas internas de activación o soporte de la conexión." />
+              </FG>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:12}}>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Estado operativo</div>
+                  <div style={{fontSize:12,fontWeight:700,color:diioReady ? "var(--cy)" : "var(--gr3)"}}>
+                    {diioReady ? "Listo para validar e importar" : "Configuración incompleta"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Última validación API</div>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--gr3)"}}>
+                    {tenantDiioConfig?.lastValidatedAt ? new Date(tenantDiioConfig.lastValidatedAt).toLocaleString("es-CL") : "Sin validar"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Último import histórico</div>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--gr3)"}}>
+                    {tenantDiioConfig?.lastImportedAt ? `${new Date(tenantDiioConfig.lastImportedAt).toLocaleString("es-CL")} · ${Number(tenantDiioConfig.lastImportCount || 0)} reuniones` : "Sin importar"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Último webhook</div>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--gr3)"}}>
+                    {tenantDiioConfig?.lastWebhookAt ? `${new Date(tenantDiioConfig.lastWebhookAt).toLocaleString("es-CL")} · ${tenantDiioConfig.lastWebhookEvent || "evento"}` : "Sin webhook"}
+                  </div>
+                </div>
+              </div>
+              {!!tenantDiioConfig?.lastError && (
+                <div style={{fontSize:11,color:"#ffb4b4",marginBottom:12,padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,85,102,.25)",background:"rgba(255,85,102,.08)"}}>
+                  Último error: {tenantDiioConfig.lastError}
+                </div>
+              )}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Btn onClick={saveTenantDiioConfig} disabled={!tenantCanEditDiioConfig || tenantDiioSaving}>{tenantDiioSaving ? "Guardando..." : "Guardar Diio"}</Btn>
+                <GBtn onClick={verifyTenantDiioConnection} disabled={!tenantCanEditDiioConfig || tenantDiioTesting || !diioReady}>{tenantDiioTesting ? "Probando..." : "Probar conexión real"}</GBtn>
+                <GBtn onClick={importTenantDiioMeetings} disabled={!tenantCanEditDiioConfig || tenantDiioImporting || !diioReady}>{tenantDiioImporting ? "Importando..." : "Importar reuniones reales"}</GBtn>
               </div>
             </>}
       </div>

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Badge } from "../../lib/ui/components";
+import { suggestDiioInteractionTargets } from "../../lib/integrations/diioIntegration";
+import diioLogoDark from "../../assets/diio-logo-dark.avif";
 
 export function AlertasPanel({ alertas, leidas = [], onMarcar, onMarcarTodas, onOcultar, onOcultarTodas, onClose, fmtD }) {
   const noLeidas = alertas.filter(a=>!leidas.includes(a.id));
@@ -100,4 +102,241 @@ export function SystemMessagesPanel({ empresa, mensajes = [], leidas = [], onMar
       </div>)}
     </div>
   </div>;
+}
+
+function getDiioSummary(interaction = {}) {
+  const summary = String(interaction?.summary || "").trim();
+  return summary || "Sin apunte";
+}
+
+function getDiioPlaybookLabel(interaction = {}) {
+  const playbook = Array.isArray(interaction?.playbook) ? interaction.playbook[0] : null;
+  if (!playbook) return "";
+  if (typeof playbook === "string") return playbook.trim();
+  return String(playbook?.name || playbook?.title || playbook?.label || "").trim();
+}
+
+function formatDiioCommitmentLabel(item = {}, fmtD = value => value) {
+  if (typeof item === "string") return item;
+  const title = String(item?.title || item?.text || item?.value || item?.description || "").trim();
+  const owner = [item?.user?.name, item?.user?.email].filter(Boolean).join(" · ");
+  const parts = [title];
+  if (owner) parts.push(`Responsable: ${owner}`);
+  if (item?.deadline) {
+    const safeDate = String(item.deadline).slice(0, 10);
+    parts.push(`Fecha límite: ${fmtD ? fmtD(safeDate) : safeDate}`);
+  }
+  if (item?.done === true) parts.push("Realizado");
+  return parts.filter(Boolean).join(" · ");
+}
+
+export function DiioInboxPanel({
+  empresa,
+  tenantDiioConnection = {},
+  interactions = [],
+  targets = {},
+  onConfirm,
+  onDismiss,
+  onRefresh,
+  onClose,
+  fmtD,
+}) {
+  const formatParticipantLabel = (participant = {}) => {
+    const bits = [];
+    const identity = [participant?.name, participant?.email].filter(Boolean).join(" · ");
+    if (identity) bits.push(identity);
+    if (participant?.role) bits.push(participant.role);
+    if (participant?.show === false) bits.push("no asistió");
+    if (participant?.speakTime) bits.push(`${participant.speakTime}s hablando`);
+    return bits.join(" · ");
+  };
+
+  const [selectedId, setSelectedId] = useState("");
+  const [filter, setFilter] = useState("pending");
+  const normalizedInteractions = (Array.isArray(interactions) ? interactions : []).map(item => ({
+    ...item,
+    suggestedTargets: item?.suggestedTargets?.length ? item.suggestedTargets : suggestDiioInteractionTargets({
+      interaction: item,
+      crmOpps: targets.crmOpps,
+      producciones: targets.producciones,
+      programas: targets.programas,
+      piezas: targets.piezas,
+    }),
+  }));
+  const filteredInteractions = normalizedInteractions.filter(item => {
+    if (filter === "all") return true;
+    if (filter === "confirmed") return item?.matchStatus === "confirmed";
+    return item?.matchStatus !== "confirmed";
+  });
+  const selected = filteredInteractions.find(item => item.id === selectedId) || filteredInteractions[0] || null;
+  const pendingCount = normalizedInteractions.filter(item => item?.matchStatus !== "confirmed").length;
+  const confirmedCount = normalizedInteractions.filter(item => item?.matchStatus === "confirmed").length;
+  const manualTargets = [
+    ...((targets.crmOpps || []).map(item => ({ entityType: "crm_opportunity", entityId: item?.id || "", entityLabel: item?.nom || item?.empresaMarca || "Oportunidad CRM", score: 0 }))),
+    ...((targets.producciones || []).map(item => ({ entityType: "project", entityId: item?.id || "", entityLabel: item?.nombre || item?.nom || "Proyecto", score: 0 }))),
+    ...((targets.programas || []).map(item => ({ entityType: "production", entityId: item?.id || "", entityLabel: item?.nombre || item?.nom || "Producción", score: 0 }))),
+    ...((targets.piezas || []).map(item => ({ entityType: "content_campaign", entityId: item?.id || "", entityLabel: item?.nombre || item?.nom || "Campaña", score: 0 }))),
+  ].filter(item => item.entityId);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 889, background: "rgba(5,10,18,.62)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ width: "min(1180px, calc(100vw - 32px))", maxHeight: "calc(100vh - 48px)", background: "var(--card)", border: "1px solid var(--bdr2)", borderRadius: 22, boxShadow: "0 30px 90px #000b", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--bdr)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ height: 26, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,.05)", border: "1px solid var(--bdr)" }}>
+              <img src={diioLogoDark} alt="Diio" style={{ height: 15, display: "block", objectFit: "contain" }} />
+            </span>
+            <div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800 }}>Inbox Diio</div>
+              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{empresa?.nombre || "Empresa"} · {pendingCount} pendientes · {confirmedCount} confirmadas</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--gr2)", cursor: "pointer", fontSize: 20, padding: 2, flexShrink: 0 }}>✕</button>
+        </div>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--bdr)", fontSize: 12, color: "var(--gr2)", lineHeight: 1.6 }}>
+          Diio trae reuniones y llamadas a la empresa. Aquí podemos revisar la sugerencia, confirmar el destino correcto y dejar la interacción en comentarios del módulo adecuado.
+        </div>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--bdr)", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <button onClick={() => setFilter("pending")} style={{ padding: "6px 10px", borderRadius: 999, border: `1px solid ${filter === "pending" ? "#ff9933" : "var(--bdr2)"}`, background: filter === "pending" ? "rgba(255,153,51,.14)" : "transparent", color: filter === "pending" ? "#ffcc99" : "var(--gr3)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Pendientes</button>
+          <button onClick={() => setFilter("confirmed")} style={{ padding: "6px 10px", borderRadius: 999, border: `1px solid ${filter === "confirmed" ? "#ff9933" : "var(--bdr2)"}`, background: filter === "confirmed" ? "rgba(255,153,51,.14)" : "transparent", color: filter === "confirmed" ? "#ffcc99" : "var(--gr3)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Confirmadas</button>
+          <button onClick={() => setFilter("all")} style={{ padding: "6px 10px", borderRadius: 999, border: `1px solid ${filter === "all" ? "#ff9933" : "var(--bdr2)"}`, background: filter === "all" ? "rgba(255,153,51,.14)" : "transparent", color: filter === "all" ? "#ffcc99" : "var(--gr3)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Todas</button>
+          <button onClick={() => void onRefresh?.()} style={{ marginLeft: "auto", borderRadius: 8, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr2)", fontWeight: 700, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}>Actualizar</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", minHeight: 0, flex: 1, overflow: "hidden" }}>
+          <div style={{ borderRight: "1px solid var(--bdr)", overflowY: "auto", background: "var(--sur)" }}>
+            {!filteredInteractions.length && <div style={{ padding: 18, fontSize: 12, color: "var(--gr2)", textAlign: "center" }}>Sin interacciones en este filtro.</div>}
+            {filteredInteractions.map(item => {
+              const active = selected?.id === item.id;
+              const primary = item?.suggestedTargets?.[0] || null;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedId(item.id)}
+                  style={{ width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid var(--bdr)", background: active ? "rgba(255,153,51,.12)" : "transparent", padding: 12, cursor: "pointer" }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)", lineHeight: 1.35 }}>{item.title || "Interacción Diio"}</div>
+                  <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{item.recordedAt ? fmtD(String(item.recordedAt).slice(0, 10)) : "Sin fecha"} · {item.sourceType || "meeting.finished"}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                    <Badge label={item.matchStatus === "confirmed" ? "Confirmada" : "Pendiente"} color={item.matchStatus === "confirmed" ? "green" : "yellow"} sm />
+                    {primary && <Badge label={`${Math.round((primary.score || 0) * 100)}%`} color="orange" sm />}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                    {primary && item.matchStatus !== "confirmed" && (
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void onConfirm?.(item, primary);
+                        }}
+                        style={{ borderRadius: 7, border: "1px solid #ff9933", background: "rgba(255,153,51,.14)", color: "#ffcc99", fontWeight: 700, fontSize: 10, padding: "4px 7px", cursor: "pointer" }}
+                      >
+                        Confirmar sugerida
+                      </button>
+                    )}
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onDismiss?.(item.id);
+                      }}
+                      style={{ borderRadius: 7, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr2)", fontWeight: 700, fontSize: 10, padding: "4px 7px", cursor: "pointer" }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ padding: 18, overflowY: "auto", minHeight: 0 }}>
+            {!selected && <div style={{ fontSize: 12, color: "var(--gr2)" }}>Selecciona una interacción para ver el detalle.</div>}
+            {selected && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "var(--wh)", lineHeight: 1.25 }}>{selected.title || "Interacción Diio"}</div>
+                    <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{selected.sourceType || "meeting.finished"} · {selected.recordedAt ? fmtD(String(selected.recordedAt).slice(0, 10)) : "Sin fecha"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <Badge label={selected.matchStatus === "confirmed" ? "Confirmada" : "Pendiente"} color={selected.matchStatus === "confirmed" ? "green" : "yellow"} sm />
+                    {selected.sourceUrl && <a href={selected.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#8dc7ff", textDecoration: "none", fontWeight: 700 }}>Abrir fuente</a>}
+                  </div>
+                </div>
+                {!!getDiioPlaybookLabel(selected) && (
+                  <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>
+                    Playbook: <span style={{ color: "var(--cy)", fontWeight: 700 }}>{getDiioPlaybookLabel(selected)}</span>
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 6 }}>Apunte de la reunión</div>
+                <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.6, whiteSpace: "pre-wrap", marginBottom: 14 }}>{getDiioSummary(selected)}</div>
+                {!!selected.commitments?.length && (
+                  <>
+                    <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Compromisos detectados</div>
+                    <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+                      {selected.commitments.map((item, index) => (
+                        <div key={`${selected.id}:commitment:${index}`} style={{ border: "1px solid var(--bdr)", borderRadius: 10, padding: "8px 10px", background: "var(--sur)", fontSize: 12, color: "var(--wh)" }}>
+                          {formatDiioCommitmentLabel(item, fmtD) || "Compromiso"}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Participantes</div>
+                <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
+                  {(selected.participants || []).length
+                    ? (selected.participants || []).map((item, index) => (
+                        <div key={`${selected.id}:participant:${index}`} style={{ border: "1px solid var(--bdr)", borderRadius: 10, padding: "8px 10px", background: "var(--sur)", fontSize: 12, color: "var(--wh)" }}>
+                          {formatParticipantLabel(item) || "Participante Diio"}
+                        </div>
+                      ))
+                    : <div style={{ fontSize: 12, color: "var(--gr2)" }}>Sin participantes reconocidos</div>}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Sugerencias de asociación</div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {(selected.suggestedTargets || []).map(target => (
+                    <div key={`${target.entityType}:${target.entityId}`} style={{ border: "1px solid var(--bdr)", borderRadius: 12, padding: 12, background: "var(--sur)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{target.entityLabel}</div>
+                          <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{target.entityType} · confianza {Math.round((target.score || 0) * 100)}%</div>
+                        </div>
+                        <button
+                          onClick={() => void onConfirm?.(selected, target)}
+                          style={{ borderRadius: 8, border: "1px solid #ff9933", background: "rgba(255,153,51,.15)", color: "#ffcc99", fontWeight: 700, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}
+                        >
+                          Confirmar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!(selected.suggestedTargets || []).length && <div style={{ fontSize: 12, color: "var(--gr2)", padding: 12, border: "1px dashed var(--bdr2)", borderRadius: 12 }}>Todavía no encontramos un match claro. Puedes asociarla manualmente más abajo.</div>}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 16, marginBottom: 8 }}>Asociación manual</div>
+                <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                  {manualTargets.map(target => (
+                    <div key={`manual:${target.entityType}:${target.entityId}`} style={{ border: "1px solid var(--bdr)", borderRadius: 12, padding: 12, background: "transparent" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{target.entityLabel}</div>
+                          <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{target.entityType}</div>
+                        </div>
+                        <button
+                          onClick={() => void onConfirm?.(selected, target)}
+                          style={{ borderRadius: 8, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--wh)", fontWeight: 700, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}
+                        >
+                          Asociar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!manualTargets.length && <div style={{ fontSize: 12, color: "var(--gr2)", padding: 12, border: "1px dashed var(--bdr2)", borderRadius: 12 }}>Esta empresa todavía no tiene registros disponibles para asociar manualmente.</div>}
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+                  <button onClick={() => void onDismiss?.(selected.id)} style={{ borderRadius: 8, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr2)", fontWeight: 700, fontSize: 12, padding: "7px 10px", cursor: "pointer" }}>Eliminar interacción</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

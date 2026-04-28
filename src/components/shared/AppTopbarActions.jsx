@@ -1,4 +1,5 @@
 import { Btn } from "../../lib/ui/components";
+import diioLogo from "../../assets/diio-logo.png";
 
 export function AppTopbarActions({
   view,
@@ -15,6 +16,10 @@ export function AppTopbarActions({
   alertas,
   alertasLeidas,
   alertasOcultas,
+  diioEnabled,
+  diioOpen,
+  setDiioOpen,
+  diioPendingCount,
 }) {
   return (
     <>
@@ -28,11 +33,73 @@ export function AppTopbarActions({
           + Gasto
         </Btn>
       )}
+      {curEmp && curUser?.role !== "superadmin" && diioEnabled && (
+        <button
+          onClick={() => {
+            setDiioOpen(!diioOpen);
+            setSystemOpen(false);
+            setAlertasOpen(false);
+          }}
+          style={{
+            position: "relative",
+            background: diioOpen ? "rgba(255,153,51,.16)" : "var(--sur)",
+            border: `1px solid ${diioOpen ? "#ff9933" : "var(--bdr2)"}`,
+            borderRadius: 10,
+            padding: "7px 12px",
+            cursor: "pointer",
+            color: diioOpen ? "#ffb366" : "var(--gr3)",
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontWeight: 700,
+            minWidth: 104,
+          }}
+          title="Bandeja de Diio"
+        >
+          <span
+            style={{
+              height: 18,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: diioOpen ? "rgba(255,255,255,.08)" : "rgba(255,255,255,.04)",
+            }}
+          >
+            <img src={diioLogo} alt="Diio" style={{ height: 12, display: "block", objectFit: "contain" }} />
+          </span>
+          <span>Diio</span>
+          {diioPendingCount > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#ff9933",
+                fontSize: 9,
+                fontWeight: 700,
+                color: "#1d2340",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {diioPendingCount}
+            </span>
+          )}
+        </button>
+      )}
       {curEmp && (
         <button
           onClick={() => {
             setSystemOpen(!systemOpen);
             setAlertasOpen(false);
+            setDiioOpen(false);
           }}
           style={{
             position: "relative",
@@ -76,7 +143,11 @@ export function AppTopbarActions({
       )}
       {curEmp && (
         <button
-          onClick={() => setAlertasOpen(!alertasOpen)}
+          onClick={() => {
+            setAlertasOpen(!alertasOpen);
+            setSystemOpen(false);
+            setDiioOpen(false);
+          }}
           style={{
             position: "relative",
             background: alertasOpen ? "var(--cg)" : "var(--sur)",

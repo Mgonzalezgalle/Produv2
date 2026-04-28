@@ -335,12 +335,8 @@ export function TreasuryModule(props) {
       paidTotalFormatted: fmtM(totals.paid),
       pendingTotalFormatted: fmtM(totals.pending),
     });
-    const html = `
-      <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">
-        <p>Hola ${escapeEmailHtml(primaryContact?.nombre || supplierName)},</p>
-        <p>Esperamos que estés bien.</p>
-        <p>Te compartimos el estado de cuenta vigente de <strong>${escapeEmailHtml(supplierName)}</strong> con <strong>${escapeEmailHtml(props.empresa?.nombre || props.empresa?.nom || "Produ")}</strong>, con el detalle consolidado de los documentos actualmente registrados.</p>
-        <table style="width:100%;border-collapse:collapse;margin:18px 0 16px 0;font-size:13px">
+    const detailTableHtml = `
+      <table style="width:100%;border-collapse:collapse;margin:18px 0 16px 0;font-size:13px">
           <thead>
             <tr>
               <th style="text-align:left;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Documento</th>
@@ -364,13 +360,12 @@ export function TreasuryModule(props) {
             `).join("")}
           </tbody>
         </table>
-        <div style="margin:14px 0 18px 0;padding:14px 16px;border:1px solid #d7deeb;background:#f8fbff;border-radius:10px">
-          <div style="margin-bottom:6px"><strong>Total documental:</strong> ${escapeEmailHtml(fmtM(totals.total))}</div>
-          <div style="margin-bottom:6px"><strong>Total pagado:</strong> ${escapeEmailHtml(fmtM(totals.paid))}</div>
-          <div><strong>Saldo pendiente:</strong> ${escapeEmailHtml(fmtM(totals.pending))}</div>
-        </div>
-        <p>Si necesitas revisar algún documento en particular o coordinar su regularización, quedamos atentos.</p>
-        <p>Saludos cordiales,<br />${escapeEmailHtml(props.empresa?.nombre || props.empresa?.nom || "Produ")}</p>
+    `.trim();
+    const detailSummaryHtml = `
+      <div style="margin:14px 0 18px 0;padding:14px 16px;border:1px solid #d7deeb;background:#f8fbff;border-radius:10px">
+        <div style="margin-bottom:6px"><strong>Total documental:</strong> ${escapeEmailHtml(fmtM(totals.total))}</div>
+        <div style="margin-bottom:6px"><strong>Total pagado:</strong> ${escapeEmailHtml(fmtM(totals.paid))}</div>
+        <div><strong>Saldo pendiente:</strong> ${escapeEmailHtml(fmtM(totals.pending))}</div>
       </div>
     `.trim();
     return {
@@ -381,8 +376,7 @@ export function TreasuryModule(props) {
         subject: resolved.subject,
         to: email,
         body: resolved.body,
-        html,
-        htmlSourceBody: resolved.body,
+        fixedHtmlBlocks: [detailTableHtml, detailSummaryHtml],
         entityType: "supplier_statement",
         entityId: provider?.id || "",
         metadata: {

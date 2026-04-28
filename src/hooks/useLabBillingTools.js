@@ -4,6 +4,24 @@ import { resolveTransactionalEmailTemplate } from "../lib/integrations/transacti
 import { buildMercadoPagoInvoicePaymentDraft, buildMercadoPagoPreferenceRequest } from "../lib/integrations/mercadoPagoPaymentsProvider";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function composeEmailHtmlFromBody(body = "") {
+  return String(body || "")
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(Boolean)
+    .map(block => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`)
+    .join("");
+}
+
 export function useLabBillingTools({
   allDocs,
   movimientos,
@@ -565,9 +583,11 @@ export function useLabBillingTools({
       subject,
       to: recipients,
       text: body,
-      html: draft?.html && draft?.htmlSourceBody === body
-        ? String(draft.html)
-        : `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      html: Array.isArray(draft?.fixedHtmlBlocks) && draft.fixedHtmlBlocks.length
+        ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">${composeEmailHtmlFromBody(body)}${draft.fixedHtmlBlocks.join("")}</div>`
+        : draft?.html && draft?.htmlSourceBody === body
+          ? String(draft.html)
+          : `<p>${body.replace(/\n/g, "<br />")}</p>`,
       replyTo: String(draft?.replyTo || senderReplyTo || "").trim() || undefined,
       attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
       entityType: draft?.entityType || "",

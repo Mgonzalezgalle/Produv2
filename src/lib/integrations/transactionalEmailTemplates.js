@@ -176,8 +176,6 @@ export const TRANSACTIONAL_EMAIL_TEMPLATE_DEFINITIONS = [
       "",
       "Te compartimos el estado de cuenta vigente de {{supplierName}} con {{companyName}}, con el detalle consolidado de los documentos actualmente registrados.",
       "",
-      "{{documentLines}}",
-      "",
       "Total documental: {{documentTotalFormatted}}",
       "Total pagado: {{paidTotalFormatted}}",
       "Saldo pendiente: {{pendingTotalFormatted}}",

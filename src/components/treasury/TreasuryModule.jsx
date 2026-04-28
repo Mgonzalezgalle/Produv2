@@ -78,7 +78,11 @@ export function TreasuryModule(props) {
     saveProvider, deleteProvider, openPayableCreate, openPayableEdit, openPurchaseOrderCreate, openPurchaseOrderEdit, openIssuedOrderCreate,
     openIssuedOrderEdit, openReceiptCreate, openDisbursementCreate, openReceiptEdit, openDisbursementEdit, openProviderCreate, openProviderEdit,
     deleteReceipt, deleteDisbursement, closePayable, closePurchaseOrder, closeIssuedOrder, closeReceipt, closeDisbursement, closeProvider,
-  } = useLabTreasuryModule(props);
+  } = useLabTreasuryModule({
+    ...props,
+    currentUser: props.user || null,
+    platformServices: props.platformServices || null,
+  });
   const { clientes = [], facturas = [] } = props;
   const saveFacturaDoc = props.saveFacturaDoc;
   const {

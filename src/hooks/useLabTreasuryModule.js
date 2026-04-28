@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 import {
   buildTreasuryProviders,
   buildTreasuryDisbursementLog,
@@ -22,6 +23,8 @@ export function useLabTreasuryModule({
   facturas,
   canDo,
   treasury = {},
+  currentUser = null,
+  platformServices = null,
 }) {
   const empId = empresa?.id || "";
   const canManageTreasury = !!(canDo && canDo("tesoreria"));
@@ -154,6 +157,21 @@ export function useLabTreasuryModule({
       ? treasuryPayables.map(item => item.id === safeNext.id ? safeNext : item)
       : [...treasuryPayables, safeNext];
     await setTreasuryPayables?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "payable_updated" : "payable_created",
+      entityType: "treasury_payable",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        supplier: safeNext.supplier || "",
+        folio: safeNext.folio || "",
+        total: Number(safeNext.total || 0),
+        status: safeNext.status || "",
+      },
+      platformServices,
+    });
     setPayableOpen(false);
     setPayableDraft(null);
     return true;
@@ -162,6 +180,16 @@ export function useLabTreasuryModule({
   const deletePayable = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryPayables?.(treasuryPayables.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "payable_deleted",
+      entityType: "treasury_payable",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 
@@ -174,6 +202,21 @@ export function useLabTreasuryModule({
       ? treasuryPurchaseOrders.map(item => item.id === safeNext.id ? safeNext : item)
       : [...treasuryPurchaseOrders, safeNext];
     await setTreasuryPurchaseOrders?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "purchase_order_updated" : "purchase_order_created",
+      entityType: "treasury_purchase_order",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        number: safeNext.number || "",
+        clientId: safeNext.clientId || "",
+        amount: Number(safeNext.amount || 0),
+        status: safeNext.status || "",
+      },
+      platformServices,
+    });
     setPoOpen(false);
     setPoDraft(null);
     return true;
@@ -182,6 +225,16 @@ export function useLabTreasuryModule({
   const deletePurchaseOrder = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryPurchaseOrders?.(treasuryPurchaseOrders.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "purchase_order_deleted",
+      entityType: "treasury_purchase_order",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 
@@ -194,6 +247,20 @@ export function useLabTreasuryModule({
       ? treasuryIssuedOrders.map(item => item.id === safeNext.id ? safeNext : item)
       : [...treasuryIssuedOrders, safeNext];
     await setTreasuryIssuedOrders?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "issued_order_updated" : "issued_order_created",
+      entityType: "treasury_issued_order",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        supplier: safeNext.supplier || "",
+        number: safeNext.number || "",
+        amount: Number(safeNext.amount || 0),
+      },
+      platformServices,
+    });
     setIssuedOpen(false);
     setIssuedDraft(null);
     return true;
@@ -202,6 +269,16 @@ export function useLabTreasuryModule({
   const deleteIssuedOrder = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryIssuedOrders?.(treasuryIssuedOrders.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "issued_order_deleted",
+      entityType: "treasury_issued_order",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 
@@ -218,6 +295,21 @@ export function useLabTreasuryModule({
       ? treasuryReceipts.map(item => item.id === safeNext.id ? safeNext : item)
       : [...treasuryReceipts, safeNext];
     await setTreasuryReceipts?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "receipt_updated" : "receipt_created",
+      entityType: "treasury_receipt",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        invoiceId: safeNext.invoiceId || "",
+        amount: Number(safeNext.amount || 0),
+        method: safeNext.method || "",
+        reference: safeNext.reference || "",
+      },
+      platformServices,
+    });
     setReceiptOpen(false);
     setReceiptDraft(null);
     return true;
@@ -237,6 +329,21 @@ export function useLabTreasuryModule({
       ? baseDisbursements.map(item => item.id === safeNext.id ? safeNext : item)
       : [...baseDisbursements, safeNext];
     await setTreasuryDisbursements?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "disbursement_updated" : "disbursement_created",
+      entityType: "treasury_disbursement",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        payableId: safeNext.payableId || "",
+        amount: Number(safeNext.amount || 0),
+        method: safeNext.method || "",
+        reference: safeNext.reference || "",
+      },
+      platformServices,
+    });
     setDisbursementOpen(false);
     setDisbursementDraft(null);
     return true;
@@ -251,6 +358,20 @@ export function useLabTreasuryModule({
       ? treasuryProviders.map(item => item.id === safeNext.id ? safeNext : item)
       : [...treasuryProviders, safeNext];
     await setTreasuryProviders?.(updated);
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: exists ? "provider_updated" : "provider_created",
+      entityType: "treasury_provider",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        name: safeNext.name || "",
+        rut: safeNext.rut || "",
+        providerType: safeNext.tipoProveedor || "",
+      },
+      platformServices,
+    });
     setProviderOpen(false);
     setProviderDraft(null);
     return true;
@@ -259,18 +380,48 @@ export function useLabTreasuryModule({
   const deleteProvider = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryProviders?.(treasuryProviders.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "provider_deleted",
+      entityType: "treasury_provider",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 
   const deleteReceipt = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryReceipts?.(treasuryReceipts.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "receipt_deleted",
+      entityType: "treasury_receipt",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 
   const deleteDisbursement = async id => {
     if (!canManageTreasury) return false;
     await setTreasuryDisbursements?.(treasuryDisbursements.filter(item => item.id !== id));
+    await appendOperationalAuditEntry({
+      empId,
+      area: "tesoreria",
+      action: "disbursement_deleted",
+      entityType: "treasury_disbursement",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
     return true;
   };
 

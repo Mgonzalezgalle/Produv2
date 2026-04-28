@@ -7,6 +7,7 @@ import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPay
 import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
 import { getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
+import { operationalAuditStorageKey } from "../lib/operations/operationalAudit";
 
 function safeText(value = "") {
   return String(value || "").trim();
@@ -98,6 +99,7 @@ export function useLabAdminPanelModule({
   const [platformPlanning, setPlatformPlanning] = useState(false);
   const [platformPreparingMemberships, setPlatformPreparingMemberships] = useState(false);
   const [platformQueueingMemberships, setPlatformQueueingMemberships] = useState(false);
+  const [operationalAuditEntries, setOperationalAuditEntries] = useState([]);
   const [tenantBsaleConfig, setTenantBsaleConfig] = useState({
     mode: "sandbox",
     status: "draft",
@@ -276,6 +278,27 @@ export function useLabAdminPanelModule({
       })
       .catch(() => {
         if (!cancelled) setCriticalAuditEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbGet, empresa?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!empresa?.id) {
+      setOperationalAuditEntries([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    Promise.resolve(dbGet?.(operationalAuditStorageKey(empresa.id)))
+      .then((entries) => {
+        if (cancelled) return;
+        setOperationalAuditEntries(Array.isArray(entries) ? entries.slice(0, 8) : []);
+      })
+      .catch(() => {
+        if (!cancelled) setOperationalAuditEntries([]);
       });
     return () => {
       cancelled = true;
@@ -939,6 +962,7 @@ export function useLabAdminPanelModule({
     inactiveUsers,
     operationalHealth,
     criticalAuditEntries,
+    operationalAuditEntries,
     referredSols,
     referralHistory,
     ADMIN_TABS,

@@ -816,6 +816,8 @@ export default function App(){
     today,
     uid,
     canDo: action => canDo(curUser, action, curEmp),
+    currentUser: curUser,
+    platformServices,
   });
   const { emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync } = useLabBillingPlatform({
     curEmp,
@@ -1056,8 +1058,9 @@ export default function App(){
     fmtM,
     fmtD,
     platformApi,
+    platformServices,
     canDo:(a)=>canDo(curUser,a,curEmp),
-  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, normalizedCrmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi]);
+  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, normalizedCrmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi, platformServices]);
   const treasuryProps = useMemo(() => ({
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,

@@ -34,6 +34,7 @@ export function EmpresaEditSection({
   importTenantDiioMeetings,
   operationalHealth = null,
   criticalAuditEntries = [],
+  operationalAuditEntries = [],
 }) {
   const [ef, setEf] = React.useState({});
   const [editing, setEditing] = React.useState(false);
@@ -190,6 +191,29 @@ export function EmpresaEditSection({
                 </div>
                 <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>
                   {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"} · previo {entry?.previous?.type || "n/a"} / siguiente {entry?.next?.type || "n/a"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {!!operationalAuditEntries.length && (
+        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:8}}>Últimos eventos operativos</div>
+          <div style={{display:"grid",gap:8}}>
+            {operationalAuditEntries.slice(0, 4).map(entry => (
+              <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.entityType || entry?.area || "Operación"}</div>
+                  <Badge label={entry?.action || "updated"} color="gray" sm />
+                </div>
+                <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
+                  {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
+                  {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
+                </div>
+                <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
+                  {entry?.entityId ? `ID ${entry.entityId}` : "Sin entidad específica"}
+                  {entry?.payloadSummary?.type ? ` · ${entry.payloadSummary.type}` : ""}
                 </div>
               </div>
             ))}

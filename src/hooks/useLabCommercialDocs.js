@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 
 const EMITTED_FACTURA_PROTECTED_FIELDS = [
   "correlativo",
@@ -109,6 +110,8 @@ export function useLabCommercialDocs({
   today,
   uid,
   canDo,
+  currentUser = null,
+  platformServices = null,
 }) {
   const canManageMovements = !!(canDo && canDo("movimientos"));
   const canManageBilling = !!(canDo && canDo("facturacion"));
@@ -234,6 +237,24 @@ export function useLabCommercialDocs({
       });
 
       await setMovimientos(nextMovs);
+      await appendOperationalAuditEntry({
+        empId: curEmp?.id,
+        area: "facturacion",
+        action: isNew ? "created" : "updated",
+        entityType: "factura",
+        entityId: recurringEnabled ? seriesId : (series[0]?.id || safeFact.id || ""),
+        actor: currentUser,
+        payload: {
+          recurring: recurringEnabled,
+          recurringMonths,
+          documentsAffected: series.map(item => item.id),
+          total: series.reduce((sum, item) => sum + Number(item.total || 0), 0),
+          documentType: safeFact.documentTypeCode || safeFact.tipoDocumento || safeFact.tipoDoc || "",
+          entityId: safeFact.entidadId || "",
+          entityType: safeFact.tipo || "",
+        },
+        platformServices,
+      });
       closeM();
       ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths === 1 ? "" : "s"})` : "Documento guardado ✓");
       return true;
@@ -257,6 +278,8 @@ export function useLabCommercialDocs({
     today,
     treasuryPurchaseOrders,
     uid,
+    currentUser,
+    platformServices,
   ]);
 
   return {

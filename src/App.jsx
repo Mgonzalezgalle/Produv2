@@ -347,6 +347,7 @@ export default function App(){
     setUsersRaw,
     setPrintLayoutsRaw,
     normalizeEmpresasTenantCodes,
+    normalizeEmpresasModel,
     ensureRequiredSystemUsers,
     normalizePrintLayouts,
     applyTheme,

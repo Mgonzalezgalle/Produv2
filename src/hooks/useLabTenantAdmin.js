@@ -36,7 +36,33 @@ export function useLabTenantAdmin({
     if (!confirmDelete) return;
 
     const targetId = emp.id;
-    const tenantKeys = ["listas","tareas","clientes","producciones","programas","piezas","episodios","auspiciadores","crmOpps","crmActivities","crmStages","contratos","movimientos","crew","eventos","presupuestos","facturas","activos"];
+    const tenantKeys = [
+      "listas",
+      "tareas",
+      "clientes",
+      "producciones",
+      "programas",
+      "piezas",
+      "episodios",
+      "auspiciadores",
+      "crmOpps",
+      "crmActivities",
+      "crmStages",
+      "contratos",
+      "movimientos",
+      "crew",
+      "eventos",
+      "presupuestos",
+      "facturas",
+      "activos",
+      "supportThreads",
+      "treasuryProviders",
+      "treasuryPayables",
+      "treasuryPurchaseOrders",
+      "treasuryIssuedOrders",
+      "treasuryReceipts",
+      "treasuryDisbursements",
+    ];
 
     await Promise.all(tenantKeys.map(key => dbSet(`produ:${targetId}:${key}`, [])));
 

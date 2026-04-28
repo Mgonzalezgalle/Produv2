@@ -20,6 +20,8 @@ export function EmpresaEditSection({
   setTenantMercadoPagoConfig,
   tenantMercadoPagoSaving = false,
   saveTenantMercadoPagoConfig,
+  operationalHealth = null,
+  criticalAuditEntries = [],
 }) {
   const [ef, setEf] = React.useState({});
   const [editing, setEditing] = React.useState(false);
@@ -100,6 +102,50 @@ export function EmpresaEditSection({
         <div style={{background:"var(--card2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"10px 12px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false}) || empresa.bankInfo || "Sin información bancaria configurada"}</div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:12}}>{(empresa.addons||[]).length?(empresa.addons||[]).map(a=><Badge key={a} label={addons[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin addons activos</span>}</div>
+      {!!operationalHealth && (
+        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Salud operativa del tenant</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>Visibilidad rápida para saber si la empresa está lista para operar sin depender de revisar storage manualmente.</div>
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              <Badge label={operationalHealth.profileReady ? "Perfil OK" : "Perfil incompleto"} color={operationalHealth.profileReady ? "green" : "yellow"} sm />
+              <Badge label={operationalHealth.paymentReady ? "Pago OK" : "Pago pendiente"} color={operationalHealth.paymentReady ? "green" : "yellow"} sm />
+              <Badge label={operationalHealth.roleCoverageReady ? "Admin cubierto" : "Sin admin activo"} color={operationalHealth.roleCoverageReady ? "green" : "red"} sm />
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+            <KV label="Usuarios activos" value={operationalHealth.activeUserCount} />
+            <KV label="Admins activos" value={operationalHealth.activeAdminCount} />
+            <KV label="Addons activos" value={operationalHealth.addonCount} />
+            <KV label="Alertas" value={operationalHealth.warningCount} />
+          </div>
+          <div style={{display:"grid",gap:6}}>
+            {operationalHealth.warnings.length
+              ? operationalHealth.warnings.map((warning, index) => <div key={`tenant-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
+              : <div style={{fontSize:11,color:"var(--gr2)"}}>No detectamos alertas críticas en la configuración base de esta empresa.</div>}
+          </div>
+        </div>
+      )}
+      {!!criticalAuditEntries.length && (
+        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:8}}>Últimos cambios críticos de configuración</div>
+          <div style={{display:"grid",gap:8}}>
+            {criticalAuditEntries.slice(0, 4).map(entry => (
+              <div key={entry?.id || `${entry?.targetKey}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.targetKey || "Clave crítica"}</div>
+                  <Badge label={entry?.action || "write"} color={String(entry?.action || "").startsWith("blocked") ? "yellow" : "gray"} sm />
+                </div>
+                <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>
+                  {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"} · previo {entry?.previous?.type || "n/a"} / siguiente {entry?.next?.type || "n/a"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 

@@ -42,15 +42,21 @@ function inferTenantAddons(tenantStore = {}) {
 }
 
 async function recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel }) {
-  const [rawUsers, rawSupportThreads] = await Promise.all([
+  const [rawUsers, rawSupportThreads, rawSolicitudes, rawEmpresas] = await Promise.all([
     dbGet("produ:users"),
     dbGet("produ:supportThreads"),
+    dbGet("produ:solicitudes"),
+    dbGet("produ:empresas"),
   ]);
   const users = Array.isArray(rawUsers) ? rawUsers : [];
   const supportThreads = Array.isArray(rawSupportThreads) ? rawSupportThreads : [];
+  const solicitudes = Array.isArray(rawSolicitudes) ? rawSolicitudes : [];
+  const existingEmpresas = Array.isArray(rawEmpresas) ? rawEmpresas : [];
   const tenantIds = [...new Set([
     ...users.map(user => user?.empId).filter(Boolean),
     ...supportThreads.map(thread => thread?.empId).filter(Boolean),
+    ...solicitudes.map(sol => sol?.empresaId).filter(Boolean),
+    ...existingEmpresas.map(emp => emp?.id).filter(Boolean),
   ])];
 
   const recovered = [];
@@ -59,6 +65,8 @@ async function recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel
     const tenantUsers = users.filter(user => user?.empId === tenantId);
     const tenantUserEmails = tenantUsers.map(user => normalizeEmail(user?.email)).filter(Boolean);
     const tenantThread = supportThreads.find(thread => thread?.empId === tenantId) || null;
+    const tenantSolicitud = solicitudes.find(sol => sol?.empresaId === tenantId) || null;
+    const existingEmpresa = existingEmpresas.find(emp => emp?.id === tenantId) || null;
     const hintedName = normalizeText(String(tenantThread?.title || "").replace(/^Soporte\s+/i, ""));
     const [
       clientes,
@@ -111,16 +119,16 @@ async function recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel
     }) || clients.find(client => normalizeText(client?.nom) === hintedName) || null;
 
     const primaryContact = (Array.isArray(companyClient?.contactos) ? companyClient.contactos : [])[0] || null;
-    const nombre = hintedName || normalizeText(companyClient?.nom);
+    const nombre = hintedName || normalizeText(companyClient?.nom) || normalizeText(tenantSolicitud?.empresaNombre) || normalizeText(existingEmpresa?.nombre);
     if (!nombre) continue;
 
     recovered.push({
       id: tenantId,
       nombre,
-      rut: normalizeText(companyClient?.rut),
-      dir: normalizeText(companyClient?.dir),
-      tel: normalizeText(primaryContact?.tel),
-      ema: normalizeText(primaryContact?.ema || tenantUsers[0]?.email),
+      rut: normalizeText(companyClient?.rut) || normalizeText(existingEmpresa?.rut),
+      dir: normalizeText(companyClient?.dir) || normalizeText(existingEmpresa?.dir),
+      tel: normalizeText(primaryContact?.tel) || normalizeText(existingEmpresa?.tel),
+      ema: normalizeText(primaryContact?.ema || tenantUsers[0]?.email) || normalizeText(existingEmpresa?.ema),
       active: true,
       addons: inferTenantAddons({
         programas,

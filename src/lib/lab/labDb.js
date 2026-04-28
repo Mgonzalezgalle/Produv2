@@ -41,6 +41,12 @@ function summarizeValue(value) {
   return { type: typeof value, value: value ?? null };
 }
 
+function isEmptyStructuredValue(value) {
+  if (Array.isArray(value)) return value.length === 0;
+  if (value && typeof value === "object") return Object.keys(value).length === 0;
+  return value == null || value === "";
+}
+
 export function createLabDb() {
   const dbGet = key => readStorage(labStorageKey(key));
 
@@ -56,6 +62,7 @@ export function createLabDb() {
       mode: LAB_DATA_CONFIG.mode,
       previous: summarizeValue(previousValue),
       next: summarizeValue(nextValue),
+      changed: !sameJson(previousValue, nextValue),
       createdAt: new Date().toISOString(),
     };
     await writeStorage(auditStorageKey, [nextEntry, ...entries].slice(0, CRITICAL_AUDIT_LIMIT));
@@ -93,6 +100,21 @@ export function createLabDb() {
       && resolved.length === 0
     ) {
       console.warn("Blocked empty write to produ:users in release mode");
+      await appendCriticalAuditEvent({
+        targetKey: canonicalKey,
+        action: "blocked_empty_write",
+        previousValue,
+        nextValue: resolved,
+      });
+      return false;
+    }
+    if (
+      LAB_DATA_CONFIG.releaseMode
+      && canonicalKey === "produ:printLayouts"
+      && !isEmptyStructuredValue(previousValue)
+      && isEmptyStructuredValue(resolved)
+    ) {
+      console.warn("Blocked empty write to produ:printLayouts in release mode");
       await appendCriticalAuditEvent({
         targetKey: canonicalKey,
         action: "blocked_empty_write",

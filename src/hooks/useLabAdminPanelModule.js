@@ -3,6 +3,41 @@ import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 
+function safeText(value = "") {
+  return String(value || "").trim();
+}
+
+function buildOperationalHealth(empresa, empUsers = []) {
+  const activeUsers = empUsers.filter(user => user?.active !== false);
+  const activeAdmins = activeUsers.filter(user => ["admin", "superadmin"].includes(user?.role || ""));
+  const payment = empresa?.paymentDetails || {};
+  const profileReady = Boolean(safeText(empresa?.nombre) && safeText(empresa?.rut) && safeText(empresa?.ema));
+  const paymentReady = Boolean(
+    safeText(payment?.holder || empresa?.paymentHolder)
+    && safeText(payment?.bank || empresa?.paymentBank)
+    && safeText(payment?.accountNumber || empresa?.paymentAccountNumber)
+    && safeText(payment?.email || empresa?.paymentEmail || empresa?.ema)
+  );
+  const roleCoverageReady = activeAdmins.length > 0;
+  const addonCount = Array.isArray(empresa?.addons) ? empresa.addons.length : 0;
+  const warnings = [
+    !profileReady ? "Completar razón social, RUT o correo principal." : "",
+    !paymentReady ? "Completar datos bancarios para documentos y pagos." : "",
+    !roleCoverageReady ? "No hay un admin activo asignado al tenant." : "",
+    addonCount === 0 ? "No hay addons activos visibles para la empresa." : "",
+  ].filter(Boolean);
+  return {
+    profileReady,
+    paymentReady,
+    roleCoverageReady,
+    addonCount,
+    activeUserCount: activeUsers.length,
+    activeAdminCount: activeAdmins.length,
+    warningCount: warnings.length,
+    warnings,
+  };
+}
+
 export function useLabAdminPanelModule({
   theme,
   empresa,
@@ -57,6 +92,7 @@ export function useLabAdminPanelModule({
     enablePaymentLinksInCollection: true,
   });
   const [tenantMercadoPagoSaving, setTenantMercadoPagoSaving] = useState(false);
+  const [criticalAuditEntries, setCriticalAuditEntries] = useState([]);
   const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
   const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
   const tenantCanEditBsaleConfig = bsaleGovernance.allowTenantConfig === true;
@@ -114,6 +150,7 @@ export function useLabAdminPanelModule({
   }, [empresa, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig]);
 
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
+  const operationalHealth = useMemo(() => buildOperationalHealth(empresa, empUsers), [empresa, empUsers]);
   const filteredUsers = empUsers.filter(u =>
     (!uq || u.name?.toLowerCase().includes(uq.toLowerCase()) || u.email?.toLowerCase().includes(uq.toLowerCase())) &&
     (!uRole || u.role === uRole) &&
@@ -163,6 +200,21 @@ export function useLabAdminPanelModule({
       cancelled = true;
     };
   }, [ADMIN_TABS, tab, empresa?.id, platformServices]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(dbGet?.("produ:audit:critical-config"))
+      .then((entries) => {
+        if (cancelled) return;
+        setCriticalAuditEntries(Array.isArray(entries) ? entries.slice(0, 6) : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCriticalAuditEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbGet, empresa?.id]);
 
   const referralStatus = sol => {
     const targetEmp = (empresas || []).find(e => e.id === sol.empresaId);
@@ -418,6 +470,8 @@ export function useLabAdminPanelModule({
     filteredUsers,
     activeUsers,
     inactiveUsers,
+    operationalHealth,
+    criticalAuditEntries,
     referredSols,
     referralHistory,
     ADMIN_TABS,

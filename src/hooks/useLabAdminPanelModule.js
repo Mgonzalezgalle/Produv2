@@ -416,6 +416,39 @@ export function useLabAdminPanelModule({
         },
       };
       await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
+      if (platformServices?.upsertIntegrationCredentialSnapshot) {
+        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+          provider: "bsale",
+          environment: "sandbox",
+          status: tenantBsaleConfig.status || "draft",
+          secretConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
+          config: {
+            officeId: String(tenantBsaleConfig.officeId || "").trim(),
+            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
+            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
+          },
+          metadata: {
+            source: "tenant_admin",
+            governedMode: bsaleGovernanceMode,
+            tokenConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
+          },
+        });
+      }
+      if (platformServices?.appendSyncAuditLog) {
+        await platformServices.appendSyncAuditLog(
+          empresa.id,
+          "tenant_bsale_config_saved",
+          "integration_config",
+          "bsale:sandbox",
+          {
+            status: tenantBsaleConfig.status || "draft",
+            tokenConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
+            officeId: String(tenantBsaleConfig.officeId || "").trim(),
+            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
+            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
+          },
+        );
+      }
       setTenantBsaleConfig(prev => ({ ...prev, source: prev.token ? "tenant" : "unset", tenantCanEdit: true }));
       if (platformServices?.getTenantPlatformSnapshot) {
         refreshPlatformSnapshot();
@@ -458,12 +491,51 @@ export function useLabAdminPanelModule({
         },
       };
       await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
+      if (platformServices?.upsertIntegrationCredentialSnapshot) {
+        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+          provider: "mercadopago",
+          environment: "tenant",
+          status: inferredStatus,
+          secretConfigured: Boolean(hasAccessToken || String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
+          config: {
+            sellerAccountLabel: hasSeller,
+            publicKeyConfigured: Boolean(hasPublicKey),
+            webhookSecretConfigured: Boolean(String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
+            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
+            enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
+          },
+          metadata: {
+            source: "tenant_admin",
+            governedMode: mercadoPagoGovernanceMode,
+          },
+        });
+      }
+      if (platformServices?.appendSyncAuditLog) {
+        await platformServices.appendSyncAuditLog(
+          empresa.id,
+          "tenant_mercadopago_config_saved",
+          "integration_config",
+          "mercadopago:tenant",
+          {
+            status: inferredStatus,
+            sellerConfigured: Boolean(hasSeller),
+            publicKeyConfigured: Boolean(hasPublicKey),
+            accessTokenConfigured: Boolean(hasAccessToken),
+            webhookSecretConfigured: Boolean(String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
+            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
+            paymentLinksEnabled: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
+          },
+        );
+      }
       setTenantMercadoPagoConfig(prev => ({
         ...prev,
         status: inferredStatus,
         source: prev.publicKey || prev.accessToken ? "tenant" : "unset",
         tenantCanEdit: true,
       }));
+      if (platformServices?.getTenantPlatformSnapshot) {
+        refreshPlatformSnapshot();
+      }
       ntf("Configuración Mercado Pago del tenant guardada ✓");
     } catch (err) {
       ntf(err?.message || "No pudimos guardar la configuración de Mercado Pago.", "warn");

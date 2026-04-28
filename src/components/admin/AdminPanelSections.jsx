@@ -10,6 +10,7 @@ export function EmpresaEditSection({
   empresa,
   empresas,
   saveEmpresas,
+  platformServices,
   ntf,
   addons,
   companyGoogleCalendarEnabled,
@@ -58,7 +59,7 @@ export function EmpresaEditSection({
     });
   }, [empresa, companyGoogleCalendarEnabled]);
 
-  const save = () => {
+  const save = async () => {
     if (!canManageAdmin) return;
     const updated = {
       ...empresa,
@@ -73,7 +74,29 @@ export function EmpresaEditSection({
         notes: ef.paymentNotes || "",
       },
     };
-    saveEmpresas((empresas || []).map(em => em.id === empresa.id ? updated : em));
+    await Promise.resolve(saveEmpresas((empresas || []).map(em => em.id === empresa.id ? updated : em)));
+    if (platformServices?.syncLegacyTenant) {
+      await platformServices.syncLegacyTenant({
+        legacyEmpId: empresa.id,
+        empresa: updated,
+      }).catch(() => null);
+    }
+    if (platformServices?.appendSyncAuditLog) {
+      await platformServices.appendSyncAuditLog(
+        empresa.id,
+        "tenant_company_profile_saved",
+        "tenant_profile",
+        empresa.id,
+        {
+          nombre: updated.nombre || "",
+          rut: updated.rut || "",
+          email: updated.ema || "",
+          active: updated.active !== false,
+          printColor: updated.printColor || "",
+          paymentConfigured: Boolean(updated?.paymentDetails?.holder && updated?.paymentDetails?.bank && updated?.paymentDetails?.accountNumber),
+        },
+      ).catch(() => null);
+    }
     ntf("Datos guardados ✓");
     setEditing(false);
   };

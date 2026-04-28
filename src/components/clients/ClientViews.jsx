@@ -25,6 +25,23 @@ import {
   ViewModeToggle,
 } from "../../lib/ui/components";
 
+function timelineMeta(item = {}) {
+  const safeType = String(item?.type || "").trim().toLowerCase();
+  if (safeType === "email" || item?.to || item?.subject) return { label: "Correo", eyebrow: "Mensaje", accent: "#4f7cff" };
+  if (safeType === "comment") return { label: "Comentario", eyebrow: "Registro", accent: "#94a3b8" };
+  return { label: "Actividad", eyebrow: "Registro", accent: "#94a3b8" };
+}
+
+function timelineHeadline(item = {}) {
+  return String(item?.subject || "").trim() || String(item?.text || "").split("\n")[0]?.trim() || "Registro sin asunto";
+}
+
+function timelineSecondary(item = {}) {
+  if (item?.to) return `Para ${item.to}`;
+  if (item?.byName) return `Registrado por ${item.byName}`;
+  return "Sin contexto adicional";
+}
+
 export function ViewClientes({
   empresa,
   clientes,
@@ -375,15 +392,35 @@ export function ViewCliDet({
       </div>
       <Card title={`Correos enviados (${emailHistory.length})`} style={{ marginBottom: 20 }}>
         {emailHistory.length ? <div style={{ display: "grid", gap: 10 }}>
-          {emailHistory.map(item => <button key={item.id} type="button" onClick={() => setEmailPreview(item)} style={{ width: "100%", textAlign: "left", padding: 14, borderRadius: 12, border: "1px solid var(--bdr)", background: "var(--card)", cursor: "pointer" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{item.subject || "Sin asunto"}</div>
-              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}</div>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 4 }}>Para: {item.to || "—"}</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Enviado por: {item.byName || "Usuario"}</div>
-            <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.text || "Sin contenido"}</div>
-          </button>)}
+          {emailHistory.map(item => {
+            const meta = timelineMeta(item);
+            const attachments = normalizeCommentAttachments({ attachments: item.attachments || [] });
+            return <button key={item.id} type="button" onClick={() => setEmailPreview(item)} style={{ width: "100%", textAlign: "left", padding: 14, borderRadius: 14, border: "1px solid var(--bdr)", background: "var(--card)", cursor: "pointer" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
+                <div style={{ width: 24, height: 24, borderRadius: 999, border: `1px solid ${meta.accent}`, color: meta.accent, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, marginTop: 2 }}>›</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: meta.accent }}>{meta.eyebrow}</span>
+                    <Badge label={meta.label} color="gray" sm />
+                    {!!attachments.length && <Badge label={`${attachments.length} adjunto${attachments.length === 1 ? "" : "s"}`} color="cyan" sm />}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", lineHeight: 1.4, marginBottom: 4 }}>
+                    {timelineHeadline(item)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--cy)", lineHeight: 1.45, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {timelineSecondary(item)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.6, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {item.text || "Sin contenido"}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
+                  <div>{item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}</div>
+                  <div style={{ marginTop: 4 }}>{item.byName || "Usuario"}</div>
+                </div>
+              </div>
+            </button>;
+          })}
         </div> : <Empty text="Sin correos enviados" sub="Aquí verás el historial de correos enviados a este cliente." />}
       </Card>
       {associationBlocks.map(block => <Card key={block.key} title={`${block.title} (${block.count})`} action={block.action} style={{ marginBottom: 16 }}>{block.render()}</Card>)}
@@ -422,8 +459,15 @@ export function ViewCliDet({
             <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Enviado por:</b> {emailPreview.byName || "Usuario"}</div>
             <div style={{ fontSize: 12, color: "var(--gr2)" }}><b>Origen:</b> {emailPreview.source === "mailto_fallback" ? "Tu cliente de correo" : "Produ"}</div>
           </div>
-          <div style={{ padding: 14, borderRadius: 12, border: "1px solid var(--bdr)", background: "var(--sur)", fontSize: 13, color: "var(--gr3)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+          <div style={{ padding: 14, borderRadius: 14, border: "1px solid var(--bdr)", background: "var(--sur)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#4f7cff" }}>Mensaje</span>
+              <Badge label="Correo" color="gray" sm />
+              {!!normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length && <Badge label={`${normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length} adjunto${normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length === 1 ? "" : "s"}`} color="cyan" sm />}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--gr3)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
             {emailPreview.text || "Sin contenido"}
+            </div>
           </div>
           {!!normalizeCommentAttachments({ attachments: emailPreview.attachments || [] }).length && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 14 }}>

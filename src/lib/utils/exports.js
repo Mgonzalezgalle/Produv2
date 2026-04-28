@@ -1,10 +1,13 @@
 export function exportComentariosCSV(items, nombre = "comentarios") {
-  const headers = ["Fecha", "Autor", "Comentario", "Fotos"];
+  const headers = ["Fecha", "Autor", "Tipo", "Importante", "Comentario", "Asignados", "Adjuntos"];
   const rows = (items || []).map(it => [
     it?.upd || it?.cr || "",
     String(it?.authorName || "—").replace(/,/g, " "),
+    String(it?.kind || "note").replace(/,/g, " "),
+    it?.important === true ? "Sí" : "No",
     String(it?.text || "").replace(/\n/g, " ").replace(/,/g, " "),
-    String((it?.photos || []).length || 0),
+    String((it?.assignedIds || []).length || 0),
+    String((it?.attachments || it?.photos || []).length || 0),
   ]);
   const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -33,6 +36,8 @@ export function exportComentariosPDF(items, nombre = "comentarios", empresa = nu
     <tr>
       <td>${it?.upd || it?.cr || "—"}</td>
       <td>${String(it?.authorName || "—").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
+      <td>${String(it?.kind || "note").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
+      <td>${it?.important === true ? "Sí" : "No"}</td>
       <td>${String(it?.text || "—").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>")}</td>
     </tr>
   `).join("");
@@ -60,7 +65,7 @@ export function exportComentariosPDF(items, nombre = "comentarios", empresa = nu
       </div>
       <div class="meta">Generado: ${new Date().toLocaleDateString("es-CL")}</div>
     </div>
-    ${safeItems.length ? `<table><thead><tr><th style="width:140px">Fecha</th><th style="width:180px">Autor</th><th>Comentario</th></tr></thead><tbody>${htmlRows}</tbody></table>` : `<div class="empty">No hay comentarios para exportar.</div>`}
+    ${safeItems.length ? `<table><thead><tr><th style="width:140px">Fecha</th><th style="width:160px">Autor</th><th style="width:110px">Tipo</th><th style="width:90px">Importante</th><th>Comentario</th></tr></thead><tbody>${htmlRows}</tbody></table>` : `<div class="empty">No hay comentarios para exportar.</div>`}
     <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
   </body></html>`;
   const w = window.open("", "_blank", "width=980,height=720");

@@ -4,6 +4,36 @@ import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS, taskRecurrenceLabel 
 import { requestConfirm } from "../../lib/ui/confirmService";
 import { TaskErrorBoundary } from "../shared/CoreFeedback";
 
+const COMMENT_KIND_OPTIONS = [
+  { value: "note", label: "Nota", tone: "var(--gr2)" },
+  { value: "follow_up", label: "Seguimiento", tone: "var(--cy)" },
+  { value: "decision", label: "Acuerdo", tone: "#00e08a" },
+  { value: "risk", label: "Riesgo", tone: "#ff5566" },
+  { value: "meeting", label: "Reunión", tone: "#a78bfa" },
+];
+
+function commentKindMeta(kind = "note") {
+  return COMMENT_KIND_OPTIONS.find(option => option.value === kind) || COMMENT_KIND_OPTIONS[0];
+}
+
+function commentSortDate(item = {}) {
+  return String(item?.upd || item?.cr || "");
+}
+
+function normalizeCommentItem(item = {}, normalizeCommentAttachments) {
+  const source = String(item?.source || "").trim();
+  const assigned = [...new Set(getAssignedIds(item).filter(Boolean))];
+  return {
+    ...item,
+    kind: item?.kind || (source === "diio" ? "meeting" : "note"),
+    important: item?.important === true,
+    assignedIds: assigned,
+    asignadoA: assigned[0] || item?.asignadoA || "",
+    attachments: normalizeCommentAttachments(item),
+    source,
+  };
+}
+
 export function TareaCard({ tarea, producciones, programas, piezas, oportunidades, crew, onEdit, onDelete, onChangeEstado, onOpen, canEdit=true, draggable=false, onDragStart, onDragEnd }) {
   const ref = tarea.refTipo==="pro"
     ? (producciones||[]).find(x=>x.id===tarea.refId)
@@ -84,8 +114,34 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
   const [pasarATarea,setPasarATarea]=useState(false);
   const [assignedIds,setAssignedIds]=useState([]);
   const [attachments,setAttachments]=useState([]);
+  const [kind,setKind]=useState("note");
+  const [important,setImportant]=useState(false);
+  const [query,setQuery]=useState("");
+  const [kindFilter,setKindFilter]=useState("");
+  const [assignedFilter,setAssignedFilter]=useState("");
+  const [importantOnly,setImportantOnly]=useState(false);
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
-  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAssignedIds([]);setAttachments([]);};
+  const normalizedItems = (items||[]).map(item => normalizeCommentItem(item, normalizeCommentAttachments));
+  const sortedItems = [...normalizedItems].sort((a,b)=>{
+    if (a.important !== b.important) return a.important ? -1 : 1;
+    return commentSortDate(b).localeCompare(commentSortDate(a));
+  });
+  const filteredItems = sortedItems.filter(item => {
+    const haystack = [item.text, item.authorName, item.source === "diio" ? "diio" : ""].join(" ").toLowerCase();
+    const matchesQuery = !query || haystack.includes(query.toLowerCase());
+    const matchesKind = !kindFilter || item.kind === kindFilter;
+    const matchesAssigned = !assignedFilter || item.assignedIds.includes(assignedFilter);
+    const matchesImportant = !importantOnly || item.important;
+    return matchesQuery && matchesKind && matchesAssigned && matchesImportant;
+  });
+  const summary = normalizedItems.reduce((acc, item) => {
+    acc.total += 1;
+    if (item.important) acc.important += 1;
+    if ((item.attachments || []).length) acc.withAttachments += 1;
+    if (item.assignedIds.length) acc.assigned += 1;
+    return acc;
+  }, { total: 0, important: 0, withAttachments: 0, assigned: 0 });
+  const resetForm=()=>{setTxt("");setEditingId(null);setPasarATarea(false);setAssignedIds([]);setAttachments([]);setKind("note");setImportant(false);};
   const loadAttachments=async files=>{
     const nextAttachments = await Promise.all(Array.from(files||[]).slice(0,6).map(commentAttachmentFromFile));
     setAttachments(prev=>[...prev,...nextAttachments.filter(Boolean)].slice(0,6));
@@ -94,18 +150,18 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
   const submit=async()=>{
     const val=txt.trim();
     if(!val) return;
-    const prevItem=editingId?items.find(it=>it.id===editingId):null;
+    const prevItem=editingId?normalizedItems.find(it=>it.id===editingId):null;
     const normalizedAssigned = [...new Set(assignedIds.filter(Boolean))];
     const normalizedAttachments = normalizeCommentAttachments({ attachments });
     const commentItem=editingId
-      ? {...prevItem,text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),upd:today()}
-      : {id:uid(),text:val,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
-    const next=editingId ? items.map(it=>it.id===editingId?commentItem:it) : [commentItem,...items];
+      ? {...prevItem,text:val,kind,important,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),upd:today()}
+      : {id:uid(),text:val,kind,important,pasarATarea,assignedIds:normalizedAssigned,asignadoA:normalizedAssigned[0]||"",attachments:normalizedAttachments,photos:normalizedAttachments.filter(att=>att.type==="image"),cr:today(),authorId:currentUser?.id||"",authorName:currentUser?.name||"Usuario"};
+    const next=editingId ? normalizedItems.map(it=>it.id===editingId?commentItem:it) : [commentItem,...normalizedItems];
     await onSave(next);
     if(pasarATarea && onCreateTask && !prevItem?.pasarATarea) await onCreateTask(commentItem);
     resetForm();
   };
-  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setAttachments(normalizeCommentAttachments(it));};
+  const editItem=it=>{setTxt(it.text||"");setEditingId(it.id);setPasarATarea(it.pasarATarea===true);setAssignedIds(getAssignedIds(it));setAttachments(normalizeCommentAttachments(it));setKind(it.kind||"note");setImportant(it.important===true);};
   const delItem=async id=>{
     const confirmed = await requestConfirm({
       title: "Eliminar comentario",
@@ -113,16 +169,49 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       confirmLabel: "Eliminar",
     });
     if(!confirmed) return;
-    await onSave(items.filter(it=>it.id!==id));
+    await onSave(normalizedItems.filter(it=>it.id!==id));
     if(editingId===id) resetForm();
   };
   return <Card title={title}>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-      {!!items.length&&<GBtn sm onClick={()=>exportComentariosCSV(items,title)}>⬇ Exportar CSV</GBtn>}
-      {!!items.length&&<GBtn sm onClick={()=>exportComentariosPDF(items,title,empresa)}>⬇ Exportar PDF</GBtn>}
+      {!!normalizedItems.length&&<GBtn sm onClick={()=>exportComentariosCSV(normalizedItems,title)}>⬇ Exportar CSV</GBtn>}
+      {!!normalizedItems.length&&<GBtn sm onClick={()=>exportComentariosPDF(normalizedItems,title,empresa)}>⬇ Exportar PDF</GBtn>}
     </div>
+    {!!normalizedItems.length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8,marginBottom:14}}>
+      <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",fontWeight:700}}>Total</div><div style={{fontSize:18,fontWeight:800,color:"var(--wh)"}}>{summary.total}</div></div>
+      <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",fontWeight:700}}>Importantes</div><div style={{fontSize:18,fontWeight:800,color:"#ffcc44"}}>{summary.important}</div></div>
+      <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",fontWeight:700}}>Con adjuntos</div><div style={{fontSize:18,fontWeight:800,color:"var(--cy)"}}>{summary.withAttachments}</div></div>
+      <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}><div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",fontWeight:700}}>Asignados</div><div style={{fontSize:18,fontWeight:800,color:"#00e08a"}}>{summary.assigned}</div></div>
+    </div>}
+    {!!normalizedItems.length&&<div style={{display:"grid",gridTemplateColumns:"minmax(220px,1fr) repeat(2,minmax(160px,.6fr)) auto",gap:8,marginBottom:14,alignItems:"center"}}>
+      <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por texto o autor..." style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}} />
+      <select value={kindFilter} onChange={e=>setKindFilter(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>
+        <option value="">Todos los tipos</option>
+        {COMMENT_KIND_OPTIONS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+      <select value={assignedFilter} onChange={e=>setAssignedFilter(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>
+        <option value="">Todos los asignados</option>
+        {(crewOptions||[]).map(member=><option key={member.id} value={member.id}>{member.nom}</option>)}
+      </select>
+      <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",cursor:"pointer",justifySelf:"end"}}>
+        <input type="checkbox" checked={importantOnly} onChange={e=>setImportantOnly(e.target.checked)}/>
+        Solo importantes
+      </label>
+    </div>}
     {canEdit&&<div style={{marginBottom:16}}>
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,marginTop:10}}>
+        <FG label="Tipo de comentario">
+          <select value={kind} onChange={e=>setKind(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>
+            {COMMENT_KIND_OPTIONS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </FG>
+        <FG label="Visibilidad interna">
+          <div style={{display:"flex",alignItems:"center",height:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:12}}>
+            Operativo interno de Produ
+          </div>
+        </FG>
+      </div>
       <div style={{marginTop:10}}>
         <FG label="Asignar comentario a">
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -156,15 +245,24 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
         <input type="checkbox" checked={pasarATarea} onChange={e=>setPasarATarea(e.target.checked)}/>
         Marcar para pasar a tarea
       </label>}
+      <label style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:11,color:"var(--gr2)",marginTop:10,marginLeft:onCreateTask?12:0,cursor:"pointer"}}>
+        <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)}/>
+        Marcar como importante
+      </label>
       <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
         {editingId&&<GBtn sm onClick={resetForm}>Cancelar</GBtn>}
         <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
       </div>
     </div>}
-    {items.length?items.map(it=><div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
+    {filteredItems.length?filteredItems.map(it=>{ const kindMeta = commentKindMeta(it.kind); return <div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start"}}>
         <div style={{flex:1}}>
-          {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",marginBottom:6,letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+            {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
+            <span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"color-mix(in srgb, currentColor 12%, transparent)",color:kindMeta.tone,border:`1px solid ${kindMeta.tone}`}}>{kindMeta.label}</span>
+            {it.important&&<span style={{fontSize:10,fontWeight:800,padding:"4px 8px",borderRadius:999,background:"rgba(251,191,36,.12)",color:"#fbbf24",border:"1px solid rgba(251,191,36,.4)"}}>Importante</span>}
+            {it.source==="diio"&&<span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"rgba(79,124,255,.12)",color:"#4f7cff",border:"1px solid rgba(79,124,255,.35)"}}>Diio</span>}
+          </div>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
             <span style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{it.authorName||"Usuario"}</span>
             <span style={{fontSize:10,color:"var(--gr2)"}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</span>
@@ -190,7 +288,7 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
         </div>
         {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
       </div>
-    </div>):<Empty text="Sin comentarios" sub={canEdit?"Agrega la primera nota para este registro":""}/>}
+    </div>; }):<Empty text={normalizedItems.length?"Sin resultados para este filtro":"Sin comentarios"} sub={normalizedItems.length?"Ajusta búsqueda o filtros para ver más comentarios.":canEdit?"Agrega la primera nota para este registro":""}/>}
   </Card>;
 }
 

@@ -41,7 +41,7 @@ export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canMana
   );
 }
 
-export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierWhatsApp, onClose, onSave }) {
+export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierStatementEmail, onSupplierWhatsApp, onClose, onSave }) {
   const [tab, setTab] = useState("documentos");
   const [draft, setDraft] = useState(null);
 
@@ -100,6 +100,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
             <div className="treasury-profile-sub">Vista consolidada del proveedor, sus documentos pendientes y su ficha administrativa.</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            {onSupplierStatementEmail ? <GBtn onClick={() => onSupplierStatementEmail(provider)}>Estado de cuenta</GBtn> : null}
             <GBtn onClick={onClose}>Cerrar</GBtn>
             <GBtn onClick={submit}>Guardar</GBtn>
           </div>
@@ -155,6 +156,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 </div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                   {onSupplierEmail ? <ContactActionButton tone="mail" label="Correo" onClick={() => onSupplierEmail(row)} /> : null}
+                  {onSupplierStatementEmail ? <ContactActionButton tone="mail" label="Estado cta." onClick={() => onSupplierStatementEmail(provider)} /> : null}
                   {onSupplierWhatsApp ? <ContactActionButton tone="wa" label="WhatsApp" onClick={() => onSupplierWhatsApp(row)} /> : null}
                 </div>
               </div>

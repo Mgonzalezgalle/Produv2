@@ -330,6 +330,7 @@ export function TreasuryPayablesSection({
   disbursementTable,
   handlePayableUpdate,
   handleSupplierEmail,
+  handleSupplierStatementEmail,
   handleSupplierWhatsApp,
   issuedOrderSummary,
   sendIssuedOrderEmail,
@@ -402,6 +403,7 @@ export function TreasuryPayablesSection({
               onDelete={canManageTreasury ? deletePayable : () => {}}
               onUpdatePayable={handlePayableUpdate}
               onSupplierEmail={handleSupplierEmail}
+              onSupplierStatementEmail={handleSupplierStatementEmail}
               onSupplierWhatsApp={handleSupplierWhatsApp}
               canManage={canManageTreasury}
               selectedIds={payableTable.selectedIds}

@@ -294,6 +294,58 @@ export function TreasuryModule(props) {
       },
     };
   }, [props.empresa, providers]);
+  const buildSupplierStatementEmailDraft = React.useCallback((source) => {
+    const provider = providers.find(item => item.id === source?.id || item.id === source?.providerId || item.name === source?.supplier || item.name === source?.name);
+    if (!provider) {
+      return { ok: false, message: "No encontramos el proveedor para preparar el estado de cuenta." };
+    }
+    const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+    const email = primaryContact?.email || primaryContact?.ema || provider?.email || "";
+    if (!email) {
+      return { ok: false, message: "El proveedor no tiene email registrado." };
+    }
+    const supplierName = provider?.name || source?.supplier || "este proveedor";
+    const payableDocs = Array.isArray(provider?.payables) ? provider.payables : [];
+    if (!payableDocs.length) {
+      return { ok: false, message: "El proveedor no tiene documentos registrados para armar el estado de cuenta." };
+    }
+    const documentLines = payableDocs
+      .map(doc => `- ${doc.folio || "Sin folio"} · ${doc.docType || "Documento"} · Total ${fmtM(doc.total || 0)} · Pagado ${fmtM(doc.paid || 0)} · Saldo ${fmtM(doc.pending || 0)} · ${doc.status || "Pendiente"}`)
+      .join("\n");
+    const totals = payableDocs.reduce((acc, doc) => ({
+      total: acc.total + Number(doc.total || 0),
+      paid: acc.paid + Number(doc.paid || 0),
+      pending: acc.pending + Number(doc.pending || 0),
+    }), { total: 0, paid: 0, pending: 0 });
+    const resolved = resolveTransactionalEmailTemplate(props.empresa, "payables_supplier_statement", {
+      contactName: primaryContact?.nombre || supplierName,
+      companyName: props.empresa?.nombre || props.empresa?.nom || "Produ",
+      supplierName,
+      documentLines,
+      documentTotalFormatted: fmtM(totals.total),
+      paidTotalFormatted: fmtM(totals.paid),
+      pendingTotalFormatted: fmtM(totals.pending),
+    });
+    return {
+      ok: true,
+      draft: {
+        tenantId: props.empresa?.id || "",
+        templateKey: "payables_supplier_statement",
+        subject: resolved.subject,
+        to: email,
+        body: resolved.body,
+        entityType: "supplier_statement",
+        entityId: provider?.id || "",
+        metadata: {
+          companyName: props.empresa?.nombre || props.empresa?.nom || "Produ",
+          supplierName,
+          contactName: primaryContact?.nombre || "",
+          documentCount: payableDocs.length,
+          pendingTotal: totals.pending,
+        },
+      },
+    };
+  }, [fmtM, props.empresa, providers]);
   const buildIssuedOrderEmailDraft = React.useCallback(async (row) => {
     const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
     const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
@@ -357,6 +409,9 @@ export function TreasuryModule(props) {
   const handleSupplierEmail = React.useCallback((row) => {
     openEmailComposer(buildSupplierEmailDraft(row));
   }, [buildSupplierEmailDraft, openEmailComposer]);
+  const handleSupplierStatementEmail = React.useCallback((source) => {
+    openEmailComposer(buildSupplierStatementEmailDraft(source));
+  }, [buildSupplierStatementEmailDraft, openEmailComposer]);
   const handleIssuedOrderEmail = React.useCallback(async (row) => {
     openEmailComposer(await buildIssuedOrderEmailDraft(row));
   }, [buildIssuedOrderEmailDraft, openEmailComposer]);
@@ -494,6 +549,7 @@ export function TreasuryModule(props) {
             disbursementTable={disbursementTable}
             handlePayableUpdate={handlePayableUpdate}
             handleSupplierEmail={handleSupplierEmail}
+            handleSupplierStatementEmail={handleSupplierStatementEmail}
             handleSupplierWhatsApp={handleSupplierWhatsApp}
             issuedOrderSummary={issuedOrderSummary}
             sendIssuedOrderEmail={handleIssuedOrderEmail}
@@ -532,7 +588,7 @@ export function TreasuryModule(props) {
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
-      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} />
+      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} />
       <IssuedOrderDetailModal
         open={issuedDetailOpen}
         order={issuedDetailItem}

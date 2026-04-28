@@ -226,3 +226,100 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
     </Modal>
   );
 }
+
+export function IssuedOrderDetailModal({ open, order, provider = null, onClose, onEdit, onEmail }) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (!order) return null;
+  const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+  const effectiveContactName = order?.supplierContactName || primaryContact?.nombre || "";
+  const effectiveContactEmail = order?.supplierContactEmail || primaryContact?.email || primaryContact?.ema || "";
+  const effectiveContactPhone = order?.supplierContactPhone || primaryContact?.telefono || primaryContact?.tel || "";
+
+  return (
+    <Modal open={open} onClose={onClose} title="" sub="" wide>
+      <div className="treasury-modal-shell">
+        <div className="treasury-profile">
+          <div className="treasury-avatar" style={{ width: 58, height: 58, fontSize: 18 }}>{getInitials(order?.supplier || order?.supplierLegalName)}</div>
+          <div style={{ flex: 1 }}>
+            <div className="treasury-profile-title">{order?.number || "Orden de compra"}</div>
+            <div className="treasury-profile-sub">{order?.supplierLegalName || order?.supplier || "Proveedor"} · {order?.productionName || order?.costCenter || "Sin producción asociada"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {order?.pdfUrl ? <GBtn onClick={() => window.open(order.pdfUrl, "_blank", "noopener,noreferrer")}>Ver PDF</GBtn> : null}
+            {onEmail ? <GBtn onClick={() => onEmail(order)}>Correo</GBtn> : null}
+            {onEdit ? <GBtn onClick={() => onEdit(order)}>Editar</GBtn> : null}
+            <GBtn onClick={onClose}>Cerrar</GBtn>
+          </div>
+        </div>
+
+        <div className="treasury-modal-summary">
+          <MiniKpiCard color="var(--cy)" label="Monto total" value={fmtM(order?.amount || 0)} />
+          <MiniKpiCard color="#a78bfa" label="Estado aprobación" value={order?.approvalStatus || "—"} />
+          <MiniKpiCard color="#00e08a" label="Líneas" value={items.length || 0} />
+        </div>
+
+        <div className="treasury-detail-grid">
+          <div className="treasury-detail">
+            <div className="treasury-detail-title">Detalle interno</div>
+            <div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
+              <div><div className="meta-label">Solicitante</div><div className="meta-value">{order?.requesterName || "—"}</div></div>
+              <div><div className="meta-label">Contacto</div><div className="meta-value">{order?.requesterEmail || "—"}</div></div>
+              <div><div className="meta-label">Centro de costo</div><div className="meta-value">{order?.costCenter || "—"}</div></div>
+              <div><div className="meta-label">Categoría</div><div className="meta-value">{order?.category || "—"}</div></div>
+              <div><div className="meta-label">Producción</div><div className="meta-value">{order?.productionName || "—"}</div></div>
+              <div><div className="meta-label">Forma de pago</div><div className="meta-value">{order?.paymentMethod || "—"}</div></div>
+            </div>
+          </div>
+
+          <div className="treasury-detail">
+            <div className="treasury-detail-title">Proveedor</div>
+            <div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
+              <div><div className="meta-label">Razón social</div><div className="meta-value">{order?.supplierLegalName || order?.supplier || "—"}</div></div>
+              <div><div className="meta-label">RUT</div><div className="meta-value">{order?.supplierRut || provider?.rut || "—"}</div></div>
+              <div><div className="meta-label">Dirección</div><div className="meta-value">{order?.supplierAddress || provider?.direccion || "—"}</div></div>
+              <div><div className="meta-label">Comuna / Ciudad</div><div className="meta-value">{[order?.supplierDistrict, order?.supplierCity].filter(Boolean).join(" · ") || "—"}</div></div>
+              <div><div className="meta-label">Contacto</div><div className="meta-value">{effectiveContactName || "—"}</div></div>
+              <div><div className="meta-label">Correo</div><div className="meta-value">{effectiveContactEmail || "—"}</div></div>
+              <div><div className="meta-label">Teléfono</div><div className="meta-value">{effectiveContactPhone || "—"}</div></div>
+              <div><div className="meta-label">Moneda</div><div className="meta-value">{order?.currency || "CLP"}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="treasury-detail">
+          <div className="treasury-detail-title">Detalle de la orden</div>
+          <DetailTable
+            columns={[
+              { key: "description", label: "Descripción" },
+              { key: "quantity", label: "Cantidad", render: row => <span className="treasury-mono">{row.quantity || 0}</span> },
+              { key: "unitPrice", label: "Precio unitario", render: row => <span className="treasury-mono">{fmtM(row.unitPrice || 0)}</span> },
+              { key: "discount", label: "Descuento", render: row => <span className="treasury-mono">{row.discount ? fmtM(row.discount) : "—"}</span> },
+              { key: "subtotal", label: "Subtotal", render: row => <span className="treasury-mono treasury-pending-paid">{fmtM(row.subtotal || 0)}</span> },
+            ]}
+            rows={items}
+            emptyText="Esta orden todavía no tiene líneas registradas."
+          />
+        </div>
+
+        <div className="treasury-detail-grid">
+          <div className="treasury-detail">
+            <div className="treasury-detail-title">Observaciones</div>
+            <div className="treasury-muted" style={{ fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{order?.notes || "Sin observaciones."}</div>
+          </div>
+
+          <div className="treasury-detail">
+            <div className="treasury-detail-title">Aprobación y envío</div>
+            <div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
+              <div><div className="meta-label">Estado</div><div className="meta-value">{order?.approvalStatus || "—"}</div></div>
+              <div><div className="meta-label">Aprobada por</div><div className="meta-value">{order?.approvedBy || "—"}</div></div>
+              <div><div className="meta-label">Fecha aprobación</div><div className="meta-value">{order?.approvedAt ? fmtD(String(order.approvedAt).slice(0, 10)) : "—"}</div></div>
+              <div><div className="meta-label">Último envío</div><div className="meta-value">{order?.lastSentAt ? fmtD(String(order.lastSentAt).slice(0, 10)) : "Sin enviar"}</div></div>
+              <div><div className="meta-label">Destinatario</div><div className="meta-value">{order?.lastSentTo || effectiveContactEmail || "—"}</div></div>
+              <div><div className="meta-label">Asunto</div><div className="meta-value">{order?.lastSentSubject || "—"}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}

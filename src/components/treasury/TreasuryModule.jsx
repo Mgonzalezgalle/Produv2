@@ -11,7 +11,7 @@ import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
 import { ProvidersPanel } from "./TreasuryDetails";
-import { PortfolioDetailModal, ProviderDetailModal } from "./TreasuryDetailModals";
+import { IssuedOrderDetailModal, PortfolioDetailModal, ProviderDetailModal } from "./TreasuryDetailModals";
 import { TreasuryPayableModal } from "./TreasuryPayableModal";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
 import { TreasuryPurchaseOrderModal } from "./TreasuryPurchaseOrderModal";
@@ -19,11 +19,14 @@ import { TreasuryPayablesSection, TreasuryReceivablesSection } from "./TreasuryS
 import { TreasuryStyles, SectionCard, KpiCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
+import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
 
 export function TreasuryModule(props) {
   const [payablesTab, setPayablesTab] = useState("documentos");
   const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [portfolioItem, setPortfolioItem] = useState(null);
+  const [issuedDetailOpen, setIssuedDetailOpen] = useState(false);
+  const [issuedDetailItem, setIssuedDetailItem] = useState(null);
   const [receiptClientFilter, setReceiptClientFilter] = useState("");
   const [receiptPeriodFilter, setReceiptPeriodFilter] = useState("");
   const [payableSupplierFilter, setPayableSupplierFilter] = useState("");
@@ -36,6 +39,14 @@ export function TreasuryModule(props) {
   const [emailComposerSending, setEmailComposerSending] = useState(false);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(null);
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
+  const openIssuedOrderDetail = React.useCallback(item => {
+    setIssuedDetailItem(item);
+    setIssuedDetailOpen(true);
+  }, []);
+  const closeIssuedOrderDetail = React.useCallback(() => {
+    setIssuedDetailOpen(false);
+    setIssuedDetailItem(null);
+  }, []);
   const {
     tab, setTab, filteredReceivables, receivableSummary, portfolio,
     providers, payables, payablesSummary, purchaseOrders, purchaseOrderSummary, issuedOrders, issuedOrderSummary,
@@ -113,12 +124,24 @@ export function TreasuryModule(props) {
         window.alert(result?.message || "No pudimos enviar el correo.");
         return;
       }
+      if (draft?.entityType === "issued_purchase_order" && draft?.entityId) {
+        const current = (issuedOrders || []).find(item => item.id === draft.entityId);
+        if (current) {
+          await saveIssuedOrder({
+            ...current,
+            lastSentAt: new Date().toISOString(),
+            lastSentTo: String(draft?.to || "").trim(),
+            lastSentSubject: String(draft?.subject || "").trim(),
+            lastSentSource: result?.source || "remote",
+          });
+        }
+      }
       setEmailComposerOpen(false);
       setEmailComposerDraft(null);
     } finally {
       setEmailComposerSending(false);
     }
-  }, [deliverEmailDraft]);
+  }, [deliverEmailDraft, issuedOrders, saveIssuedOrder]);
   const openBillingEmailComposer = React.useCallback((doc, entity) => {
     openEmailComposer(createBillingEmailDraft(doc, entity));
   }, [createBillingEmailDraft, openEmailComposer]);
@@ -245,9 +268,72 @@ export function TreasuryModule(props) {
       },
     };
   }, [props.empresa, providers]);
+  const buildIssuedOrderEmailDraft = React.useCallback(async (row) => {
+    const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
+    const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
+    const email = primaryContact?.email || primaryContact?.ema || provider?.email || "";
+    if (!email) {
+      return { ok: false, message: "El proveedor no tiene email registrado." };
+    }
+    const supplierName = row?.supplier || provider?.name || "este proveedor";
+    const issueDateLabel = row?.issueDate ? fmtD(row.issueDate) : "por definir";
+    const resolved = resolveTransactionalEmailTemplate(props.empresa, "issued_purchase_order_supplier", {
+      contactName: primaryContact?.nombre || supplierName,
+      companyName: props.empresa?.nombre || props.empresa?.nom || "Produ",
+      supplierName,
+      documentNumber: row?.number || "sin número",
+      issueDate: issueDateLabel,
+      totalFormatted: fmtM(row?.amount || 0),
+    });
+    const attachments = [];
+    if (row?.pdfUrl) {
+      attachments.push({
+        id: `issued-order-${row?.id || row?.number || "attachment"}`,
+        type: "pdf",
+        src: row.pdfUrl,
+        name: row.pdfName || `${row?.number || "orden-compra"}.pdf`,
+      });
+    } else {
+      try {
+        const file = await buildIssuedOrderPdfFile(row, props.empresa);
+        const src = await buildIssuedOrderPdfDataUrl(row, props.empresa);
+        attachments.push({
+          id: `issued-order-${row?.id || row?.number || "attachment"}`,
+          type: "pdf",
+          src,
+          name: file.name,
+        });
+      } catch (error) {
+        console.warn("[treasury-issued-order-email] No pudimos generar el PDF adjunto de la OC", error);
+      }
+    }
+    return {
+      ok: true,
+      draft: {
+        tenantId: props.empresa?.id || "",
+        templateKey: "issued_purchase_order_supplier",
+        subject: resolved.subject,
+        to: email,
+        body: resolved.body,
+        attachments,
+        entityType: "issued_purchase_order",
+        entityId: row?.id || "",
+        metadata: {
+          companyName: props.empresa?.nombre || props.empresa?.nom || "Produ",
+          supplierName,
+          contactName: primaryContact?.nombre || "",
+          documentNumber: row?.number || "",
+          entityLabel: row?.number || row?.supplier || "OC emitida",
+        },
+      },
+    };
+  }, [props.empresa, providers]);
   const handleSupplierEmail = React.useCallback((row) => {
     openEmailComposer(buildSupplierEmailDraft(row));
   }, [buildSupplierEmailDraft, openEmailComposer]);
+  const handleIssuedOrderEmail = React.useCallback(async (row) => {
+    openEmailComposer(await buildIssuedOrderEmailDraft(row));
+  }, [buildIssuedOrderEmailDraft, openEmailComposer]);
   const handleSupplierWhatsApp = row => {
     const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
     const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
@@ -354,6 +440,8 @@ export function TreasuryModule(props) {
             handleSupplierEmail={handleSupplierEmail}
             handleSupplierWhatsApp={handleSupplierWhatsApp}
             issuedOrderSummary={issuedOrderSummary}
+            sendIssuedOrderEmail={handleIssuedOrderEmail}
+            openIssuedOrderDetail={openIssuedOrderDetail}
             issuedSupplierFilter={issuedSupplierFilter}
             issuedSupplierOptions={issuedSupplierOptions}
             issuedTable={issuedTable}
@@ -382,12 +470,23 @@ export function TreasuryModule(props) {
             setPayablesTab={setPayablesTab}
           />
           <TreasuryPayableModal open={payableOpen} data={payableDraft} providers={providers} listas={props.listas} onClose={closePayable} onSave={savePayable} />
-          <TreasuryIssuedOrderModal open={issuedOpen} data={issuedDraft} onClose={closeIssuedOrder} onSave={saveIssuedOrder} />
+          <TreasuryIssuedOrderModal open={issuedOpen} data={issuedDraft} providers={providers} empresa={props.empresa} user={props.user} producciones={props.producciones} programas={props.programas} piezas={props.piezas} onClose={closeIssuedOrder} onSave={saveIssuedOrder} />
           <TreasuryPaymentModal open={disbursementOpen} title="Registrar pago realizado" subtitle="Asocia el pago a la cuenta por pagar correspondiente" data={disbursementDraft} onClose={closeDisbursement} onSave={saveDisbursement} />
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
       <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} />
+      <IssuedOrderDetailModal
+        open={issuedDetailOpen}
+        order={issuedDetailItem}
+        provider={providers.find(item => item.id === issuedDetailItem?.providerId || item.name === issuedDetailItem?.supplier) || null}
+        onClose={closeIssuedOrderDetail}
+        onEdit={canManageTreasury ? row => {
+          closeIssuedOrderDetail();
+          openIssuedOrderEdit(row);
+        } : null}
+        onEmail={handleIssuedOrderEmail}
+      />
       <TransactionalEmailComposerModal
         open={emailComposerOpen}
         draft={emailComposerDraft}

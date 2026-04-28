@@ -381,10 +381,17 @@ export function summarizePurchaseOrders(rows = []) {
 export function buildTreasuryIssuedOrders({ orders = [], empId = "" } = {}) {
   return (Array.isArray(orders) ? orders : [])
     .filter(item => item?.empId === empId)
-    .map(item => ({
-      ...item,
-      amount: Number(item.amount || 0),
-    }))
+    .map(item => {
+      const items = Array.isArray(item?.items) ? item.items : [];
+      const computedAmount = items.length
+        ? items.reduce((sum, line) => sum + Math.max(0, Number(line?.subtotal || (Number(line?.quantity || 0) * Number(line?.unitPrice || 0) - Number(line?.discount || 0)))), 0)
+        : Number(item.amount || 0);
+      return {
+        ...item,
+        items,
+        amount: Number(computedAmount || 0),
+      };
+    })
     .sort((a, b) => String(a.issueDate || "9999-99-99").localeCompare(String(b.issueDate || "9999-99-99")));
 }
 

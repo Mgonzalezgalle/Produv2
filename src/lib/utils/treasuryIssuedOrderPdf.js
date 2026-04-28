@@ -68,6 +68,17 @@ function orderTotal(order = {}) {
   return Math.max(0, Number(order?.amount || 0));
 }
 
+const PAGE_SIZES = {
+  legal: [612, 1008],
+  letter: [612, 792],
+};
+
+function resolvePageSize(order = {}, empresa = {}) {
+  const raw = String(order?.pageSize || empresa?.documentPageSize || "legal").trim().toLowerCase();
+  if (["letter", "carta"].includes(raw)) return PAGE_SIZES.letter;
+  return PAGE_SIZES.legal;
+}
+
 export function issuedOrderPdfFileName(order = {}) {
   const base = String(order?.number || order?.supplier || "orden-compra")
     .replace(/[^a-z0-9]+/gi, "_")
@@ -124,6 +135,32 @@ function buildItemTable(page, {
     cursorY -= rowHeight + 4;
   });
   return cursorY;
+}
+
+function estimateItemRowHeight(item = {}, font) {
+  const detailLines = wrapPdfText(item.description || "Ítem sin descripción", 248, font, 7.1);
+  return Math.max(24, detailLines.length * 9 + 12);
+}
+
+function paginateItems(items = [], firstAvailableHeight, nextAvailableHeight, font) {
+  const chunks = [];
+  let current = [];
+  let remaining = Math.max(0, firstAvailableHeight - 52);
+
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const needed = estimateItemRowHeight(item, font) + 4;
+    if (current.length && needed > remaining) {
+      chunks.push(current);
+      current = [item];
+      remaining = Math.max(0, nextAvailableHeight - 52) - needed;
+      return;
+    }
+    current.push(item);
+    remaining -= needed;
+  });
+
+  if (current.length) chunks.push(current);
+  return chunks;
 }
 
 function drawColorInfoPanel(page, {
@@ -301,31 +338,27 @@ function drawTwoColumnInfoCard(page, {
   return height;
 }
 
-export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
-  const pdf = await PDFDocument.create();
-  const page = pdf.addPage([612, 792]);
+function drawPageFrame(page, {
+  empresa,
+  order,
+  font,
+  bold,
+  margin,
+  white,
+  surface,
+  border,
+  accentColor,
+  textColor,
+  muted,
+  pageTint,
+  continuation = false,
+}) {
   const { width, height } = page.getSize();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-
-  const accentColor = hexToRgb("#28386b");
-  const textColor = hexToRgb("#1b2232");
-  const muted = hexToRgb("#5f6b84");
-  const white = hexToRgb("#ffffff");
-  const surface = hexToRgb("#f5f8ff");
-  const border = hexToRgb("#cad4e5");
-  const alertColor = hexToRgb("#cf1124");
-  const pageTint = hexToRgb("#edf3ff");
-  const margin = 38;
   const contentWidth = width - margin * 2;
-
-  const items = normalizeItems(order?.items);
-  const currency = String(order?.currency || "CLP").toUpperCase();
-  const total = orderTotal(order);
   const issueDate = order?.issueDate || "";
-  const title = "Orden de Compra";
+  const title = continuation ? "Orden de Compra · Continuación" : "Orden de Compra";
   const docType = "OC Emitida";
-  const compactTitle = String(order?.number || title).trim();
+  const compactTitle = String(order?.number || "Orden de Compra").trim();
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });
   page.drawRectangle({ x: 0, y: height - 112, width, height: 112, color: accentColor });
@@ -377,7 +410,70 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   page.drawText(`Fecha: ${fmtD(issueDate)}`, { x: stampMetaX, y: metaCardY + 8, size: 8.7, font, color: textColor });
   page.drawText(`Estado: ${safe(order?.approvalStatus, "Emitida")}`, { x: stampMetaX + 82, y: metaCardY + 8, size: 8.7, font, color: textColor });
 
-  let y = height - 222;
+  page.drawText("Documento generado desde Produ", {
+    x: margin,
+    y: 26,
+    size: 7.5,
+    font,
+    color: muted,
+  });
+  const closing = "Gracias por confiar en Produ.";
+  const closingWidth = font.widthOfTextAtSize(closing, 7.5);
+  page.drawText(closing, {
+    x: width - margin - closingWidth,
+    y: 26,
+    size: 7.5,
+    font,
+    color: muted,
+  });
+
+  return {
+    width,
+    height,
+    margin,
+    contentWidth,
+    startY: height - 222,
+    bottomLimit: 72,
+  };
+}
+
+export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pageSize = resolvePageSize(order, empresa);
+
+  const accentColor = hexToRgb("#28386b");
+  const textColor = hexToRgb("#1b2232");
+  const muted = hexToRgb("#5f6b84");
+  const white = hexToRgb("#ffffff");
+  const surface = hexToRgb("#f5f8ff");
+  const border = hexToRgb("#cad4e5");
+  const alertColor = hexToRgb("#cf1124");
+  const pageTint = hexToRgb("#edf3ff");
+  const margin = 38;
+
+  const items = normalizeItems(order?.items);
+  const currency = String(order?.currency || "CLP").toUpperCase();
+  const total = orderTotal(order);
+  const issueDate = order?.issueDate || "";
+  let page = pdf.addPage(pageSize);
+  let layout = drawPageFrame(page, {
+    empresa,
+    order,
+    font,
+    bold,
+    margin,
+    white,
+    surface,
+    border,
+    accentColor,
+    textColor,
+    muted,
+    pageTint,
+  });
+  let { width, contentWidth } = layout;
+  let y = layout.startY;
   const supplierLeftLines = [
     { label: "Proveedor", value: order?.supplierLegalName || order?.supplier || "—" },
     { label: "RUT", value: safe(order?.supplierRut) },
@@ -441,24 +537,76 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     discount: 0,
     subtotal: total,
   }];
-  y = buildItemTable(page, {
-    x: margin,
-    y: y - 20,
-    width: contentWidth,
-    items: safeItems,
-    font,
-    bold,
-    accentColor,
-    textColor,
-    white,
-    surface,
-    border,
-    currency,
-  }) - 10;
+
+  const firstTableY = y - 20;
+  const firstAvailableHeight = firstTableY - layout.bottomLimit;
+  const nextAvailableHeight = layout.startY - layout.bottomLimit - 20;
+  const itemChunks = paginateItems(safeItems, firstAvailableHeight, nextAvailableHeight, font);
+  let cursorY = firstTableY;
+
+  itemChunks.forEach((chunk, index) => {
+    if (index > 0) {
+      page = pdf.addPage(pageSize);
+      layout = drawPageFrame(page, {
+        empresa,
+        order,
+        font,
+        bold,
+        margin,
+        white,
+        surface,
+        border,
+        accentColor,
+        textColor,
+        muted,
+        pageTint,
+        continuation: true,
+      });
+      ({ width, contentWidth } = layout);
+      cursorY = layout.startY - 20;
+    }
+    cursorY = buildItemTable(page, {
+      x: margin,
+      y: cursorY,
+      width: contentWidth,
+      items: chunk,
+      font,
+      bold,
+      accentColor,
+      textColor,
+      white,
+      surface,
+      border,
+      currency,
+    }) - 10;
+  });
+  y = cursorY;
 
   const closingCardWidth = 250;
   const leftCardHeight = 52;
   const closingGap = 6;
+  const closingBlockHeight = leftCardHeight * 2 + closingGap;
+  if (y - closingBlockHeight < layout.bottomLimit) {
+    page = pdf.addPage(pageSize);
+    layout = drawPageFrame(page, {
+      empresa,
+      order,
+      font,
+      bold,
+      margin,
+      white,
+      surface,
+      border,
+      accentColor,
+      textColor,
+      muted,
+      pageTint,
+      continuation: true,
+    });
+    ({ width, contentWidth } = layout);
+    y = layout.startY - 20;
+  }
+
   const notesY = y - leftCardHeight;
   const summaryY = notesY - closingGap - leftCardHeight;
   const totalY = summaryY;
@@ -520,23 +668,6 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     bold,
     font,
     white,
-  });
-
-  page.drawText("Documento generado desde Produ", {
-    x: margin,
-    y: 26,
-    size: 7.5,
-    font,
-    color: muted,
-  });
-  const closing = "Gracias por confiar en Produ.";
-  const closingWidth = font.widthOfTextAtSize(closing, 7.5);
-  page.drawText(closing, {
-    x: width - margin - closingWidth,
-    y: 26,
-    size: 7.5,
-    font,
-    color: muted,
   });
 
   const bytes = await pdf.save();

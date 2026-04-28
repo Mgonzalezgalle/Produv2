@@ -227,7 +227,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
   );
 }
 
-export function IssuedOrderDetailModal({ open, order, provider = null, onClose, onEdit, onEmail }) {
+export function IssuedOrderDetailModal({ open, order, provider = null, onClose, onEdit, onEmail, onOpenPdf }) {
   const items = Array.isArray(order?.items) ? order.items : [];
   if (!order) return null;
   const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
@@ -245,7 +245,7 @@ export function IssuedOrderDetailModal({ open, order, provider = null, onClose, 
             <div className="treasury-profile-sub">{order?.supplierLegalName || order?.supplier || "Proveedor"} · {order?.productionName || order?.costCenter || "Sin producción asociada"}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {order?.pdfUrl ? <GBtn onClick={() => window.open(order.pdfUrl, "_blank", "noopener,noreferrer")}>Ver PDF</GBtn> : null}
+            {onOpenPdf ? <GBtn onClick={() => onOpenPdf(order)}>Ver PDF</GBtn> : null}
             {onEmail ? <GBtn onClick={() => onEmail(order)}>Correo</GBtn> : null}
             {onEdit ? <GBtn onClick={() => onEdit(order)}>Editar</GBtn> : null}
             <GBtn onClick={onClose}>Cerrar</GBtn>

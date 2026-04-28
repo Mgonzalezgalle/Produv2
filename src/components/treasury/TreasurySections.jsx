@@ -333,6 +333,7 @@ export function TreasuryPayablesSection({
   handleSupplierWhatsApp,
   issuedOrderSummary,
   sendIssuedOrderEmail,
+  openIssuedOrderPdf,
   openIssuedOrderDetail,
   issuedSupplierFilter,
   issuedSupplierOptions,
@@ -459,6 +460,7 @@ export function TreasuryPayablesSection({
           onEdit={canManageTreasury ? openIssuedOrderEdit : () => {}}
           onDelete={canManageTreasury ? deleteIssuedOrder : () => {}}
           onSupplierEmail={sendIssuedOrderEmail}
+          onOpenPdf={openIssuedOrderPdf}
           onOpenDetail={openIssuedOrderDetail}
           selectedIds={issuedTable.selectedIds}
           toggleSelected={issuedTable.toggleSelected}

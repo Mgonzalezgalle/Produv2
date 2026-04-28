@@ -334,6 +334,28 @@ export function TreasuryModule(props) {
   const handleIssuedOrderEmail = React.useCallback(async (row) => {
     openEmailComposer(await buildIssuedOrderEmailDraft(row));
   }, [buildIssuedOrderEmailDraft, openEmailComposer]);
+  const handleOpenIssuedOrderPdf = React.useCallback(async (row) => {
+    if (!row) return;
+    try {
+      if (String(row.pdfUrl || "").trim()) {
+        window.open(row.pdfUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const file = await buildIssuedOrderPdfFile(row, props.empresa);
+      const objectUrl = URL.createObjectURL(file);
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      await saveIssuedOrder({
+        ...row,
+        pdfUrl: await buildIssuedOrderPdfDataUrl(row, props.empresa),
+        pdfName: row.pdfName || file.name,
+        pdfSource: row.pdfSource || "generated",
+      });
+    } catch (error) {
+      console.warn("[treasury-issued-order-pdf] No pudimos abrir el PDF de la OC", error);
+      window.alert("No pudimos abrir el PDF de la orden de compra.");
+    }
+  }, [props.empresa, saveIssuedOrder]);
   const handleSupplierWhatsApp = row => {
     const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
     const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
@@ -441,6 +463,7 @@ export function TreasuryModule(props) {
             handleSupplierWhatsApp={handleSupplierWhatsApp}
             issuedOrderSummary={issuedOrderSummary}
             sendIssuedOrderEmail={handleIssuedOrderEmail}
+            openIssuedOrderPdf={handleOpenIssuedOrderPdf}
             openIssuedOrderDetail={openIssuedOrderDetail}
             issuedSupplierFilter={issuedSupplierFilter}
             issuedSupplierOptions={issuedSupplierOptions}
@@ -486,6 +509,7 @@ export function TreasuryModule(props) {
           openIssuedOrderEdit(row);
         } : null}
         onEmail={handleIssuedOrderEmail}
+        onOpenPdf={handleOpenIssuedOrderPdf}
       />
       <TransactionalEmailComposerModal
         open={emailComposerOpen}

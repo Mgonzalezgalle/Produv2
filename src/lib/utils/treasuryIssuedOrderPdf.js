@@ -95,7 +95,7 @@ function buildItemTable(page, {
     qty: { label: "Cant.", x: x + 272, width: 36 },
     unit: { label: "Valor Unit.", x: x + 320, width: 92 },
     discount: { label: "Desc.", x: x + 420, width: 64 },
-    total: { label: "Total", x: x + 492, width: 70 },
+    total: { label: "Total", x: x + 470, width: 56 },
   };
 
   page.drawText("Detalle económico", { x, y: y + 8, size: 10.5, font: bold, color: accentColor });
@@ -401,7 +401,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   }];
   y = buildItemTable(page, {
     x: margin,
-    y: y - 5,
+    y: y - 20,
     width: contentWidth,
     items: safeItems,
     font,

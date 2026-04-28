@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ContactBtns } from "../shared/ContactButtons";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
@@ -395,31 +396,18 @@ export function ViewCliDet({
           {emailHistory.map(item => {
             const meta = timelineMeta(item);
             const attachments = normalizeCommentAttachments({ attachments: item.attachments || [] });
-            return <button key={item.id} type="button" onClick={() => setEmailPreview(item)} style={{ width: "100%", textAlign: "left", padding: 14, borderRadius: 14, border: "1px solid var(--bdr)", background: "var(--card)", cursor: "pointer" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
-                <div style={{ width: 24, height: 24, borderRadius: 999, border: `1px solid ${meta.accent}`, color: meta.accent, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, marginTop: 2 }}>›</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: meta.accent }}>{meta.eyebrow}</span>
-                    <Badge label={meta.label} color="gray" sm />
-                    {!!attachments.length && <Badge label={`${attachments.length} adjunto${attachments.length === 1 ? "" : "s"}`} color="cyan" sm />}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", lineHeight: 1.4, marginBottom: 4 }}>
-                    {timelineHeadline(item)}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--cy)", lineHeight: 1.45, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    {timelineSecondary(item)}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.6, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    {item.text || "Sin contenido"}
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
-                  <div>{item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}</div>
-                  <div style={{ marginTop: 4 }}>{item.byName || "Usuario"}</div>
-                </div>
-              </div>
-            </button>;
+            return <ActivityTimelineCard
+              key={item.id}
+              meta={meta}
+              headline={timelineHeadline(item)}
+              secondary={timelineSecondary(item)}
+              preview={item.text || "Sin contenido"}
+              attachments={attachments}
+              dateLabel={item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}
+              authorLabel={item.byName || "Usuario"}
+              onClick={() => setEmailPreview(item)}
+              interactive
+            />;
           })}
         </div> : <Empty text="Sin correos enviados" sub="Aquí verás el historial de correos enviados a este cliente." />}
       </Card>

@@ -2,6 +2,7 @@ import React from "react";
 import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat } from "../../lib/ui/components";
 import { ContactBtns } from "../shared/ContactButtons";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
+import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
 
 function crmActivityMeta(type = "") {
   const safe = String(type || "").trim().toLowerCase();
@@ -120,45 +121,16 @@ export function CrmDetailModal({
               {detailActivities.map(act => {
                 const meta = crmActivityMeta(act.type);
                 const attachments = normalizeCommentAttachments(act);
-                return <div key={act.id} style={{ padding: 14, border: "1px solid var(--bdr2)", borderRadius: 14, background: "var(--sur)" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 999, border: `1px solid ${meta.accent}`, color: meta.accent, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, marginTop: 2 }}>
-                      ›
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: meta.accent }}>{meta.eyebrow}</span>
-                        <Badge label={meta.label} color="gray" sm />
-                        {!!attachments.length && <Badge label={`${attachments.length} adjunto${attachments.length === 1 ? "" : "s"}`} color="cyan" sm />}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", lineHeight: 1.4, marginBottom: 4 }}>
-                        {crmActivityHeadline(act)}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--cy)", lineHeight: 1.45, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {crmActivitySecondary(act)}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.6, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {act.text || "Sin contenido"}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
-                      <div>{act.createdAt ? fmtD(act.createdAt) : "—"}</div>
-                      <div style={{ marginTop: 4 }}>{act.byName || "Sistema"}</div>
-                    </div>
-                  </div>
-                  {!!attachments.length && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 12, paddingLeft: 36 }}>
-                      {attachments.map(att => <a key={att.id || att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name || true} style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid var(--bdr)", textDecoration: "none", background: "var(--bg2)" }}>
-                      {att.type === "pdf"
-                        ? <div style={{ display: "grid", placeItems: "center", height: 96, padding: 10, textAlign: "center" }}>
-                            <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
-                            <div style={{ fontSize: 10, color: "var(--gr3)", lineHeight: 1.35, wordBreak: "break-word" }}>{att.name || "Documento PDF"}</div>
-                          </div>
-                        : <img src={att.src} alt={att.name || "Adjunto email"} style={{ display: "block", width: "100%", height: 96, objectFit: "cover" }} />}
-                      </a>)}
-                    </div>
-                  )}
-                </div>;
+                return <ActivityTimelineCard
+                  key={act.id}
+                  meta={meta}
+                  headline={crmActivityHeadline(act)}
+                  secondary={crmActivitySecondary(act)}
+                  preview={act.text || "Sin contenido"}
+                  attachments={attachments}
+                  dateLabel={act.createdAt ? fmtD(act.createdAt) : "—"}
+                  authorLabel={act.byName || "Sistema"}
+                />;
               })}
               {!detailActivities.length && <Empty text="Sin actividades" sub="Registra llamadas, reuniones, emails o notas rápidas." />}
             </div>

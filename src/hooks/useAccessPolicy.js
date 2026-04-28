@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { canAccessModule, canDo, getRoleConfig, hasAddon } from "../lib/auth/authorization";
+import { actionNeedsAddon, canAccessModule, canDo, getRoleConfig, hasAddon, requiredAddonForAction } from "../lib/auth/authorization";
 
 export function useAccessPolicy({ user, empresa, view }) {
   return useMemo(() => {
@@ -11,17 +11,19 @@ export function useAccessPolicy({ user, empresa, view }) {
       canDoAction(action) {
         return canDo(safeUser, action, safeEmpresa);
       },
+      requiredAddonForAction(action) {
+        return requiredAddonForAction(action);
+      },
       canAccessView(nextView = view) {
         return canAccessModule(safeUser, nextView, safeEmpresa);
       },
       hasAddonEnabled(addon) {
         return hasAddon(safeEmpresa, addon);
       },
-      tasksEnabled: hasAddon(safeEmpresa, "tareas"),
-      budgetsEnabled: hasAddon(safeEmpresa, "presupuestos"),
-      invoicesEnabled: hasAddon(safeEmpresa, "facturacion"),
-      socialEnabled: hasAddon(safeEmpresa, "social"),
+      tasksEnabled: actionNeedsAddon("tareas", safeEmpresa),
+      budgetsEnabled: actionNeedsAddon("presupuestos", safeEmpresa),
+      invoicesEnabled: actionNeedsAddon("facturacion", safeEmpresa),
+      socialEnabled: actionNeedsAddon("contenidos", safeEmpresa),
     };
   }, [empresa, user, view]);
 }
-

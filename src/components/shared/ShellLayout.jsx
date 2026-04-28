@@ -60,7 +60,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
   if (collapsed) {
     return <div style={{ padding:"8px 8px 12px" }}>
       {NAV.map(grp => {
-        const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa) || user?.role==="admin" || user?.role==="superadmin");
+        const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa));
         if (!items.length) return null;
         return <div key={grp.group} style={{marginBottom:10}}>
           <div style={{width:28,height:1,background:"var(--bdr2)",margin:"0 auto 8px",opacity:.7}}/>
@@ -79,7 +79,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
 
   return <div style={{ padding:"4px 0" }}>
     {NAV.map(grp => {
-      const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa) || user?.role==="admin" || user?.role==="superadmin");
+      const items = grp.items.filter(n => !n.need || canDo(user, n.need, empresa));
       if (!items.length) return null;
       const isOpen = open[grp.group] !== false;
       return <div key={grp.group} style={{ margin:"0 8px 10px",background:"transparent",border:"none",borderRadius:12,overflow:"hidden" }}>

@@ -26,8 +26,51 @@ export const ROLE_PERMISSION_GROUPS = [
   { label: "Recursos", items: [["activos","Activos"]] },
 ];
 
+const ACTION_ALIASES = {
+  piezas: "contenidos",
+};
+
+const ACTION_ADDON_REQUIREMENTS = {
+  tareas: "tareas",
+  programas: "television",
+  auspiciadores: "television",
+  contenidos: "social",
+  crm: "crm",
+  presupuestos: "presupuestos",
+  facturacion: "facturacion",
+  tesoreria: "tesoreria",
+  crew: "crew",
+  contratos: "contratos",
+  activos: "activos",
+};
+
+const VIEW_ACCESS_RULES = {
+  tareas: { action: "tareas" },
+  crm: { action: "crm" },
+  presupuestos: { action: "presupuestos" },
+  "pres-det": { action: "presupuestos" },
+  facturacion: { action: "facturacion" },
+  tesoreria: { action: "tesoreria" },
+};
+
+export function normalizePermissionAction(action = "") {
+  const raw = String(action || "").trim();
+  return ACTION_ALIASES[raw] || raw;
+}
+
 export function hasAddon(empresa, addon) {
   return Array.isArray(empresa?.addons) && empresa.addons.includes(addon);
+}
+
+export function requiredAddonForAction(action = "") {
+  const normalized = normalizePermissionAction(action);
+  return ACTION_ADDON_REQUIREMENTS[normalized] || null;
+}
+
+export function actionNeedsAddon(action = "", empresa) {
+  const addon = requiredAddonForAction(action);
+  if (!addon) return true;
+  return hasAddon(empresa, addon);
 }
 
 export function getCustomRoles(empresa = {}) {
@@ -79,28 +122,20 @@ export function sanitizeAssignableRole(role, empresa, actor, fallback = "viewer"
 
 export function canDo(user, action, empresa) {
   if (!user) return false;
+  const normalized = normalizePermissionAction(action);
+  if (!normalized) return false;
+  if (!actionNeedsAddon(normalized, empresa)) return false;
   if (user.role === "superadmin" || user.role === "admin") return true;
   if (user.role === "viewer") return false;
   const custom = getCustomRoles(empresa).find(r => r.key === user.role);
-  if (custom) return (custom.permissions || []).includes(action);
-  return PERMS[user.role]?.includes(action) ?? false;
+  if (custom) return (custom.permissions || []).map(normalizePermissionAction).includes(normalized);
+  return (PERMS[user.role] || []).map(normalizePermissionAction).includes(normalized);
 }
 
 export function canAccessModule(user, view, empresa) {
-  const gated = {
-    tareas: "tareas",
-    crm: "crm",
-    presupuestos: "presupuestos",
-    "pres-det": "presupuestos",
-    facturacion: "facturacion",
-    tesoreria: "tesoreria",
-  };
-  const action = gated[view];
-  if (!action) return true;
-  if (action === "tareas") return hasAddon(empresa, "tareas") && user?.role !== "viewer";
-  if (action === "crm" && !hasAddon(empresa, "crm")) return false;
-  if (action === "presupuestos" && !hasAddon(empresa, "presupuestos")) return false;
-  if (action === "facturacion" && !hasAddon(empresa, "facturacion")) return false;
-  if (action === "tesoreria" && !hasAddon(empresa, "tesoreria")) return false;
-  return canDo(user, action, empresa);
+  const rule = VIEW_ACCESS_RULES[view];
+  if (!rule?.action) return true;
+  if (!actionNeedsAddon(rule.action, empresa)) return false;
+  if (rule.action === "tareas") return user?.role !== "viewer";
+  return canDo(user, rule.action, empresa);
 }

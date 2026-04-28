@@ -248,14 +248,58 @@ export function useLabAdminPanelModule({
     return "Pendiente";
   };
 
+  const syncTenantUserGovernance = async (nextUsers = [], reason = "tenant_user_updated", metadata = {}) => {
+    if (!empresa?.id || !platformServices?.syncTenantUserGovernance) return null;
+    const scopedUsers = (Array.isArray(nextUsers) ? nextUsers : []).filter(member => member?.empId === empresa.id);
+    try {
+      const result = await platformServices.syncTenantUserGovernance(empresa.id, scopedUsers, {
+        reason,
+        actorUserId: user?.id || "",
+        actorUserEmail: user?.email || "",
+        ...metadata,
+      });
+      if (platformServices?.getTenantPlatformSnapshot) {
+        const snapshot = await platformServices.getTenantPlatformSnapshot(empresa.id);
+        setPlatformSnapshot(snapshot || null);
+      }
+      return result;
+    } catch {
+      return null;
+    }
+  };
+
+  const appendTenantUserAudit = async (action, entityId = "", payload = {}) => {
+    if (!empresa?.id || !platformServices?.appendSyncAuditLog) return null;
+    try {
+      return await platformServices.appendSyncAuditLog(
+        empresa.id,
+        action,
+        "tenant_user",
+        entityId,
+        {
+          actorUserId: user?.id || "",
+          actorUserEmail: user?.email || "",
+          ...payload,
+        },
+      );
+    } catch {
+      return null;
+    }
+  };
+
   const resetAccess = async target => {
     if (!canManageAdmin || !target?.id) return;
     const temp = uid().slice(1, 9);
+    let nextUsers = users || [];
     if (platformServices?.updateTenantUser) {
       await platformServices.updateTenantUser(target.id, { password: temp });
     } else {
-      await saveUsers((users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u));
+      nextUsers = (users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u);
+      await saveUsers(nextUsers);
     }
+    await appendTenantUserAudit("tenant_user_access_reset", target.id, {
+      targetEmail: target.email || "",
+    });
     ntf("Acceso temporal generado ✓");
     alert(`Acceso temporal para ${target.email}: ${temp}`);
   };
@@ -285,6 +329,7 @@ export function useLabAdminPanelModule({
       isCrew: uf.isCrew === true,
       crewRole: uf.isCrew === true ? (uf.crewRole || "Crew interno") : "",
     };
+    const nextUsers = uid2 ? (users || []).map(u => u.id === uid2 ? obj : u) : [...(users || []), obj];
     if (platformServices?.updateTenantUser && platformServices?.createTenantUser) {
       if (uid2) {
         await platformServices.updateTenantUser(uid2, { ...obj, password: uf.password || "" });
@@ -301,8 +346,12 @@ export function useLabAdminPanelModule({
         });
       }
     } else {
-      await saveUsers(uid2 ? (users || []).map(u => u.id === uid2 ? obj : u) : [...(users || []), obj]);
+      await saveUsers(nextUsers);
     }
+    await syncTenantUserGovernance(nextUsers, uid2 ? "tenant_user_updated" : "tenant_user_created", {
+      targetUserId: obj.id,
+      targetEmail: obj.email || "",
+    });
     setUf({});
     setUid2(null);
     ntf("Usuario guardado");
@@ -310,21 +359,32 @@ export function useLabAdminPanelModule({
 
   const toggleUserActive = async target => {
     if (!canManageAdmin || !target?.id) return;
+    const nextUsers = (users || []).map(u => u.id === target.id ? { ...u, active: !target.active } : u);
     if (platformServices?.updateTenantUser) {
       await platformServices.updateTenantUser(target.id, { active: !target.active });
     } else {
-      await saveUsers((users || []).map(u => u.id === target.id ? { ...u, active: !u.active } : u));
+      await saveUsers(nextUsers);
     }
+    await syncTenantUserGovernance(nextUsers, "tenant_user_activation_toggled", {
+      targetUserId: target.id,
+      targetEmail: target.email || "",
+      active: !target.active,
+    });
     ntf(target.active ? "Usuario desactivado" : "Usuario activado");
   };
 
   const deleteUser = async target => {
     if (!canManageAdmin || !target?.id || target.role === "superadmin") return;
+    const nextUsers = (users || []).filter(u => u.id !== target.id);
     if (platformServices?.deleteTenantUser) {
       await platformServices.deleteTenantUser(target.id);
     } else {
-      await saveUsers((users || []).filter(u => u.id !== target.id));
+      await saveUsers(nextUsers);
     }
+    await syncTenantUserGovernance(nextUsers, "tenant_user_deleted", {
+      targetUserId: target.id,
+      targetEmail: target.email || "",
+    });
     ntf("Usuario eliminado", "warn");
   };
 

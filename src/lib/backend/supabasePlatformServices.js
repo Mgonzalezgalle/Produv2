@@ -2,6 +2,23 @@ import { sb } from "../auth/supabaseClient";
 
 const FOUNDATION_BASE_ROLE_KEYS = ["admin", "productor", "comercial", "viewer"];
 
+function normalizeTenantGovernanceUsers(tenantUsers = []) {
+  return (Array.isArray(tenantUsers) ? tenantUsers : [])
+    .filter(user => String(user?.empId || "").trim())
+    .map(user => ({
+      id: String(user?.id || "").trim(),
+      name: String(user?.name || "").trim(),
+      email: String(user?.email || "").trim().toLowerCase(),
+      role: String(user?.role || "viewer").trim() || "viewer",
+      active: user?.active !== false,
+      isCrew: user?.isCrew === true,
+      crewRole: user?.isCrew === true ? String(user?.crewRole || "Crew interno").trim() || "Crew interno" : "",
+      empId: String(user?.empId || "").trim(),
+      status: user?.active === false ? "inactive" : "pending",
+    }))
+    .filter(user => user.id && user.empId);
+}
+
 function createRpcCircuitBreaker() {
   const unavailable = new Set();
   return {
@@ -195,6 +212,32 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
         count: Array.isArray(data) ? data.length : 0,
       });
       return Array.isArray(data) ? data : [];
+    },
+
+    async syncTenantUserGovernance(tenantId, tenantUsers = [], options = {}) {
+      const normalizedUsers = normalizeTenantGovernanceUsers(tenantUsers).filter(user => user.empId === tenantId);
+      const syncMeta = {
+        reason: options?.reason || "manual_sync",
+        actorUserId: options?.actorUserId || "",
+        actorUserEmail: options?.actorUserEmail || "",
+        count: normalizedUsers.length,
+      };
+      const userShadows = await this.syncTenantUserShadows(tenantId, normalizedUsers);
+      const identityCandidates = await this.syncIdentityCandidates(tenantId, normalizedUsers);
+      const promotionPlans = await this.planIdentityPromotions(tenantId);
+      const membershipBlueprints = await this.prepareIdentityMembershipBlueprints(tenantId);
+      const membershipTransitionQueue = await this.prepareMembershipTransitionQueue(tenantId);
+      await this.appendSyncAuditLog(tenantId, "tenant_user_governance_synced", "tenant_user_governance", tenantId, syncMeta);
+      return {
+        ok: true,
+        tenantId,
+        source: "remote",
+        userShadows: Array.isArray(userShadows) ? userShadows : [],
+        identityCandidates: Array.isArray(identityCandidates) ? identityCandidates : [],
+        promotionPlans: Array.isArray(promotionPlans) ? promotionPlans : [],
+        membershipBlueprints: Array.isArray(membershipBlueprints) ? membershipBlueprints : [],
+        membershipTransitionQueue: Array.isArray(membershipTransitionQueue) ? membershipTransitionQueue : [],
+      };
     },
 
     async planIdentityPromotions(tenantId) {

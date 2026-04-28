@@ -186,6 +186,29 @@ export function useLabSuperAdminModule({
       });
     })();
   };
+  const syncTenantUserGovernanceForTenants = async ({ nextUsers = [], tenantIds = [], action = "tenant_user_governance_synced", payload = {} } = {}) => {
+    if (!platformServices?.syncTenantUserGovernance) return;
+    const normalizedUsers = Array.isArray(nextUsers) ? nextUsers : [];
+    const scopedTenantIds = [...new Set((tenantIds || []).map(id => String(id || "").trim()).filter(Boolean))];
+    for (const tenantId of scopedTenantIds) {
+      const scopedUsers = normalizedUsers.filter(user => user?.empId === tenantId);
+      try {
+        await platformServices.syncTenantUserGovernance(tenantId, scopedUsers, {
+          reason: action,
+          actorUserId: actorUser?.id || "",
+          actorUserEmail: actorUser?.email || "",
+        });
+      } catch {
+        // Best-effort sync: local operation should remain usable even if foundation is temporarily unavailable.
+      }
+      await appendGovernanceLog(tenantId, action, {
+        actorUserId: actorUser?.id || "",
+        actorUserEmail: actorUser?.email || "",
+        userCount: scopedUsers.length,
+        ...payload,
+      });
+    }
+  };
 
   const totalEmp = (empresas || []).length;
   const activeEmp = (empresas || []).filter(e => e.active !== false).length;
@@ -257,6 +280,15 @@ export function useLabSuperAdminModule({
       ? (users || []).map(u => u.id === existing.id ? { ...u, ...payload } : u)
       : [...(users || []), payload];
     guardedOnSave("users", next);
+    await syncTenantUserGovernanceForTenants({
+      nextUsers: next,
+      tenantIds: [existing?.empId, payload.empId],
+      action: existing ? "system_user_updated" : "system_user_created",
+      payload: {
+        targetUserId: payload.id,
+        targetEmail: payload.email,
+      },
+    });
     setSysUid(null);
     setSysUf({ active: true, role: "admin", empId: "", password: "" });
   };
@@ -282,6 +314,15 @@ export function useLabSuperAdminModule({
     const nextHash = await sha256Hex(tempPassword.trim());
     const next = (users || []).map(u => u.id === user.id ? { ...u, passwordHash: nextHash } : u);
     guardedOnSave("users", next);
+    await syncTenantUserGovernanceForTenants({
+      nextUsers: next,
+      tenantIds: [user.empId],
+      action: "system_user_access_reset",
+      payload: {
+        targetUserId: user.id,
+        targetEmail: user.email || "",
+      },
+    });
     const tenant = (empresas || []).find(emp => emp.id === user.empId) || null;
     const emailResult = await sendAccessEmail({
       tenant,
@@ -301,7 +342,17 @@ export function useLabSuperAdminModule({
       confirmLabel: "Eliminar",
     });
     if (!confirmed) return false;
-    guardedOnSave("users", (users || []).filter(u => u.id !== user.id));
+    const nextUsers = (users || []).filter(u => u.id !== user.id);
+    guardedOnSave("users", nextUsers);
+    await syncTenantUserGovernanceForTenants({
+      nextUsers,
+      tenantIds: [user.empId],
+      action: "system_user_deleted",
+      payload: {
+        targetUserId: user.id,
+        targetEmail: user.email || "",
+      },
+    });
     if (sysUid === user.id) {
       setSysUid(null);
       setSysUf({ active: true, role: "admin", empId: "", password: "" });
@@ -727,6 +778,14 @@ export function useLabSuperAdminModule({
         ? (liveUsers || []).map(u => u.id === alreadyExists.id ? { ...u, name: sol.nom, role: sol.rol || u.role || "admin", active: true, empId: targetEmpId } : u)
         : [...(liveUsers || []), { id: uid(), name: sol.nom, email: sol.ema, passwordHash: await sha256Hex(tempPassword), role: sol.rol || "admin", empId: targetEmpId, active: true, isCrew: false, crewRole: "" }];
       guardedOnSave("users", nextUsers);
+      await syncTenantUserGovernanceForTenants({
+        nextUsers,
+        tenantIds: [targetEmpId],
+        action: "tenant_request_activated",
+        payload: {
+          targetEmail: sol.ema || "",
+        },
+      });
       const empresaExists = (liveEmpresas || []).some(e => e.id === targetEmpId);
       const baseEmpresas = empresaExists
         ? liveEmpresas
@@ -806,7 +865,17 @@ export function useLabSuperAdminModule({
     }
     const tempPassword = uid().slice(1, 9);
     const newUser = { id: uid(), name: sol.nom, email: sol.ema, passwordHash: await sha256Hex(tempPassword), role: sol.rol || "productor", empId: empId || "", active: true };
-    guardedOnSave("users", [...(users || []), newUser]);
+    const nextUsers = [...(users || []), newUser];
+    guardedOnSave("users", nextUsers);
+    await syncTenantUserGovernanceForTenants({
+      nextUsers,
+      tenantIds: [empId || ""],
+      action: "user_request_activated",
+      payload: {
+        targetUserId: newUser.id,
+        targetEmail: newUser.email || "",
+      },
+    });
     await dbSet("produ:solicitudes", cur.filter(s => s.id !== sol.id));
     const tenant = (empresas || []).find(e => e.id === (empId || "")) || null;
     const emailResult = await sendAccessEmail({

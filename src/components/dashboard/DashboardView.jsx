@@ -1,6 +1,6 @@
 import React from "react";
 import { Badge, Card, Empty, Stat } from "../../lib/ui/components";
-import { fmtD, hasAddon, invoiceEntityName, today } from "../../lib/utils/helpers";
+import { cobranzaState, contractVisualState, fmtD, hasAddon, invoiceEntityName, today } from "../../lib/utils/helpers";
 import { getProduBillingFinancialMultiplier, requiresProduCollectionTracking } from "../../lib/integrations/billingDomain";
 
 function daysUntil(date) {
@@ -8,6 +8,66 @@ function daysUntil(date) {
   const now = new Date(`${today()}T12:00:00`);
   const target = new Date(`${date}T12:00:00`);
   return Math.round((target - now) / 86400000);
+}
+
+function sumItems(items = [], resolver = item => item) {
+  return (Array.isArray(items) ? items : []).reduce((sum, item) => sum + Number(resolver(item) || 0), 0);
+}
+
+function sectionCardStyle() {
+  return { padding: "14px 16px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "var(--sur)" };
+}
+
+function statusTone(type = "") {
+  if (type === "critical") return { color: "#ff5566", badge: "red" };
+  if (type === "warning") return { color: "#ffcc44", badge: "yellow" };
+  if (type === "positive") return { color: "#00e08a", badge: "green" };
+  return { color: "var(--cy)", badge: "cyan" };
+}
+
+function amountToCollect(doc = {}) {
+  const multiplier = getProduBillingFinancialMultiplier(doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc);
+  const base = Number(doc.pending ?? doc.saldoPendiente ?? doc.montoPendiente ?? doc.total ?? 0);
+  return Math.max(0, base * multiplier);
+}
+
+function renderActionCard(action) {
+  return (
+    <button
+      key={action.label}
+      onClick={action.fn}
+      style={{ textAlign: "left", padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", cursor: "pointer" }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{action.label}</div>
+      <div style={{ fontSize: 11, color: "var(--gr2)" }}>{action.sub}</div>
+    </button>
+  );
+}
+
+function renderQueueItem(item, navTo) {
+  const tone = statusTone(item.tone);
+  const clickable = Array.isArray(item.target);
+  const content = (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}>
+      <div style={{ width: 10, height: 10, borderRadius: "50%", background: tone.color, flexShrink: 0, boxShadow: `0 0 8px ${tone.color}` }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{item.title}</div>
+        <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
+      </div>
+      {item.badge ? <Badge label={item.badge} color={tone.badge} sm /> : null}
+    </div>
+  );
+  if (!clickable) return <div key={item.id}>{content}</div>;
+  return (
+    <button
+      key={item.id}
+      type="button"
+      onClick={() => navTo(item.target[0], item.target[1])}
+      style={{ width: "100%", border: "none", background: "transparent", padding: 0, margin: 0, textAlign: "left", cursor: "pointer" }}
+    >
+      {content}
+    </button>
+  );
 }
 
 export function ViewDashboard({
@@ -32,206 +92,351 @@ export function ViewDashboard({
 }) {
   const empId = empresa?.id;
   useBal(movimientos, empId);
-  const mvs = (movimientos || []).filter(m => m.empId === empId);
-  const ti = mvs.filter(m => m.tipo === "ingreso").reduce((s, m) => s + Number(m.mon), 0);
-  const tg = mvs.filter(m => m.tipo === "gasto").reduce((s, m) => s + Number(m.mon), 0);
-  const clis = (clientes || []).filter(x => x.empId === empId);
-  const pros = (producciones || []).filter(x => x.empId === empId);
-  const pgs = (programas || []).filter(x => x.empId === empId);
-  const eps = (episodios || []).filter(x => x.empId === empId);
-  const cts = (contratos || []).filter(x => x.empId === empId);
-  const campaigns = (piezas || []).filter(x => x.empId === empId);
-  const pres = (presupuestos || []).filter(x => x.empId === empId);
-  const facts = (facturas || []).filter(x => x.empId === empId);
-  const cobrableFacts = facts.filter(f => requiresProduCollectionTracking(f.documentTypeCode || f.tipoDocumento || f.tipoDoc));
+
+  const mvs = (movimientos || []).filter(item => item.empId === empId);
+  const ingresos = mvs.filter(item => item.tipo === "ingreso");
+  const gastos = mvs.filter(item => item.tipo === "gasto");
+  const ti = sumItems(ingresos, item => item.mon);
+  const tg = sumItems(gastos, item => item.mon);
+  const balance = ti - tg;
+
+  const clis = (clientes || []).filter(item => item.empId === empId);
+  const pros = (producciones || []).filter(item => item.empId === empId);
+  const pgs = (programas || []).filter(item => item.empId === empId);
+  const eps = (episodios || []).filter(item => item.empId === empId);
+  const cts = (contratos || []).filter(item => item.empId === empId);
+  const campaigns = (piezas || []).filter(item => item.empId === empId);
+  const pres = (presupuestos || []).filter(item => item.empId === empId);
+  const facts = (facturas || []).filter(item => item.empId === empId);
+  const activeAssets = (activos || []).filter(item => item.empId === empId);
+
   const canContracts = hasAddon(empresa, "contratos");
   const canBudgets = hasAddon(empresa, "presupuestos") && canDo?.("presupuestos");
   const canInvoices = hasAddon(empresa, "facturacion") && canDo?.("facturacion");
   const canSocial = hasAddon(empresa, "social");
-  const overdueFacts = cobrableFacts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && String(f.fechaVencimiento) < today());
-  const payableSoon = cobrableFacts.filter(f => f.estado !== "Pagada" && f.fechaVencimiento && daysUntil(f.fechaVencimiento) != null && daysUntil(f.fechaVencimiento) >= 0 && daysUntil(f.fechaVencimiento) <= 7);
-  const contractsExpiring = cts.filter(ct => daysUntil(ct.vig) != null && daysUntil(ct.vig) >= 0 && daysUntil(ct.vig) <= 30);
-  const acceptedBudgets = pres.filter(p => p.estado === "Aceptado");
-  const recurringBudgets = pres.filter(p => p.recurring);
-  const activeCampaigns = campaigns.filter(c => c.est === "Activa" || c.est === "Planificada");
-  const pendingEpisodes = eps.filter(e => ["Planificado", "En Edición", "Programado"].includes(e.estado));
-  const activeProductions = pgs.filter(p => p.est === "Activo");
-  const urgentAlerts = (alertas || []).slice(0, 4);
-  const totalAccepted = acceptedBudgets.reduce((s, p) => s + Number(p.total || 0), 0);
-  const dashboardStatus = overdueFacts.length
-    ? `${overdueFacts.length} documento${overdueFacts.length !== 1 ? "s" : ""} vencido${overdueFacts.length !== 1 ? "s" : ""}`
+
+  const collectableFacts = facts.filter(doc => requiresProduCollectionTracking(doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc));
+  const paidFacts = collectableFacts.filter(doc => cobranzaState(doc) === "Pagado");
+  const openFacts = collectableFacts.filter(doc => cobranzaState(doc) !== "Pagado");
+  const overdueFacts = openFacts.filter(doc => cobranzaState(doc) === "Retrasado de pago");
+  const dueSoonFacts = openFacts.filter(doc => {
+    const days = daysUntil(doc.fechaVencimiento);
+    return days !== null && days >= 0 && days <= 7;
+  });
+  const overdueAmount = sumItems(overdueFacts, amountToCollect);
+  const openAmount = sumItems(openFacts, amountToCollect);
+  const paidAmount = sumItems(paidFacts, doc => Number(doc.total || 0) * getProduBillingFinancialMultiplier(doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc));
+
+  const acceptedBudgets = pres.filter(item => item.estado === "Aceptado");
+  const recurringBudgets = pres.filter(item => item.recurring);
+  const totalAccepted = sumItems(acceptedBudgets, item => item.total);
+  const acceptanceRate = pres.length ? Math.round((acceptedBudgets.length / pres.length) * 100) : 0;
+
+  const activeProjects = pros.filter(item => ["En Curso", "Activo", "Pre-Producción", "Producción", "Post-Producción"].includes(item.est));
+  const activePrograms = pgs.filter(item => item.est === "Activo");
+  const pendingEpisodes = eps.filter(item => ["Planificado", "En Edición", "Programado"].includes(item.estado));
+  const publishedEpisodes = eps.filter(item => item.estado === "Publicado");
+  const activeCampaigns = campaigns.filter(item => item.est === "Activa" || item.est === "Planificada");
+  const upcomingShoots = eps.filter(item => {
+    const days = daysUntil(item.fechaGrab);
+    return days !== null && days >= 0 && days <= 7;
+  });
+
+  const contractsExpiring = cts.filter(item => {
+    const days = daysUntil(item.vig);
+    return days !== null && days >= 0 && days <= 30;
+  });
+  const urgentAlerts = (alertas || []).slice(0, 5);
+
+  const operationHealthLabel = overdueFacts.length
+    ? `${overdueFacts.length} documento${overdueFacts.length !== 1 ? "s" : ""} con cobranza vencida`
     : urgentAlerts.length
-      ? `${urgentAlerts.length} alerta${urgentAlerts.length !== 1 ? "s" : ""} prioritaria${urgentAlerts.length !== 1 ? "s" : ""}`
-      : activeProductions.length
-        ? `${activeProductions.length} producci${activeProductions.length !== 1 ? "ones" : "ón"} activa${activeProductions.length !== 1 ? "s" : ""}`
+      ? `${urgentAlerts.length} alerta${urgentAlerts.length !== 1 ? "s" : ""} operativa${urgentAlerts.length !== 1 ? "s" : ""}`
+      : activePrograms.length
+        ? `${activePrograms.length} producci${activePrograms.length !== 1 ? "ones" : "ón"} activa${activePrograms.length !== 1 ? "s" : ""}`
         : "Operación estable";
-  const commercialPulse = [
-    canBudgets ? `${acceptedBudgets.length} presupuestos aceptados` : null,
-    canInvoices ? `${overdueFacts.length} documentos vencidos` : null,
-    canContracts ? `${contractsExpiring.length} contratos por vencer` : null,
-  ].filter(Boolean);
-  const overviewStats = [
-    { label: "Proyectos", value: pros.length, sub: `${pros.filter(p => p.est === "En Curso").length} en curso`, accent: "var(--cy)", vc: "var(--cy)" },
-    { label: "Producciones", value: pgs.length, sub: `${pendingEpisodes.length} episodios pendientes`, accent: "#60a5fa", vc: "#60a5fa" },
-    canSocial
-      ? { label: "Campañas", value: activeCampaigns.length, sub: `${campaigns.length} piezas registradas`, accent: "#00e08a", vc: "#00e08a" }
-      : { label: "Clientes", value: clis.length, sub: "cartera activa", accent: "#00e08a", vc: "#00e08a" },
-    canInvoices
-      ? { label: "Cobranza", value: overdueFacts.length, sub: overdueFacts.length ? `${fmtM(overdueFacts.reduce((s, f) => s + (Number(f.total || 0) * getProduBillingFinancialMultiplier(f.documentTypeCode || f.tipoDocumento || f.tipoDoc)), 0))} vencido` : "Sin vencidos", accent: overdueFacts.length ? "#ff5566" : "#ffcc44", vc: overdueFacts.length ? "#ff5566" : "#ffcc44" }
-      : { label: "Balance", value: fmtM(ti - tg), sub: ti - tg >= 0 ? "resultado positivo" : "requiere atención", accent: ti - tg >= 0 ? "#00e08a" : "#ff5566", vc: ti - tg >= 0 ? "#00e08a" : "#ff5566" },
+  const operationHealthTone = overdueFacts.length ? "#ff5566" : urgentAlerts.length ? "#ffcc44" : "#00e08a";
+
+  const topStats = [
+    {
+      label: "Estado general",
+      value: operationHealthLabel,
+      accent: operationHealthTone,
+      compact: true,
+    },
+    {
+      label: "Balance",
+      value: fmtM(balance),
+      sub: balance >= 0 ? "resultado operativo positivo" : "resultado operativo bajo presión",
+      accent: balance >= 0 ? "#00e08a" : "#ff5566",
+    },
+    {
+      label: "Por cobrar",
+      value: canInvoices ? fmtM(openAmount) : "No activo",
+      sub: canInvoices ? `${openFacts.length} documento${openFacts.length !== 1 ? "s" : ""} abiertos` : "Activa facturación para medir cobranza",
+      accent: canInvoices ? "#ffcc44" : "var(--gr2)",
+    },
+    {
+      label: "Ejecución activa",
+      value: `${activeProjects.length + activePrograms.length}`,
+      sub: `${activeProjects.length} proyectos · ${activePrograms.length} producciones`,
+      accent: "var(--cy)",
+    },
   ];
-  const focusItems = [
-    ...urgentAlerts.map(a => ({
-      id: `alert-${a.id}`,
-      title: a.titulo.replace(/^[^:]+:\s/, ""),
-      sub: `${a.sub} · ${fmtD(a.fecha)}`,
-      badge: a.diff === 0 ? "Hoy" : a.diff === 1 ? "Mañana" : `${a.diff} días`,
-      tone: a.tipo === "urgente" ? "red" : a.tipo === "pronto" ? "yellow" : "cyan",
+
+  const kpis = [
+    { label: "Clientes activos", value: clis.length, sub: "base comercial vigente", accent: "var(--cy)", vc: "var(--cy)" },
+    { label: "Proyectos activos", value: activeProjects.length, sub: `${pros.length} proyectos en total`, accent: "#60a5fa", vc: "#60a5fa" },
+    { label: "Producciones activas", value: activePrograms.length, sub: `${pendingEpisodes.length} episodios pendientes`, accent: "#00e08a", vc: "#00e08a" },
+    canSocial
+      ? { label: "Campañas activas", value: activeCampaigns.length, sub: `${campaigns.length} piezas registradas`, accent: "#a78bfa", vc: "#a78bfa" }
+      : { label: "Episodios publicados", value: publishedEpisodes.length, sub: `${eps.length} episodios totales`, accent: "#a78bfa", vc: "#a78bfa" },
+    canBudgets
+      ? { label: "Aceptación comercial", value: `${acceptanceRate}%`, sub: `${acceptedBudgets.length} de ${pres.length} presupuestos`, accent: acceptanceRate >= 50 ? "#00e08a" : "#ffcc44", vc: acceptanceRate >= 50 ? "#00e08a" : "#ffcc44" }
+      : { label: "Ingresos", value: fmtM(ti), sub: `${ingresos.length} movimientos`, accent: "#00e08a", vc: "#00e08a" },
+    canInvoices
+      ? { label: "Cobranza vencida", value: overdueFacts.length, sub: overdueFacts.length ? `${fmtM(overdueAmount)} pendiente` : "sin documentos críticos", accent: overdueFacts.length ? "#ff5566" : "#00e08a", vc: overdueFacts.length ? "#ff5566" : "#00e08a" }
+      : { label: "Gastos", value: fmtM(tg), sub: `${gastos.length} movimientos`, accent: "#ff5566", vc: "#ff5566" },
+  ];
+
+  const actionCards = [
+    { show: true, label: "Clientes", sub: `${clis.length} activos`, fn: () => navTo("clientes") },
+    { show: true, label: "Proyectos", sub: `${activeProjects.length} en marcha`, fn: () => navTo("producciones") },
+    { show: true, label: "Producciones", sub: `${activePrograms.length} activas`, fn: () => navTo("programas") },
+    { show: canSocial, label: "Contenidos", sub: `${activeCampaigns.length} campañas activas`, fn: () => navTo("contenidos") },
+    { show: canBudgets, label: "Presupuestos", sub: `${acceptedBudgets.length} aceptados`, fn: () => navTo("presupuestos") },
+    { show: canInvoices, label: "Facturación", sub: `${overdueFacts.length} vencidos`, fn: () => navTo("facturacion") },
+  ].filter(item => item.show);
+
+  const priorityQueue = [
+    ...overdueFacts.slice(0, 3).map(doc => ({
+      id: `overdue-${doc.id}`,
+      title: `Cobranza vencida · ${doc.correlativo || "Sin correlativo"}`,
+      sub: `${invoiceEntityName(doc, clientes, auspiciadores)} · ${fmtM(amountToCollect(doc))}`,
+      badge: doc.fechaVencimiento ? fmtD(doc.fechaVencimiento) : "Sin vencimiento",
+      tone: "critical",
+      target: ["facturacion"],
     })),
-    ...payableSoon.slice(0, 2).map(f => ({
-      id: `fact-${f.id}`,
-      title: `Cobranza próxima · ${f.correlativo || "Sin correlativo"}`,
-      sub: `${invoiceEntityName(f, clientes, auspiciadores)} · vence ${fmtD(f.fechaVencimiento)}`,
-      badge: fmtM(f.total || 0),
-      tone: "yellow",
+    ...dueSoonFacts.slice(0, 2).map(doc => ({
+      id: `soon-${doc.id}`,
+      title: `Cobranza próxima · ${doc.correlativo || "Sin correlativo"}`,
+      sub: `${invoiceEntityName(doc, clientes, auspiciadores)} · vence ${fmtD(doc.fechaVencimiento)}`,
+      badge: fmtM(amountToCollect(doc)),
+      tone: "warning",
+      target: ["facturacion"],
     })),
-  ].slice(0, 5);
-  const operationItems = [
-    ...activeProductions.slice(0, 2).map(pg => ({
-      id: `pg-${pg.id}`,
-      title: pg.nom,
-      sub: `${pg.tip} · ${eps.filter(e => e.pgId === pg.id && e.estado === "Publicado").length}/${eps.filter(e => e.pgId === pg.id).length} ep. publicados`,
-      badge: pg.est || "Activo",
-      target: ["pg-det", pg.id],
+    ...contractsExpiring.slice(0, 2).map(contract => ({
+      id: `contract-${contract.id}`,
+      title: contract.nom || "Contrato",
+      sub: `Contrato por vencer${contract.cliId ? ` · ${(clis.find(item => item.id === contract.cliId)?.nom) || "sin cliente"}` : ""}`,
+      badge: contract.vig ? fmtD(contract.vig) : "Sin fecha",
+      tone: "warning",
+      target: ["contratos"],
     })),
-    ...pendingEpisodes.slice(0, 3).map(ep => ({
-      id: `ep-${ep.id}`,
-      title: `Ep. ${ep.num}: ${ep.titulo}`,
-      sub: `${pgs.find(x => x.id === ep.pgId)?.nom || "Producción"}${ep.fechaGrab ? ` · ${fmtD(ep.fechaGrab)}` : ""}`,
-      badge: ep.estado,
+    ...urgentAlerts.map(alerta => ({
+      id: `alert-${alerta.id}`,
+      title: alerta.titulo.replace(/^[^:]+:\s/, ""),
+      sub: `${alerta.sub} · ${fmtD(alerta.fecha)}`,
+      badge: alerta.diff === 0 ? "Hoy" : alerta.diff === 1 ? "Mañana" : `${alerta.diff} días`,
+      tone: alerta.tipo === "urgente" ? "critical" : "warning",
+    })),
+  ].slice(0, 6);
+
+  const executionQueue = [
+    ...activeProjects.slice(0, 2).map(project => ({
+      id: `pro-${project.id}`,
+      title: project.nom,
+      sub: `${project.tip || "Proyecto"} · ${project.est || "Activo"}`,
+      badge: project.est || "Activo",
+      tone: "positive",
+      target: ["pro-det", project.id],
+    })),
+    ...activePrograms.slice(0, 2).map(program => ({
+      id: `pg-${program.id}`,
+      title: program.nom,
+      sub: `${eps.filter(ep => ep.pgId === program.id && ep.estado === "Publicado").length}/${eps.filter(ep => ep.pgId === program.id).length} episodios publicados`,
+      badge: program.est || "Activo",
+      tone: "positive",
+      target: ["pg-det", program.id],
+    })),
+    ...upcomingShoots.slice(0, 2).map(ep => ({
+      id: `shoot-${ep.id}`,
+      title: `Grabación próxima · Ep. ${ep.num || "—"}`,
+      sub: `${pgs.find(item => item.id === ep.pgId)?.nom || "Producción"} · ${ep.titulo || "Sin título"}`,
+      badge: ep.fechaGrab ? fmtD(ep.fechaGrab) : "Sin fecha",
+      tone: "warning",
       target: ["ep-det", ep.id],
     })),
-    ...activeCampaigns.slice(0, 2).map(c => ({
-      id: `camp-${c.id}`,
-      title: c.nom,
-      sub: `${clis.find(cli => cli.id === c.cliId)?.nom || "Sin cliente"} · ${c.mes} ${c.anio}`,
-      badge: c.est || "Activa",
-      target: ["cnt-det", c.id],
+    ...activeCampaigns.slice(0, 2).map(campaign => ({
+      id: `campaign-${campaign.id}`,
+      title: campaign.nom,
+      sub: `${clis.find(item => item.id === campaign.cliId)?.nom || "Sin cliente"} · ${campaign.plataforma || "Contenido"}`,
+      badge: campaign.est || "Activa",
+      tone: "positive",
+      target: ["contenido-det", campaign.id],
     })),
-  ].slice(0, 5);
-  const radarItems = [
-    { label: "Ingresos", value: fmtM(ti), sub: "registrados" },
-    { label: "Gastos", value: fmtM(tg), sub: "egresos" },
-    canBudgets ? { label: "Aceptado", value: fmtM(totalAccepted), sub: "en presupuestos" } : null,
-    canSocial ? { label: "Campañas activas", value: String(activeCampaigns.length), sub: "en contenidos" } : null,
-    empresa.addons?.includes("activos") ? { label: "Activos", value: String((activos || []).filter(a => a.empId === empId).length), sub: "registrados" } : null,
-  ].filter(Boolean).slice(0, 4);
-  const quickActions = [
-    { show: true, label: "Clientes", sub: `${clis.length} activos`, fn: () => navTo("clientes") },
-    { show: true, label: "Proyectos", sub: `${pros.filter(p => p.est === "En Curso").length} en curso`, fn: () => navTo("producciones") },
-    { show: true, label: "Producciones", sub: `${activeProductions.length} activas`, fn: () => navTo("programas") },
-    { show: canSocial, label: "Contenidos", sub: `${activeCampaigns.length} campañas`, fn: () => navTo("contenidos") },
-    { show: canBudgets, label: "Presupuestos", sub: `${acceptedBudgets.length} aceptados`, fn: () => navTo("presupuestos") },
-    { show: canInvoices, label: "Facturación", sub: `${overdueFacts.length} vencidas`, fn: () => navTo("facturacion") },
-  ].filter(x => x.show);
-  const summaryLabelStyle = { fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8 };
-  const summaryValueStyle = { fontFamily: "var(--fb)", fontSize: 28, fontWeight: 700, letterSpacing: -0.02, color: "var(--wh)", lineHeight: 1.05 };
-  const summaryTextStyle = { fontFamily: "var(--fb)", fontSize: 18, fontWeight: 700, letterSpacing: -0.01, color: "var(--wh)", lineHeight: 1.15 };
+  ].slice(0, 6);
 
-  return <div style={{ width: "100%", minWidth: 0 }}>
-    <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>Resumen operativo</div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Hola, {user?.name}</div>
-          <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, maxWidth: 720 }}>Aquí tienes una vista corta de lo importante en {empresa?.nombre}: qué está activo, qué requiere atención y a dónde conviene entrar primero.</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, minWidth: 280, flex: "1 1 320px" }}>
-          <div style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={summaryLabelStyle}>Estado</div>
-            <div style={{ ...summaryTextStyle, marginTop: 14 }}>{dashboardStatus}</div>
-          </div>
-          <div style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={summaryLabelStyle}>Balance</div>
-            <div style={{ ...summaryValueStyle, marginTop: 10, color: ti - tg >= 0 ? "#00e08a" : "#ff5566" }}>{fmtM(ti - tg)}</div>
-          </div>
-          <div style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={summaryLabelStyle}>Clientes</div>
-            <div style={{ ...summaryValueStyle, marginTop: 10, color: "var(--cy)" }}>{clis.length}</div>
-          </div>
-          <div style={{ padding: "14px 16px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={summaryLabelStyle}>Comercial</div>
-            <div style={{ ...summaryTextStyle, marginTop: 14 }}>{commercialPulse[0] || "Sin alertas comerciales"}</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
-        {quickActions.map(action => <button key={action.label} onClick={action.fn} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", cursor: "pointer" }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{action.label}</div>
-          <div style={{ fontSize: 11, color: "var(--gr2)" }}>{action.sub}</div>
-        </button>)}
-      </div>
-    </div>
+  const financialCards = [
+    { label: "Ingresos", value: fmtM(ti), sub: `${ingresos.length} movimientos registrados`, accent: "#00e08a" },
+    { label: "Gastos", value: fmtM(tg), sub: `${gastos.length} egresos registrados`, accent: "#ff5566" },
+    canInvoices
+      ? { label: "Por cobrar", value: fmtM(openAmount), sub: `${openFacts.length} documentos abiertos`, accent: "#ffcc44" }
+      : null,
+    canInvoices
+      ? { label: "Cobrado", value: fmtM(paidAmount), sub: `${paidFacts.length} documentos pagados`, accent: "#00e08a" }
+      : null,
+    canBudgets
+      ? { label: "Aceptado", value: fmtM(totalAccepted), sub: `${recurringBudgets.length} recurrentes`, accent: "var(--cy)" }
+      : null,
+    canContracts
+      ? { label: "Contratos en alerta", value: String(contractsExpiring.length), sub: `${cts.length} contratos registrados`, accent: contractsExpiring.length ? "#ffcc44" : "#00e08a" }
+      : null,
+  ].filter(Boolean);
 
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 18 }}>
-      {overviewStats.map(stat => <Stat key={stat.label} {...stat} />)}
-    </div>
+  const operatingCards = [
+    { label: "Proyectos activos", value: String(activeProjects.length), sub: `${pros.length} proyectos totales` },
+    { label: "Producciones activas", value: String(activePrograms.length), sub: `${pgs.length} producciones registradas` },
+    { label: "Episodios pendientes", value: String(pendingEpisodes.length), sub: `${publishedEpisodes.length} publicados` },
+    canSocial
+      ? { label: "Campañas activas", value: String(activeCampaigns.length), sub: `${campaigns.length} piezas registradas` }
+      : null,
+    upcomingShoots.length
+      ? { label: "Grabaciones en 7 días", value: String(upcomingShoots.length), sub: "atención de calendario" }
+      : null,
+    empresa?.addons?.includes("activos")
+      ? { label: "Activos", value: String(activeAssets.length), sub: "inventario registrado" }
+      : null,
+  ].filter(Boolean);
 
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16, marginBottom: 16 }}>
-      <Card title="Agenda prioritaria" sub={urgentAlerts.length ? `${urgentAlerts.length} hitos cercanos` : "Sin urgencias por ahora"}>
-        {focusItems.length ? focusItems.map(item => {
-          const colores = { red: "#ff5566", yellow: "#ffcc44", cyan: "var(--cy)" };
-          return <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: colores[item.tone], flexShrink: 0, boxShadow: `0 0 8px ${colores[item.tone]}` }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>{item.title}</div>
-              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
+  return (
+    <div style={{ width: "100%", minWidth: 0 }}>
+      <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
+          <div style={{ minWidth: 0, flex: "1 1 420px" }}>
+            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>Panel operativo</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Hola, {user?.name}</div>
+            <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, maxWidth: 780 }}>
+              Este panel resume lo que más conviene revisar en {empresa?.nombre}: salud operativa, presión comercial, ejecución activa y alertas concretas para el día.
             </div>
-            <Badge label={item.badge} color={item.tone} sm />
-          </div>;
-        }) : <Empty text="No tienes alertas prioritarias" sub="El calendario operativo y comercial está al día." />}
-      </Card>
-      <Card title="Operación en foco" sub="Lo siguiente que conviene revisar">
-        {operationItems.length ? operationItems.map(item => <div key={item.id} onClick={() => navTo(item.target[0], item.target[1])} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--bdr)", cursor: "pointer" }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{item.title}</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
           </div>
-          <Badge label={item.badge} sm />
-        </div>) : <Empty text="Sin operación en curso" sub="Crea un proyecto, producción o campaña para empezar." />}
-      </Card>
-    </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, minWidth: 320, flex: "1 1 360px" }}>
+            {topStats.map(item => (
+              <div key={item.label} style={{ ...sectionCardStyle(), minHeight: 110 }}>
+                <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8 }}>{item.label}</div>
+                <div style={{ fontFamily: "var(--fb)", fontSize: item.compact ? 18 : 28, fontWeight: 700, letterSpacing: -0.02, color: item.accent, lineHeight: 1.1, marginTop: item.compact ? 14 : 10 }}>
+                  {item.value}
+                </div>
+                {item.sub ? <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 8 }}>{item.sub}</div> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+          {actionCards.map(renderActionCard)}
+        </div>
+      </div>
 
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
-      <Card title="Radar rápido" action={{ label: "Abrir clientes →", fn: () => navTo("clientes") }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
-          {radarItems.map(item => <div key={item.label} style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{item.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{item.value}</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
-          </div>)}
-        </div>
-      </Card>
-      <Card title="Resumen comercial" sub="Solo lo importante del ciclo de negocio">
-        <div style={{ display: "grid", gap: 10 }}>
-          {canBudgets && <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Presupuestos</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{acceptedBudgets.length} aceptados</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)" }}>Total aceptado: {fmtM(totalAccepted)}{recurringBudgets.length ? ` · ${recurringBudgets.length} recurrentes` : ""}</div>
-          </div>}
-          {canInvoices && <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Facturación</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{facts.length} documentos</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)" }}>{overdueFacts.length ? `${overdueFacts.length} vencidos` : "Sin vencidos"}{payableSoon.length ? ` · ${payableSoon.length} próximos a vencer` : ""}</div>
-          </div>}
-          {canContracts && <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
-            <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Contratos</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{cts.length} registrados</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)" }}>{contractsExpiring.length ? `${contractsExpiring.length} por vencer en 30 días` : `Sin alertas próximas`}</div>
-          </div>}
-          {!canBudgets && !canInvoices && !canContracts && <Empty text="Sin módulos comerciales activos" sub="Activa presupuestos, facturación o contratos para ver este resumen." />}
-        </div>
-      </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 18 }}>
+        {kpis.map(stat => <Stat key={stat.label} {...stat} />)}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px,1.1fr) minmax(320px,.9fr)", gap: 16, marginBottom: 16 }}>
+        <Card title="Atención prioritaria" sub={priorityQueue.length ? "Lo que puede impactar caja u operación si no se revisa" : "Sin riesgos inmediatos visibles"}>
+          {priorityQueue.length
+            ? priorityQueue.map(item => renderQueueItem(item, navTo))
+            : <Empty text="Sin prioridades críticas" sub="No vemos vencimientos ni alertas fuertes en este momento." />}
+        </Card>
+        <Card title="Ejecución en foco" sub="Dónde conviene entrar primero para mover la operación">
+          {executionQueue.length
+            ? executionQueue.map(item => renderQueueItem(item, navTo))
+            : <Empty text="Sin frentes activos" sub="Crea proyectos, producciones o contenidos para empezar a operar." />}
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16, marginBottom: 16 }}>
+        <Card title="Caja y comercial" sub="Métricas útiles para seguir ingresos, cobranza y cierre comercial">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
+            {financialCards.map(item => (
+              <div key={item.label} style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{item.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: item.accent || "var(--wh)", marginBottom: 4 }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card title="Carga operativa" sub="Indicadores claros de la ejecución en curso">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10 }}>
+            {operatingCards.map(item => (
+              <div key={item.label} style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{item.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)" }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
+        <Card title="Lectura comercial" sub="Un resumen corto de cómo está el frente comercial">
+          <div style={{ display: "grid", gap: 10 }}>
+            {canBudgets ? (
+              <div style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Presupuestos</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{acceptedBudgets.length} aceptados</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)" }}>
+                  {pres.length ? `${acceptanceRate}% de aceptación sobre ${pres.length} presupuestos` : "Sin presupuestos registrados"}
+                </div>
+              </div>
+            ) : null}
+            {canInvoices ? (
+              <div style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Cobranza</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{openFacts.length} documentos abiertos</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)" }}>
+                  {overdueFacts.length ? `${overdueFacts.length} vencidos · ${fmtM(overdueAmount)} críticos` : "Sin documentos vencidos"}
+                </div>
+              </div>
+            ) : null}
+            {canContracts ? (
+              <div style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Contratos</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{cts.length} registrados</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)" }}>
+                  {contractsExpiring.length ? `${contractsExpiring.length} por vencer en 30 días` : "Sin alertas próximas"}
+                </div>
+              </div>
+            ) : null}
+            {!canBudgets && !canInvoices && !canContracts && (
+              <Empty text="Sin módulos comerciales activos" sub="Activa presupuestos, facturación o contratos para ampliar este panel." />
+            )}
+          </div>
+        </Card>
+        <Card title="Contexto de operación" sub="Señales que ayudan a decidir prioridades del día">
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={sectionCardStyle()}>
+              <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Producciones y episodios</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{activePrograms.length} activas · {pendingEpisodes.length} pendientes</div>
+              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{upcomingShoots.length ? `${upcomingShoots.length} grabación(es) en los próximos 7 días` : "Sin grabaciones próximas registradas"}</div>
+            </div>
+            <div style={sectionCardStyle()}>
+              <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Relación con clientes</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{clis.length} clientes activos</div>
+              <div style={{ fontSize: 11, color: "var(--gr2)" }}>{canSocial ? `${activeCampaigns.length} campañas activas en contenidos` : `${activeProjects.length} proyectos en marcha`}</div>
+            </div>
+            {canContracts && cts.length ? (
+              <div style={sectionCardStyle()}>
+                <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Contratos</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {cts.slice(0, 4).map(contract => <Badge key={contract.id} label={`${contract.nom || "Contrato"} · ${contractVisualState(contract)}`} color={contractVisualState(contract) === "Vencido" ? "red" : contractVisualState(contract) === "Por vencer" ? "yellow" : "green"} sm />)}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      </div>
     </div>
-  </div>;
+  );
 }

@@ -253,7 +253,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   page.drawText(`Fecha: ${fmtD(issueDate)}`, { x: stampMetaX, y: metaCardY + 8, size: 8.7, font, color: textColor });
   page.drawText(`Estado: ${safe(order?.approvalStatus, "Emitida")}`, { x: stampMetaX + 82, y: metaCardY + 8, size: 8.7, font, color: textColor });
 
-  let y = height - 232;
+  let y = height - 222;
   const supplierText = [
     order?.supplierLegalName || order?.supplier || "—",
     order?.supplierRut ? `RUT: ${order.supplierRut}` : "",
@@ -280,9 +280,6 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     bodyGap: 1.8,
     bodyOffsetY: 3,
   });
-  const supplierTopY = y - 88 + supplierHeight;
-  drawCommercialLabel(page, "Moneda", width - margin - 152, supplierTopY - 18, 74, accentColor, bold, white, 8.6);
-  page.drawText(currency, { x: width - margin - 66, y: supplierTopY - 12, size: 9, font: bold, color: textColor });
   y -= supplierHeight + 18;
 
   const internalText = [
@@ -357,9 +354,33 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   });
   y -= notesHeight + 18;
 
+  const closingPanelY = y - 86;
+  drawDocumentSectionBox(page, {
+    x: width - margin - 440,
+    y: closingPanelY,
+    width: 174,
+    title: "Resumen OC",
+    text: [
+      `Fecha: ${fmtD(issueDate)}`,
+      `Estado: ${safe(order?.approvalStatus, "Emitida")}`,
+      `Pago: ${safe(order?.paymentMethod, "Por definir")}`,
+    ].join("\n"),
+    fillColor: white,
+    borderColor: border,
+    accentColor,
+    font,
+    bold,
+    textColor,
+    muted,
+    titleSize: 9,
+    bodySize: 8.5,
+    bodyGap: 2.2,
+    bodyOffsetY: 2,
+  });
+
   drawColorInfoPanel(page, {
     x: width - margin - 250,
-    y: y - 86,
+    y: closingPanelY,
     width: 250,
     rows: [
       { label: "SubTotal", value: money(total, currency), bold: true, valueSize: 10.2 },

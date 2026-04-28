@@ -193,6 +193,7 @@ function drawFixedInfoCard(page, {
   textColor,
   lineGap = 2.2,
   bodySize = 8.8,
+  bodyOffsetY = 0,
 }) {
   const padding = 14;
   drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
@@ -208,13 +209,54 @@ function drawFixedInfoCard(page, {
     page,
     text,
     x + padding,
-    titleY - 18,
+    titleY - 18 + bodyOffsetY,
     width - padding * 2,
     font,
     bodySize,
     textColor,
     lineGap,
   );
+}
+
+function drawTwoColumnInfoCard(page, {
+  x,
+  y,
+  width,
+  title = "",
+  leftLines = [],
+  rightLines = [],
+  fillColor,
+  borderColor,
+  accentColor,
+  font,
+  bold,
+  textColor,
+  bodySize = 8.6,
+  bodyGap = 1.8,
+}) {
+  const padding = 14;
+  const titleSize = 9.2;
+  const colGap = 18;
+  const colWidth = (width - padding * 2 - colGap) / 2;
+  const leftText = leftLines.filter(Boolean).join("\n") || "—";
+  const rightText = rightLines.filter(Boolean).join("\n") || "—";
+  const leftHeight = measurePdfTextBlock(leftText, colWidth, font, bodySize, bodyGap);
+  const rightHeight = measurePdfTextBlock(rightText, colWidth, font, bodySize, bodyGap);
+  const bodyHeight = Math.max(leftHeight, rightHeight);
+  const height = padding + titleSize + 10 + bodyHeight + 12;
+  drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
+  const titleY = y + height - padding - 1;
+  page.drawText(title, {
+    x: x + padding,
+    y: titleY,
+    size: titleSize,
+    font: bold,
+    color: accentColor,
+  });
+  const bodyY = titleY - 18;
+  drawPdfTextBlock(page, leftText, x + padding, bodyY, colWidth, font, bodySize, textColor, bodyGap);
+  drawPdfTextBlock(page, rightText, x + padding + colWidth + colGap, bodyY, colWidth, font, bodySize, textColor, bodyGap);
+  return height;
 }
 
 export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
@@ -294,61 +336,59 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   page.drawText(`Estado: ${safe(order?.approvalStatus, "Emitida")}`, { x: stampMetaX + 82, y: metaCardY + 8, size: 8.7, font, color: textColor });
 
   let y = height - 222;
-  const supplierText = [
+  const supplierLeftLines = [
     order?.supplierLegalName || order?.supplier || "—",
     order?.supplierRut ? `RUT: ${order.supplierRut}` : "",
     order?.supplierAddress || "",
+  ];
+  const supplierRightLines = [
     [order?.supplierDistrict, order?.supplierCity].filter(Boolean).join(" · "),
     order?.supplierContactName ? `Contacto: ${order.supplierContactName}` : "",
     [order?.supplierContactEmail, order?.supplierContactPhone].filter(Boolean).join(" · "),
-  ].filter(Boolean).join("\n");
-  const supplierHeight = drawDocumentSectionBox(page, {
+  ];
+  const supplierHeight = drawTwoColumnInfoCard(page, {
     x: margin,
     y: y - 88,
     width: contentWidth,
     title: "Proveedor",
-    text: supplierText,
+    leftLines: supplierLeftLines,
+    rightLines: supplierRightLines,
     fillColor: white,
     borderColor: border,
     accentColor,
     font,
     bold,
     textColor,
-    muted,
-    titleSize: 9.2,
     bodySize: 8.8,
     bodyGap: 1.8,
-    bodyOffsetY: 3,
   });
   y -= supplierHeight + 18;
 
-  const internalText = [
+  const internalLeftLines = [
     `Solicitante: ${safe(order?.requesterName)}`,
     `Contacto: ${safe(order?.requesterEmail)}`,
     `Centro de costo: ${safe(order?.costCenter)}`,
+  ];
+  const internalRightLines = [
     `Categoría: ${safe(order?.category)}`,
     `Producción / proyecto: ${safe(order?.productionName)}`,
     `Forma de pago: ${safe(order?.paymentMethod)}`,
-  ].join("\n");
-  const internalTextHeight = Math.max(8.8 + 2, measurePdfTextBlock(internalText, contentWidth - 28, font, 8.8, 1.8));
-  const internalHeight = 14 + 16 + internalTextHeight + 12;
-  drawDocumentSectionBox(page, {
+  ];
+  const internalHeight = drawTwoColumnInfoCard(page, {
     x: margin,
-    y: y - internalHeight,
+    y: y - 92,
     width: contentWidth,
     title: "Contexto interno",
-    text: internalText,
+    leftLines: internalLeftLines,
+    rightLines: internalRightLines,
     fillColor: white,
     borderColor: border,
     accentColor,
     font,
     bold,
     textColor,
-    muted,
-    titleSize: 9.2,
     bodySize: 8.8,
     bodyGap: 1.8,
-    bodyOffsetY: 3,
   });
   y -= internalHeight + 22;
 
@@ -417,6 +457,7 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     textColor,
     lineGap: 1.2,
     bodySize: 7.1,
+    bodyOffsetY: 2,
   });
 
   drawColorInfoPanel(page, {

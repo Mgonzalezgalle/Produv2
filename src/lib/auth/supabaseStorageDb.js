@@ -19,6 +19,12 @@ function parseStoredValue(key, rawValue) {
 
 let legacyStorageRpcAvailability = "unknown";
 
+function isLegacyStorageRpcUnavailableError(error) {
+  const code = String(error?.code || "").trim();
+  const message = String(error?.message || "").toLowerCase();
+  return code === "PGRST202" || code === "42883" || message.includes("could not find the function");
+}
+
 function shouldTryLegacyStorageRpc() {
   return legacyStorageRpcAvailability !== "unavailable";
 }
@@ -73,8 +79,19 @@ export async function dbGetDetailed(key) {
           ...parsed,
         };
       } catch (rpcError) {
-        markLegacyStorageRpcUnavailable();
-        console.warn("[lab-storage] RPC de lectura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+        if (isLegacyStorageRpcUnavailableError(rpcError)) {
+          markLegacyStorageRpcUnavailable();
+          console.warn("[lab-storage] RPC de lectura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+        } else {
+          console.error("[lab-storage] RPC de lectura falló", { key, error: rpcError });
+          return {
+            ok: false,
+            exists: false,
+            value: null,
+            errorType: "rpc_read_error",
+            error: rpcError,
+          };
+        }
       }
     }
     const { data, error } = await sb.from("storage").select("value").eq("key", key).maybeSingle();
@@ -124,8 +141,18 @@ export async function dbSetDetailed(key, val) {
       try {
         return await writeViaLegacyStorageRpc(key, rawValue);
       } catch (rpcError) {
-        markLegacyStorageRpcUnavailable();
-        console.warn("[lab-storage] RPC de escritura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+        if (isLegacyStorageRpcUnavailableError(rpcError)) {
+          markLegacyStorageRpcUnavailable();
+          console.warn("[lab-storage] RPC de escritura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+        } else {
+          console.error("[lab-storage] RPC de escritura falló", { key, error: rpcError });
+          return {
+            ok: false,
+            value: val,
+            errorType: "rpc_write_error",
+            error: rpcError,
+          };
+        }
       }
     }
     const { error } = await sb.from("storage").upsert({ key, value: rawValue }, { onConflict: "key" });

@@ -48,11 +48,16 @@ function useDB(key, initial = null, options = {}) {
   }, [key, initial, enabled, deferInitialLoad]);
 
   const save = useCallback(async next => {
+    const previous = dataRef.current;
     const resolved = typeof next === "function" ? next(dataRef.current) : next;
     writingRef.current = true;
     setData(resolved);
-    await dbSet(key, resolved);
+    const persisted = await dbSet(key, resolved);
     writingRef.current = false;
+    if (!persisted) {
+      setData(previous);
+      throw new Error(`No pudimos persistir ${key}`);
+    }
     return resolved;
   }, [key]);
 

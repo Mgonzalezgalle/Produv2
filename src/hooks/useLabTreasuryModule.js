@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildTreasuryProviders,
   buildTreasuryDisbursementLog,
@@ -12,6 +12,7 @@ import {
   summarizePurchaseOrders,
   summarizeStoredPayables,
   summarizeTreasuryReceivables,
+  recoverTreasuryDisbursementsFromProviders,
 } from "../lib/utils/treasury";
 
 export function useLabTreasuryModule({
@@ -36,6 +37,13 @@ export function useLabTreasuryModule({
   const setTreasuryReceipts = treasury.setReceipts;
   const treasuryDisbursements = treasury.disbursements || [];
   const setTreasuryDisbursements = treasury.setDisbursements;
+  const treasuryDisbursementsRecovered = useMemo(
+    () => recoverTreasuryDisbursementsFromProviders({ providers: treasuryProviders, empId }),
+    [treasuryProviders, empId],
+  );
+  const effectiveTreasuryDisbursements = Array.isArray(treasuryDisbursements) && treasuryDisbursements.length
+    ? treasuryDisbursements
+    : treasuryDisbursementsRecovered;
 
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState("");
@@ -82,8 +90,8 @@ export function useLabTreasuryModule({
   );
 
   const payables = useMemo(
-    () => buildTreasuryPayables({ payables: treasuryPayables, disbursements: treasuryDisbursements, empId }),
-    [treasuryPayables, treasuryDisbursements, empId],
+    () => buildTreasuryPayables({ payables: treasuryPayables, disbursements: effectiveTreasuryDisbursements, empId }),
+    [treasuryPayables, effectiveTreasuryDisbursements, empId],
   );
 
   const payablesSummary = useMemo(
@@ -127,9 +135,15 @@ export function useLabTreasuryModule({
   );
 
   const disbursementLog = useMemo(
-    () => buildTreasuryDisbursementLog({ disbursements: treasuryDisbursements, payables: treasuryPayables, empId }),
-    [treasuryDisbursements, treasuryPayables, empId],
+    () => buildTreasuryDisbursementLog({ disbursements: effectiveTreasuryDisbursements, payables: treasuryPayables, empId }),
+    [effectiveTreasuryDisbursements, treasuryPayables, empId],
   );
+
+  useEffect(() => {
+    if (Array.isArray(treasuryDisbursements) && treasuryDisbursements.length) return;
+    if (!treasuryDisbursementsRecovered.length) return;
+    Promise.resolve(setTreasuryDisbursements?.(treasuryDisbursementsRecovered)).catch(() => {});
+  }, [setTreasuryDisbursements, treasuryDisbursements, treasuryDisbursementsRecovered]);
 
   const savePayable = async next => {
     if (!canManageTreasury) return false;
@@ -217,10 +231,11 @@ export function useLabTreasuryModule({
     if (!nextAmount || nextAmount <= 0) return false;
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
     const safeNext = { ...next, empId, amount: nextAmount };
-    const exists = treasuryDisbursements.some(item => item.id === safeNext.id);
+    const baseDisbursements = Array.isArray(treasuryDisbursements) ? treasuryDisbursements : effectiveTreasuryDisbursements;
+    const exists = baseDisbursements.some(item => item.id === safeNext.id);
     const updated = exists
-      ? treasuryDisbursements.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...treasuryDisbursements, safeNext];
+      ? baseDisbursements.map(item => item.id === safeNext.id ? safeNext : item)
+      : [...baseDisbursements, safeNext];
     await setTreasuryDisbursements?.(updated);
     setDisbursementOpen(false);
     setDisbursementDraft(null);

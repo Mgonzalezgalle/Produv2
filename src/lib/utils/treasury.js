@@ -136,6 +136,43 @@ function normalizePayments(payments = [], empId = "", targetKey = "", targetId =
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 }
 
+export function recoverTreasuryDisbursementsFromProviders({ providers = [], empId = "" } = {}) {
+  const recovered = [];
+  (Array.isArray(providers) ? providers : [])
+    .filter(item => item?.empId === empId)
+    .forEach((provider) => {
+      (Array.isArray(provider?.payables) ? provider.payables : []).forEach((payable) => {
+        (Array.isArray(payable?.paymentHistory) ? payable.paymentHistory : []).forEach((payment) => {
+          recovered.push({
+            ...payment,
+            empId: payment?.empId || empId,
+            payableId: payment?.payableId || payable?.id || "",
+          });
+        });
+      });
+    });
+  const seen = new Set();
+  return recovered
+    .filter(item => item?.empId === empId && item?.payableId)
+    .map(item => ({
+      ...item,
+      amount: Number(item.amount || 0),
+    }))
+    .filter(item => {
+      const fingerprint = [
+        item.id || "",
+        item.payableId || "",
+        item.date || "",
+        item.reference || "",
+        Number(item.amount || 0),
+      ].join("|");
+      if (seen.has(fingerprint)) return false;
+      seen.add(fingerprint);
+      return true;
+    })
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+}
+
 function receivableBucket(doc = {}) {
   const dueDate = doc.fechaVencimiento || "";
   if (!dueDate) return "Sin vencimiento";

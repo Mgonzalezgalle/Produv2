@@ -132,3 +132,67 @@ export function getIntegrationArchitectureSnapshot() {
     registry: getIntegrationRegistry(),
   };
 }
+
+const TENANT_INTEGRATION_BINDINGS = [
+  {
+    tenantKey: "bsale",
+    registryId: "electronic_invoicing",
+    isEnabled(empresa = {}) {
+      return String(empresa?.integrationConfigs?.bsale?.governance?.mode || "disabled") !== "disabled";
+    },
+  },
+  {
+    tenantKey: "mercadoPago",
+    registryId: "mercadopago_payments",
+    isEnabled(empresa = {}) {
+      return String(empresa?.integrationConfigs?.mercadoPago?.governance?.mode || "disabled") !== "disabled";
+    },
+  },
+  {
+    tenantKey: "googleCalendar",
+    registryId: "google_calendar",
+    isEnabled(empresa = {}) {
+      return String(empresa?.integrationConfigs?.googleCalendar?.governance?.mode || "disabled") !== "disabled" || empresa?.googleCalendarEnabled === true;
+    },
+  },
+  {
+    tenantKey: "transactionalEmail",
+    registryId: "transactional_email",
+    isEnabled(empresa = {}) {
+      return String(empresa?.integrationConfigs?.transactionalEmail?.governance?.mode || "disabled") !== "disabled";
+    },
+  },
+  {
+    tenantKey: "freshdesk",
+    registryId: "freshdesk",
+    isEnabled(empresa = {}) {
+      return empresa?.freshdeskEnabled === true || empresa?.supportChatEnabled === true;
+    },
+  },
+];
+
+function isIndustrializedStage(stage = "") {
+  return [INTEGRATION_STAGE.READY_FOR_PRODUCTION, INTEGRATION_STAGE.ACTIVE_IN_PRODUCTION].includes(stage);
+}
+
+export function buildTenantIntegrationMaturity(empresa = {}) {
+  const enabled = TENANT_INTEGRATION_BINDINGS
+    .filter(binding => binding.isEnabled(empresa))
+    .map((binding) => {
+      const record = getIntegrationById(binding.registryId);
+      return record ? { tenantKey: binding.tenantKey, ...record } : null;
+    })
+    .filter(Boolean);
+  const industrialized = enabled.filter(record => isIndustrializedStage(record.stage));
+  const inFlight = enabled.filter(record => !isIndustrializedStage(record.stage));
+  const warnings = inFlight.map((record) => (
+    `${record.name} sigue en etapa ${String(record.stage || "discovery").replaceAll("_", " ")}.`
+  ));
+  return {
+    enabledCount: enabled.length,
+    industrializedCount: industrialized.length,
+    inFlightCount: inFlight.length,
+    warnings,
+    records: enabled,
+  };
+}

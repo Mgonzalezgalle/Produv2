@@ -113,12 +113,18 @@ export function EmpresaEditSection({
               <Badge label={operationalHealth.profileReady ? "Perfil OK" : "Perfil incompleto"} color={operationalHealth.profileReady ? "green" : "yellow"} sm />
               <Badge label={operationalHealth.paymentReady ? "Pago OK" : "Pago pendiente"} color={operationalHealth.paymentReady ? "green" : "yellow"} sm />
               <Badge label={operationalHealth.roleCoverageReady ? "Admin cubierto" : "Sin admin activo"} color={operationalHealth.roleCoverageReady ? "green" : "red"} sm />
+              <Badge label={operationalHealth.permissionReady ? "Permisos OK" : "Permisos en riesgo"} color={operationalHealth.permissionReady ? "green" : "yellow"} sm />
+              <Badge label={operationalHealth.privilegedMfaReady ? "MFA cubierto" : "MFA pendiente"} color={operationalHealth.privilegedMfaReady ? "green" : "yellow"} sm />
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
             <KV label="Usuarios activos" value={operationalHealth.activeUserCount} />
             <KV label="Admins activos" value={operationalHealth.activeAdminCount} />
             <KV label="Addons activos" value={operationalHealth.addonCount} />
+            <KV label="Roles inválidos" value={operationalHealth.invalidRoleUserCount} />
+            <KV label="Admins sin MFA" value={operationalHealth.privilegedWithoutMfaCount} />
+            <KV label="Integraciones activas" value={operationalHealth.integrationEnabledCount} />
+            <KV label="Integraciones industrializadas" value={operationalHealth.integrationIndustrializedCount} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
           <div style={{display:"grid",gap:6}}>

@@ -90,8 +90,6 @@ function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
             if (JSON.stringify(prev) === JSON.stringify(remote)) return prev;
             return remote;
           });
-        } else if (saveFn) {
-          await saveFn(prev => prev);
         }
       } catch {}
       finally {

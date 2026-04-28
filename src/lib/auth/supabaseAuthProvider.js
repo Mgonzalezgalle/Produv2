@@ -1,5 +1,6 @@
 import { sb } from "./supabaseClient";
 import { findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
+import { isStoredSessionExpired, validateStoredSessionBinding } from "./sessionStorage";
 
 function warnSupabaseAuth(message, error, extra = {}) {
   console.warn(message, {
@@ -112,13 +113,25 @@ export async function activateSupabaseAccount({ users = [], empresas = [], email
 
 export async function restoreSupabaseSession({ users = [], empresas = [], storedSession = null }) {
   try {
+    if (storedSession && isStoredSessionExpired(storedSession)) {
+      return { user: null, empresa: null, clearSession: true, invalidReason: "expired_session" };
+    }
     const { data, error } = await sb.auth.getSession();
     if (error || !data?.session?.user?.email) {
       return { user: null, empresa: null, clearSession: false };
     }
     const domainUser = findActiveDomainUserByEmail(users, data.session.user.email);
     if (!domainUser) {
-      return { user: null, empresa: null, clearSession: true };
+      return { user: null, empresa: null, clearSession: true, invalidReason: "user_not_linked" };
+    }
+    const sessionBinding = validateStoredSessionBinding(storedSession || {
+      userId: domainUser.id,
+      role: domainUser.role,
+      empId: domainUser.role === "superadmin" ? storedSession?.empId || null : domainUser.empId,
+      authStrength: storedSession?.authStrength || "password_only",
+    }, domainUser, empresas, { enforceLocalMfa: false });
+    if (!sessionBinding.ok) {
+      return { user: null, empresa: null, clearSession: true, invalidReason: sessionBinding.reason };
     }
     return {
       user: domainUser,

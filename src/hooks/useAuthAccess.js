@@ -25,6 +25,10 @@ export function useAuthAccess({ users, empresas, sessionKey, strategy }) {
         setCurUser(next.user);
         setCurEmp(next.empresa);
         if (next.clearSession) {
+          console.warn("Auth session cleared during restore", {
+            strategy: gateway.strategy,
+            reason: next.invalidReason || "session_invalidated",
+          });
           removeStoredJson(sessionKey);
           setStoredSession(null);
         }

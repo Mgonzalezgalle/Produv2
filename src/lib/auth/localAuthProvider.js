@@ -1,4 +1,4 @@
-import { isStoredSessionExpired, removeStoredJson, saveStoredJson, sessionPayload } from "./sessionStorage";
+import { isStoredSessionExpired, removeStoredJson, saveStoredJson, sessionPayload, validateStoredSessionBinding } from "./sessionStorage";
 import { sha256Hex } from "./authCrypto";
 import { findActiveDomainUserByEmail, findActiveDomainUserById, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 import { requiresLocalTwoFactor } from "./localTwoFactor";
@@ -94,9 +94,10 @@ export function resolveSessionState({ storedSession, users = [], empresas = [], 
     removeStoredJson(sessionKey);
     return { user: null, empresa: null, clearSession: true };
   }
-  if (requiresLocalTwoFactor(freshUser) && storedSession?.authStrength !== "mfa_totp") {
+  const sessionBinding = validateStoredSessionBinding(storedSession, freshUser, empresas);
+  if (!sessionBinding.ok) {
     removeStoredJson(sessionKey);
-    return { user: null, empresa: null, clearSession: true };
+    return { user: null, empresa: null, clearSession: true, invalidReason: sessionBinding.reason };
   }
   const freshEmp = resolveTenantForUser(freshUser, empresas, storedSession);
   return { user: freshUser, empresa: freshEmp || null, clearSession: false };

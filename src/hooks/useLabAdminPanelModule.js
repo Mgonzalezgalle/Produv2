@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
+import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
+import { getCustomRoles } from "../lib/auth/authorization";
+import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
 
 function safeText(value = "") {
   return String(value || "").trim();
@@ -10,6 +13,14 @@ function safeText(value = "") {
 function buildOperationalHealth(empresa, empUsers = []) {
   const activeUsers = empUsers.filter(user => user?.active !== false);
   const activeAdmins = activeUsers.filter(user => ["admin", "superadmin"].includes(user?.role || ""));
+  const customRoleKeys = new Set(getCustomRoles(empresa).map(role => role?.key).filter(Boolean));
+  const invalidRoleUsers = activeUsers.filter((member) => {
+    const role = String(member?.role || "").trim();
+    if (!role) return true;
+    if (["superadmin", "admin", "productor", "comercial", "viewer"].includes(role)) return false;
+    return !customRoleKeys.has(role);
+  });
+  const privilegedWithoutMfa = activeAdmins.filter((member) => requiresLocalTwoFactor(member) && !String(member?.totpSecret || "").trim());
   const payment = empresa?.paymentDetails || {};
   const profileReady = Boolean(safeText(empresa?.nombre) && safeText(empresa?.rut) && safeText(empresa?.ema));
   const paymentReady = Boolean(
@@ -19,20 +30,33 @@ function buildOperationalHealth(empresa, empUsers = []) {
     && safeText(payment?.email || empresa?.paymentEmail || empresa?.ema)
   );
   const roleCoverageReady = activeAdmins.length > 0;
+  const permissionReady = invalidRoleUsers.length === 0;
+  const privilegedMfaReady = privilegedWithoutMfa.length === 0;
   const addonCount = Array.isArray(empresa?.addons) ? empresa.addons.length : 0;
+  const integrationMaturity = buildTenantIntegrationMaturity(empresa);
   const warnings = [
     !profileReady ? "Completar razón social, RUT o correo principal." : "",
     !paymentReady ? "Completar datos bancarios para documentos y pagos." : "",
     !roleCoverageReady ? "No hay un admin activo asignado al tenant." : "",
+    !permissionReady ? "Hay usuarios activos con rol inválido o rol custom huérfano." : "",
+    !privilegedMfaReady ? "Hay admins sin MFA local configurado." : "",
     addonCount === 0 ? "No hay addons activos visibles para la empresa." : "",
+    ...integrationMaturity.warnings,
   ].filter(Boolean);
   return {
     profileReady,
     paymentReady,
     roleCoverageReady,
+    permissionReady,
+    privilegedMfaReady,
     addonCount,
     activeUserCount: activeUsers.length,
     activeAdminCount: activeAdmins.length,
+    invalidRoleUserCount: invalidRoleUsers.length,
+    privilegedWithoutMfaCount: privilegedWithoutMfa.length,
+    integrationEnabledCount: integrationMaturity.enabledCount,
+    integrationIndustrializedCount: integrationMaturity.industrializedCount,
+    integrationInFlightCount: integrationMaturity.inFlightCount,
     warningCount: warnings.length,
     warnings,
   };

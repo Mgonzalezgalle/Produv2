@@ -65,6 +65,40 @@ export function isStoredSessionExpired(session = null, now = Date.now()) {
   return false;
 }
 
+export function validateStoredSessionBinding(session = null, user = null, empresas = [], options = {}) {
+  const enforceLocalMfa = options.enforceLocalMfa !== false;
+  if (!session?.userId) {
+    return { ok: false, reason: "missing_user" };
+  }
+  if (!user?.id || user.id !== session.userId) {
+    return { ok: false, reason: "user_mismatch" };
+  }
+  if (!user?.active) {
+    return { ok: false, reason: "inactive_user" };
+  }
+  if (String(user?.role || "") !== String(session?.role || "")) {
+    return { ok: false, reason: "role_mismatch" };
+  }
+  if (user?.role !== "superadmin") {
+    if (!user?.empId) return { ok: false, reason: "missing_tenant_binding" };
+    if (String(user.empId) !== String(session?.empId || "")) {
+      return { ok: false, reason: "tenant_mismatch" };
+    }
+  }
+  if (session?.empId) {
+    const tenant = (Array.isArray(empresas) ? empresas : []).find(
+      empresa => empresa?.id === session.empId,
+    );
+    if (!tenant || tenant?.active === false) {
+      return { ok: false, reason: "inactive_tenant" };
+    }
+  }
+  if (enforceLocalMfa && requiresLocalTwoFactor(user) && session?.authStrength !== "mfa_totp") {
+    return { ok: false, reason: "missing_mfa" };
+  }
+  return { ok: true, reason: "" };
+}
+
 function getSessionStore() {
   try {
     if (typeof sessionStorage !== "undefined") return sessionStorage;

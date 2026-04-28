@@ -823,6 +823,44 @@ export function PlatformFoundationPanel({
                 {!(platformSnapshot?.auditLogs||[]).length&&<div style={{fontSize:11,color:"var(--gr2)"}}>Sin audit logs remotos aún.</div>}
               </div>
             </Card>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              <Card title="Audit logs de storage legacy" sub="Cambios críticos del carril legacy ya protegidos por RPC">
+                <div style={{display:"grid",gap:8}}>
+                  {(platformSnapshot?.storageAuditLogs||[]).map(log => <div key={log.id} style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:4}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{log.storageKey}</div>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                        <Badge label={log.action || "write"} color={String(log.action || "").startsWith("block") ? "yellow" : "gray"} sm />
+                        <div style={{fontSize:10,color:"var(--gr2)"}}>{log.createdAt ? new Date(log.createdAt).toLocaleString("es-CL") : "—"}</div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:11,color:"var(--gr2)"}}>previo {log.previous?.type || "n/a"} / siguiente {log.next?.type || "n/a"} · actor {log.actorRole || "anon"}</div>
+                  </div>)}
+                  {!(platformSnapshot?.storageAuditLogs||[]).length&&<div style={{fontSize:11,color:"var(--gr2)"}}>Sin audit logs remotos de storage legacy aún.</div>}
+                </div>
+              </Card>
+              <Card title="Credenciales de integración" sub="Snapshot seguro sin exponer secretos ni tokens">
+                <div style={{display:"grid",gap:8}}>
+                  {(platformSnapshot?.integrationCredentials||[]).map(item => <div key={item.id} style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"var(--sur)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:4}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{item.provider}</div>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                        <Badge label={item.environment || "sandbox"} color="gray" sm />
+                        <Badge label={item.status || "draft"} color={item.status === "active" || item.status === "connected" ? "green" : "yellow"} sm />
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
+                      <Badge label={item.secretConfigured ? "Secret configurado" : "Sin secret"} color={item.secretConfigured ? "cyan" : "red"} sm />
+                      {Array.isArray(item.configKeys) && item.configKeys.length
+                        ? item.configKeys.map(keyName => <Badge key={`${item.id}-${keyName}`} label={keyName} color="gray" sm />)
+                        : <Badge label="Sin config keys" color="gray" sm />}
+                    </div>
+                    <div style={{fontSize:11,color:"var(--gr2)",marginTop:6}}>{item.updatedAt ? `Actualizado ${new Date(item.updatedAt).toLocaleString("es-CL")}` : "Sin fecha de actualización"}</div>
+                  </div>)}
+                  {!(platformSnapshot?.integrationCredentials||[]).length&&<div style={{fontSize:11,color:"var(--gr2)"}}>Sin credenciales remotas registradas para este tenant.</div>}
+                </div>
+              </Card>
+            </div>
           </div>
         : <Card title="Foundation remota"><div style={{fontSize:12,color:"var(--gr2)"}}>No pudimos cargar el estado remoto de Supabase para este tenant.</div></Card>}
   </div>;

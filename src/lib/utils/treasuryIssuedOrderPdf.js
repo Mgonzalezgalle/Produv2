@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import {
   drawCommercialLabel,
   drawDocumentSectionBox,
+  drawPdfTextBlock,
   drawLegalDocStamp,
   drawRightAlignedPdfText,
   drawRoundedPdfBox,
@@ -177,6 +178,45 @@ function drawColorInfoPanel(page, {
   return height;
 }
 
+function drawFixedInfoCard(page, {
+  x,
+  y,
+  width,
+  height,
+  title = "",
+  text = "",
+  fillColor,
+  borderColor,
+  accentColor,
+  font,
+  bold,
+  textColor,
+  lineGap = 2.2,
+  bodySize = 8.8,
+}) {
+  const padding = 14;
+  drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
+  const titleY = y + height - padding - 1;
+  page.drawText(title, {
+    x: x + padding,
+    y: titleY,
+    size: 9.2,
+    font: bold,
+    color: accentColor,
+  });
+  drawPdfTextBlock(
+    page,
+    text,
+    x + padding,
+    titleY - 18,
+    width - padding * 2,
+    font,
+    bodySize,
+    textColor,
+    lineGap,
+  );
+}
+
 export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
@@ -334,10 +374,18 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     currency,
   }) - 10;
 
-  const notesHeight = drawDocumentSectionBox(page, {
+  const closingCardWidth = 250;
+  const closingCardHeight = 110;
+  const closingGap = 12;
+  const notesY = y - closingCardHeight;
+  const summaryY = notesY - closingGap - closingCardHeight;
+  const totalY = summaryY + Math.round((closingCardHeight + closingGap) / 2);
+
+  drawFixedInfoCard(page, {
     x: margin,
-    y: y - 80,
-    width: contentWidth,
+    y: notesY,
+    width: closingCardWidth,
+    height: closingCardHeight,
     title: "Observaciones",
     text: safe(order?.notes, "Sin observaciones."),
     fillColor: white,
@@ -346,19 +394,15 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     font,
     bold,
     textColor,
-    muted,
-    titleSize: 9.2,
-    bodySize: 8.8,
-    bodyGap: 1.8,
-    bodyOffsetY: 3,
+    lineGap: 2,
+    bodySize: 8.6,
   });
-  y -= notesHeight + 18;
 
-  const closingPanelY = y - 86;
-  drawDocumentSectionBox(page, {
-    x: width - margin - 440,
-    y: closingPanelY,
-    width: 174,
+  drawFixedInfoCard(page, {
+    x: margin,
+    y: summaryY,
+    width: closingCardWidth,
+    height: closingCardHeight,
     title: "Resumen OC",
     text: [
       `Fecha: ${fmtD(issueDate)}`,
@@ -371,16 +415,13 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
     font,
     bold,
     textColor,
-    muted,
-    titleSize: 9,
+    lineGap: 2.2,
     bodySize: 8.5,
-    bodyGap: 2.2,
-    bodyOffsetY: 2,
   });
 
   drawColorInfoPanel(page, {
     x: width - margin - 250,
-    y: closingPanelY,
+    y: totalY,
     width: 250,
     rows: [
       { label: "SubTotal", value: money(total, currency), bold: true, valueSize: 10.2 },

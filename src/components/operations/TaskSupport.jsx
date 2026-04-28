@@ -264,7 +264,7 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
           headline={it.text?.split("\n")[0]?.trim() || "Comentario sin detalle"}
           secondary={it.authorName ? `Registrado por ${it.authorName}` : "Registro interno"}
           preview={it.text}
-          previewLines={expanded ? 12 : 2}
+          previewLines={expanded ? null : 2}
           attachments={expanded ? normalizeCommentAttachments(it) : []}
           dateLabel={it.upd ? `Editado ${fmtD(it.upd)}` : it.cr ? `Creado ${fmtD(it.cr)}` : ""}
           authorLabel={it.authorName || "Usuario"}

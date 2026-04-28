@@ -20,6 +20,7 @@ export function ActivityTimelineCard({
   footer,
   actions,
 }) {
+  const clampPreview = Number.isFinite(previewLines) && previewLines > 0;
   const content = (
     <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
       <div
@@ -80,10 +81,12 @@ export function ActivityTimelineCard({
             color: "var(--gr3)",
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
-            display: "-webkit-box",
-            WebkitLineClamp: previewLines,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
+            ...(clampPreview ? {
+              display: "-webkit-box",
+              WebkitLineClamp: previewLines,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            } : {}),
           }}
         >
           {preview || "Sin contenido"}

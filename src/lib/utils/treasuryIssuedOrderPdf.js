@@ -234,14 +234,56 @@ function drawTwoColumnInfoCard(page, {
   bodySize = 8.6,
   bodyGap = 1.8,
 }) {
+  const normalizeRows = (rows = []) => (
+    Array.isArray(rows)
+      ? rows
+        .filter(Boolean)
+        .map((row) => {
+          if (typeof row === "string") return { label: "", value: row };
+          return {
+            label: String(row?.label || "").trim(),
+            value: String(row?.value || "").trim() || "—",
+          };
+        })
+      : []
+  );
+  const drawRows = (rows, colX, topY, colWidth) => {
+    let cursorY = topY;
+    rows.forEach((row) => {
+      const labelText = row.label ? `${row.label}:` : "";
+      const labelSize = bodySize;
+      const valueSize = bodySize;
+      const labelWidth = labelText ? bold.widthOfTextAtSize(labelText, labelSize) + 4 : 0;
+      if (labelText) {
+        page.drawText(labelText, {
+          x: colX,
+          y: cursorY,
+          size: labelSize,
+          font: bold,
+          color: textColor,
+          maxWidth: colWidth,
+        });
+      }
+      page.drawText(row.value || "—", {
+        x: colX + labelWidth,
+        y: cursorY,
+        size: valueSize,
+        font,
+        color: textColor,
+        maxWidth: Math.max(10, colWidth - labelWidth),
+      });
+      cursorY -= bodySize + bodyGap;
+    });
+  };
   const padding = 14;
   const titleSize = 9.2;
   const colGap = 18;
   const colWidth = (width - padding * 2 - colGap) / 2;
-  const leftText = leftLines.filter(Boolean).join("\n") || "—";
-  const rightText = rightLines.filter(Boolean).join("\n") || "—";
-  const leftHeight = measurePdfTextBlock(leftText, colWidth, font, bodySize, bodyGap);
-  const rightHeight = measurePdfTextBlock(rightText, colWidth, font, bodySize, bodyGap);
+  const leftRows = normalizeRows(leftLines);
+  const rightRows = normalizeRows(rightLines);
+  const lineHeight = bodySize + bodyGap;
+  const leftHeight = Math.max(lineHeight, leftRows.length * lineHeight);
+  const rightHeight = Math.max(lineHeight, rightRows.length * lineHeight);
   const bodyHeight = Math.max(leftHeight, rightHeight);
   const height = padding + titleSize + 10 + bodyHeight + 12;
   drawRoundedPdfBox(page, x, y, width, height, fillColor, borderColor, 1.1);
@@ -254,8 +296,8 @@ function drawTwoColumnInfoCard(page, {
     color: accentColor,
   });
   const bodyY = titleY - 18;
-  drawPdfTextBlock(page, leftText, x + padding, bodyY, colWidth, font, bodySize, textColor, bodyGap);
-  drawPdfTextBlock(page, rightText, x + padding + colWidth + colGap, bodyY, colWidth, font, bodySize, textColor, bodyGap);
+  drawRows(leftRows.length ? leftRows : [{ label: "", value: "—" }], x + padding, bodyY, colWidth);
+  drawRows(rightRows.length ? rightRows : [{ label: "", value: "—" }], x + padding + colWidth + colGap, bodyY, colWidth);
   return height;
 }
 
@@ -337,14 +379,14 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
 
   let y = height - 222;
   const supplierLeftLines = [
-    order?.supplierLegalName || order?.supplier || "—",
-    order?.supplierRut ? `RUT: ${order.supplierRut}` : "",
-    order?.supplierAddress || "",
+    { label: "Proveedor", value: order?.supplierLegalName || order?.supplier || "—" },
+    { label: "RUT", value: safe(order?.supplierRut) },
+    { label: "Dirección", value: safe(order?.supplierAddress) },
   ];
   const supplierRightLines = [
-    [order?.supplierDistrict, order?.supplierCity].filter(Boolean).join(" · "),
-    order?.supplierContactName ? `Contacto: ${order.supplierContactName}` : "",
-    [order?.supplierContactEmail, order?.supplierContactPhone].filter(Boolean).join(" · "),
+    { label: "Ubicación", value: safe([order?.supplierDistrict, order?.supplierCity].filter(Boolean).join(" · ")) },
+    { label: "Contacto", value: safe(order?.supplierContactName) },
+    { label: "Canales", value: safe([order?.supplierContactEmail, order?.supplierContactPhone].filter(Boolean).join(" · ")) },
   ];
   const supplierHeight = drawTwoColumnInfoCard(page, {
     x: margin,
@@ -365,14 +407,14 @@ export async function buildIssuedOrderPdfFile(order = {}, empresa = {}) {
   y -= supplierHeight + 18;
 
   const internalLeftLines = [
-    `Solicitante: ${safe(order?.requesterName)}`,
-    `Contacto: ${safe(order?.requesterEmail)}`,
-    `Centro de costo: ${safe(order?.costCenter)}`,
+    { label: "Solicitante", value: safe(order?.requesterName) },
+    { label: "Contacto", value: safe(order?.requesterEmail) },
+    { label: "Centro de costo", value: safe(order?.costCenter) },
   ];
   const internalRightLines = [
-    `Categoría: ${safe(order?.category)}`,
-    `Producción / proyecto: ${safe(order?.productionName)}`,
-    `Forma de pago: ${safe(order?.paymentMethod)}`,
+    { label: "Categoría", value: safe(order?.category) },
+    { label: "Producción / proyecto", value: safe(order?.productionName) },
+    { label: "Forma de pago", value: safe(order?.paymentMethod) },
   ];
   const internalHeight = drawTwoColumnInfoCard(page, {
     x: margin,

@@ -43,6 +43,15 @@ async function openPdfSourceInNewTab(src = "", fallbackName = "documento.pdf") {
   return true;
 }
 
+function escapeEmailHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function TreasuryModule(props) {
   const [payablesTab, setPayablesTab] = useState("documentos");
   const [portfolioOpen, setPortfolioOpen] = useState(false);
@@ -326,6 +335,44 @@ export function TreasuryModule(props) {
       paidTotalFormatted: fmtM(totals.paid),
       pendingTotalFormatted: fmtM(totals.pending),
     });
+    const html = `
+      <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#0f172a">
+        <p>Hola ${escapeEmailHtml(primaryContact?.nombre || supplierName)},</p>
+        <p>Esperamos que estés bien.</p>
+        <p>Te compartimos el estado de cuenta vigente de <strong>${escapeEmailHtml(supplierName)}</strong> con <strong>${escapeEmailHtml(props.empresa?.nombre || props.empresa?.nom || "Produ")}</strong>, con el detalle consolidado de los documentos actualmente registrados.</p>
+        <table style="width:100%;border-collapse:collapse;margin:18px 0 16px 0;font-size:13px">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Documento</th>
+              <th style="text-align:left;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Tipo</th>
+              <th style="text-align:right;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Total</th>
+              <th style="text-align:right;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Pagado</th>
+              <th style="text-align:right;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Saldo</th>
+              <th style="text-align:left;padding:10px 12px;border:1px solid #d7deeb;background:#1e3a8a;color:#ffffff">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payableDocs.map((doc, index) => `
+              <tr style="background:${index % 2 === 0 ? "#f8fbff" : "#ffffff"}">
+                <td style="padding:10px 12px;border:1px solid #d7deeb">${escapeEmailHtml(doc.folio || "Sin folio")}</td>
+                <td style="padding:10px 12px;border:1px solid #d7deeb">${escapeEmailHtml(doc.docType || "Documento")}</td>
+                <td style="padding:10px 12px;border:1px solid #d7deeb;text-align:right">${escapeEmailHtml(fmtM(doc.total || 0))}</td>
+                <td style="padding:10px 12px;border:1px solid #d7deeb;text-align:right">${escapeEmailHtml(fmtM(doc.paid || 0))}</td>
+                <td style="padding:10px 12px;border:1px solid #d7deeb;text-align:right">${escapeEmailHtml(fmtM(doc.pending || 0))}</td>
+                <td style="padding:10px 12px;border:1px solid #d7deeb">${escapeEmailHtml(doc.status || "Pendiente")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div style="margin:14px 0 18px 0;padding:14px 16px;border:1px solid #d7deeb;background:#f8fbff;border-radius:10px">
+          <div style="margin-bottom:6px"><strong>Total documental:</strong> ${escapeEmailHtml(fmtM(totals.total))}</div>
+          <div style="margin-bottom:6px"><strong>Total pagado:</strong> ${escapeEmailHtml(fmtM(totals.paid))}</div>
+          <div><strong>Saldo pendiente:</strong> ${escapeEmailHtml(fmtM(totals.pending))}</div>
+        </div>
+        <p>Si necesitas revisar algún documento en particular o coordinar su regularización, quedamos atentos.</p>
+        <p>Saludos cordiales,<br />${escapeEmailHtml(props.empresa?.nombre || props.empresa?.nom || "Produ")}</p>
+      </div>
+    `.trim();
     return {
       ok: true,
       draft: {
@@ -334,6 +381,8 @@ export function TreasuryModule(props) {
         subject: resolved.subject,
         to: email,
         body: resolved.body,
+        html,
+        htmlSourceBody: resolved.body,
         entityType: "supplier_statement",
         entityId: provider?.id || "",
         metadata: {

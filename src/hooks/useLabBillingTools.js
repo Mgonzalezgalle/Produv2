@@ -565,7 +565,9 @@ export function useLabBillingTools({
       subject,
       to: recipients,
       text: body,
-      html: `<p>${body.replace(/\n/g, "<br />")}</p>`,
+      html: draft?.html && draft?.htmlSourceBody === body
+        ? String(draft.html)
+        : `<p>${body.replace(/\n/g, "<br />")}</p>`,
       replyTo: String(draft?.replyTo || senderReplyTo || "").trim() || undefined,
       attachments: Array.isArray(draft?.attachments) ? draft.attachments : [],
       entityType: draft?.entityType || "",

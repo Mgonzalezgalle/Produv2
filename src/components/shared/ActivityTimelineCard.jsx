@@ -16,6 +16,9 @@ export function ActivityTimelineCard({
   onClick,
   interactive = false,
   previewLines = 3,
+  extraBadges,
+  footer,
+  actions,
 }) {
   const content = (
     <div style={{ display: "grid", gridTemplateColumns: "24px 1fr auto", gap: 12, alignItems: "start" }}>
@@ -50,6 +53,7 @@ export function ActivityTimelineCard({
           </span>
           <Badge label={meta?.label || "Actividad"} color="gray" sm />
           {!!attachments.length && <Badge label={renderAttachmentLabel(attachments.length)} color="cyan" sm />}
+          {extraBadges}
         </div>
         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--wh)", lineHeight: 1.4, marginBottom: 4 }}>
           {headline || "Registro sin asunto"}
@@ -85,9 +89,12 @@ export function ActivityTimelineCard({
           {preview || "Sin contenido"}
         </div>
       </div>
-      <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
-        <div>{dateLabel || "—"}</div>
-        <div style={{ marginTop: 4 }}>{authorLabel || "Sistema"}</div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ fontSize: 11, color: "var(--gr2)", whiteSpace: "nowrap", textAlign: "right" }}>
+          <div>{dateLabel || "—"}</div>
+          <div style={{ marginTop: 4 }}>{authorLabel || "Sistema"}</div>
+        </div>
+        {actions ? <div onClick={event => event.stopPropagation()}>{actions}</div> : null}
       </div>
     </div>
   );
@@ -149,6 +156,7 @@ export function ActivityTimelineCard({
     <div style={frameStyle}>
       {content}
       {attachmentsBlock}
+      {footer ? <div style={{ marginTop: 10, paddingLeft: 36 }}>{footer}</div> : null}
     </div>
   );
 }

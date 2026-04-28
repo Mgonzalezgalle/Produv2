@@ -3,6 +3,7 @@ import { Btn, Card, Empty, FG, FTA, GBtn, XBtn } from "../../lib/ui/components";
 import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS, taskRecurrenceLabel } from "../../lib/utils/tasks";
 import { requestConfirm } from "../../lib/ui/confirmService";
 import { TaskErrorBoundary } from "../shared/CoreFeedback";
+import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
 
 const COMMENT_KIND_OPTIONS = [
   { value: "note", label: "Nota", tone: "var(--gr2)" },
@@ -255,39 +256,24 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       </div>
     </div>}
     {filteredItems.length?filteredItems.map(it=>{ const kindMeta = commentKindMeta(it.kind); return <div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>
-      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start"}}>
-        <div style={{flex:1}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
-            {it.pasarATarea&&<div style={{fontSize:10,fontWeight:700,color:"var(--cy)",letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</div>}
-            <span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"color-mix(in srgb, currentColor 12%, transparent)",color:kindMeta.tone,border:`1px solid ${kindMeta.tone}`}}>{kindMeta.label}</span>
-            {it.important&&<span style={{fontSize:10,fontWeight:800,padding:"4px 8px",borderRadius:999,background:"rgba(251,191,36,.12)",color:"#fbbf24",border:"1px solid rgba(251,191,36,.4)"}}>Importante</span>}
-            {it.source==="diio"&&<span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"rgba(79,124,255,.12)",color:"#4f7cff",border:"1px solid rgba(79,124,255,.35)"}}>Diio</span>}
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
-            <span style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{it.authorName||"Usuario"}</span>
-            <span style={{fontSize:10,color:"var(--gr2)"}}>{it.upd?`Editado ${fmtD(it.upd)}`:it.cr?`Creado ${fmtD(it.cr)}`:""}</span>
-          </div>
-          <div style={{fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>{it.text}</div>
-          {!!normalizeCommentAttachments(it).length&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:8,marginTop:10}}>
-            {normalizeCommentAttachments(it).map(att=><a key={att.id||att.src} href={att.src} target="_blank" rel="noreferrer" download={att.name||true} style={{display:"block",borderRadius:12,overflow:"hidden",border:"1px solid var(--bdr)",textDecoration:"none",background:"var(--sur)"}}>
-              {att.type==="pdf"
-                ? <div style={{display:"grid",placeItems:"center",height:110,padding:10,textAlign:"center"}}>
-                    <div style={{fontSize:30,marginBottom:8}}>📄</div>
-                    <div style={{fontSize:10,color:"var(--gr3)",lineHeight:1.4,wordBreak:"break-word"}}>{att.name||"Documento PDF"}</div>
-                    <div style={{fontSize:10,color:"var(--cy)",marginTop:6,fontWeight:700}}>Abrir / Descargar</div>
-                  </div>
-                : <div style={{position:"relative"}}>
-                    <img src={att.src} alt={att.name||"Foto comentario"} style={{display:"block",width:"100%",height:110,objectFit:"cover"}}/>
-                    <div style={{position:"absolute",left:8,bottom:8,padding:"4px 8px",borderRadius:999,background:"rgba(15,23,42,.72)",color:"#fff",fontSize:10,fontWeight:700}}>Abrir</div>
-                  </div>}
-            </a>)}
-          </div>}
-          {!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)",marginTop:8}}>
-            Asignado a: {getAssignedIds(it).map(id=>crewMap[id]?.nom).filter(Boolean).join(", ")}
-          </div>}
-        </div>
-        {canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
-      </div>
+      <ActivityTimelineCard
+        meta={{ label: kindMeta.label, eyebrow: it.source === "diio" ? "Interacción" : "Comentario", accent: kindMeta.tone }}
+        headline={it.text?.split("\n")[0]?.trim() || "Comentario sin detalle"}
+        secondary={it.authorName ? `Registrado por ${it.authorName}` : "Registro interno"}
+        preview={it.text}
+        attachments={normalizeCommentAttachments(it)}
+        dateLabel={it.upd ? `Editado ${fmtD(it.upd)}` : it.cr ? `Creado ${fmtD(it.cr)}` : ""}
+        authorLabel={it.authorName || "Usuario"}
+        extraBadges={<>
+          {it.pasarATarea&&<span style={{fontSize:10,fontWeight:700,color:"var(--cy)",letterSpacing:.6,textTransform:"uppercase"}}>Pasar a tarea</span>}
+          {it.important&&<span style={{fontSize:10,fontWeight:800,padding:"4px 8px",borderRadius:999,background:"rgba(251,191,36,.12)",color:"#fbbf24",border:"1px solid rgba(251,191,36,.4)"}}>Importante</span>}
+          {it.source==="diio"&&<span style={{fontSize:10,fontWeight:700,padding:"4px 8px",borderRadius:999,background:"rgba(79,124,255,.12)",color:"#4f7cff",border:"1px solid rgba(79,124,255,.35)"}}>Diio</span>}
+        </>}
+        footer={!!getAssignedIds(it).length&&<div style={{fontSize:11,color:"var(--cy)"}}>
+          Asignado a: {getAssignedIds(it).map(id=>crewMap[id]?.nom).filter(Boolean).join(", ")}
+        </div>}
+        actions={canEdit&&<div style={{display:"flex",gap:4,flexShrink:0}}><GBtn sm onClick={()=>editItem(it)}>✏</GBtn><XBtn onClick={()=>delItem(it.id)}/></div>}
+      />
     </div>; }):<Empty text={normalizedItems.length?"Sin resultados para este filtro":"Sin comentarios"} sub={normalizedItems.length?"Ajusta búsqueda o filtros para ver más comentarios.":canEdit?"Agrega la primera nota para este registro":""}/>}
   </Card>;
 }

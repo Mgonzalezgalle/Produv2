@@ -259,7 +259,7 @@ export const FTA = forwardRef((props, ref) => (
 export const R2 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 12 }}>{children}</div>;
 export const R3 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 12 }}>{children}</div>;
 
-export const MFoot = ({ onClose, onSave, label = "Guardar" }) => (
+export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false }) => (
   <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--bdr)" }}>
     <button
       type="button"
@@ -275,9 +275,11 @@ export const MFoot = ({ onClose, onSave, label = "Guardar" }) => (
       type="button"
       onClick={e => {
         e.stopPropagation();
+        if (disabled) return;
         onSave?.();
       }}
-      style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "var(--cy)", color: "var(--bg)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+      disabled={disabled}
+      style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: disabled ? "var(--bdr2)" : "var(--cy)", color: disabled ? "var(--gr2)" : "var(--bg)", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: disabled ? 0.7 : 1 }}
     >
       {label}
     </button>

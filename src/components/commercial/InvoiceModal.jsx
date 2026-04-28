@@ -73,7 +73,16 @@ export function MFact({
   const selectedBillingType = resolveProduBillingDocumentType(
     f.recurring ? "invoice" : (f.documentTypeCode || f.tipoDocumento || f.tipoDoc || "factura_afecta"),
   );
+  const effectiveReferenceValue = String(f.relatedDocumentId || f.relatedDocumentFolio || f.treasuryPurchaseOrderId || "").trim();
   const requiresReference = requiresProduBillingReferences(selectedBillingType.code);
+  const validationMessage = !f.entidadId
+    ? `Selecciona un ${f.tipo === "auspiciador" ? "auspiciador" : "cliente"} para continuar.`
+    : mn <= 0
+      ? "Ingresa un monto neto o agrega al menos un ítem con valor."
+      : ((requiresReference || !!f.referenceCodeSii) && !effectiveReferenceValue)
+        ? "Completa la referencia del documento antes de guardar."
+        : "";
+  const canSubmit = !validationMessage;
   const billingTypeOptions = getProduBillingDocumentTypeOptions();
   const referenceCodeOptions = getProduBillingReferenceCodeOptions();
   const relatedPurchaseOrderOptions = (purchaseOrders || []).filter((item) => (
@@ -381,11 +390,17 @@ export function MFact({
         </button>
       </div>
     ) : (
-    <MFoot onClose={onClose} onSave={()=>{
-      if(!f.entidadId||mn<=0)return;
-      if ((requiresReference || !!f.referenceCodeSii) && !String(f.relatedDocumentId || f.relatedDocumentFolio || f.treasuryPurchaseOrderId || "").trim()) return;
-      onSave(buildPayload((factura) => factura?.cobranzaEstado || "Pendiente de pago"));
-    }}/>
+      <>
+        {validationMessage && (
+          <div style={{ marginTop: 14, fontSize: 12, color: "var(--red)", fontWeight: 600 }}>
+            {validationMessage}
+          </div>
+        )}
+        <MFoot disabled={!canSubmit} onClose={onClose} onSave={()=>{
+          if (!canSubmit) return;
+          onSave(buildPayload((factura) => factura?.cobranzaEstado || "Pendiente de pago"));
+        }}/>
+      </>
     )}
   </Modal>;
 }

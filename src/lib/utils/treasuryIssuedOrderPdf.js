@@ -357,7 +357,7 @@ function drawPageFrame(page, {
   const contentWidth = width - margin * 2;
   const issueDate = order?.issueDate || "";
   const title = continuation ? "Orden de Compra · Continuación" : "Orden de Compra";
-  const docType = "OC Emitida";
+  const docType = "ORDEN DE COMPRA";
   const compactTitle = String(order?.number || "Orden de Compra").trim();
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: pageTint });

@@ -184,6 +184,31 @@ export function EmpresaEditSection({
             <KV label="Bloqueos recientes" value={blockedAdminEntries.length} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
+          {!!operationalHealth.financialRegistryHealth && (
+            <div style={{marginBottom:10,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Cobertura financiera foundation</div>
+                  <div style={{fontSize:11,color:"var(--gr2)"}}>Visibilidad rápida de respaldo para receipts y disbursements.</div>
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
+                  <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
+                <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
+                <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
+                <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />
+                <KV label="Disbursements foundation" value={operationalHealth.financialRegistryHealth.remoteDisbursementCount} />
+              </div>
+              <div style={{display:"grid",gap:6}}>
+                {operationalHealth.financialRegistryHealth.warnings.length
+                  ? operationalHealth.financialRegistryHealth.warnings.map((warning, index) => <div key={`financial-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
+                  : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas de cobertura financiera para estos registros.</div>}
+              </div>
+            </div>
+          )}
           <div style={{display:"grid",gap:6}}>
             {operationalHealth.warnings.length
               ? operationalHealth.warnings.map((warning, index) => <div key={`tenant-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)

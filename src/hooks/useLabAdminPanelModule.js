@@ -69,6 +69,37 @@ function buildOperationalHealth(empresa, empUsers = []) {
   };
 }
 
+function buildFinancialRegistryHealth({
+  receipts = [],
+  disbursements = [],
+  remoteFinancialRegistries = {},
+} = {}) {
+  const localReceipts = Array.isArray(receipts) ? receipts : [];
+  const localDisbursements = Array.isArray(disbursements) ? disbursements : [];
+  const remoteReceipts = Array.isArray(remoteFinancialRegistries?.receipts?.records) ? remoteFinancialRegistries.receipts.records : [];
+  const remoteDisbursements = Array.isArray(remoteFinancialRegistries?.disbursements?.records) ? remoteFinancialRegistries.disbursements.records : [];
+
+  const receiptsCovered = localReceipts.length === 0 || remoteReceipts.length > 0;
+  const disbursementsCovered = localDisbursements.length === 0 || remoteDisbursements.length > 0;
+  const foundationReady = receiptsCovered && disbursementsCovered;
+  const warnings = [
+    localReceipts.length > 0 && remoteReceipts.length === 0 ? "Los receipts locales todavía no tienen respaldo foundation visible." : "",
+    localDisbursements.length > 0 && remoteDisbursements.length === 0 ? "Los disbursements locales todavía no tienen respaldo foundation visible." : "",
+  ].filter(Boolean);
+
+  return {
+    localReceiptCount: localReceipts.length,
+    localDisbursementCount: localDisbursements.length,
+    remoteReceiptCount: remoteReceipts.length,
+    remoteDisbursementCount: remoteDisbursements.length,
+    receiptsCovered,
+    disbursementsCovered,
+    foundationReady,
+    warningCount: warnings.length,
+    warnings,
+  };
+}
+
 export function useLabAdminPanelModule({
   theme,
   empresa,
@@ -150,6 +181,10 @@ export function useLabAdminPanelModule({
   const [tenantDiioTesting, setTenantDiioTesting] = useState(false);
   const [tenantDiioImporting, setTenantDiioImporting] = useState(false);
   const [criticalAuditEntries, setCriticalAuditEntries] = useState([]);
+  const [localFinancialRegistries, setLocalFinancialRegistries] = useState({
+    receipts: [],
+    disbursements: [],
+  });
   const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
   const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
   const tenantCanEditBsaleConfig = bsaleGovernance.allowTenantConfig === true;
@@ -222,7 +257,22 @@ export function useLabAdminPanelModule({
   }, [empresa, tenantDiioEnabled, tenantCanEditDiioConfig]);
 
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
-  const operationalHealth = useMemo(() => buildOperationalHealth(empresa, empUsers), [empresa, empUsers]);
+  const remoteFinancialRegistries = platformSnapshot?.financialRegistries || {};
+  const financialRegistryHealth = useMemo(() => buildFinancialRegistryHealth({
+    receipts: localFinancialRegistries.receipts,
+    disbursements: localFinancialRegistries.disbursements,
+    remoteFinancialRegistries,
+  }), [localFinancialRegistries, remoteFinancialRegistries]);
+  const operationalHealth = useMemo(() => {
+    const base = buildOperationalHealth(empresa, empUsers);
+    const warnings = [...base.warnings, ...financialRegistryHealth.warnings];
+    return {
+      ...base,
+      financialRegistryHealth,
+      warningCount: warnings.length,
+      warnings,
+    };
+  }, [empresa, empUsers, financialRegistryHealth]);
   const filteredUsers = empUsers.filter(u =>
     (!uq || u.name?.toLowerCase().includes(uq.toLowerCase()) || u.email?.toLowerCase().includes(uq.toLowerCase())) &&
     (!uRole || u.role === uRole) &&
@@ -262,7 +312,7 @@ export function useLabAdminPanelModule({
   const remoteProvisionedModules = getRemoteProvisionedModules(platformSnapshot);
 
   useEffect(() => {
-    if (ADMIN_TABS[tab] !== "Plataforma") return;
+    if (!["Plataforma", "Empresa"].includes(ADMIN_TABS[tab])) return;
     if (!empresa?.id || !platformServices?.getTenantPlatformSnapshot) return;
     let cancelled = false;
     setPlatformLoading(true);
@@ -280,6 +330,35 @@ export function useLabAdminPanelModule({
       cancelled = true;
     };
   }, [ADMIN_TABS, tab, empresa?.id, platformServices]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!empresa?.id) {
+      setLocalFinancialRegistries({ receipts: [], disbursements: [] });
+      return () => {
+        cancelled = true;
+      };
+    }
+    Promise.all([
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryReceipts`)),
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryDisbursements`)),
+    ])
+      .then(([receipts, disbursements]) => {
+        if (cancelled) return;
+        setLocalFinancialRegistries({
+          receipts: Array.isArray(receipts) ? receipts : [],
+          disbursements: Array.isArray(disbursements) ? disbursements : [],
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLocalFinancialRegistries({ receipts: [], disbursements: [] });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbGet, empresa?.id]);
 
   useEffect(() => {
     let cancelled = false;

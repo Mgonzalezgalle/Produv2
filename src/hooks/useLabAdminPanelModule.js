@@ -13,6 +13,10 @@ function safeText(value = "") {
   return String(value || "").trim();
 }
 
+function unauthorizedResult() {
+  return false;
+}
+
 function buildOperationalHealth(empresa, empUsers = []) {
   const activeUsers = empUsers.filter(user => user?.active !== false);
   const activeAdmins = activeUsers.filter(user => ["admin", "superadmin"].includes(user?.role || ""));
@@ -360,8 +364,15 @@ export function useLabAdminPanelModule({
     }
   };
 
+  const enforceAdminSection = (section, message) => {
+    if (canAccessAdminSection(user, section)) return true;
+    ntf(message || "No tienes permisos para ejecutar esta acción.", "warn");
+    return false;
+  };
+
   const resetAccess = async target => {
-    if (!canManageAdmin || !target?.id) return;
+    if (!canManageAdmin || !target?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Usuarios", "No tienes permisos para resetear accesos de usuarios.")) return unauthorizedResult();
     const temp = uid().slice(1, 9);
     let nextUsers = users || [];
     if (platformServices?.updateTenantUser) {
@@ -375,11 +386,13 @@ export function useLabAdminPanelModule({
     });
     ntf("Acceso temporal generado ✓");
     alert(`Acceso temporal para ${target.email}: ${temp}`);
+    return true;
   };
 
   const saveUser = async () => {
-    if (!canManageAdmin) return;
-    if (!uf.name || !uf.email) return;
+    if (!canManageAdmin) return unauthorizedResult();
+    if (!enforceAdminSection("Usuarios", "No tienes permisos para crear o editar usuarios.")) return unauthorizedResult();
+    if (!uf.name || !uf.email) return unauthorizedResult();
     const id = uid2 || uid();
     const prev = (users || []).find(x => x.id === id);
     const nextRole = sanitizeAssignableRole(
@@ -428,10 +441,12 @@ export function useLabAdminPanelModule({
     setUf({});
     setUid2(null);
     ntf("Usuario guardado");
+    return true;
   };
 
   const toggleUserActive = async target => {
-    if (!canManageAdmin || !target?.id) return;
+    if (!canManageAdmin || !target?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Usuarios", "No tienes permisos para activar o desactivar usuarios.")) return unauthorizedResult();
     const nextUsers = (users || []).map(u => u.id === target.id ? { ...u, active: !target.active } : u);
     if (platformServices?.updateTenantUser) {
       await platformServices.updateTenantUser(target.id, { active: !target.active });
@@ -444,10 +459,12 @@ export function useLabAdminPanelModule({
       active: !target.active,
     });
     ntf(target.active ? "Usuario desactivado" : "Usuario activado");
+    return true;
   };
 
   const deleteUser = async target => {
-    if (!canManageAdmin || !target?.id || target.role === "superadmin") return;
+    if (!canManageAdmin || !target?.id || target.role === "superadmin") return unauthorizedResult();
+    if (!enforceAdminSection("Usuarios", "No tienes permisos para eliminar usuarios.")) return unauthorizedResult();
     const nextUsers = (users || []).filter(u => u.id !== target.id);
     if (platformServices?.deleteTenantUser) {
       await platformServices.deleteTenantUser(target.id);
@@ -459,10 +476,12 @@ export function useLabAdminPanelModule({
       targetEmail: target.email || "",
     });
     ntf("Usuario eliminado", "warn");
+    return true;
   };
 
   const refreshPlatformSnapshot = async () => {
-    if (!empresa?.id || !platformServices?.getTenantPlatformSnapshot) return;
+    if (!empresa?.id || !platformServices?.getTenantPlatformSnapshot) return unauthorizedResult();
+    if (!enforceAdminSection("Plataforma", "Solo un superadmin puede consultar Foundation.")) return unauthorizedResult();
     setPlatformLoading(true);
     try {
       const snapshot = await platformServices.getTenantPlatformSnapshot(empresa.id);
@@ -477,7 +496,8 @@ export function useLabAdminPanelModule({
   };
 
   const planIdentityPromotions = async () => {
-    if (!empresa?.id || !platformServices?.planIdentityPromotions) return;
+    if (!empresa?.id || !platformServices?.planIdentityPromotions) return unauthorizedResult();
+    if (!enforceAdminSection("Plataforma", "Solo un superadmin puede generar la ruta de promoción.")) return unauthorizedResult();
     setPlatformPlanning(true);
     try {
       const nextPlans = await platformServices.planIdentityPromotions(empresa.id);
@@ -491,10 +511,12 @@ export function useLabAdminPanelModule({
     } finally {
       setPlatformPlanning(false);
     }
+    return true;
   };
 
   const prepareIdentityMembershipBlueprints = async () => {
-    if (!empresa?.id || !platformServices?.prepareIdentityMembershipBlueprints) return;
+    if (!empresa?.id || !platformServices?.prepareIdentityMembershipBlueprints) return unauthorizedResult();
+    if (!enforceAdminSection("Plataforma", "Solo un superadmin puede preparar membresías.")) return unauthorizedResult();
     setPlatformPreparingMemberships(true);
     try {
       const nextBlueprints = await platformServices.prepareIdentityMembershipBlueprints(empresa.id);
@@ -508,10 +530,12 @@ export function useLabAdminPanelModule({
     } finally {
       setPlatformPreparingMemberships(false);
     }
+    return true;
   };
 
   const prepareMembershipTransitionQueue = async () => {
-    if (!empresa?.id || !platformServices?.prepareMembershipTransitionQueue) return;
+    if (!empresa?.id || !platformServices?.prepareMembershipTransitionQueue) return unauthorizedResult();
+    if (!enforceAdminSection("Plataforma", "Solo un superadmin puede preparar la cola de transición.")) return unauthorizedResult();
     setPlatformQueueingMemberships(true);
     try {
       const nextQueue = await platformServices.prepareMembershipTransitionQueue(empresa.id);
@@ -525,13 +549,15 @@ export function useLabAdminPanelModule({
     } finally {
       setPlatformQueueingMemberships(false);
     }
+    return true;
   };
 
   const saveTenantBsaleConfig = async () => {
-    if (!empresa?.id) return;
+    if (!empresa?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Empresa", "No tienes permisos para modificar la configuración de Bsale.")) return unauthorizedResult();
     if (!tenantCanEditBsaleConfig) {
       ntf("La configuración de Bsale se gobierna desde Torre de Control.", "warn");
-      return;
+      return unauthorizedResult();
     }
     setTenantBsaleSaving(true);
     try {
@@ -592,13 +618,15 @@ export function useLabAdminPanelModule({
     } finally {
       setTenantBsaleSaving(false);
     }
+    return true;
   };
 
   const saveTenantMercadoPagoConfig = async () => {
-    if (!empresa?.id) return;
+    if (!empresa?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Empresa", "No tienes permisos para modificar Mercado Pago.")) return unauthorizedResult();
     if (!tenantCanEditMercadoPagoConfig) {
       ntf("Mercado Pago debe habilitarse primero desde Torre de Control.", "warn");
-      return;
+      return unauthorizedResult();
     }
     setTenantMercadoPagoSaving(true);
     try {
@@ -675,13 +703,15 @@ export function useLabAdminPanelModule({
     } finally {
       setTenantMercadoPagoSaving(false);
     }
+    return true;
   };
 
   const saveTenantDiioConfig = async () => {
-    if (!empresa?.id) return;
+    if (!empresa?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Empresa", "No tienes permisos para modificar Diio.")) return unauthorizedResult();
     if (!tenantCanEditDiioConfig) {
       ntf("Diio debe habilitarse primero desde Torre de Control.", "warn");
-      return;
+      return unauthorizedResult();
     }
     setTenantDiioSaving(true);
     try {
@@ -760,10 +790,12 @@ export function useLabAdminPanelModule({
     } finally {
       setTenantDiioSaving(false);
     }
+    return true;
   };
 
   const verifyTenantDiioConnection = async () => {
     if (!empresa?.id) return false;
+    if (!enforceAdminSection("Empresa", "No tienes permisos para validar la conexión de Diio.")) return false;
     setTenantDiioTesting(true);
     try {
       const { data, error } = await sb.functions.invoke("diio-company-api", {
@@ -858,6 +890,7 @@ export function useLabAdminPanelModule({
 
   const importTenantDiioMeetings = async () => {
     if (!empresa?.id) return false;
+    if (!enforceAdminSection("Empresa", "No tienes permisos para importar reuniones de Diio.")) return false;
     setTenantDiioImporting(true);
     try {
       const { data, error } = await sb.functions.invoke("diio-company-api", {

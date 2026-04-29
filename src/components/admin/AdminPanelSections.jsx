@@ -72,7 +72,10 @@ export function EmpresaEditSection({
   }, [empresa, companyGoogleCalendarEnabled]);
 
   const save = async () => {
-    if (!canManageAdmin) return;
+    if (!canManageAdmin) {
+      ntf?.("No tienes permisos para editar la empresa.", "warn");
+      return;
+    }
     const updated = {
       ...empresa,
       ...ef,
@@ -137,7 +140,7 @@ export function EmpresaEditSection({
     <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:10, padding:16 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <div style={{ fontFamily:"var(--fh)", fontSize:13, fontWeight:700 }}>Datos de la Empresa</div>
-        <GBtn sm onClick={() => setEditing(true)}>✏ Editar</GBtn>
+        <GBtn sm onClick={() => setEditing(true)} disabled={!canManageAdmin}>✏ Editar</GBtn>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
         {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Estado", empresa.active!==false?"Activa":"Inactiva"],["Color de impresos", companyPrintColorLabel(empresa)],["Google Calendar", companyGoogleCalendarEnabled(empresa)?"Habilitado por Torre de Control":"No habilitado"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -357,7 +360,7 @@ export function EmpresaEditSection({
                 En una fase real, aquí podemos reemplazar el ingreso manual por `Conectar Mercado Pago` vía OAuth. Por ahora el tenant queda operativo cuando tiene cuenta seller, access token y links habilitados en Cobranza.
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Btn onClick={saveTenantMercadoPagoConfig} disabled={!tenantCanEditMercadoPagoConfig || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
+                <Btn onClick={saveTenantMercadoPagoConfig} disabled={!canManageAdmin || !tenantCanEditMercadoPagoConfig || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
                 <GBtn disabled>OAuth próximamente</GBtn>
               </div>
             </>}
@@ -491,14 +494,14 @@ export function EmpresaEditSection({
                 </div>
               )}
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Btn onClick={saveTenantDiioConfig} disabled={!tenantCanEditDiioConfig || tenantDiioSaving}>{tenantDiioSaving ? "Guardando..." : "Guardar Diio"}</Btn>
-                <GBtn onClick={verifyTenantDiioConnection} disabled={!tenantCanEditDiioConfig || tenantDiioTesting || !diioReady}>{tenantDiioTesting ? "Probando..." : "Probar conexión real"}</GBtn>
-                <GBtn onClick={importTenantDiioMeetings} disabled={!tenantCanEditDiioConfig || tenantDiioImporting || !diioReady}>{tenantDiioImporting ? "Importando..." : "Importar reuniones reales"}</GBtn>
+                <Btn onClick={saveTenantDiioConfig} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioSaving}>{tenantDiioSaving ? "Guardando..." : "Guardar Diio"}</Btn>
+                <GBtn onClick={verifyTenantDiioConnection} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioTesting || !diioReady}>{tenantDiioTesting ? "Probando..." : "Probar conexión real"}</GBtn>
+                <GBtn onClick={importTenantDiioMeetings} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioImporting || !diioReady}>{tenantDiioImporting ? "Importando..." : "Importar reuniones reales"}</GBtn>
               </div>
             </>}
       </div>
       <div style={{ display:"flex", gap:8, marginTop:8 }}>
-        <Btn onClick={save}>✓ Guardar</Btn>
+        <Btn onClick={save} disabled={!canManageAdmin}>✓ Guardar</Btn>
         <GBtn onClick={() => setEditing(false)}>Cancelar</GBtn>
       </div>
     </div>
@@ -620,7 +623,10 @@ export function TransactionalEmailTemplatesPanel({
   }, [activeKey, empresa]);
 
   const saveTemplate = () => {
-    if (!canManageAdmin) return;
+    if (!canManageAdmin) {
+      ntf?.("No tienes permisos para modificar templates.", "warn");
+      return;
+    }
     const currentTemplates = getTenantTransactionalEmailTemplates(empresa);
     const nextTemplates = {
       ...currentTemplates,
@@ -675,7 +681,7 @@ export function TransactionalEmailTemplatesPanel({
         <div style={{ display: "grid", gap: 8 }}>
           {definitions.map(def => {
             const active = def.key === activeKey;
-            return <button key={def.key} onClick={() => setActiveKey(def.key)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: `1px solid ${active ? "var(--cy)" : "var(--bdr2)"}`, background: active ? "color-mix(in srgb, var(--cy) 10%, transparent)" : "var(--sur)", cursor: "pointer" }}>
+            return <button key={def.key} onClick={() => setActiveKey(def.key)} disabled={!canManageAdmin} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: `1px solid ${active ? "var(--cy)" : "var(--bdr2)"}`, background: active ? "color-mix(in srgb, var(--cy) 10%, transparent)" : "var(--sur)", cursor: canManageAdmin ? "pointer" : "not-allowed", opacity: canManageAdmin ? 1 : .72 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)", marginBottom: 4 }}>{def.label}</div>
               <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45 }}>{def.description}</div>
             </button>;
@@ -684,10 +690,10 @@ export function TransactionalEmailTemplatesPanel({
       </Card>
       <Card title={activeDefinition?.label || "Template"} sub={activeDefinition?.description || ""}>
         <FG label="Asunto base">
-          <FI value={form.subject} onChange={e => setForm(prev => ({ ...prev, subject: e.target.value }))} placeholder="Asunto del correo" />
+          <FI value={form.subject} onChange={e => setForm(prev => ({ ...prev, subject: e.target.value }))} placeholder="Asunto del correo" disabled={!canManageAdmin} />
         </FG>
         <FG label="Cuerpo base">
-          <textarea value={form.body} onChange={e => setForm(prev => ({ ...prev, body: e.target.value }))} rows={12} placeholder="Escribe el cuerpo base del correo" style={{ width: "100%", resize: "vertical", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--wh)", outline: "none", fontFamily: "inherit", fontSize: 13, lineHeight: 1.55 }} />
+          <textarea disabled={!canManageAdmin} value={form.body} onChange={e => setForm(prev => ({ ...prev, body: e.target.value }))} rows={12} placeholder="Escribe el cuerpo base del correo" style={{ width: "100%", resize: "vertical", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--wh)", outline: "none", fontFamily: "inherit", fontSize: 13, lineHeight: 1.55, opacity: canManageAdmin ? 1 : .72 }} />
         </FG>
         <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "var(--card2)", marginBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--wh)", marginBottom: 8 }}>Variables disponibles</div>
@@ -711,8 +717,8 @@ export function TransactionalEmailTemplatesPanel({
           <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--bdr2)", fontSize: 11, color: "var(--gr2)" }}>{previewTemplate.footerNote}</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Btn onClick={saveTemplate}>Guardar template</Btn>
-          <GBtn onClick={resetTemplate}>Restaurar default</GBtn>
+          <Btn onClick={saveTemplate} disabled={!canManageAdmin}>Guardar template</Btn>
+          <GBtn onClick={resetTemplate} disabled={!canManageAdmin}>Restaurar default</GBtn>
         </div>
       </Card>
     </div>
@@ -723,6 +729,7 @@ export function UsersAdminSection({
   uq, setUq, uRole, setURole, uState, setUState, roleOptions, empresa, filteredUsers, ini, getRoleConfig,
   userGoogleCalendar, setUid2, setUf, resetAccess, toggleUserActive, deleteUser, uid2, uf, editableRoleOptions,
   saveUser,
+  canManageAdmin = true,
 }) {
   const [pendingDeleteUser, setPendingDeleteUser] = React.useState(null);
 
@@ -743,10 +750,10 @@ export function UsersAdminSection({
           <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
           <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
           {restrictedBySuper ? <Badge label="Gestiona Torre de Control" color="purple" sm/> : <>
-            <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} s={{minWidth:74}}>Editar</GBtn>
-            <GBtn sm onClick={()=>resetAccess(u)}>🔐 Reset</GBtn>
-            <GBtn sm onClick={()=>toggleUserActive(u)}>{u.active?"Desactivar":"Activar"}</GBtn>
-            {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} sm>Eliminar</DBtn>}
+            <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} disabled={!canManageAdmin} s={{minWidth:74}}>Editar</GBtn>
+            <GBtn sm onClick={()=>resetAccess(u)} disabled={!canManageAdmin}>🔐 Reset</GBtn>
+            <GBtn sm onClick={()=>toggleUserActive(u)} disabled={!canManageAdmin}>{u.active?"Desactivar":"Activar"}</GBtn>
+            {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} disabled={!canManageAdmin} sm>Eliminar</DBtn>}
           </>}
         </div>;
       })}
@@ -773,7 +780,7 @@ export function UsersAdminSection({
       </div>
       <div style={{fontSize:11,color:"var(--gr2)",marginBottom:10}}>Puedes dejar la contraseña vacía al editar si no quieres cambiar el acceso. Las cuentas `Admin` y `Super Admin` solo se crean o gestionan desde `Torre de Control &gt; Usuarios del sistema`.</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <Btn onClick={saveUser}>{uid2?"Guardar cambios":"Crear usuario"}</Btn>
+        <Btn onClick={saveUser} disabled={!canManageAdmin}>{uid2?"Guardar cambios":"Crear usuario"}</Btn>
         {uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar edición</GBtn>}
       </div>
     </div>

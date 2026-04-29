@@ -287,14 +287,73 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
         return fallbackServices?.getTenantPlatformSnapshot ? fallbackServices.getTenantPlatformSnapshot(tenantId) : {};
       }
       try {
-        return await callSingleRpc("get_legacy_tenant_platform_snapshot", {
+        const snapshot = await callSingleRpc("get_legacy_tenant_platform_snapshot", {
           legacy_emp_id: tenantId,
         });
+        let financialRegistries = {};
+        try {
+          const [receiptsSnapshot, disbursementsSnapshot] = await Promise.all([
+            this.getFinancialRegistrySnapshot(tenantId, "receipts"),
+            this.getFinancialRegistrySnapshot(tenantId, "disbursements"),
+          ]);
+          financialRegistries = {
+            receipts: receiptsSnapshot || null,
+            disbursements: disbursementsSnapshot || null,
+          };
+        } catch {
+          financialRegistries = {};
+        }
+        return {
+          ...(snapshot || {}),
+          financialRegistries,
+        };
       } catch (error) {
         foundationRpcBreaker.mark("get_legacy_tenant_platform_snapshot");
         if (fallbackServices?.getTenantPlatformSnapshot) return fallbackServices.getTenantPlatformSnapshot(tenantId);
         throw error;
       }
+    },
+
+    async upsertFinancialRegistrySnapshot(tenantId, registryName, records = [], metadata = {}) {
+      if (foundationRpcBreaker.has("upsert_legacy_financial_registry_snapshot")) {
+        return fallbackServices?.upsertFinancialRegistrySnapshot
+          ? fallbackServices.upsertFinancialRegistrySnapshot(tenantId, registryName, records, metadata)
+          : null;
+      }
+      const { data, error } = await sb.rpc("upsert_legacy_financial_registry_snapshot", {
+        legacy_emp_id: tenantId,
+        registry_name: registryName,
+        records_data: Array.isArray(records) ? records : [],
+        metadata_data: metadata && typeof metadata === "object" ? metadata : {},
+      });
+      if (error) {
+        foundationRpcBreaker.mark("upsert_legacy_financial_registry_snapshot");
+        if (fallbackServices?.upsertFinancialRegistrySnapshot) {
+          return fallbackServices.upsertFinancialRegistrySnapshot(tenantId, registryName, records, metadata);
+        }
+        throw new Error(error.message || "No pudimos persistir el snapshot financiero.");
+      }
+      return data;
+    },
+
+    async getFinancialRegistrySnapshot(tenantId, registryName) {
+      if (foundationRpcBreaker.has("get_legacy_financial_registry_snapshot")) {
+        return fallbackServices?.getFinancialRegistrySnapshot
+          ? fallbackServices.getFinancialRegistrySnapshot(tenantId, registryName)
+          : { registryName, records: [], recordCount: 0, updatedAt: null, metadata: {}, source: "degraded" };
+      }
+      const { data, error } = await sb.rpc("get_legacy_financial_registry_snapshot", {
+        legacy_emp_id: tenantId,
+        registry_name: registryName,
+      });
+      if (error) {
+        foundationRpcBreaker.mark("get_legacy_financial_registry_snapshot");
+        if (fallbackServices?.getFinancialRegistrySnapshot) {
+          return fallbackServices.getFinancialRegistrySnapshot(tenantId, registryName);
+        }
+        throw new Error(error.message || "No pudimos leer el snapshot financiero.");
+      }
+      return data;
     },
 
     async upsertBsaleSyncSession(tenantId, session = {}) {

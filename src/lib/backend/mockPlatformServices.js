@@ -72,6 +72,12 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
     await saveMercadoPagoLogs([entry, ...(Array.isArray(logs) ? logs : [])]);
     return entry;
   };
+  const loadFinancialRegistrySnapshots = async () => (await dbGet("produ:financialRegistrySnapshots")) || {};
+  const saveFinancialRegistrySnapshots = async next => {
+    const safeNext = next && typeof next === "object" ? next : {};
+    await dbSet("produ:financialRegistrySnapshots", safeNext);
+    return safeNext;
+  };
   const buildTenantSnapshot = async tenantId => {
     const tenant = await loadEmpresas().then(empresas => empresas.find(emp => emp.id === tenantId) || null);
     if (!tenant) return null;
@@ -142,8 +148,47 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
       };
     },
 
+    async upsertFinancialRegistrySnapshot(tenantId, registryName, records = [], metadata = {}) {
+      const current = await loadFinancialRegistrySnapshots();
+      const safeRegistryName = String(registryName || "").trim();
+      const tenantSnapshots = current?.[tenantId] && typeof current[tenantId] === "object" ? current[tenantId] : {};
+      const nextSnapshot = {
+        registryName: safeRegistryName,
+        records: Array.isArray(records) ? records : [],
+        recordCount: Array.isArray(records) ? records.length : 0,
+        updatedAt: new Date().toISOString(),
+        metadata: metadata && typeof metadata === "object" ? metadata : {},
+        source: "fallback",
+      };
+      await saveFinancialRegistrySnapshots({
+        ...current,
+        [tenantId]: {
+          ...tenantSnapshots,
+          [safeRegistryName]: nextSnapshot,
+        },
+      });
+      return nextSnapshot;
+    },
+
+    async getFinancialRegistrySnapshot(tenantId, registryName) {
+      const current = await loadFinancialRegistrySnapshots();
+      return current?.[tenantId]?.[registryName] || {
+        registryName: String(registryName || "").trim(),
+        records: [],
+        recordCount: 0,
+        updatedAt: null,
+        metadata: {},
+        source: "fallback",
+      };
+    },
+
     async getTenantPlatformSnapshot(tenantId) {
-      return (await buildTenantSnapshot(tenantId)) || {};
+      const snapshot = (await buildTenantSnapshot(tenantId)) || {};
+      const financialSnapshots = await loadFinancialRegistrySnapshots();
+      return {
+        ...snapshot,
+        financialRegistries: financialSnapshots?.[tenantId] || {},
+      };
     },
 
     async getTenant(tenantId) {

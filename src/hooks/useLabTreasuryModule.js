@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 import {
   buildTreasuryProviders,
@@ -104,8 +104,18 @@ export function useLabTreasuryModule({
   const [disbursementDraft, setDisbursementDraft] = useState(null);
   const [providerOpen, setProviderOpen] = useState(false);
   const [providerDraft, setProviderDraft] = useState(null);
+  const receiptsRemoteHydratedRef = useRef("");
+  const disbursementsRemoteHydratedRef = useRef("");
 
   const withEmp = (next = {}) => ({ ...next, empId });
+  const syncFinancialRegistrySnapshot = async (registryName, records = [], metadata = {}) => {
+    if (!empId || !platformServices?.upsertFinancialRegistrySnapshot) return null;
+    try {
+      return await platformServices.upsertFinancialRegistrySnapshot(empId, registryName, records, metadata);
+    } catch {
+      return null;
+    }
+  };
 
   const receivables = useMemo(() => buildTreasuryReceivables({
     facturas,
@@ -188,6 +198,55 @@ export function useLabTreasuryModule({
     if (!treasuryDisbursementsRecovered.length) return;
     Promise.resolve(setTreasuryDisbursements?.(treasuryDisbursementsRecovered)).catch(() => {});
   }, [setTreasuryDisbursements, treasuryDisbursements, treasuryDisbursementsRecovered]);
+
+  useEffect(() => {
+    receiptsRemoteHydratedRef.current = "";
+    disbursementsRemoteHydratedRef.current = "";
+  }, [empId]);
+
+  useEffect(() => {
+    if (!empId || !platformServices?.getFinancialRegistrySnapshot) return;
+    if (receiptsRemoteHydratedRef.current === empId) return;
+    if (Array.isArray(treasuryReceipts) && treasuryReceipts.length) {
+      receiptsRemoteHydratedRef.current = empId;
+      return;
+    }
+    let alive = true;
+    platformServices.getFinancialRegistrySnapshot(empId, "receipts")
+      .then((snapshot) => {
+        if (!alive) return;
+        const records = Array.isArray(snapshot?.records) ? snapshot.records.map(item => sanitizeTreasuryReceipt(item, empId)).filter(item => item.id && item.invoiceId) : [];
+        if (!records.length) return;
+        receiptsRemoteHydratedRef.current = empId;
+        return Promise.resolve(setTreasuryReceipts?.(mergeById([], records))).catch(() => null);
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, [empId, platformServices, setTreasuryReceipts, treasuryReceipts]);
+
+  useEffect(() => {
+    if (!empId || !platformServices?.getFinancialRegistrySnapshot) return;
+    if (disbursementsRemoteHydratedRef.current === empId) return;
+    if (Array.isArray(treasuryDisbursements) && treasuryDisbursements.length) {
+      disbursementsRemoteHydratedRef.current = empId;
+      return;
+    }
+    let alive = true;
+    platformServices.getFinancialRegistrySnapshot(empId, "disbursements")
+      .then((snapshot) => {
+        if (!alive) return;
+        const records = Array.isArray(snapshot?.records) ? snapshot.records.map(item => sanitizeTreasuryDisbursement(item, empId)).filter(item => item.id && item.payableId) : [];
+        if (!records.length) return;
+        disbursementsRemoteHydratedRef.current = empId;
+        return Promise.resolve(setTreasuryDisbursements?.(mergeById([], records))).catch(() => null);
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, [empId, platformServices, setTreasuryDisbursements, treasuryDisbursements]);
 
   const savePayable = async next => {
     if (!canManageTreasury) return false;
@@ -335,6 +394,11 @@ export function useLabTreasuryModule({
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
     const updated = mergeById(treasuryReceipts, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryReceipts?.(updated);
+    await syncFinancialRegistrySnapshot("receipts", updated, {
+      reason: exists ? "receipt_updated" : "receipt_created",
+      actorUserId: currentUser?.id || "",
+      actorUserEmail: currentUser?.email || "",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -368,6 +432,11 @@ export function useLabTreasuryModule({
     const exists = baseDisbursements.some(item => item.id === safeNext.id);
     const updated = mergeById(baseDisbursements, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryDisbursements?.(updated);
+    await syncFinancialRegistrySnapshot("disbursements", updated, {
+      reason: exists ? "disbursement_updated" : "disbursement_created",
+      actorUserId: currentUser?.id || "",
+      actorUserEmail: currentUser?.email || "",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -434,7 +503,13 @@ export function useLabTreasuryModule({
 
   const deleteReceipt = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryReceipts?.((Array.isArray(treasuryReceipts) ? treasuryReceipts : []).filter(item => item.id !== id));
+    const updated = (Array.isArray(treasuryReceipts) ? treasuryReceipts : []).filter(item => item.id !== id);
+    await setTreasuryReceipts?.(updated);
+    await syncFinancialRegistrySnapshot("receipts", updated, {
+      reason: "receipt_deleted",
+      actorUserId: currentUser?.id || "",
+      actorUserEmail: currentUser?.email || "",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -453,7 +528,13 @@ export function useLabTreasuryModule({
     const baseDisbursements = Array.isArray(treasuryDisbursements) && treasuryDisbursements.length
       ? treasuryDisbursements
       : effectiveTreasuryDisbursements;
-    await setTreasuryDisbursements?.(baseDisbursements.filter(item => item.id !== id));
+    const updated = baseDisbursements.filter(item => item.id !== id);
+    await setTreasuryDisbursements?.(updated);
+    await syncFinancialRegistrySnapshot("disbursements", updated, {
+      reason: "disbursement_deleted",
+      actorUserId: currentUser?.id || "",
+      actorUserEmail: currentUser?.email || "",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",

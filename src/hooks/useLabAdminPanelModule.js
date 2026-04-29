@@ -7,7 +7,7 @@ import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPay
 import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
 import { canAccessAdminSection, canManageAdminPanel, getAccessibleAdminSections, getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
-import { operationalAuditStorageKey } from "../lib/operations/operationalAudit";
+import { appendOperationalAuditEntry, operationalAuditStorageKey } from "../lib/operations/operationalAudit";
 
 function safeText(value = "") {
   return String(value || "").trim();
@@ -364,8 +364,33 @@ export function useLabAdminPanelModule({
     }
   };
 
+  const recordBlockedAdminAttempt = (section = "", payload = {}) => {
+    if (!empresa?.id) return;
+    Promise.resolve(appendOperationalAuditEntry({
+      empId: empresa.id,
+      area: "admin",
+      action: "blocked",
+      entityType: "admin_section",
+      entityId: String(section || "").trim() || "unknown",
+      actor: user,
+      payload: {
+        section: String(section || "").trim() || "unknown",
+        ...payload,
+      },
+      platformServices,
+    }))
+      .then((result) => {
+        if (!result?.entry) return;
+        setOperationalAuditEntries((prev) => [result.entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 8));
+      })
+      .catch(() => null);
+  };
+
   const enforceAdminSection = (section, message) => {
     if (canAccessAdminSection(user, section)) return true;
+    recordBlockedAdminAttempt(section, {
+      attemptedAction: message || "blocked_admin_action",
+    });
     ntf(message || "No tienes permisos para ejecutar esta acción.", "warn");
     return false;
   };

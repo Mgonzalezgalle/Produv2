@@ -95,6 +95,43 @@ function normalizeProtectedFacturaPayload(existingFact = {}, nextFact = {}) {
   return merged;
 }
 
+function sanitizeFacturaPayload(fact = {}, empId = "", fallbackId = "") {
+  const baseTotal = Number(fact?.total || 0);
+  const montoNeto = Number(fact?.montoNeto || 0);
+  const iva = Number(fact?.iva || 0);
+  const ivaVal = Number(fact?.ivaVal || 0);
+  const honorarios = Number(fact?.honorarios || 0);
+  return {
+    ...fact,
+    id: String(fact?.id || fallbackId || "").trim(),
+    empId: String(fact?.empId || empId || "").trim(),
+    correlativo: String(fact?.correlativo || "").trim(),
+    entidadId: String(fact?.entidadId || "").trim(),
+    tipo: String(fact?.tipo || "").trim(),
+    tipoDoc: String(fact?.tipoDoc || "Invoice").trim() || "Invoice",
+    estado: String(fact?.estado || "Emitida").trim() || "Emitida",
+    total: Number.isFinite(baseTotal) ? baseTotal : 0,
+    montoNeto: Number.isFinite(montoNeto) ? montoNeto : 0,
+    iva: Number.isFinite(iva) ? iva : 0,
+    ivaVal: Number.isFinite(ivaVal) ? ivaVal : 0,
+    honorarios: Number.isFinite(honorarios) ? honorarios : 0,
+  };
+}
+
+function upsertById(items = [], nextItems = []) {
+  const nextMap = new Map();
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (!item?.id) return;
+    nextMap.set(item.id, item);
+  });
+  (Array.isArray(nextItems) ? nextItems : []).forEach((item) => {
+    if (!item?.id) return;
+    const previous = nextMap.get(item.id) || {};
+    nextMap.set(item.id, { ...previous, ...item });
+  });
+  return Array.from(nextMap.values());
+}
+
 export function useLabCommercialDocs({
   curEmp,
   facturas,
@@ -143,7 +180,17 @@ export function useLabCommercialDocs({
     try {
       const currentFacts = Array.isArray(facturas) ? facturas : [];
       const existingFact = currentFacts.find((item) => item.id === fact?.id) || null;
-      const safeFact = normalizeProtectedFacturaPayload(existingFact, normalizeReferencePayload(fact));
+      const fallbackId = fact?.id || uid();
+      const sanitizedFact = sanitizeFacturaPayload(normalizeReferencePayload(fact), curEmp?.id, fallbackId);
+      const safeFact = normalizeProtectedFacturaPayload(existingFact, sanitizedFact);
+      if (!safeFact.id || !safeFact.empId || !safeFact.entidadId || !safeFact.tipo) {
+        ntf("Faltan datos base del documento para poder persistirlo.", "warn");
+        return false;
+      }
+      if (Number(safeFact.total || 0) < 0) {
+        ntf("El total del documento no puede ser negativo.", "warn");
+        return false;
+      }
       const isNew = !fact.id;
       const recurringEnabled = !!safeFact.recurring && isNew;
       const recurringMonths = Math.max(1, Number(safeFact.recMonths || 1));
@@ -192,7 +239,10 @@ export function useLabCommercialDocs({
 
       const itemsById = new Map(currentFacts.map((x) => [x.id, x]));
       series.forEach((item) => itemsById.set(item.id, item));
-      const nextFacts = Array.from(itemsById.values());
+      const nextFacts = upsertById(
+        currentFacts,
+        Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id)),
+      );
       await setFacturas(nextFacts);
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);

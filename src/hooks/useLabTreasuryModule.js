@@ -16,6 +16,47 @@ import {
   recoverTreasuryDisbursementsFromProviders,
 } from "../lib/utils/treasury";
 
+function mergeById(items = [], nextItems = []) {
+  const merged = new Map();
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (!item?.id) return;
+    merged.set(item.id, item);
+  });
+  (Array.isArray(nextItems) ? nextItems : []).forEach((item) => {
+    if (!item?.id) return;
+    merged.set(item.id, { ...(merged.get(item.id) || {}), ...item });
+  });
+  return Array.from(merged.values());
+}
+
+function sanitizeTreasuryReceipt(next = {}, empId = "") {
+  const amount = Number(next?.amount || 0);
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    invoiceId: String(next?.invoiceId || "").trim(),
+    amount: Number.isFinite(amount) ? amount : 0,
+    method: String(next?.method || "").trim(),
+    reference: String(next?.reference || "").trim(),
+    date: String(next?.date || "").trim(),
+  };
+}
+
+function sanitizeTreasuryDisbursement(next = {}, empId = "") {
+  const amount = Number(next?.amount || 0);
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    payableId: String(next?.payableId || "").trim(),
+    amount: Number.isFinite(amount) ? amount : 0,
+    method: String(next?.method || "").trim(),
+    reference: String(next?.reference || "").trim(),
+    date: String(next?.date || "").trim(),
+  };
+}
+
 export function useLabTreasuryModule({
   empresa,
   clientes,
@@ -285,15 +326,14 @@ export function useLabTreasuryModule({
   const saveReceipt = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const nextAmount = Number(next.amount || 0);
+    const safeNext = sanitizeTreasuryReceipt({ ...next, empId }, empId);
+    const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);
     if (!nextAmount || nextAmount <= 0) return false;
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
-    const safeNext = { ...next, empId, amount: nextAmount };
+    if (!safeNext.id || !safeNext.invoiceId) return false;
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
-    const updated = exists
-      ? treasuryReceipts.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...treasuryReceipts, safeNext];
+    const updated = mergeById(treasuryReceipts, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryReceipts?.(updated);
     await appendOperationalAuditEntry({
       empId,
@@ -318,16 +358,15 @@ export function useLabTreasuryModule({
   const saveDisbursement = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const nextAmount = Number(next.amount || 0);
+    const safeNext = sanitizeTreasuryDisbursement({ ...next, empId }, empId);
+    const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);
     if (!nextAmount || nextAmount <= 0) return false;
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
-    const safeNext = { ...next, empId, amount: nextAmount };
+    if (!safeNext.id || !safeNext.payableId) return false;
     const baseDisbursements = Array.isArray(treasuryDisbursements) ? treasuryDisbursements : effectiveTreasuryDisbursements;
     const exists = baseDisbursements.some(item => item.id === safeNext.id);
-    const updated = exists
-      ? baseDisbursements.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...baseDisbursements, safeNext];
+    const updated = mergeById(baseDisbursements, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryDisbursements?.(updated);
     await appendOperationalAuditEntry({
       empId,
@@ -395,7 +434,7 @@ export function useLabTreasuryModule({
 
   const deleteReceipt = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryReceipts?.(treasuryReceipts.filter(item => item.id !== id));
+    await setTreasuryReceipts?.((Array.isArray(treasuryReceipts) ? treasuryReceipts : []).filter(item => item.id !== id));
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -411,7 +450,10 @@ export function useLabTreasuryModule({
 
   const deleteDisbursement = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryDisbursements?.(treasuryDisbursements.filter(item => item.id !== id));
+    const baseDisbursements = Array.isArray(treasuryDisbursements) && treasuryDisbursements.length
+      ? treasuryDisbursements
+      : effectiveTreasuryDisbursements;
+    await setTreasuryDisbursements?.(baseDisbursements.filter(item => item.id !== id));
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",

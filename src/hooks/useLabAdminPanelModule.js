@@ -5,7 +5,7 @@ import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../componen
 import { normalizeDiioTenantConnection } from "../lib/integrations/diioIntegration";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
-import { getCustomRoles } from "../lib/auth/authorization";
+import { canAccessAdminSection, canManageAdminPanel, getAccessibleAdminSections, getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
 import { operationalAuditStorageKey } from "../lib/operations/operationalAudit";
 
@@ -82,7 +82,7 @@ export function useLabAdminPanelModule({
   uid,
   sha256Hex,
 }) {
-  const canManageAdmin = ["admin", "superadmin"].includes(user?.role || "");
+  const canManageAdmin = canManageAdminPanel(user);
   const isSuperAdmin = user?.role === "superadmin";
   const [tab, setTab] = useState(0);
   const [lt, setLt] = useState(theme || {});
@@ -228,10 +228,15 @@ export function useLabAdminPanelModule({
   const inactiveUsers = empUsers.filter(u => u.active === false).length;
   const referredSols = (refSols || []).filter(s => s.referredByEmpId === empresa?.id && s.tipo === "empresa");
   const referralHistory = companyReferralDiscountHistory(empresa);
-  const ADMIN_TABS = useMemo(
-    () => ["Colores", "Usuarios", "Empresa", "Listas", "Roles y Permisos", ...(canManageAdmin ? ["Plataforma"] : []), "Correo"],
-    [canManageAdmin],
-  );
+  const ADMIN_TABS = useMemo(() => getAccessibleAdminSections(user, [
+    "Colores",
+    "Usuarios",
+    "Empresa",
+    "Listas",
+    "Roles y Permisos",
+    "Plataforma",
+    "Correo",
+  ]), [user]);
   const ADMIN_TAB_META = {
     "Colores": "Personaliza la identidad visual de la instancia con presets consistentes de Produ.",
     "Usuarios": "Gestiona usuarios del tenant, accesos, roles base y pertenencia al crew interno.",
@@ -245,6 +250,9 @@ export function useLabAdminPanelModule({
   useEffect(() => {
     if (tab >= ADMIN_TABS.length) setTab(0);
   }, [ADMIN_TABS, tab]);
+  useEffect(() => {
+    if (!canAccessAdminSection(user, ADMIN_TABS[tab])) setTab(0);
+  }, [ADMIN_TABS, tab, user]);
   const editableRoleOptions = assignableRoleOptions(empresa, user);
   const remoteBsaleSnapshot = getRemoteBsaleSnapshot(platformSnapshot);
   const remoteProvisionedModules = getRemoteProvisionedModules(platformSnapshot);

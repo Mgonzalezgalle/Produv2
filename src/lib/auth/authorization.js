@@ -53,6 +53,16 @@ const VIEW_ACCESS_RULES = {
   tesoreria: { action: "tesoreria" },
 };
 
+const ADMIN_SECTION_RULES = {
+  Colores: ["admin", "superadmin"],
+  Usuarios: ["admin", "superadmin"],
+  Empresa: ["admin", "superadmin"],
+  Listas: ["admin", "superadmin"],
+  "Roles y Permisos": ["admin", "superadmin"],
+  Plataforma: ["superadmin"],
+  Correo: ["admin", "superadmin"],
+};
+
 export function normalizePermissionAction(action = "") {
   const raw = String(action || "").trim();
   return ACTION_ALIASES[raw] || raw;
@@ -138,4 +148,22 @@ export function canAccessModule(user, view, empresa) {
   if (!actionNeedsAddon(rule.action, empresa)) return false;
   if (rule.action === "tareas") return user?.role !== "viewer";
   return canDo(user, rule.action, empresa);
+}
+
+export function canManageAdminPanel(user) {
+  return ["admin", "superadmin"].includes(String(user?.role || "").trim());
+}
+
+export function canManageSuperAdminPanel(user) {
+  return String(user?.role || "").trim() === "superadmin";
+}
+
+export function canAccessAdminSection(user, section = "") {
+  const rule = ADMIN_SECTION_RULES[String(section || "").trim()];
+  if (!rule) return canManageAdminPanel(user);
+  return rule.includes(String(user?.role || "").trim());
+}
+
+export function getAccessibleAdminSections(user, sections = []) {
+  return (Array.isArray(sections) ? sections : []).filter(section => canAccessAdminSection(user, section));
 }

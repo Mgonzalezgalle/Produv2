@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { canManageAdminPanel } from "../../lib/auth/authorization";
 import { LoadingScreen } from "./ShellLayout";
 
 export function AppOverlays({
@@ -60,6 +61,7 @@ export function AppOverlays({
   const {
     adminOpen,
     curEmp,
+    curUser,
     AdminPanelView,
     panelProps,
   } = adminPanel;
@@ -130,7 +132,7 @@ export function AppOverlays({
         today={actions.today}
       />
     </Suspense>}
-    {adminOpen && curEmp && <Suspense fallback={<LoadingScreen label="Cargando Panel Administrador" note="Estamos preparando la administración interna del tenant." />}>
+    {adminOpen && curEmp && canManageAdminPanel(curUser) && <Suspense fallback={<LoadingScreen label="Cargando Panel Administrador" note="Estamos preparando la administración interna del tenant." />}>
       <AdminPanelView panelProps={panelProps} />
     </Suspense>}
   </>;

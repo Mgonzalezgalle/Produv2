@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { canManageSuperAdminPanel } from "../../lib/auth/authorization";
 import { Card, Empty, GBtn } from "../../lib/ui/components";
 import { LoadingScreen } from "./ShellLayout";
 import { TREASURY_MODULE_ID } from "../../lib/utils/treasury";
@@ -64,6 +65,11 @@ export function AppViewRenderer({
   } = modules;
 
   if (superPanel) {
+    if (!canManageSuperAdminPanel(curUser)) {
+      return <Card title="Acceso restringido">
+        <Empty text="Torre de Control está disponible solo para superadmin" sub="Si necesitas operar sobre gobierno SaaS, usa una cuenta con ese nivel de acceso." />
+      </Card>;
+    }
     return <>
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800 }}>Torre de Control</div>

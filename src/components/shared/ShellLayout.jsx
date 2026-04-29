@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { canDo, getRoleConfig } from "../../lib/auth/authorization";
+import { canDo, canManageAdminPanel, getRoleConfig } from "../../lib/auth/authorization";
 import { buildSidebarNavigation } from "../../lib/modules/moduleRegistry";
 import { Badge } from "../../lib/ui/components";
 
@@ -139,7 +139,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
       <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} empresa={empresa} flatSidebar={true}/>
     </nav>
     {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
-      {(user?.role==="admin"||user?.role==="superadmin")&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",background:sbPanel,color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
+      {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",background:sbPanel,color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
         <span style={{fontSize:9,color:sbMuted}}>Sincronizado · Supabase</span>

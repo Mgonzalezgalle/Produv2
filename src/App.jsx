@@ -21,6 +21,8 @@ import * as LabUI from "./lib/ui/components";
 import {
   assignableRoleOptions,
   canAccessModule,
+  canManageAdminPanel,
+  canManageSuperAdminPanel,
   canDo,
   getRoleConfig,
   hasAddon,
@@ -1349,9 +1351,16 @@ export default function App(){
     view: superPanel ? "__super__" : view,
     mobileOpen: mobileSidebarOpen,
     onNav: v => { setSuperPanel(false); navTo(v); closeMobileSidebar(); },
-    onAdmin: () => { setAdminOpen(true); closeMobileSidebar(); },
+    onAdmin: () => {
+      if (!canManageAdminPanel(curUser)) {
+        ntf("Este perfil no puede abrir el Panel Administrador.", "warn");
+        return;
+      }
+      setAdminOpen(true);
+      closeMobileSidebar();
+    },
     onLogout: logout,
-    onChangeEmp: curUser?.role === "superadmin" ? () => { selectEmp(null); closeMobileSidebar(); } : null,
+    onChangeEmp: canManageSuperAdminPanel(curUser) ? () => { selectEmp(null); closeMobileSidebar(); } : null,
     counts,
     collapsed: sidebarCollapsed,
     onToggle: () => { if (isMobile) closeMobileSidebar(); else setCollapsed(v => !v); },
@@ -1359,7 +1368,7 @@ export default function App(){
     isMobile,
     ini,
     includeTreasury: treasuryEnabled,
-  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, treasuryEnabled]);
+  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, treasuryEnabled, ntf]);
   const alertsPanelProps = useMemo(() => ({
     open: alertasOpen,
     AlertasPanelView,
@@ -1408,11 +1417,12 @@ export default function App(){
     helpers: { normalizeSocialPiece, crmNormalizeOpportunity },
   }), [mOpen, mData, closeM, VP, operationModalComponents, modalStateSetters, ntf, cSave, saveMov, saveFacturaDoc]);
   const adminOverlayProps = useMemo(() => ({
-    adminOpen,
+    adminOpen: adminOpen && canManageAdminPanel(curUser),
     curEmp,
+    curUser,
     AdminPanelView,
     panelProps: adminPanelProps,
-  }), [adminOpen, curEmp, adminPanelProps]);
+  }), [adminOpen, curEmp, curUser, adminPanelProps]);
   const topbarActionProps = useMemo(() => ({
     view,
     detId,
@@ -1490,7 +1500,7 @@ export default function App(){
   // Screens
   if(!globalInitReady || !empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
   if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;
-  if(curUser?.role==="superadmin"&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
+  if(canManageSuperAdminPanel(curUser)&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
 
   return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
     <StyleTag css={APP_SHELL_CSS}/>

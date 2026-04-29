@@ -1,4 +1,5 @@
 import React from "react";
+import { canAccessAdminSection, canManageAdminPanel, canManageSuperAdminPanel } from "../../lib/auth/authorization";
 import { Badge, Btn, Card, GBtn, Modal } from "../../lib/ui/components";
 import { useLabAdminPanelModule } from "../../hooks/useLabAdminPanelModule";
 import { SuperAdminPanel as TowerControlSuperAdminPanel } from "./TowerControlViews";
@@ -156,6 +157,28 @@ export function AdminPanel(rawProps) {
       ? "Parcial"
       : "Inicial";
   const identityHealthColor = identityHealthLabel === "Alineado" ? "green" : identityHealthLabel === "Parcial" ? "yellow" : "gray";
+  const canOpenAdminPanel = canManageAdminPanel(user);
+  const canOpenPlatformTab = canManageSuperAdminPanel(user);
+
+  if (!canOpenAdminPanel) {
+    return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`}>
+      <Card title="Acceso restringido">
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6 }}>
+          Este panel solo está disponible para perfiles administrativos autorizados.
+        </div>
+      </Card>
+    </Modal>;
+  }
+
+  if (!canAccessAdminSection(user, activeAdminTab)) {
+    return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`}>
+      <Card title="Sección restringida">
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6 }}>
+          Esta sección del panel está reservada para un perfil con mayor nivel de gobierno.
+        </div>
+      </Card>
+    </Modal>;
+  }
 
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`} extraWide>
     <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 16, boxShadow: "0 14px 40px rgba(0,0,0,.08)" }}>
@@ -194,7 +217,7 @@ export function AdminPanel(rawProps) {
     {activeAdminTab==="Empresa"&&empresa&&<EmpresaEditSection empresa={empresa} empresas={empresas} saveEmpresas={saveEmpresas} platformServices={platformServices} ntf={ntf} addons={addons} companyGoogleCalendarEnabled={companyGoogleCalendarEnabled} canManageAdmin={canManageAdmin} mercadoPagoGovernanceMode={mercadoPagoGovernanceMode} tenantCanEditMercadoPagoConfig={tenantCanEditMercadoPagoConfig} tenantMercadoPagoConfig={tenantMercadoPagoConfig} setTenantMercadoPagoConfig={setTenantMercadoPagoConfig} tenantMercadoPagoSaving={tenantMercadoPagoSaving} saveTenantMercadoPagoConfig={saveTenantMercadoPagoConfig} diioGovernanceMode={diioGovernanceMode} tenantDiioEnabled={tenantDiioEnabled} tenantCanEditDiioConfig={tenantCanEditDiioConfig} tenantDiioConfig={tenantDiioConfig} setTenantDiioConfig={setTenantDiioConfig} tenantDiioSaving={tenantDiioSaving} tenantDiioTesting={tenantDiioTesting} tenantDiioImporting={tenantDiioImporting} saveTenantDiioConfig={saveTenantDiioConfig} verifyTenantDiioConnection={verifyTenantDiioConnection} importTenantDiioMeetings={importTenantDiioMeetings} operationalHealth={operationalHealth} criticalAuditEntries={criticalAuditEntries} operationalAuditEntries={operationalAuditEntries} />}
     {activeAdminTab==="Listas"&&<ListasEditor listas={listas} saveListas={saveListas} defaultListas={defaultListas}/>}
     {activeAdminTab==="Roles y Permisos"&&empresa&&<RolesEditor empresa={empresa} empresas={empresas} users={users} saveEmpresas={saveEmpresas} platformServices={platformServices} ntf={ntf} uid={uid} canManageAdmin={canManageAdmin}/>}
-    {activeAdminTab==="Plataforma"&&<PlatformFoundationPanel
+    {activeAdminTab==="Plataforma"&&canOpenPlatformTab&&<PlatformFoundationPanel
       planIdentityPromotions={planIdentityPromotions}
       platformPlanning={platformPlanning}
       prepareIdentityMembershipBlueprints={prepareIdentityMembershipBlueprints}

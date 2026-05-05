@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 
 const EMITTED_FACTURA_PROTECTED_FIELDS = [
@@ -152,6 +152,37 @@ export function useLabCommercialDocs({
 }) {
   const canManageMovements = !!(canDo && canDo("movimientos"));
   const canManageBilling = !!(canDo && canDo("facturacion"));
+  const remoteInvoicesHydratedRef = useRef("");
+
+  useEffect(() => {
+    remoteInvoicesHydratedRef.current = "";
+  }, [curEmp?.id]);
+
+  useEffect(() => {
+    if (!curEmp?.id || !platformServices?.getFinancialRegistrySnapshot) return;
+    if (remoteInvoicesHydratedRef.current === curEmp.id) return;
+    if (Array.isArray(facturas) && facturas.length) {
+      remoteInvoicesHydratedRef.current = curEmp.id;
+      return;
+    }
+    let alive = true;
+    platformServices.getFinancialRegistrySnapshot(curEmp.id, "invoices")
+      .then((snapshot) => {
+        if (!alive) return;
+        const records = Array.isArray(snapshot?.records)
+          ? snapshot.records.map(item => sanitizeFacturaPayload(item, curEmp.id, item?.id || ""))
+            .filter(item => item.id && item.empId && item.entidadId && item.tipo)
+          : [];
+        if (!records.length) return;
+        remoteInvoicesHydratedRef.current = curEmp.id;
+        return Promise.resolve(setFacturas?.(upsertById([], records))).catch(() => null);
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, [curEmp?.id, facturas, platformServices, setFacturas]);
+
   const saveMov = useCallback(async (d) => {
     if (!canManageMovements) return false;
     const item = {
@@ -244,6 +275,14 @@ export function useLabCommercialDocs({
         Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id)),
       );
       await setFacturas(nextFacts);
+      if (platformServices?.upsertFinancialRegistrySnapshot && curEmp?.id) {
+        await platformServices.upsertFinancialRegistrySnapshot(curEmp.id, "invoices", nextFacts, {
+          reason: isNew ? "invoice_created" : "invoice_updated",
+          actorUserId: currentUser?.id || "",
+          actorUserEmail: currentUser?.email || "",
+          recordCount: nextFacts.length,
+        }).catch(() => null);
+      }
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
       if (createdItems.length && typeof setTreasuryPurchaseOrders === "function") {

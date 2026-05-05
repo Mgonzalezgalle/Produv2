@@ -192,11 +192,14 @@ export function EmpresaEditSection({
                   <div style={{fontSize:11,color:"var(--gr2)"}}>Visibilidad rápida de respaldo para receipts y disbursements.</div>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
                   <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
                   <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
+                <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
+                <KV label="Facturas foundation" value={operationalHealth.financialRegistryHealth.remoteInvoiceCount} />
                 <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
                 <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
                 <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />

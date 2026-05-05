@@ -39,7 +39,7 @@ begin
     raise exception 'registry_name_required';
   end if;
 
-  if normalized_registry_name not in ('receipts', 'disbursements') then
+  if normalized_registry_name not in ('receipts', 'disbursements', 'invoices') then
     raise exception 'unsupported_registry_name';
   end if;
 

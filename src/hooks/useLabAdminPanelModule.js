@@ -70,28 +70,36 @@ function buildOperationalHealth(empresa, empUsers = []) {
 }
 
 function buildFinancialRegistryHealth({
+  invoices = [],
   receipts = [],
   disbursements = [],
   remoteFinancialRegistries = {},
 } = {}) {
+  const localInvoices = Array.isArray(invoices) ? invoices : [];
   const localReceipts = Array.isArray(receipts) ? receipts : [];
   const localDisbursements = Array.isArray(disbursements) ? disbursements : [];
+  const remoteInvoices = Array.isArray(remoteFinancialRegistries?.invoices?.records) ? remoteFinancialRegistries.invoices.records : [];
   const remoteReceipts = Array.isArray(remoteFinancialRegistries?.receipts?.records) ? remoteFinancialRegistries.receipts.records : [];
   const remoteDisbursements = Array.isArray(remoteFinancialRegistries?.disbursements?.records) ? remoteFinancialRegistries.disbursements.records : [];
 
+  const invoicesCovered = localInvoices.length === 0 || remoteInvoices.length > 0;
   const receiptsCovered = localReceipts.length === 0 || remoteReceipts.length > 0;
   const disbursementsCovered = localDisbursements.length === 0 || remoteDisbursements.length > 0;
-  const foundationReady = receiptsCovered && disbursementsCovered;
+  const foundationReady = invoicesCovered && receiptsCovered && disbursementsCovered;
   const warnings = [
+    localInvoices.length > 0 && remoteInvoices.length === 0 ? "Las facturas locales todavía no tienen respaldo foundation visible." : "",
     localReceipts.length > 0 && remoteReceipts.length === 0 ? "Los receipts locales todavía no tienen respaldo foundation visible." : "",
     localDisbursements.length > 0 && remoteDisbursements.length === 0 ? "Los disbursements locales todavía no tienen respaldo foundation visible." : "",
   ].filter(Boolean);
 
   return {
+    localInvoiceCount: localInvoices.length,
     localReceiptCount: localReceipts.length,
     localDisbursementCount: localDisbursements.length,
+    remoteInvoiceCount: remoteInvoices.length,
     remoteReceiptCount: remoteReceipts.length,
     remoteDisbursementCount: remoteDisbursements.length,
+    invoicesCovered,
     receiptsCovered,
     disbursementsCovered,
     foundationReady,
@@ -182,6 +190,7 @@ export function useLabAdminPanelModule({
   const [tenantDiioImporting, setTenantDiioImporting] = useState(false);
   const [criticalAuditEntries, setCriticalAuditEntries] = useState([]);
   const [localFinancialRegistries, setLocalFinancialRegistries] = useState({
+    invoices: [],
     receipts: [],
     disbursements: [],
   });
@@ -259,6 +268,7 @@ export function useLabAdminPanelModule({
   const empUsers = (users || []).filter(u => u.empId === empresa?.id);
   const remoteFinancialRegistries = platformSnapshot?.financialRegistries || {};
   const financialRegistryHealth = useMemo(() => buildFinancialRegistryHealth({
+    invoices: localFinancialRegistries.invoices,
     receipts: localFinancialRegistries.receipts,
     disbursements: localFinancialRegistries.disbursements,
     remoteFinancialRegistries,
@@ -334,25 +344,27 @@ export function useLabAdminPanelModule({
   useEffect(() => {
     let cancelled = false;
     if (!empresa?.id) {
-      setLocalFinancialRegistries({ receipts: [], disbursements: [] });
+      setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [] });
       return () => {
         cancelled = true;
       };
     }
     Promise.all([
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:facturas`)),
       Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryReceipts`)),
       Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryDisbursements`)),
     ])
-      .then(([receipts, disbursements]) => {
+      .then(([invoices, receipts, disbursements]) => {
         if (cancelled) return;
         setLocalFinancialRegistries({
+          invoices: Array.isArray(invoices) ? invoices : [],
           receipts: Array.isArray(receipts) ? receipts : [],
           disbursements: Array.isArray(disbursements) ? disbursements : [],
         });
       })
       .catch(() => {
         if (!cancelled) {
-          setLocalFinancialRegistries({ receipts: [], disbursements: [] });
+          setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [] });
         }
       });
     return () => {

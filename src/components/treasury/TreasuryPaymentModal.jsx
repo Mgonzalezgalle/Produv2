@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 
+const FIELD_ERROR_STYLE = {
+  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
+  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
+};
+
 export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onSave }) {
   const [form, setForm] = useState({});
   const fileRef = useRef(null);
@@ -38,14 +43,31 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
   const maxAmount = Number(form.maxAmount || 0);
   const currentAmount = Number(form.amount || 0);
   const amountExceeded = maxAmount > 0 && currentAmount > maxAmount;
+  const validationIssue = !currentAmount
+    ? {
+      key: "amount",
+      title: "Todavía falta definir el monto del pago.",
+      detail: "Ingresa un monto mayor a cero antes de guardar este movimiento.",
+      inline: "El pago no puede guardarse con monto cero.",
+    }
+    : amountExceeded
+      ? {
+        key: "amount",
+        title: "El monto supera el máximo permitido para este pago.",
+        detail: `Ajusta el monto para que no exceda ${maxAmount.toLocaleString("es-CL")}.`,
+        inline: "Este pago supera el saldo disponible para registrar.",
+      }
+      : null;
+  const canSubmit = !validationIssue;
 
   return (
     <Modal open={open} onClose={onClose} title={title} sub={subtitle}>
       <R2>
         <FG label="Fecha pago"><FI type="date" value={form.date || ""} onChange={e => setField("date", e.target.value)} /></FG>
         <FG label="Monto *">
-          <FI type="number" min="0" max={maxAmount > 0 ? maxAmount : undefined} value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" />
+          <FI type="number" min="0" max={maxAmount > 0 ? maxAmount : undefined} value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" style={validationIssue?.key === "amount" ? FIELD_ERROR_STYLE : undefined} />
           {maxAmount > 0 && <div style={{ fontSize: 11, color: amountExceeded ? "var(--red)" : "var(--gr2)", marginTop: 6 }}>Máximo permitido: {maxAmount.toLocaleString("es-CL")}</div>}
+          {validationIssue?.key === "amount" && <div style={{ fontSize: 11, color: "var(--red)", marginTop: 6, fontWeight: 600 }}>{validationIssue.inline}</div>}
         </FG>
       </R2>
       <R2>
@@ -61,12 +83,18 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
         {!!form.receiptName && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 6 }}>Adjunto: {form.receiptName}</div>}
       </FG>
       <FG label="Notas"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Observaciones del pago." /></FG>
+      {validationIssue && (
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
+          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
+          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
+        </div>
+      )}
       <MFoot
         onClose={onClose}
         label="Guardar pago"
+        disabled={!canSubmit}
         onSave={() => {
-          if (!Number(form.amount || 0)) return;
-          if (amountExceeded) return;
+          if (!canSubmit) return;
           onSave({
             ...form,
             amount: Number(form.amount || 0),

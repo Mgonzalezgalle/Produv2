@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2 } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 
+const FIELD_ERROR_STYLE = {
+  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
+  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
+};
+
 export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onClose, onSave }) {
   const [form, setForm] = useState({});
   const fileRef = useRef(null);
@@ -44,21 +49,51 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
       value: item.id,
       label: `${item.correlativo || item.tipoDoc || "Documento"} · $${Number(item.total || 0).toLocaleString("es-CL")}`,
     }));
+  const validationIssue = !String(form.clientId || "").trim()
+    ? {
+      key: "clientId",
+      title: "No has completado el cliente de la orden de compra.",
+      detail: "Selecciona el cliente antes de guardar esta orden.",
+      inline: "Falta indicar el cliente asociado a esta OC.",
+    }
+    : !String(form.number || "").trim()
+      ? {
+        key: "number",
+        title: "Todavía falta el número de la orden de compra.",
+        detail: "Ingresa el número o identificador de la OC para poder registrarla.",
+        inline: "Falta completar el número de la orden de compra.",
+      }
+      : !Number(form.amount || 0)
+        ? {
+          key: "amount",
+          title: "Todavía falta el monto total de la orden de compra.",
+          detail: "Ingresa un monto mayor a cero antes de guardar esta OC.",
+          inline: "El monto total no puede quedar en cero.",
+        }
+        : null;
+  const canSubmit = !validationIssue;
 
   return (
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar orden de compra" : "Nueva orden de compra"} sub="Registra la OC del cliente y vincúlala manualmente a facturas emitidas">
       <R2>
         <FG label="Cliente *">
-          <FSl value={form.clientId || ""} onChange={e => setField("clientId", e.target.value)}>
+          <FSl value={form.clientId || ""} onChange={e => setField("clientId", e.target.value)} style={validationIssue?.key === "clientId" ? FIELD_ERROR_STYLE : undefined}>
             <option value="">Seleccionar...</option>
             {(clientes || []).map(client => <option key={client.id} value={client.id}>{client.nom}</option>)}
           </FSl>
+          {validationIssue?.key === "clientId" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
         </FG>
-        <FG label="Número OC *"><FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-2026-14" /></FG>
+        <FG label="Número OC *">
+          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-2026-14" style={validationIssue?.key === "number" ? FIELD_ERROR_STYLE : undefined} />
+          {validationIssue?.key === "number" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+        </FG>
       </R2>
       <R2>
         <FG label="Fecha OC"><FI type="date" value={form.issueDate || ""} onChange={e => setField("issueDate", e.target.value)} /></FG>
-        <FG label="Monto total *"><FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" /></FG>
+        <FG label="Monto total *">
+          <FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" style={validationIssue?.key === "amount" ? FIELD_ERROR_STYLE : undefined} />
+          {validationIssue?.key === "amount" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+        </FG>
       </R2>
       <FG label="Facturas asociadas">
         <MultiSelect
@@ -76,13 +111,18 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
         <FI value={form.pdfUrl?.startsWith("data:") ? "" : (form.pdfUrl || "")} onChange={e => setField("pdfUrl", e.target.value)} placeholder="https://..." />
       </FG>
       <FG label="Notas"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Observaciones internas o condiciones comerciales." /></FG>
+      {validationIssue && (
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
+          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
+          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
+        </div>
+      )}
       <MFoot
         onClose={onClose}
         label="Guardar"
+        disabled={!canSubmit}
         onSave={() => {
-          if (!String(form.clientId || "").trim()) return;
-          if (!String(form.number || "").trim()) return;
-          if (!Number(form.amount || 0)) return;
+          if (!canSubmit) return;
           onSave({
             ...form,
             status: data?.id ? (form.status || "Pendiente") : "Pendiente",

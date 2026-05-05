@@ -153,6 +153,19 @@ export function useLabCommercialDocs({
   const canManageMovements = !!(canDo && canDo("movimientos"));
   const canManageBilling = !!(canDo && canDo("facturacion"));
   const remoteInvoicesHydratedRef = useRef("");
+  const recordFoundationInvoiceEvent = useCallback(async (action, payload = {}) => {
+    if (!curEmp?.id) return null;
+    return appendOperationalAuditEntry({
+      empId: curEmp.id,
+      area: "foundation",
+      action,
+      entityType: "financial_registry",
+      entityId: "invoices",
+      actor: currentUser,
+      payload,
+      platformServices,
+    });
+  }, [curEmp?.id, currentUser, platformServices]);
 
   useEffect(() => {
     remoteInvoicesHydratedRef.current = "";
@@ -175,9 +188,19 @@ export function useLabCommercialDocs({
           : [];
         if (!records.length) return;
         remoteInvoicesHydratedRef.current = curEmp.id;
+        recordFoundationInvoiceEvent("registry_rehydrated", {
+          registryName: "invoices",
+          recordCount: records.length,
+          source: snapshot?.source || "remote",
+        }).catch(() => null);
         return Promise.resolve(setFacturas?.(upsertById([], records))).catch(() => null);
       })
-      .catch(() => null);
+      .catch((error) => {
+        recordFoundationInvoiceEvent("registry_rehydrate_failed", {
+          registryName: "invoices",
+          message: error?.message || "No pudimos rehidratar facturas desde foundation.",
+        }).catch(() => null);
+      });
     return () => {
       alive = false;
     };
@@ -276,12 +299,25 @@ export function useLabCommercialDocs({
       );
       await setFacturas(nextFacts);
       if (platformServices?.upsertFinancialRegistrySnapshot && curEmp?.id) {
-        await platformServices.upsertFinancialRegistrySnapshot(curEmp.id, "invoices", nextFacts, {
-          reason: isNew ? "invoice_created" : "invoice_updated",
-          actorUserId: currentUser?.id || "",
-          actorUserEmail: currentUser?.email || "",
-          recordCount: nextFacts.length,
-        }).catch(() => null);
+        try {
+          const syncResult = await platformServices.upsertFinancialRegistrySnapshot(curEmp.id, "invoices", nextFacts, {
+            reason: isNew ? "invoice_created" : "invoice_updated",
+            actorUserId: currentUser?.id || "",
+            actorUserEmail: currentUser?.email || "",
+            recordCount: nextFacts.length,
+          });
+          await recordFoundationInvoiceEvent("registry_snapshot_synced", {
+            registryName: "invoices",
+            recordCount: nextFacts.length,
+            source: syncResult?.source || "remote",
+          });
+        } catch (error) {
+          await recordFoundationInvoiceEvent("registry_snapshot_degraded", {
+            registryName: "invoices",
+            recordCount: nextFacts.length,
+            message: error?.message || "No pudimos sincronizar facturas con foundation.",
+          });
+        }
       }
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
@@ -369,6 +405,7 @@ export function useLabCommercialDocs({
     uid,
     currentUser,
     platformServices,
+    recordFoundationInvoiceEvent,
   ]);
 
   return {

@@ -42,8 +42,12 @@ export function EmpresaEditSection({
     () => (operationalAuditEntries || []).filter(entry => String(entry?.action || "").startsWith("blocked")),
     [operationalAuditEntries],
   );
+  const foundationSyncEntries = React.useMemo(
+    () => (operationalAuditEntries || []).filter(entry => entry?.area === "foundation" || entry?.entityType === "financial_registry"),
+    [operationalAuditEntries],
+  );
   const visibleOperationalEntries = React.useMemo(
-    () => (operationalAuditEntries || []).filter(entry => !String(entry?.action || "").startsWith("blocked")),
+    () => (operationalAuditEntries || []).filter(entry => !String(entry?.action || "").startsWith("blocked") && entry?.area !== "foundation" && entry?.entityType !== "financial_registry"),
     [operationalAuditEntries],
   );
 
@@ -182,6 +186,7 @@ export function EmpresaEditSection({
             <KV label="Integraciones activas" value={operationalHealth.integrationEnabledCount} />
             <KV label="Integraciones industrializadas" value={operationalHealth.integrationIndustrializedCount} />
             <KV label="Bloqueos recientes" value={blockedAdminEntries.length} />
+            <KV label="Sync foundation" value={foundationSyncEntries.length} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
           {!!operationalHealth.financialRegistryHealth && (
@@ -264,6 +269,40 @@ export function EmpresaEditSection({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {!!foundationSyncEntries.length && (
+        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid rgba(34, 197, 94, 0.2)",borderRadius:10,background:"rgba(34, 197, 94, 0.06)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Sincronización y autocuración foundation</div>
+              <div style={{fontSize:11,color:"var(--gr2)"}}>Últimos eventos de respaldo remoto, degradación o rehidratación automática.</div>
+            </div>
+            <Badge label={`${foundationSyncEntries.length} evento${foundationSyncEntries.length === 1 ? "" : "s"}`} color="green" sm />
+          </div>
+          <div style={{display:"grid",gap:8}}>
+            {foundationSyncEntries.slice(0, 4).map(entry => {
+              const isFailure = String(entry?.action || "").includes("failed") || String(entry?.action || "").includes("degraded");
+              const label = String(entry?.action || "foundation_event").replaceAll("_", " ");
+              return (
+                <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
+                      {entry?.payload?.registryName || entry?.entityId || "foundation"}
+                    </div>
+                    <Badge label={label} color={isFailure ? "yellow" : "green"} sm />
+                  </div>
+                  <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
+                    {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
+                    {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
+                    {entry?.payload?.message || `Registros: ${entry?.payload?.recordCount ?? "n/a"}`}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

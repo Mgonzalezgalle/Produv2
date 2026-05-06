@@ -12,6 +12,7 @@ import {
 } from "../../lib/ui/components";
 import { clearGoogleCalendarSession, loadGoogleCalendarSession } from "../../lib/auth/sessionStorage";
 import { fmtD, hasAddon, today } from "../../lib/utils/helpers";
+import { getUserFacingErrorMessage, notifyUserFacingError } from "../../lib/ui/userFacingErrors";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DIAS_SEMANA = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
@@ -794,12 +795,12 @@ export function ViewCalendario(props) {
         googleEventId: ev.googleEventId,
       }));
       if (!remoteDelete?.ok) {
-        ntf?.(remoteDelete?.message || "No pudimos eliminar el evento en Google Calendar.", "warn");
+        notifyUserFacingError(ntf, remoteDelete, "No pudimos eliminar el evento en Google Calendar.");
         if (ev.custom) {
           await Promise.resolve(setEventos((current = []) => (Array.isArray(current) ? current : []).map(item => item.id === ev.id ? {
             ...item,
             googleCalendarSyncState: "error",
-            googleCalendarSyncError: remoteDelete?.message || "No pudimos eliminar este evento en Google Calendar.",
+            googleCalendarSyncError: getUserFacingErrorMessage(remoteDelete, "No pudimos eliminar este evento en Google Calendar."),
           } : item)));
         }
         return;
@@ -829,7 +830,7 @@ export function ViewCalendario(props) {
         redirectTo: typeof window !== "undefined" ? window.location.href : "",
       });
       if (!result?.ok || !result?.authUrl) {
-        ntf?.(result?.message || "No pudimos iniciar la conexión con Google Calendar.", "warn");
+        notifyUserFacingError(ntf, result, "No pudimos iniciar la conexión con Google Calendar.");
         return;
       }
       const popup = typeof window !== "undefined"
@@ -841,7 +842,7 @@ export function ViewCalendario(props) {
       }
       popup.focus?.();
     } catch (error) {
-      ntf?.(error?.message || "No pudimos iniciar Google Calendar.", "warn");
+      notifyUserFacingError(ntf, error, "No pudimos iniciar Google Calendar.");
     } finally {
       setGoogleCalendarConnecting(false);
     }

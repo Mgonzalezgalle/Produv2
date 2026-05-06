@@ -73,6 +73,7 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { requestConfirm } from "../../lib/ui/confirmService";
+import { alertUserFacingError } from "../../lib/ui/userFacingErrors";
 export { MFact } from "./InvoiceModal";
 let commercialPdfRuntimePromise = null;
 const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
@@ -231,7 +232,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
 
   const openEmailComposer = React.useCallback((builderResult) => {
     if (!builderResult?.ok || !builderResult?.draft) {
-      window.alert(builderResult?.message || "No pudimos preparar el correo.");
+      alertUserFacingError(builderResult, "No pudimos preparar el correo.");
       return;
     }
     setEmailComposerDraft(builderResult.draft);
@@ -249,7 +250,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     try {
       const result = await deliverEmailDraft(draft);
       if (!result?.ok) {
-        window.alert(result?.message || "No pudimos enviar el correo.");
+        alertUserFacingError(result, "No pudimos enviar el correo.");
         return;
       }
       setEmailComposerOpen(false);
@@ -332,7 +333,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   const openInvoiceManualEmailComposer = React.useCallback(async (fact, entity, ref) => {
     const contact = billingContact(entity, fact?.tipo);
     if (!contact.email) {
-      window.alert("La entidad no tiene email registrado para enviar la factura.");
+      alertUserFacingError({ userMessage: "La entidad no tiene email registrado para enviar la factura." }, "La entidad no tiene email registrado para enviar la factura.");
       return;
     }
     const resolved = resolveTransactionalEmailTemplate(empresa, "invoice_manual_delivery", {
@@ -352,7 +353,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       const attachment = await commentAttachmentFromFile(file);
       if (attachment) attachments = [attachment];
     } catch {
-      window.alert("No pudimos adjuntar automáticamente el PDF de la factura. El correo se abrirá igual para revisión.");
+      alertUserFacingError({ userMessage: "No pudimos adjuntar automáticamente el PDF de la factura. El correo se abrirá igual para revisión." }, "No pudimos adjuntar automáticamente el PDF de la factura. El correo se abrirá igual para revisión.");
     }
     openEmailComposer({
       ok: true,

@@ -27,6 +27,7 @@ import {
   XBtn,
   ViewModeToggle,
 } from "../../lib/ui/components";
+import { alertUserFacingError, notifyUserFacingError } from "../../lib/ui/userFacingErrors";
 import {
   DEFAULT_LISTAS,
   DEFAULT_PRINT_LAYOUTS,
@@ -233,7 +234,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
 
   const openEmailComposer = React.useCallback((builderResult) => {
     if (!builderResult?.ok || !builderResult?.draft) {
-      window.alert(builderResult?.message || "No pudimos preparar el correo.");
+      alertUserFacingError(builderResult, "No pudimos preparar el correo.");
       return;
     }
     setEmailComposerDraft(builderResult.draft);
@@ -271,12 +272,12 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
     try {
       const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
       if (remoteResult?.ok) return remoteResult;
-      if (remoteResult?.message) window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
+      notifyUserFacingError(null, remoteResult, "No pudimos entregar este correo todavía.");
     } catch (error) {
       console.warn("[budget-email] No pudimos entregar el correo remoto del presupuesto", error);
     }
     if (Array.isArray(draft?.attachments) && draft.attachments.length) {
-      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+      alertUserFacingError({ userMessage: "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto." }, "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
     }
     window.location.href = buildBudgetMailto(recipients.join(","), subject, body);
     return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
@@ -301,7 +302,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
       const attachment = await commentAttachmentFromFile(file);
       if (attachment) attachments = [attachment];
     } catch {
-      window.alert("No pudimos adjuntar automáticamente el PDF del presupuesto. El correo se abrirá igual para revisión.");
+      alertUserFacingError({ userMessage: "No pudimos adjuntar automáticamente el PDF del presupuesto. El correo se abrirá igual para revisión." }, "No pudimos adjuntar automáticamente el PDF del presupuesto. El correo se abrirá igual para revisión.");
     }
     return {
       ok: true,
@@ -335,7 +336,7 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
     try {
       const result = await deliverEmailDraft(draft);
       if (!result?.ok) {
-        window.alert(result?.message || "No pudimos enviar el correo.");
+        alertUserFacingError(result, "No pudimos enviar el correo.");
         return;
       }
       setEmailComposerOpen(false);

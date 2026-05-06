@@ -12,6 +12,7 @@ import {
 import { buildSelfServeCommercialSummary } from "../../lib/config/selfServeCheckout";
 import { DEFAULT_SELF_SERVE_SETTINGS, normalizeSelfServeSettings, SELF_SERVE_SETTINGS_KEY } from "../../lib/config/selfServeAdminConfig";
 import { createPlatformMockGateway } from "../../lib/backend/platformMockGateway";
+import { alertUserFacingError } from "../../lib/ui/userFacingErrors";
 
 export class AuthModalErrorBoundary extends React.Component {
   constructor(props) {
@@ -185,7 +186,7 @@ export function SelfServeAcquisitionWizard({
       : { tenantDraft: await platformGateway.createPendingTenant(tenantRequest) };
     const companyDraft = tenantResponse?.tenantDraft;
     if (!companyDraft?.id) {
-      alert("No pudimos preparar la empresa para activación.");
+      alertUserFacingError({ userMessage: "No pudimos preparar la empresa para activación." }, "No pudimos preparar la empresa para activación.");
       return;
     }
     const acquisitionLead = {
@@ -233,7 +234,7 @@ export function SelfServeAcquisitionWizard({
         pricingSnapshot,
       });
       if (!checkoutResult?.ok) {
-        alert(checkoutResult?.error || "No pudimos preparar el checkout.");
+        alertUserFacingError(checkoutResult, "No pudimos preparar el checkout.");
         return;
       }
       nextLead = {

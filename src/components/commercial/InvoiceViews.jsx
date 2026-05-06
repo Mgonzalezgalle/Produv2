@@ -90,6 +90,10 @@ function BillingSurfaceMetric({ label, value, tone = "var(--cy)", hint = null })
   );
 }
 
+function sumInvoiceTotals(rows = []) {
+  return (Array.isArray(rows) ? rows : []).reduce((sum, item) => sum + Number(item?.total || 0), 0);
+}
+
 async function getCommercialPdfRuntime() {
   if (!commercialPdfRuntimePromise) {
     commercialPdfRuntimePromise = Promise.all([
@@ -309,9 +313,6 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     selectablePageIds,
     toggleSelected,
     toggleAll,
-    cuentasPorCobrar,
-    pendiente,
-    pagado,
     vencidas,
     emitidas,
     recurrentes,
@@ -386,6 +387,9 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     });
   }, [commentAttachmentFromFile, empresa, fmtD, fmtM, openEmailComposer]);
 
+  const emittedAmount = React.useMemo(() => sumInvoiceTotals(fd), [fd]);
+  const recurringSeriesCount = React.useMemo(() => (Array.isArray(seriesList) ? seriesList.length : 0), [seriesList]);
+
   return <div>
     <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 56%,rgba(9,14,24,.3) 100%)",marginBottom:18,boxShadow:"0 18px 42px rgba(0,0,0,.1)"}}>
       <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(280px,.95fr)",gap:16,alignItems:"stretch"}}>
@@ -403,17 +407,17 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <BillingSurfaceMetric label="Documentos emitidos" value={fd.length} tone="var(--cy)" hint="Base documental visible en este módulo." />
-          <BillingSurfaceMetric label="Por cobrar" value={fmtM(pendiente)} tone="#ffcc44" hint={`${cuentasPorCobrar.length} documento(s) siguen abiertos.`} />
-          <BillingSurfaceMetric label="Cobrado" value={fmtM(pagado)} tone="#00e08a" hint="Monto ya conciliado sobre la emisión." />
-          <BillingSurfaceMetric label="Recurrencia" value={`${emitidas} / ${recurrentes}`} tone="#ff5566" hint={`Serie activas con ${vencidas} atraso(s).`} />
+          <BillingSurfaceMetric label="Monto emitido" value={fmtM(emittedAmount)} tone="#00e08a" hint="Volumen documental emitido desde Facturación." />
+          <BillingSurfaceMetric label="OC recibidas" value={purchaseOrderSummary.docs} tone="#ffcc44" hint={`${fmtM(purchaseOrderSummary.total)} comprometidos por clientes.`} />
+          <BillingSurfaceMetric label="Recurrencias" value={recurringSeriesCount} tone="#ff5566" hint={`${vencidas} serie(s) con atraso y ${recurrentes} documento(s) recurrentes emitidos.`} />
         </div>
       </div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Cuentas por cobrar" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44" sub={`${cuentasPorCobrar.length} documento(s)`}/>
-      <Stat label="Cobrado" value={fmtM(pagado)} accent="#00e08a" vc="#00e08a"/>
-      <Stat label="Emitidos / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`atrasadas: ${vencidas}`}/>
+      <Stat label="Monto emitido" value={fmtM(emittedAmount)} accent="#00e08a" vc="#00e08a"/>
+      <Stat label="OC recibidas" value={purchaseOrderSummary.docs} accent="#ffcc44" vc="#ffcc44" sub={`pendiente match: ${fmtM(purchaseOrderSummary.pending)}`}/>
+      <Stat label="Series activas / atraso" value={`${recurringSeriesCount} / ${vencidas}`} accent="#ff5566" vc="#ff5566" sub={`documentos recurrentes: ${recurrentes}`}/>
     </div>
     <Tabs tabs={["Emisión","Órdenes de Compra Recibidas","Recurrencias"]} active={Math.min(tab,2)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
     <div style={{background:"linear-gradient(180deg,rgba(57,208,255,.1),rgba(57,208,255,.04))",border:"1px solid var(--cm)",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:12,color:"var(--cy)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>

@@ -31,6 +31,14 @@ function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null }
   );
 }
 
+function summarizeMovementLog(rows = []) {
+  const list = Array.isArray(rows) ? rows : [];
+  return {
+    docs: list.length,
+    total: list.reduce((sum, item) => sum + Number(item?.amount || 0), 0),
+  };
+}
+
 async function openPdfSourceInNewTab(src = "", fallbackName = "documento.pdf") {
   const trimmedSrc = String(src || "").trim();
   if (!trimmedSrc) return false;
@@ -221,6 +229,7 @@ export function TreasuryModule(props) {
     () => Array.from(new Set(receiptLog.map(row => String(row.date || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
     [receiptLog],
   );
+  const receiptsSummary = useMemo(() => summarizeMovementLog(receiptLog), [receiptLog]);
   const receiptTable = useTableState(filteredReceiptLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const filteredPayables = useMemo(
     () => payables.filter(row => {
@@ -266,6 +275,7 @@ export function TreasuryModule(props) {
     () => Array.from(new Set(disbursementLog.map(row => String(row.date || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
     [disbursementLog],
   );
+  const disbursementSummary = useMemo(() => summarizeMovementLog(disbursementLog), [disbursementLog]);
   const disbursementTable = useTableState(filteredDisbursementLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const providerTable = useTableState(providers, { searchFields: [row => row.name, row => row.razonSocial, row => row.rut], pageSize: 6 });
   const providerPaymentRows = useMemo(() => {
@@ -515,6 +525,41 @@ export function TreasuryModule(props) {
     if (!ids.length || !deleter) return;
     setPendingBulkDelete({ ids, deleter });
   };
+  const treasuryHero = tab === 0
+    ? {
+        badge: { label: "Foco en cobranza", color: "cyan" },
+        secondaryBadge: { label: `${receivableSummary.overdueDocs} docs vencidos`, color: receivableSummary.overdueDocs ? "yellow" : "green" },
+        tertiaryBadge: { label: `${receiptsSummary.docs} pagos recibidos`, color: "gray" },
+        metrics: [
+          { label: "Cartera total", value: fmtM(receivableSummary.total), tone: "var(--cy)", hint: "Lectura consolidada de cuentas por cobrar." },
+          { label: "Pendiente", value: fmtM(receivableSummary.pending), tone: "#ffcc44", hint: "Monto abierto aún no conciliado." },
+          { label: "Vencido", value: fmtM(receivableSummary.overdue), tone: "var(--red)", hint: `${receivableSummary.overdueDocs} documento(s) con atraso.` },
+          { label: "Pagos recibidos", value: fmtM(receiptsSummary.total), tone: "#00e08a", hint: `${receiptsSummary.docs} registro(s) conciliados manualmente.` },
+        ],
+        kpis: [
+          { color: "var(--cy)", label: "Cartera total", value: fmtM(receivableSummary.total), scope: "CxC" },
+          { color: "#ffcc44", label: "Pendiente", value: fmtM(receivableSummary.pending), scope: "CxC" },
+          { color: "var(--red)", label: "Vencido", value: fmtM(receivableSummary.overdue), sub: `${receivableSummary.overdueDocs} docs con atraso`, scope: "CxC" },
+          { color: "#00e08a", label: "Pagos recibidos", value: fmtM(receiptsSummary.total), sub: `${receiptsSummary.docs} conciliación(es)`, scope: "CxC" },
+        ],
+      }
+    : {
+        badge: { label: "Foco en egresos", color: "purple" },
+        secondaryBadge: { label: `${payablesSummary.docs} cuentas por pagar`, color: "gray" },
+        tertiaryBadge: { label: `${issuedOrderSummary.docs} OC emitidas`, color: "cyan" },
+        metrics: [
+          { label: "Documentos por pagar", value: fmtM(payablesSummary.total), tone: "#a78bfa", hint: `${payablesSummary.docs} documento(s) registrados en cuentas por pagar.` },
+          { label: "Pendiente de pago", value: fmtM(payablesSummary.pending), tone: "#ffcc44", hint: "Saldo aún no desembolsado." },
+          { label: "Vencido", value: fmtM(payablesSummary.overdue), tone: "var(--red)", hint: "Documentos atrasados dentro de la salida de caja." },
+          { label: "Pagos realizados", value: fmtM(disbursementSummary.total), tone: "#00e08a", hint: `${disbursementSummary.docs} desembolso(s) registrados.` },
+        ],
+        kpis: [
+          { color: "#a78bfa", label: "Documentos por pagar", value: fmtM(payablesSummary.total), sub: `${payablesSummary.docs} registrados`, scope: "CxP" },
+          { color: "#ffcc44", label: "Pendiente", value: fmtM(payablesSummary.pending), scope: "CxP" },
+          { color: "var(--red)", label: "Vencido", value: fmtM(payablesSummary.overdue), sub: "saldo con atraso", scope: "CxP" },
+          { color: "#00e08a", label: "Pagos realizados", value: fmtM(disbursementSummary.total), sub: `${disbursementSummary.docs} desembolso(s)`, scope: "CxP" },
+        ],
+      };
 
   return (
     <div className="treasury-shell">
@@ -528,24 +573,35 @@ export function TreasuryModule(props) {
               description="Controla cartera, deuda, cobranza operativa, conciliación documental y pagos realizados desde una misma superficie financiera."
             />
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <Badge label={tab === 0 ? "Foco en cobranza" : "Foco en egresos"} color={tab === 0 ? "cyan" : "purple"} sm />
-              <Badge label={`${receivableSummary.overdueDocs} docs vencidos`} color={receivableSummary.overdueDocs ? "yellow" : "green"} sm />
-              <Badge label={`${payablesSummary.docs} egresos registrados`} color="gray" sm />
+              <Badge label={treasuryHero.badge.label} color={treasuryHero.badge.color} sm />
+              <Badge label={treasuryHero.secondaryBadge.label} color={treasuryHero.secondaryBadge.color} sm />
+              <Badge label={treasuryHero.tertiaryBadge.label} color={treasuryHero.tertiaryBadge.color} sm />
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <TreasurySurfaceMetric label="Cartera total" value={fmtM(receivableSummary.total)} tone="var(--cy)" hint="Lectura consolidada de cuentas por cobrar." />
-            <TreasurySurfaceMetric label="Pendiente" value={fmtM(receivableSummary.pending)} tone="#ffcc44" hint="Monto abierto aún no conciliado." />
-            <TreasurySurfaceMetric label="Vencido" value={fmtM(receivableSummary.overdue)} tone="var(--red)" hint={`${receivableSummary.overdueDocs} documento(s) con atraso.`} />
-            <TreasurySurfaceMetric label="Egresos" value={fmtM(payablesSummary.total)} tone="#a78bfa" hint={`${payablesSummary.docs} documento(s) en cuentas por pagar.`} />
+            {treasuryHero.metrics.map(metric => (
+              <TreasurySurfaceMetric
+                key={metric.label}
+                label={metric.label}
+                value={metric.value}
+                tone={metric.tone}
+                hint={metric.hint}
+              />
+            ))}
           </div>
         </div>
       </div>
       <div className="treasury-kpis">
-        <KpiCard color="var(--cy)" label="Cartera total" value={fmtM(receivableSummary.total)} scope="CxC" />
-        <KpiCard color="#ffcc44" label="Pendiente" value={fmtM(receivableSummary.pending)} scope="CxC" />
-        <KpiCard color="var(--red)" label="Vencido" value={fmtM(receivableSummary.overdue)} sub={`${receivableSummary.overdueDocs} docs con atraso`} scope="CxC" />
-        <KpiCard color="#a78bfa" label="Egresos" value={fmtM(payablesSummary.total)} sub={`${payablesSummary.docs} documentos registrados`} scope="CxP" />
+        {treasuryHero.kpis.map(kpi => (
+          <KpiCard
+            key={`${tab}-${kpi.label}`}
+            color={kpi.color}
+            label={kpi.label}
+            value={kpi.value}
+            sub={kpi.sub}
+            scope={kpi.scope}
+          />
+        ))}
       </div>
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>

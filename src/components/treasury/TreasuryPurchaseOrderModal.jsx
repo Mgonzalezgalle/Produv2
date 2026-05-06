@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2 } from "../../lib/ui/components";
+import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
 
 export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onClose, onSave }) {
   const [form, setForm] = useState({});
@@ -77,22 +72,22 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar orden de compra" : "Nueva orden de compra"} sub="Registra la OC del cliente y vincúlala manualmente a facturas emitidas">
       <R2>
         <FG label="Cliente *">
-          <FSl value={form.clientId || ""} onChange={e => setField("clientId", e.target.value)} style={validationIssue?.key === "clientId" ? FIELD_ERROR_STYLE : undefined}>
+          <FSl value={form.clientId || ""} onChange={e => setField("clientId", e.target.value)} style={validationIssue?.key === "clientId" ? VALIDATION_FIELD_STYLE : undefined}>
             <option value="">Seleccionar...</option>
             {(clientes || []).map(client => <option key={client.id} value={client.id}>{client.nom}</option>)}
           </FSl>
-          {validationIssue?.key === "clientId" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <ValidationHint>{validationIssue?.key === "clientId" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
         <FG label="Número OC *">
-          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-2026-14" style={validationIssue?.key === "number" ? FIELD_ERROR_STYLE : undefined} />
-          {validationIssue?.key === "number" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-2026-14" style={validationIssue?.key === "number" ? VALIDATION_FIELD_STYLE : undefined} />
+          <ValidationHint>{validationIssue?.key === "number" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
       <R2>
         <FG label="Fecha OC"><FI type="date" value={form.issueDate || ""} onChange={e => setField("issueDate", e.target.value)} /></FG>
         <FG label="Monto total *">
-          <FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" style={validationIssue?.key === "amount" ? FIELD_ERROR_STYLE : undefined} />
-          {validationIssue?.key === "amount" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <FI type="number" min="0" value={form.amount || ""} onChange={e => setField("amount", e.target.value)} placeholder="0" style={validationIssue?.key === "amount" ? VALIDATION_FIELD_STYLE : undefined} />
+          <ValidationHint>{validationIssue?.key === "amount" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
       <FG label="Facturas asociadas">
@@ -111,12 +106,7 @@ export function TreasuryPurchaseOrderModal({ open, data, clientes, facturas, onC
         <FI value={form.pdfUrl?.startsWith("data:") ? "" : (form.pdfUrl || "")} onChange={e => setField("pdfUrl", e.target.value)} placeholder="https://..." />
       </FG>
       <FG label="Notas"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Observaciones internas o condiciones comerciales." /></FG>
-      {validationIssue && (
-        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
-          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
-          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
-        </div>
-      )}
+      <ValidationBanner title={validationIssue?.title} detail={validationIssue?.detail} />
       <MFoot
         onClose={onClose}
         label="Guardar"

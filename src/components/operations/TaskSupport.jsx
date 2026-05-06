@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Btn, Card, Empty, FG, FTA, GBtn, XBtn } from "../../lib/ui/components";
+import { Btn, Card, Empty, FG, FTA, GBtn, XBtn, VALIDATION_FIELD_STYLE, ValidationHint } from "../../lib/ui/components";
 import { COLS_TAREAS, getAssignedIds, PRIO_BG, PRIO_COLORS, taskRecurrenceLabel } from "../../lib/utils/tasks";
 import { requestConfirm } from "../../lib/ui/confirmService";
 import { TaskErrorBoundary } from "../shared/CoreFeedback";
@@ -204,8 +204,8 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       </label>
     </div>}
     {canEdit&&<div style={{marginBottom:16}}>
-      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..." style={commentValidationMessage ? { borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)", boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)" } : undefined}/>
-      {!!commentValidationMessage && <div style={{marginTop:6,fontSize:11,color:"var(--red)",fontWeight:600}}>{commentValidationMessage}</div>}
+      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..." style={commentValidationMessage ? VALIDATION_FIELD_STYLE : undefined}/>
+      <ValidationHint>{commentValidationMessage}</ValidationHint>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,marginTop:10}}>
         <FG label="Tipo de comentario">
           <select value={kind} onChange={e=>setKind(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>

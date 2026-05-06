@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat } from "../../lib/ui/components";
+import { Badge, Btn, Card, Empty, FG, FI, FSl, FTA, KV, Modal, Sep, Stat, VALIDATION_FIELD_STYLE, ValidationHint } from "../../lib/ui/components";
 import { ContactBtns } from "../shared/ContactButtons";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
@@ -26,11 +26,6 @@ function crmActivitySecondary(activity = {}) {
   }
   return activity?.byName ? `Registrado por ${activity.byName}` : "Registro interno";
 }
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
 
 export function CrmDetailModal({
   detail,
@@ -119,8 +114,8 @@ export function CrmDetailModal({
                 <option value="email">Email</option>
               </FSl>
               <div>
-                <FTA value={activityForm.text} onChange={e => setActivityForm(prev => ({ ...prev, text: e.target.value }))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{ minHeight: 88, ...(activityValidationMessage ? FIELD_ERROR_STYLE : {}) }} />
-                {!!activityValidationMessage && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{activityValidationMessage}</div>}
+                <FTA value={activityForm.text} onChange={e => setActivityForm(prev => ({ ...prev, text: e.target.value }))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{ minHeight: 88, ...(activityValidationMessage ? VALIDATION_FIELD_STYLE : {}) }} />
+                <ValidationHint>{activityValidationMessage}</ValidationHint>
               </div>
               {canManageCrm && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>

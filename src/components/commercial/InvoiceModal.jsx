@@ -20,12 +20,7 @@ import {
   supportsProduDocumentVat,
 } from "../../lib/integrations/billingDomain";
 import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
-import { FSl, FG, FI, FTA, GBtn, MFoot, Modal, R2, R3 } from "../../lib/ui/components";
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
+import { FSl, FG, FI, FTA, GBtn, MFoot, Modal, R2, R3, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 
 const VALIDATION_COPY = {
   entity: {
@@ -179,17 +174,13 @@ export function MFact({
       <FG label="Tipo Referencia"><FSl value={f.tipoRef||""} onChange={(e)=>u("tipoRef",e.target.value)}><option value="">Sin referencia</option><option value="produccion">Proyecto</option>{canPrograms&&<option value="programa">Producción</option>}{hasAddon(empresa,"social")&&<option value="contenido">Contenidos</option>}</FSl></FG>
     </R2>
     <FG label={f.tipo==="auspiciador"?"Auspiciador (Principal o Secundario) *":"Cliente *"}>
-      <FSl value={f.entidadId||""} onChange={(e)=>u("entidadId",e.target.value)} style={hasEntityError ? FIELD_ERROR_STYLE : undefined}>
+      <FSl value={f.entidadId||""} onChange={(e)=>u("entidadId",e.target.value)} style={hasEntityError ? VALIDATION_FIELD_STYLE : undefined}>
         <option value="">— Seleccionar —</option>
         {f.tipo==="auspiciador"
           ? ausValidos.map((a)=><option key={a.id} value={a.id}>{a.nom} · {a.tip}</option>)
           : (clientes||[]).map((c)=><option key={c.id} value={c.id}>{c.nom}</option>)}
       </FSl>
-      {hasEntityError && (
-        <div style={{marginTop:6,fontSize:11,color:"var(--red)",fontWeight:600}}>
-          {validationIssue.inline}
-        </div>
-      )}
+      <ValidationHint>{hasEntityError ? validationIssue.inline : ""}</ValidationHint>
     </FG>
     <R2>
       <FG label="Proyecto / Producción / Campaña">
@@ -229,7 +220,7 @@ export function MFact({
               : "",
             relatedExternalDocumentId: nextCode === "document" ? prev.relatedExternalDocumentId : "",
           }));
-        }} style={hasReferenceError ? FIELD_ERROR_STYLE : undefined}>
+        }} style={hasReferenceError ? VALIDATION_FIELD_STYLE : undefined}>
           {referenceCodeOptions.map((option)=><option key={option.value || "none"} value={option.value}>{option.codeSii ? `${option.codeSii} · ${option.label}` : option.label}</option>)}
         </FSl>
       </FG>
@@ -244,12 +235,8 @@ export function MFact({
               ? `${selectedRef?.label || getProduBillingReferenceCodeLabel(prev.referenceCodeSii)} ${nextValue}`.trim()
               : prev.relatedDocumentReason,
           }));
-        }} placeholder="Número, folio o valor de la referencia" style={hasReferenceError ? FIELD_ERROR_STYLE : undefined} />
-        {hasReferenceError && (
-          <div style={{marginTop:6,fontSize:11,color:"var(--red)",fontWeight:600}}>
-            {validationIssue.inline}
-          </div>
-        )}
+        }} placeholder="Número, folio o valor de la referencia" style={hasReferenceError ? VALIDATION_FIELD_STYLE : undefined} />
+        <ValidationHint>{hasReferenceError ? validationIssue.inline : ""}</ValidationHint>
       </FG>
     </R2>
     {f.referenceCodeSii === "801" && <>
@@ -306,7 +293,7 @@ export function MFact({
       </FG>
       <R2>
         <FG label="Folio / número referencia">
-          <FI value={f.relatedDocumentFolio||""} onChange={(e)=>u("relatedDocumentFolio",e.target.value)} placeholder="Folio o número del documento origen" disabled={f.referenceCodeSii === "801"} style={hasReferenceError ? FIELD_ERROR_STYLE : undefined} />
+          <FI value={f.relatedDocumentFolio||""} onChange={(e)=>u("relatedDocumentFolio",e.target.value)} placeholder="Folio o número del documento origen" disabled={f.referenceCodeSii === "801"} style={hasReferenceError ? VALIDATION_FIELD_STYLE : undefined} />
         </FG>
         <FG label="Motivo de referencia">
           <FSl value={f.relatedDocumentReason||getDefaultProduBillingReferenceReason(selectedBillingType.code)} onChange={(e)=>u("relatedDocumentReason",e.target.value)} disabled={f.referenceCodeSii === "801"}>
@@ -370,12 +357,8 @@ export function MFact({
     </div>
     <R3>
       <FG label="Monto Neto *">
-        <FI type="number" value={(f.items||[]).length ? String(mn || 0) : (f.montoNeto||"")} onChange={(e)=>u("montoNeto",e.target.value)} placeholder="0" min="0" disabled={!!(f.items||[]).length} style={hasAmountError ? FIELD_ERROR_STYLE : undefined} />
-        {hasAmountError && (
-          <div style={{marginTop:6,fontSize:11,color:"var(--red)",fontWeight:600}}>
-            {validationIssue.inline}
-          </div>
-        )}
+        <FI type="number" value={(f.items||[]).length ? String(mn || 0) : (f.montoNeto||"")} onChange={(e)=>u("montoNeto",e.target.value)} placeholder="0" min="0" disabled={!!(f.items||[]).length} style={hasAmountError ? VALIDATION_FIELD_STYLE : undefined} />
+        <ValidationHint>{hasAmountError ? validationIssue.inline : ""}</ValidationHint>
       </FG>
       <FG label="Impuesto">
         <FSl
@@ -437,16 +420,7 @@ export function MFact({
       </div>
     ) : (
       <>
-        {validationIssue && (
-          <div style={{ marginTop: 14, padding:"12px 14px", borderRadius:10, border:"1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background:"color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
-            <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom:4 }}>
-              {validationIssue.title}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight:1.5 }}>
-              {validationMessage}
-            </div>
-          </div>
-        )}
+        <ValidationBanner title={validationIssue?.title} detail={validationMessage} />
         <MFoot disabled={!canSubmit} onClose={onClose} onSave={()=>{
           if (!canSubmit) return;
           onSave(buildPayload((factura) => factura?.cobranzaEstado || "Pendiente de pago"));

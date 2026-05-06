@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DBtn, FG, FI, FSl, FTA, GBtn, MFoot, Modal, R2 } from "../../lib/ui/components";
+import { DBtn, FG, FI, FSl, FTA, GBtn, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
 import { fmtM } from "../../lib/utils/helpers";
 import { buildIssuedOrderPdfDataUrl, issuedOrderPdfFileName } from "../../lib/utils/treasuryIssuedOrderPdf";
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
 
 function buildLocalDateTimeValue() {
   const now = new Date();
@@ -220,16 +215,16 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
               }
               setForm(prev => ({ ...prev, ...providerSnapshot(nextProvider) }));
             }}
-            style={validationIssue?.key === "supplier" ? FIELD_ERROR_STYLE : undefined}
+            style={validationIssue?.key === "supplier" ? VALIDATION_FIELD_STYLE : undefined}
           >
             <option value="">Seleccionar...</option>
             {providerOptions.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
           </FSl>
-          {validationIssue?.key === "supplier" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <ValidationHint>{validationIssue?.key === "supplier" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
         <FG label="Número OC *">
-          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-PROV-2026-01" style={validationIssue?.key === "number" ? FIELD_ERROR_STYLE : undefined} />
-          {validationIssue?.key === "number" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-PROV-2026-01" style={validationIssue?.key === "number" ? VALIDATION_FIELD_STYLE : undefined} />
+          <ValidationHint>{validationIssue?.key === "number" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
       <R2>
@@ -377,12 +372,7 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
         />
       </FG>
       <FG label="Observaciones"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Condiciones, referencias o glosa de la orden." /></FG>
-      {validationIssue && (
-        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
-          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
-          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
-        </div>
-      )}
+      <ValidationBanner title={validationIssue?.title} detail={validationIssue?.detail} />
       <MFoot
         onClose={onClose}
         label="Guardar"

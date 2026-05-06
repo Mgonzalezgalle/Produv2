@@ -204,6 +204,11 @@ const FS = {
   outline: "none",
 };
 
+export const VALIDATION_FIELD_STYLE = {
+  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
+  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
+};
+
 export const FG = ({ label, children }) => (
   <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--gr3)", marginBottom: 6, letterSpacing: 0.3 }}>{label}</label>
@@ -256,6 +261,17 @@ export const FTA = forwardRef((props, ref) => (
     {...props}
   />
 ));
+export const ValidationHint = ({ children, style = {} }) => children ? (
+  <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600, ...style }}>
+    {children}
+  </div>
+) : null;
+export const ValidationBanner = ({ title, detail, style = {} }) => (title || detail) ? (
+  <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)", ...style }}>
+    {!!title && <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: detail ? 4 : 0 }}>{title}</div>}
+    {!!detail && <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{detail}</div>}
+  </div>
+) : null;
 export const R2 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 12 }}>{children}</div>;
 export const R3 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 12 }}>{children}</div>;
 

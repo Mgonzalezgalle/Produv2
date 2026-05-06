@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FG, FI, FSl, FTA, MFoot, Modal, R2 } from "../../lib/ui/components";
+import { FG, FI, FSl, FTA, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { DEFAULT_LISTAS, today, uid } from "../../lib/utils/helpers";
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
 
 export function TreasuryPayableModal({ open, data, providers = [], listas = {}, onClose, onSave }) {
   const [form, setForm] = useState({});
@@ -72,11 +67,11 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar cuenta por pagar" : "Nueva cuenta por pagar"} sub="Registra un documento manual y adjunta su respaldo PDF">
       <R2>
         <FG label="Proveedor *">
-          <FSl value={form.supplier || ""} onChange={e => setField("supplier", e.target.value)} style={validationIssue?.key === "supplier" ? FIELD_ERROR_STYLE : undefined}>
+          <FSl value={form.supplier || ""} onChange={e => setField("supplier", e.target.value)} style={validationIssue?.key === "supplier" ? VALIDATION_FIELD_STYLE : undefined}>
             <option value="">Seleccionar proveedor...</option>
             {providerOptions.map(option => <option key={option} value={option}>{option}</option>)}
           </FSl>
-          {validationIssue?.key === "supplier" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <ValidationHint>{validationIssue?.key === "supplier" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
         <FG label="Tipo de documento">
           <FSl value={form.docType || (docTypeOptions[0] || "Factura Afecta")} onChange={e => setField("docType", e.target.value)}>
@@ -98,8 +93,8 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       </R2>
       <R2>
         <FG label="Monto total *">
-          <FI type="number" min="0" value={form.total || ""} onChange={e => setField("total", e.target.value)} placeholder="0" style={validationIssue?.key === "total" ? FIELD_ERROR_STYLE : undefined} />
-          {validationIssue?.key === "total" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+          <FI type="number" min="0" value={form.total || ""} onChange={e => setField("total", e.target.value)} placeholder="0" style={validationIssue?.key === "total" ? VALIDATION_FIELD_STYLE : undefined} />
+          <ValidationHint>{validationIssue?.key === "total" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
       <FG label="Adjuntar PDF">
@@ -112,12 +107,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       <FG label="Notas">
         <FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Comentarios internos, compromiso de pago, etc." />
       </FG>
-      {validationIssue && (
-        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
-          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
-          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
-        </div>
-      )}
+      <ValidationBanner title={validationIssue?.title} detail={validationIssue?.detail} />
       <MFoot
         onClose={onClose}
         label="Guardar"

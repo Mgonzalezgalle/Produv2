@@ -1,11 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { FG, FI, FSl, MFoot, Modal, R2, R3 } from "../../lib/ui/components";
+import { FG, FI, FSl, MFoot, Modal, R2, R3, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { CRM_STATUS_OPTIONS, crmDefaultStageId, crmNormalizeOpportunity, crmStageMeta, normalizeCrmStages } from "../../lib/utils/crm";
-
-const FIELD_ERROR_STYLE = {
-  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
-  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
-};
 
 export function CrmOpportunityModal({ open, data, crmStages, users, onClose, onSave }) {
   const [form, setForm] = useState({});
@@ -60,12 +55,12 @@ export function CrmOpportunityModal({ open, data, crmStages, users, onClose, onS
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar oportunidad" : "Nueva oportunidad"} sub="Lead u oportunidad comercial" wide>
     <R2>
       <FG label="Nombre *">
-        <FI value={form.nombre || ""} onChange={e => update("nombre", e.target.value)} placeholder="Nombre de la oportunidad" style={validationIssue?.key === "nombre" ? FIELD_ERROR_STYLE : undefined} />
-        {validationIssue?.key === "nombre" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+        <FI value={form.nombre || ""} onChange={e => update("nombre", e.target.value)} placeholder="Nombre de la oportunidad" style={validationIssue?.key === "nombre" ? VALIDATION_FIELD_STYLE : undefined} />
+        <ValidationHint>{validationIssue?.key === "nombre" ? validationIssue.inline : ""}</ValidationHint>
       </FG>
       <FG label="Empresa o marca *">
-        <FI value={form.empresaMarca || ""} onChange={e => update("empresaMarca", e.target.value)} placeholder="Empresa o marca" style={validationIssue?.key === "empresaMarca" ? FIELD_ERROR_STYLE : undefined} />
-        {validationIssue?.key === "empresaMarca" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+        <FI value={form.empresaMarca || ""} onChange={e => update("empresaMarca", e.target.value)} placeholder="Empresa o marca" style={validationIssue?.key === "empresaMarca" ? VALIDATION_FIELD_STYLE : undefined} />
+        <ValidationHint>{validationIssue?.key === "empresaMarca" ? validationIssue.inline : ""}</ValidationHint>
       </FG>
     </R2>
     <R3>
@@ -87,12 +82,7 @@ export function CrmOpportunityModal({ open, data, crmStages, users, onClose, onS
       <FG label="Próxima acción"><FI value={form.nextAction || ""} onChange={e => update("nextAction", e.target.value)} placeholder="Llamar, enviar propuesta, reagendar reunión..." /></FG>
       <FG label="Fecha próxima acción"><FI type="date" value={form.nextActionDate || ""} onChange={e => update("nextActionDate", e.target.value)} /></FG>
     </R2>
-    {validationIssue && (
-      <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
-        <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
-        <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
-      </div>
-    )}
+    <ValidationBanner title={validationIssue?.title} detail={validationIssue?.detail} />
     <MFoot onClose={onClose} disabled={!canSubmit} onSave={() => { if (!canSubmit) return; onSave(crmNormalizeOpportunity(form, stageList)); }} />
   </Modal>;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
+import { notifyUserFacingError } from "../lib/ui/userFacingErrors";
 
 const EMITTED_FACTURA_PROTECTED_FIELDS = [
   "correlativo",
@@ -385,7 +386,7 @@ export function useLabCommercialDocs({
       return true;
     } catch (error) {
       console.error("[facturacion] No pudimos persistir el documento", error);
-      ntf("No pudimos guardar el documento", "error");
+      notifyUserFacingError(ntf, error, "No pudimos guardar el documento.", "error");
       return false;
     }
   }, [

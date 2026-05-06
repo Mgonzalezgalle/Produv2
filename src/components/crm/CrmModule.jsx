@@ -7,6 +7,7 @@ import { CrmStageModal } from "./CrmStageModal";
 import { useLabCrmModule } from "../../hooks/useLabCrmModule";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { notifyUserFacingError } from "../../lib/ui/userFacingErrors";
 
 export function CrmModule({
   empresa,
@@ -129,7 +130,7 @@ export function CrmModule({
   const openCrmEmailComposer = React.useCallback((opportunity, activity) => {
     const recipient = String(opportunity?.email || "").trim();
     if (!recipient) {
-      window.alert("Esta oportunidad no tiene correo registrado.");
+      notifyUserFacingError(ntf, { userMessage: "Esta oportunidad no tiene correo registrado." }, "Esta oportunidad no tiene correo registrado.");
       return;
     }
     const contactName = opportunity?.contacto || opportunity?.empresaMarca || opportunity?.nombre || "";
@@ -167,11 +168,11 @@ export function CrmModule({
   const sendCrmEmail = React.useCallback(async (draft) => {
     const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
     if (!recipients.length) {
-      window.alert("Debes indicar al menos un destinatario.");
+      notifyUserFacingError(ntf, { userMessage: "Debes indicar al menos un destinatario." }, "Debes indicar al menos un destinatario.");
       return;
     }
     if (!String(draft?.subject || "").trim() || !String(draft?.body || "").trim()) {
-      window.alert("El asunto y el cuerpo del correo son obligatorios.");
+      notifyUserFacingError(ntf, { userMessage: "El asunto y el cuerpo del correo son obligatorios." }, "El asunto y el cuerpo del correo son obligatorios.");
       return;
     }
     setEmailComposerSending(true);
@@ -191,11 +192,9 @@ export function CrmModule({
       };
       const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
       if (!remoteResult?.ok) {
-        if (remoteResult?.message) {
-          window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
-        }
+        notifyUserFacingError(ntf, remoteResult, "No pudimos entregar este correo todavía.");
         if (Array.isArray(draft?.attachments) && draft.attachments.length) {
-          window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+          notifyUserFacingError(ntf, { userMessage: "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto." }, "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
         }
         window.location.href = `mailto:${encodeURIComponent(recipients.join(","))}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(payload.text)}`;
         ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);

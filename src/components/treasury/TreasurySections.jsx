@@ -1,5 +1,6 @@
 import React from "react";
 import { FilterSel, GBtn, Paginator } from "../../lib/ui/components";
+import { notifyUserFacingError } from "../../lib/ui/userFacingErrors";
 import { exportTreasuryPayablesCSV } from "../../lib/utils/exports";
 import { fmtM } from "../../lib/utils/helpers";
 import { MiniKpiCard } from "./TreasuryShared";
@@ -100,7 +101,7 @@ export function TreasuryReceivablesSection({
             }
             void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
               if (!result?.ok) {
-                window.alert(result?.message || "No pudimos generar el link de pago.");
+                notifyUserFacingError(props.ntf, result, "No pudimos generar el link de pago.");
                 return;
               }
               sendPaymentLinkEmail?.(result?.doc || doc, entity);
@@ -126,7 +127,7 @@ export function TreasuryReceivablesSection({
             }
             void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
               if (!result?.ok) {
-                window.alert(result?.message || "No pudimos generar el link de pago.");
+                notifyUserFacingError(props.ntf, result, "No pudimos generar el link de pago.");
                 return;
               }
               sendPaymentLinkWhatsApp?.(result?.doc || doc, entity);
@@ -168,7 +169,7 @@ export function TreasuryReceivablesSection({
             if (!doc) return;
             void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
               if (!result?.ok) {
-                window.alert(result?.message || "No pudimos generar el link de Mercado Pago.");
+                notifyUserFacingError(props.ntf, result, "No pudimos generar el link de Mercado Pago.");
                 return;
               }
               const emailDoc = result?.doc || doc;

@@ -12,6 +12,16 @@ import { EmpresaEditSection, PlatformFoundationPanel, ThemeSettingsPanel, Transa
 const RESPONSIVE_ADMIN_SUMMARY_GRID = "repeat(auto-fit,minmax(min(100%,160px),1fr))";
 const RESPONSIVE_ADMIN_HEADER_GRID = "repeat(auto-fit,minmax(min(100%,140px),1fr))";
 
+function AdminStatCard({ label, value, tone = "var(--cy)", hint = null }) {
+  return (
+    <div style={{ background: "linear-gradient(180deg,rgba(255,255,255,.03),transparent)", border: "1px solid var(--bdr2)", borderRadius: 16, padding: "14px 15px", minHeight: 92 }}>
+      <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: tone, lineHeight: 1 }}>{value}</div>
+      {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 8, lineHeight: 1.45 }}>{hint}</div>}
+    </div>
+  );
+}
+
 export function SuperAdminPanel({
   controlProps,
   actorUser,
@@ -159,6 +169,9 @@ export function AdminPanel(rawProps) {
   const identityHealthColor = identityHealthLabel === "Alineado" ? "green" : identityHealthLabel === "Parcial" ? "yellow" : "gray";
   const canOpenAdminPanel = canManageAdminPanel(user);
   const canOpenPlatformTab = canManageSuperAdminPanel(user);
+  const healthWarnings = operationalHealth?.warningCount || 0;
+  const adminStageLabel = canOpenPlatformTab ? "Gobierno total" : "Gobierno operativo";
+  const currentTabDescription = ADMIN_TAB_META[activeAdminTab] || "Vista administrativa activa";
 
   if (!canOpenAdminPanel) {
     return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`}>
@@ -181,30 +194,41 @@ export function AdminPanel(rawProps) {
   }
 
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`} extraWide>
-    <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 16, boxShadow: "0 14px 40px rgba(0,0,0,.08)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 14 }}>
-        <div>
-          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.6, marginBottom: 6 }}>Control interno</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, color: "var(--wh)" }}>{empresa?.nombre || "Empresa"}</div>
-            <Badge label={empresa?.tenantCode || "Sin tenant"} color="purple" sm />
+    <div style={{ padding: "22px 22px 18px", border: "1px solid var(--bdr2)", borderRadius: 24, background: "linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 52%,rgba(9,14,24,.28) 100%)", marginBottom: 18, boxShadow: "0 18px 42px rgba(0,0,0,.12)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(300px,.95fr)", gap: 16, alignItems: "stretch", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8 }}>Centro de control</div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 800, color: "var(--wh)", lineHeight: 1.1 }}>{empresa?.nombre || "Empresa"}</div>
+              <Badge label={adminStageLabel} color={canOpenPlatformTab ? "cyan" : "purple"} sm />
+              <Badge label={empresa?.tenantCode || "Sin tenant"} color="gray" sm />
+            </div>
+            <div style={{ fontSize: 13, color: "var(--gr2)", maxWidth: 760, lineHeight: 1.65 }}>{currentTabDescription}</div>
           </div>
-          <div style={{ fontSize: 12, color: "var(--gr2)", maxWidth: 720, lineHeight: 1.6 }}>{ADMIN_TAB_META[activeAdminTab]}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Badge label={`${activeAdminTab}`} color="cyan" sm />
+            <Badge label={`Salud identidad: ${identityHealthLabel}`} color={identityHealthColor} sm />
+            <Badge label={healthWarnings ? `${healthWarnings} alerta${healthWarnings === 1 ? "" : "s"}` : "Sin alertas críticas"} color={healthWarnings ? "yellow" : "green"} sm />
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_HEADER_GRID, gap: 8, minWidth: 0, flex: "1 1 320px", width: "100%", maxWidth: 420 }}>
-          <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "var(--cy)" }}>{activeUsers}</div></div>
-          <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Addons</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#00e08a" }}>{(empresa?.addons || []).length}</div></div>
-          <div style={{ padding: "10px 12px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios inactivos</div><div style={{ fontFamily: "var(--fm)", fontSize: 20, fontWeight: 700, color: "#ffcc44" }}>{inactiveUsers}</div></div>
+        <div style={{ border: "1px solid var(--bdr2)", borderRadius: 18, background: "rgba(255,255,255,.03)", padding: 14, display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.4 }}>Lectura rápida</div>
+          <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_HEADER_GRID, gap: 8 }}>
+            <AdminStatCard label="Usuarios activos" value={activeUsers} tone="var(--cy)" />
+            <AdminStatCard label="Addons activos" value={(empresa?.addons || []).length} tone="#00e08a" />
+            <AdminStatCard label="Usuarios inactivos" value={inactiveUsers} tone="#ffcc44" />
+          </div>
         </div>
       </div>
       <div style={{ padding: 10, borderRadius: 18, border: "1px solid var(--bdr2)", background: "var(--sur)", boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)", position: "relative", zIndex: 3 }}>
         <AdminTabs tabs={ADMIN_TABS} active={tab} onChange={setTab} />
       </div>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_SUMMARY_GRID, gap: 10, marginBottom: 16, position: "relative", zIndex: 1 }}>
-      <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "var(--cy)" }}>{activeUsers}</div></div>
-      <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Usuarios inactivos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "#ffcc44" }}>{inactiveUsers}</div></div>
-      <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Addons activos</div><div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: "#00e08a" }}>{(empresa?.addons || []).length}</div></div>
+    <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_SUMMARY_GRID, gap: 10, marginBottom: 18, position: "relative", zIndex: 1 }}>
+      <AdminStatCard label="Sección activa" value={activeAdminTab} tone="var(--wh)" hint="La navegación mantiene una lectura única por contexto, sin mezclar gobierno y operación." />
+      <AdminStatCard label="Salud identidad" value={identityHealthLabel} tone={identityHealthLabel === "Alineado" ? "#00e08a" : identityHealthLabel === "Parcial" ? "#ffcc44" : "var(--gr3)"} hint={`Usuarios remotos: ${remoteUserShadowCount} · Roles remotos: ${remoteCustomRoleCount}`} />
+      <AdminStatCard label="Alertas de operación" value={healthWarnings} tone={healthWarnings ? "#ffcc44" : "#00e08a"} hint={healthWarnings ? "Conviene revisar la salud del tenant y la cobertura foundation." : "No detectamos señales críticas inmediatas."} />
     </div>
     {activeAdminTab==="Colores"&&<ThemeSettingsPanel lt={lt} setLt={setLt} themePresets={themePresets} onSaveTheme={onSaveTheme} ntf={ntf} />}
     {activeAdminTab==="Usuarios"&&<UsersAdminSection

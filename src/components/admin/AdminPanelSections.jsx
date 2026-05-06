@@ -6,6 +6,44 @@ import { getTransactionalEmailTemplateDefinition, getTransactionalEmailTemplateD
 
 const companyPrintColorLabel = empresa => PRINT_COLORS.find(opt => opt.value === companyPrintColor(empresa))?.label || "Azul institucional";
 
+function AdminPanelCard({ eyebrow = null, title, description = null, actions = null, children, tone = "default" }) {
+  const borderColor = tone === "success"
+    ? "rgba(34, 197, 94, 0.2)"
+    : tone === "warning"
+      ? "rgba(245, 158, 11, 0.26)"
+      : "var(--bdr2)";
+  const background = tone === "success"
+    ? "linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03))"
+    : tone === "warning"
+      ? "linear-gradient(180deg,rgba(245,158,11,.08),rgba(245,158,11,.03))"
+      : "linear-gradient(180deg,rgba(255,255,255,.03),transparent)";
+  return (
+    <div style={{ border: `1px solid ${borderColor}`, borderRadius: 16, padding: 16, background }}>
+      {(eyebrow || title || description || actions) && (
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            {!!eyebrow && <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.4, marginBottom: 6 }}>{eyebrow}</div>}
+            {!!title && <div style={{ fontSize: 13, fontWeight: 800, color: "var(--wh)", marginBottom: description ? 4 : 0 }}>{title}</div>}
+            {!!description && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.55, maxWidth: 720 }}>{description}</div>}
+          </div>
+          {actions}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function OverviewMetric({ label, value, hint = null, tone = "var(--cy)" }) {
+  return (
+    <div style={{ padding: "12px 13px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "rgba(255,255,255,.03)" }}>
+      <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: tone, lineHeight: 1 }}>{value}</div>
+      {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45, marginTop: 8 }}>{hint}</div>}
+    </div>
+  );
+}
+
 export function EmpresaEditSection({
   empresa,
   empresas,
@@ -147,28 +185,67 @@ export function EmpresaEditSection({
   const diioTenantWebhookUrl = diioWebhookBase && empresa?.id
     ? `${diioWebhookBase}${diioWebhookBase.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(empresa.id)}`
     : "";
+  const addonsCount = (empresa.addons || []).length;
+  const hasLogo = Boolean(empresa?.logo);
+  const paymentConfigured = Boolean(empresa?.paymentDetails?.holder && empresa?.paymentDetails?.bank && empresa?.paymentDetails?.accountNumber);
+  const healthTone = operationalHealth?.warningCount ? "warning" : "success";
 
   if (!editing) return (
-    <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:10, padding:16 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-        <div style={{ fontFamily:"var(--fh)", fontSize:13, fontWeight:700 }}>Datos de la Empresa</div>
-        <GBtn sm onClick={() => setEditing(true)} disabled={!canManageAdmin}>✏ Editar</GBtn>
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-        {[["Nombre", empresa.nombre],["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Estado", empresa.active!==false?"Activa":"Inactiva"],["Color de impresos", companyPrintColorLabel(empresa)],["Google Calendar", companyGoogleCalendarEnabled(empresa)?"Habilitado por Torre de Control":"No habilitado"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
-      </div>
-      <div style={{marginTop:14}}>
-        <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Información bancaria</div>
-        <div style={{background:"var(--card2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"10px 12px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line"}}>{companyPaymentInfoText(empresa,{intro:false}) || empresa.bankInfo || "Sin información bancaria configurada"}</div>
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:12}}>{(empresa.addons||[]).length?(empresa.addons||[]).map(a=><Badge key={a} label={addons[a]?.label||a} color="gray" sm/>):<span style={{fontSize:11,color:"var(--gr2)"}}>Sin addons activos</span>}</div>
-      {!!operationalHealth && (
-        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Salud operativa del tenant</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>Visibilidad rápida para saber si la empresa está lista para operar sin depender de revisar storage manualmente.</div>
+    <div style={{ display:"grid", gap:14 }}>
+      <AdminPanelCard
+        eyebrow="Perfil institucional"
+        title={empresa?.nombre || "Empresa"}
+        description="Desde aquí consolidamos la identidad operativa de la cuenta, la salud de la empresa y el estado de sus conexiones críticas."
+        actions={<GBtn sm onClick={() => setEditing(true)} disabled={!canManageAdmin}>✏ Editar</GBtn>}
+      >
+        <div style={{ display:"grid", gridTemplateColumns:"minmax(0,1.3fr) minmax(280px,.9fr)", gap:14, alignItems:"stretch" }}>
+          <div style={{ display:"grid", gap:12 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"88px minmax(0,1fr)", gap:14, alignItems:"center" }}>
+              <div style={{ width:88, height:88, borderRadius:22, border:"1px solid var(--bdr2)", background:"linear-gradient(180deg,var(--card2),var(--sur))", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)" }}>
+                {empresa?.logo
+                  ? <img src={empresa.logo} alt={empresa.nombre || "Logo empresa"} style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+                  : <span style={{fontFamily:"var(--fh)",fontSize:28,fontWeight:800,color:"var(--gr2)"}}>{(empresa?.nombre || "?").slice(0,1).toUpperCase()}</span>}
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+                  <Badge label={empresa.active!==false?"Empresa activa":"Empresa inactiva"} color={empresa.active!==false?"green":"yellow"} sm />
+                  <Badge label={companyGoogleCalendarEnabled(empresa)?"Calendar habilitado":"Calendar no habilitado"} color={companyGoogleCalendarEnabled(empresa)?"cyan":"gray"} sm />
+                  <Badge label={hasLogo?"Logo cargado":"Logo pendiente"} color={hasLogo?"green":"gray"} sm />
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  {[["RUT", empresa.rut],["Email", empresa.ema||"—"],["Teléfono", empresa.tel||"—"],["Dirección", empresa.dir||"—"],["Color de impresos", companyPrintColorLabel(empresa)],["Módulos activos", addonsCount]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+                </div>
+              </div>
             </div>
+            <AdminPanelCard
+              eyebrow="Pago y documentos"
+              title="Identidad de transferencia"
+              description="Estos datos alimentan documentos, comprobantes y cierres operativos."
+            >
+              <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:12,padding:"12px 14px",fontSize:12,color:"var(--gr3)",whiteSpace:"pre-line",lineHeight:1.6}}>
+                {companyPaymentInfoText(empresa,{intro:false}) || empresa.bankInfo || "Sin información bancaria configurada"}
+              </div>
+            </AdminPanelCard>
+          </div>
+          <div style={{ display:"grid", gap:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <OverviewMetric label="Módulos activos" value={addonsCount} tone="#00e08a" hint={addonsCount ? "La activación se gestiona desde Torre de Control." : "Aún no hay capacidades habilitadas."} />
+              <OverviewMetric label="Pago operativo" value={paymentConfigured ? "Listo" : "Pendiente"} tone={paymentConfigured ? "#00e08a" : "#ffcc44"} hint={paymentConfigured ? "La empresa ya tiene datos base para pagos." : "Faltan datos bancarios o de comprobantes."} />
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <OverviewMetric label="Alertas" value={operationalHealth?.warningCount ?? 0} tone={operationalHealth?.warningCount ? "#ffcc44" : "#00e08a"} hint="Viene de la salud operativa consolidada." />
+              <OverviewMetric label="Bloqueos recientes" value={blockedAdminEntries.length} tone={blockedAdminEntries.length ? "#ffcc44" : "var(--gr3)"} hint="Intentos administrativos frenados por permisos." />
+            </div>
+          </div>
+        </div>
+      </AdminPanelCard>
+      {!!operationalHealth && (
+        <AdminPanelCard
+          eyebrow="Salud operativa"
+          title="Estado base de la empresa"
+          description="Visibilidad rápida para saber si la empresa está lista para operar sin revisar storage o foundation manualmente."
+          tone={healthTone}
+          actions={
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <Badge label={operationalHealth.profileReady ? "Perfil OK" : "Perfil incompleto"} color={operationalHealth.profileReady ? "green" : "yellow"} sm />
               <Badge label={operationalHealth.paymentReady ? "Pago OK" : "Pago pendiente"} color={operationalHealth.paymentReady ? "green" : "yellow"} sm />
@@ -176,7 +253,8 @@ export function EmpresaEditSection({
               <Badge label={operationalHealth.permissionReady ? "Permisos OK" : "Permisos en riesgo"} color={operationalHealth.permissionReady ? "green" : "yellow"} sm />
               <Badge label={operationalHealth.privilegedMfaReady ? "MFA cubierto" : "MFA pendiente"} color={operationalHealth.privilegedMfaReady ? "green" : "yellow"} sm />
             </div>
-          </div>
+          }
+        >
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
             <KV label="Usuarios activos" value={operationalHealth.activeUserCount} />
             <KV label="Admins activos" value={operationalHealth.activeAdminCount} />
@@ -189,47 +267,48 @@ export function EmpresaEditSection({
             <KV label="Sync foundation" value={foundationSyncEntries.length} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
-          {!!operationalHealth.financialRegistryHealth && (
-            <div style={{marginBottom:10,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Cobertura financiera foundation</div>
-                  <div style={{fontSize:11,color:"var(--gr2)"}}>Visibilidad rápida de respaldo para receipts y disbursements.</div>
-                </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
-                  <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
-                  <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
-                </div>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
-                <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
-                <KV label="Facturas foundation" value={operationalHealth.financialRegistryHealth.remoteInvoiceCount} />
-                <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
-                <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
-                <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />
-                <KV label="Disbursements foundation" value={operationalHealth.financialRegistryHealth.remoteDisbursementCount} />
-              </div>
-              <div style={{display:"grid",gap:6}}>
-                {operationalHealth.financialRegistryHealth.warnings.length
-                  ? operationalHealth.financialRegistryHealth.warnings.map((warning, index) => <div key={`financial-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
-                  : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas de cobertura financiera para estos registros.</div>}
-              </div>
-            </div>
-          )}
           <div style={{display:"grid",gap:6}}>
             {operationalHealth.warnings.length
               ? operationalHealth.warnings.map((warning, index) => <div key={`tenant-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
               : <div style={{fontSize:11,color:"var(--gr2)"}}>No detectamos alertas críticas en la configuración base de esta empresa.</div>}
           </div>
-        </div>
+        </AdminPanelCard>
+      )}
+      {!!operationalHealth?.financialRegistryHealth && (
+        <AdminPanelCard
+          eyebrow="Cobertura financiera"
+          title="Foundation y respaldo documental"
+          description="Lectura rápida del respaldo remoto para facturas, receipts y disbursements."
+        >
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
+            <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
+            <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
+            <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
+            <KV label="Facturas foundation" value={operationalHealth.financialRegistryHealth.remoteInvoiceCount} />
+            <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
+            <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
+            <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />
+            <KV label="Disbursements foundation" value={operationalHealth.financialRegistryHealth.remoteDisbursementCount} />
+          </div>
+          <div style={{display:"grid",gap:6}}>
+            {operationalHealth.financialRegistryHealth.warnings.length
+              ? operationalHealth.financialRegistryHealth.warnings.map((warning, index) => <div key={`financial-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
+              : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas de cobertura financiera para estos registros.</div>}
+          </div>
+        </AdminPanelCard>
       )}
       {!!criticalAuditEntries.length && (
-        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:8}}>Últimos cambios críticos de configuración</div>
+        <AdminPanelCard
+          eyebrow="Auditoría"
+          title="Cambios críticos recientes"
+          description="Últimos movimientos sobre claves de configuración o comportamiento sensible."
+        >
           <div style={{display:"grid",gap:8}}>
             {criticalAuditEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.targetKey}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+              <div key={entry?.id || `${entry?.targetKey}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
                   <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.targetKey || "Clave crítica"}</div>
                   <Badge label={entry?.action || "write"} color={String(entry?.action || "").startsWith("blocked") ? "yellow" : "gray"} sm />
@@ -240,20 +319,19 @@ export function EmpresaEditSection({
               </div>
             ))}
           </div>
-        </div>
+        </AdminPanelCard>
       )}
       {!!blockedAdminEntries.length && (
-        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid rgba(245, 158, 11, 0.28)",borderRadius:10,background:"rgba(245, 158, 11, 0.08)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Intentos bloqueados recientes</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>Acciones administrativas que el sistema frenó por permisos insuficientes.</div>
-            </div>
-            <Badge label={`${blockedAdminEntries.length} bloqueo${blockedAdminEntries.length === 1 ? "" : "s"}`} color="yellow" sm />
-          </div>
+        <AdminPanelCard
+          eyebrow="Seguridad operativa"
+          title="Intentos bloqueados recientes"
+          description="Acciones administrativas que el sistema frenó por permisos insuficientes."
+          tone="warning"
+          actions={<Badge label={`${blockedAdminEntries.length} bloqueo${blockedAdminEntries.length === 1 ? "" : "s"}`} color="yellow" sm />}
+        >
           <div style={{display:"grid",gap:8}}>
             {blockedAdminEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid rgba(245, 158, 11, 0.24)",borderRadius:10,background:"var(--sur)"}}>
+              <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid rgba(245, 158, 11, 0.24)",borderRadius:12,background:"var(--sur)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
                   <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
                     {entry?.payload?.section || entry?.entityId || "Sección administrativa"}
@@ -270,23 +348,22 @@ export function EmpresaEditSection({
               </div>
             ))}
           </div>
-        </div>
+        </AdminPanelCard>
       )}
       {!!foundationSyncEntries.length && (
-        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid rgba(34, 197, 94, 0.2)",borderRadius:10,background:"rgba(34, 197, 94, 0.06)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Sincronización y autocuración foundation</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>Últimos eventos de respaldo remoto, degradación o rehidratación automática.</div>
-            </div>
-            <Badge label={`${foundationSyncEntries.length} evento${foundationSyncEntries.length === 1 ? "" : "s"}`} color="green" sm />
-          </div>
+        <AdminPanelCard
+          eyebrow="Foundation"
+          title="Sincronización y autocuración"
+          description="Eventos recientes de respaldo remoto, degradación o rehidratación automática."
+          tone="success"
+          actions={<Badge label={`${foundationSyncEntries.length} evento${foundationSyncEntries.length === 1 ? "" : "s"}`} color="green" sm />}
+        >
           <div style={{display:"grid",gap:8}}>
             {foundationSyncEntries.slice(0, 4).map(entry => {
               const isFailure = String(entry?.action || "").includes("failed") || String(entry?.action || "").includes("degraded");
               const label = String(entry?.action || "foundation_event").replaceAll("_", " ");
               return (
-                <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
                   <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
                     <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
                       {entry?.payload?.registryName || entry?.entityId || "foundation"}
@@ -304,14 +381,17 @@ export function EmpresaEditSection({
               );
             })}
           </div>
-        </div>
+        </AdminPanelCard>
       )}
       {!!visibleOperationalEntries.length && (
-        <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:8}}>Últimos eventos operativos</div>
+        <AdminPanelCard
+          eyebrow="Trazabilidad"
+          title="Últimos eventos operativos"
+          description="Lectura rápida de acciones relevantes sin mezclar bloqueos ni eventos foundation."
+        >
           <div style={{display:"grid",gap:8}}>
             {visibleOperationalEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+              <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
                   <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.entityType || entry?.area || "Operación"}</div>
                   <Badge label={entry?.action || "updated"} color="gray" sm />
@@ -327,7 +407,7 @@ export function EmpresaEditSection({
               </div>
             ))}
           </div>
-        </div>
+        </AdminPanelCard>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
+import { createFoundationFinancialRegistryCoordinator } from "../lib/backend/foundationFinancialRegistry";
 import {
   buildTreasuryProviders,
   buildTreasuryDisbursementLog,
@@ -106,32 +107,13 @@ export function useLabTreasuryModule({
   const [providerDraft, setProviderDraft] = useState(null);
   const receiptsRemoteHydratedRef = useRef("");
   const disbursementsRemoteHydratedRef = useRef("");
-  const recordFoundationRegistryEvent = async (registryName, action, payload = {}) => {
-    if (!empId) return null;
-    return appendOperationalAuditEntry({
-      empId,
-      area: "foundation",
-      action,
-      entityType: "financial_registry",
-      entityId: registryName,
-      actor: currentUser,
-      payload: {
-        registryName,
-        ...payload,
-      },
-      platformServices,
-    });
-  };
+  const foundationFinancialRegistry = useMemo(() => createFoundationFinancialRegistryCoordinator({
+    empId,
+    platformServices,
+    actor: currentUser,
+  }), [empId, platformServices, currentUser]);
 
   const withEmp = (next = {}) => ({ ...next, empId });
-  const syncFinancialRegistrySnapshot = async (registryName, records = [], metadata = {}) => {
-    if (!empId || !platformServices?.upsertFinancialRegistrySnapshot) return null;
-    try {
-      return await platformServices.upsertFinancialRegistrySnapshot(empId, registryName, records, metadata);
-    } catch {
-      return null;
-    }
-  };
 
   const receivables = useMemo(() => buildTreasuryReceivables({
     facturas,
@@ -221,64 +203,42 @@ export function useLabTreasuryModule({
   }, [empId]);
 
   useEffect(() => {
-    if (!empId || !platformServices?.getFinancialRegistrySnapshot) return;
-    if (receiptsRemoteHydratedRef.current === empId) return;
-    if (Array.isArray(treasuryReceipts) && treasuryReceipts.length) {
-      receiptsRemoteHydratedRef.current = empId;
-      return;
-    }
     let alive = true;
-    platformServices.getFinancialRegistrySnapshot(empId, "receipts")
-      .then((snapshot) => {
-        if (!alive) return;
-        const records = Array.isArray(snapshot?.records) ? snapshot.records.map(item => sanitizeTreasuryReceipt(item, empId)).filter(item => item.id && item.invoiceId) : [];
-        if (!records.length) return;
-        receiptsRemoteHydratedRef.current = empId;
-        recordFoundationRegistryEvent("receipts", "registry_rehydrated", {
-          recordCount: records.length,
-          source: snapshot?.source || "remote",
-        }).catch(() => null);
-        return Promise.resolve(setTreasuryReceipts?.(mergeById([], records))).catch(() => null);
-      })
-      .catch((error) => {
-        recordFoundationRegistryEvent("receipts", "registry_rehydrate_failed", {
-          message: error?.message || "No pudimos rehidratar receipts desde foundation.",
-        }).catch(() => null);
-      });
+    foundationFinancialRegistry.rehydrateSnapshot({
+      registryName: "receipts",
+      hydratedRef: receiptsRemoteHydratedRef,
+      currentRecords: treasuryReceipts,
+      setRecords: setTreasuryReceipts,
+      sanitizeRecord: sanitizeTreasuryReceipt,
+      isValidRecord: item => item.id && item.invoiceId,
+      mergeRecords: mergeById,
+      failureMessage: "No pudimos rehidratar receipts desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
     return () => {
       alive = false;
     };
-  }, [empId, platformServices, setTreasuryReceipts, treasuryReceipts]);
+  }, [foundationFinancialRegistry, setTreasuryReceipts, treasuryReceipts]);
 
   useEffect(() => {
-    if (!empId || !platformServices?.getFinancialRegistrySnapshot) return;
-    if (disbursementsRemoteHydratedRef.current === empId) return;
-    if (Array.isArray(treasuryDisbursements) && treasuryDisbursements.length) {
-      disbursementsRemoteHydratedRef.current = empId;
-      return;
-    }
     let alive = true;
-    platformServices.getFinancialRegistrySnapshot(empId, "disbursements")
-      .then((snapshot) => {
-        if (!alive) return;
-        const records = Array.isArray(snapshot?.records) ? snapshot.records.map(item => sanitizeTreasuryDisbursement(item, empId)).filter(item => item.id && item.payableId) : [];
-        if (!records.length) return;
-        disbursementsRemoteHydratedRef.current = empId;
-        recordFoundationRegistryEvent("disbursements", "registry_rehydrated", {
-          recordCount: records.length,
-          source: snapshot?.source || "remote",
-        }).catch(() => null);
-        return Promise.resolve(setTreasuryDisbursements?.(mergeById([], records))).catch(() => null);
-      })
-      .catch((error) => {
-        recordFoundationRegistryEvent("disbursements", "registry_rehydrate_failed", {
-          message: error?.message || "No pudimos rehidratar disbursements desde foundation.",
-        }).catch(() => null);
-      });
+    foundationFinancialRegistry.rehydrateSnapshot({
+      registryName: "disbursements",
+      hydratedRef: disbursementsRemoteHydratedRef,
+      currentRecords: treasuryDisbursements,
+      setRecords: setTreasuryDisbursements,
+      sanitizeRecord: sanitizeTreasuryDisbursement,
+      isValidRecord: item => item.id && item.payableId,
+      mergeRecords: mergeById,
+      failureMessage: "No pudimos rehidratar disbursements desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
     return () => {
       alive = false;
     };
-  }, [empId, platformServices, setTreasuryDisbursements, treasuryDisbursements]);
+  }, [foundationFinancialRegistry, setTreasuryDisbursements, treasuryDisbursements]);
 
   const savePayable = async next => {
     if (!canManageTreasury) return false;
@@ -426,22 +386,16 @@ export function useLabTreasuryModule({
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
     const updated = mergeById(treasuryReceipts, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryReceipts?.(updated);
-    try {
-      const syncResult = await syncFinancialRegistrySnapshot("receipts", updated, {
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "receipts",
+      records: updated,
+      metadata: {
         reason: exists ? "receipt_updated" : "receipt_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
-      });
-      await recordFoundationRegistryEvent("receipts", "registry_snapshot_synced", {
-        recordCount: updated.length,
-        source: syncResult?.source || "remote",
-      });
-    } catch (error) {
-      await recordFoundationRegistryEvent("receipts", "registry_snapshot_degraded", {
-        recordCount: updated.length,
-        message: error?.message || "No pudimos sincronizar receipts con foundation.",
-      });
-    }
+      },
+      degradedMessage: "No pudimos sincronizar receipts con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -475,22 +429,16 @@ export function useLabTreasuryModule({
     const exists = baseDisbursements.some(item => item.id === safeNext.id);
     const updated = mergeById(baseDisbursements, [{ ...safeNext, amount: nextAmount }]);
     await setTreasuryDisbursements?.(updated);
-    try {
-      const syncResult = await syncFinancialRegistrySnapshot("disbursements", updated, {
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "disbursements",
+      records: updated,
+      metadata: {
         reason: exists ? "disbursement_updated" : "disbursement_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
-      });
-      await recordFoundationRegistryEvent("disbursements", "registry_snapshot_synced", {
-        recordCount: updated.length,
-        source: syncResult?.source || "remote",
-      });
-    } catch (error) {
-      await recordFoundationRegistryEvent("disbursements", "registry_snapshot_degraded", {
-        recordCount: updated.length,
-        message: error?.message || "No pudimos sincronizar disbursements con foundation.",
-      });
-    }
+      },
+      degradedMessage: "No pudimos sincronizar disbursements con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -559,22 +507,16 @@ export function useLabTreasuryModule({
     if (!canManageTreasury) return false;
     const updated = (Array.isArray(treasuryReceipts) ? treasuryReceipts : []).filter(item => item.id !== id);
     await setTreasuryReceipts?.(updated);
-    try {
-      const syncResult = await syncFinancialRegistrySnapshot("receipts", updated, {
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "receipts",
+      records: updated,
+      metadata: {
         reason: "receipt_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
-      });
-      await recordFoundationRegistryEvent("receipts", "registry_snapshot_synced", {
-        recordCount: updated.length,
-        source: syncResult?.source || "remote",
-      });
-    } catch (error) {
-      await recordFoundationRegistryEvent("receipts", "registry_snapshot_degraded", {
-        recordCount: updated.length,
-        message: error?.message || "No pudimos sincronizar receipts con foundation.",
-      });
-    }
+      },
+      degradedMessage: "No pudimos sincronizar receipts con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -595,22 +537,16 @@ export function useLabTreasuryModule({
       : effectiveTreasuryDisbursements;
     const updated = baseDisbursements.filter(item => item.id !== id);
     await setTreasuryDisbursements?.(updated);
-    try {
-      const syncResult = await syncFinancialRegistrySnapshot("disbursements", updated, {
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "disbursements",
+      records: updated,
+      metadata: {
         reason: "disbursement_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
-      });
-      await recordFoundationRegistryEvent("disbursements", "registry_snapshot_synced", {
-        recordCount: updated.length,
-        source: syncResult?.source || "remote",
-      });
-    } catch (error) {
-      await recordFoundationRegistryEvent("disbursements", "registry_snapshot_degraded", {
-        recordCount: updated.length,
-        message: error?.message || "No pudimos sincronizar disbursements con foundation.",
-      });
-    }
+      },
+      degradedMessage: "No pudimos sincronizar disbursements con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",

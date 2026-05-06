@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 import { notifyUserFacingError } from "../lib/ui/userFacingErrors";
+import { createFoundationFinancialRegistryCoordinator } from "../lib/backend/foundationFinancialRegistry";
 
 const EMITTED_FACTURA_PROTECTED_FIELDS = [
   "correlativo",
@@ -154,58 +155,37 @@ export function useLabCommercialDocs({
   const canManageMovements = !!(canDo && canDo("movimientos"));
   const canManageBilling = !!(canDo && canDo("facturacion"));
   const remoteInvoicesHydratedRef = useRef("");
-  const recordFoundationInvoiceEvent = useCallback(async (action, payload = {}) => {
-    if (!curEmp?.id) return null;
-    return appendOperationalAuditEntry({
-      empId: curEmp.id,
-      area: "foundation",
-      action,
-      entityType: "financial_registry",
-      entityId: "invoices",
-      actor: currentUser,
-      payload,
+  const foundationInvoices = useCallback(
+    () => createFoundationFinancialRegistryCoordinator({
+      empId: curEmp?.id,
       platformServices,
-    });
-  }, [curEmp?.id, currentUser, platformServices]);
+      actor: currentUser,
+    }),
+    [curEmp?.id, currentUser, platformServices],
+  );
 
   useEffect(() => {
     remoteInvoicesHydratedRef.current = "";
   }, [curEmp?.id]);
 
   useEffect(() => {
-    if (!curEmp?.id || !platformServices?.getFinancialRegistrySnapshot) return;
-    if (remoteInvoicesHydratedRef.current === curEmp.id) return;
-    if (Array.isArray(facturas) && facturas.length) {
-      remoteInvoicesHydratedRef.current = curEmp.id;
-      return;
-    }
     let alive = true;
-    platformServices.getFinancialRegistrySnapshot(curEmp.id, "invoices")
-      .then((snapshot) => {
-        if (!alive) return;
-        const records = Array.isArray(snapshot?.records)
-          ? snapshot.records.map(item => sanitizeFacturaPayload(item, curEmp.id, item?.id || ""))
-            .filter(item => item.id && item.empId && item.entidadId && item.tipo)
-          : [];
-        if (!records.length) return;
-        remoteInvoicesHydratedRef.current = curEmp.id;
-        recordFoundationInvoiceEvent("registry_rehydrated", {
-          registryName: "invoices",
-          recordCount: records.length,
-          source: snapshot?.source || "remote",
-        }).catch(() => null);
-        return Promise.resolve(setFacturas?.(upsertById([], records))).catch(() => null);
-      })
-      .catch((error) => {
-        recordFoundationInvoiceEvent("registry_rehydrate_failed", {
-          registryName: "invoices",
-          message: error?.message || "No pudimos rehidratar facturas desde foundation.",
-        }).catch(() => null);
-      });
+    foundationInvoices().rehydrateSnapshot({
+      registryName: "invoices",
+      hydratedRef: remoteInvoicesHydratedRef,
+      currentRecords: facturas,
+      setRecords: setFacturas,
+      sanitizeRecord: (item, empId) => sanitizeFacturaPayload(item, empId, item?.id || ""),
+      isValidRecord: item => item.id && item.empId && item.entidadId && item.tipo,
+      mergeRecords: upsertById,
+      failureMessage: "No pudimos rehidratar facturas desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
     return () => {
       alive = false;
     };
-  }, [curEmp?.id, facturas, platformServices, setFacturas]);
+  }, [facturas, foundationInvoices, setFacturas]);
 
   const saveMov = useCallback(async (d) => {
     if (!canManageMovements) return false;
@@ -299,27 +279,17 @@ export function useLabCommercialDocs({
         Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id)),
       );
       await setFacturas(nextFacts);
-      if (platformServices?.upsertFinancialRegistrySnapshot && curEmp?.id) {
-        try {
-          const syncResult = await platformServices.upsertFinancialRegistrySnapshot(curEmp.id, "invoices", nextFacts, {
-            reason: isNew ? "invoice_created" : "invoice_updated",
-            actorUserId: currentUser?.id || "",
-            actorUserEmail: currentUser?.email || "",
-            recordCount: nextFacts.length,
-          });
-          await recordFoundationInvoiceEvent("registry_snapshot_synced", {
-            registryName: "invoices",
-            recordCount: nextFacts.length,
-            source: syncResult?.source || "remote",
-          });
-        } catch (error) {
-          await recordFoundationInvoiceEvent("registry_snapshot_degraded", {
-            registryName: "invoices",
-            recordCount: nextFacts.length,
-            message: error?.message || "No pudimos sincronizar facturas con foundation.",
-          });
-        }
-      }
+      await foundationInvoices().syncSnapshot({
+        registryName: "invoices",
+        records: nextFacts,
+        metadata: {
+          reason: isNew ? "invoice_created" : "invoice_updated",
+          actorUserId: currentUser?.id || "",
+          actorUserEmail: currentUser?.email || "",
+          recordCount: nextFacts.length,
+        },
+        degradedMessage: "No pudimos sincronizar facturas con foundation.",
+      });
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
       if (createdItems.length && typeof setTreasuryPurchaseOrders === "function") {
@@ -406,7 +376,7 @@ export function useLabCommercialDocs({
     uid,
     currentUser,
     platformServices,
-    recordFoundationInvoiceEvent,
+    foundationInvoices,
   ]);
 
   return {

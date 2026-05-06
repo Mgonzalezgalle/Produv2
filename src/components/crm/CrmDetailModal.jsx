@@ -27,6 +27,11 @@ function crmActivitySecondary(activity = {}) {
   return activity?.byName ? `Registrado por ${activity.byName}` : "Registro interno";
 }
 
+const FIELD_ERROR_STYLE = {
+  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
+  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
+};
+
 export function CrmDetailModal({
   detail,
   setDetailId,
@@ -57,6 +62,10 @@ export function CrmDetailModal({
 }) {
   const [selectedActivity, setSelectedActivity] = React.useState(null);
   const [expandedActivityIds, setExpandedActivityIds] = React.useState([]);
+  const activityValidationMessage = !String(activityForm?.text || "").trim()
+    ? "Escribe una nota, llamada, reunión o correo antes de registrar la actividad."
+    : "";
+  const canSubmitActivity = !activityValidationMessage;
   const toggleExpandedActivity = React.useCallback((activityId) => {
     setExpandedActivityIds(prev => prev.includes(activityId) ? prev.filter(id => id !== activityId) : [...prev, activityId]);
   }, []);
@@ -109,10 +118,13 @@ export function CrmDetailModal({
                 <option value="meeting">Reunión</option>
                 <option value="email">Email</option>
               </FSl>
-              <FTA value={activityForm.text} onChange={e => setActivityForm(prev => ({ ...prev, text: e.target.value }))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{ minHeight: 88 }} />
+              <div>
+                <FTA value={activityForm.text} onChange={e => setActivityForm(prev => ({ ...prev, text: e.target.value }))} placeholder="Registrar actividad comercial con más contexto, acuerdos, objeciones o próximos pasos..." style={{ minHeight: 88, ...(activityValidationMessage ? FIELD_ERROR_STYLE : {}) }} />
+                {!!activityValidationMessage && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{activityValidationMessage}</div>}
+              </div>
               {canManageCrm && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>
-                  <Btn onClick={async () => { if (!activityForm.text.trim()) return; await addActivity(detail.id, activityForm.text, activityForm.type); setActivityForm({ type: "note", text: "" }); ntf?.("Actividad registrada ✓"); }} sm>+ Registrar</Btn>
+                  <Btn onClick={async () => { if (!canSubmitActivity) return; await addActivity(detail.id, activityForm.text, activityForm.type); setActivityForm({ type: "note", text: "" }); ntf?.("Actividad registrada ✓"); }} sm>+ Registrar</Btn>
                   <Btn
                     onClick={() => onComposeEmail?.(detail, activityForm?.type === "email" ? activityForm : { type: "email", text: activityForm?.text || "" })}
                     sm

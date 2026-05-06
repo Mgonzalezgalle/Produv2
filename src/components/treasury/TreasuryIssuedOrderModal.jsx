@@ -4,6 +4,11 @@ import { today, uid } from "../../lib/utils/helpers";
 import { fmtM } from "../../lib/utils/helpers";
 import { buildIssuedOrderPdfDataUrl, issuedOrderPdfFileName } from "../../lib/utils/treasuryIssuedOrderPdf";
 
+const FIELD_ERROR_STYLE = {
+  borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)",
+  boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)",
+};
+
 function buildLocalDateTimeValue() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -139,6 +144,42 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
     () => (form.items || []).reduce((sum, item) => sum + lineSubtotal(item), 0),
     [form.items],
   );
+  const normalizedItems = useMemo(
+    () => (form.items || [])
+      .map(item => ({
+        ...item,
+        quantity: Math.max(0, Number(item.quantity || 0)),
+        unitPrice: Math.max(0, Number(item.unitPrice || 0)),
+        discount: Math.max(0, Number(item.discount || 0)),
+        subtotal: lineSubtotal(item),
+      }))
+      .filter(item => item.description || item.quantity || item.unitPrice || item.discount || item.subtotal),
+    [form.items],
+  );
+  const nextAmount = normalizedItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+  const validationIssue = !String(form.supplier || form.supplierLegalName || "").trim()
+    ? {
+      key: "supplier",
+      title: "No has completado el proveedor de la orden de compra.",
+      detail: "Selecciona o completa el proveedor antes de guardar esta OC emitida.",
+      inline: "Falta indicar el proveedor de esta orden de compra.",
+    }
+    : !String(form.number || "").trim()
+      ? {
+        key: "number",
+        title: "Todavía falta el número de la orden de compra.",
+        detail: "Ingresa el número o correlativo de la OC para poder registrarla.",
+        inline: "Falta completar el número de la orden de compra.",
+      }
+      : !nextAmount
+        ? {
+          key: "items",
+          title: "Todavía falta el detalle económico de la orden.",
+          detail: "Agrega al menos una línea con descripción y monto mayor a cero para guardar esta OC.",
+          inline: "La orden necesita al menos una línea con monto válido.",
+        }
+        : null;
+  const canSubmit = !validationIssue;
 
   const onFileChange = event => {
     const file = event.target.files?.[0];
@@ -179,12 +220,17 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
               }
               setForm(prev => ({ ...prev, ...providerSnapshot(nextProvider) }));
             }}
+            style={validationIssue?.key === "supplier" ? FIELD_ERROR_STYLE : undefined}
           >
             <option value="">Seleccionar...</option>
             {providerOptions.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
           </FSl>
+          {validationIssue?.key === "supplier" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
         </FG>
-        <FG label="Número OC *"><FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-PROV-2026-01" /></FG>
+        <FG label="Número OC *">
+          <FI value={form.number || ""} onChange={e => setField("number", e.target.value)} placeholder="OC-PROV-2026-01" style={validationIssue?.key === "number" ? FIELD_ERROR_STYLE : undefined} />
+          {validationIssue?.key === "number" && <div style={{ marginTop: 6, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{validationIssue.inline}</div>}
+        </FG>
       </R2>
       <R2>
         <FG label="Fecha emisión"><FI type="date" value={form.issueDate || ""} onChange={e => setField("issueDate", e.target.value)} /></FG>
@@ -266,6 +312,11 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
         <FG label="Fecha aprobación"><FI type="datetime-local" value={form.approvedAt || ""} onChange={e => setField("approvedAt", e.target.value)} /></FG>
       </R2>
       <div style={sectionTitleStyle}>Detalle de la orden</div>
+      {validationIssue?.key === "items" && (
+        <div style={{ marginBottom: 12, fontSize: 11, color: "var(--red)", fontWeight: 600 }}>
+          {validationIssue.inline}
+        </div>
+      )}
       <div style={{ marginTop: 10, marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)" }}>Líneas de compra</div>
@@ -326,23 +377,18 @@ export function TreasuryIssuedOrderModal({ open, data, providers = [], empresa, 
         />
       </FG>
       <FG label="Observaciones"><FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Condiciones, referencias o glosa de la orden." /></FG>
+      {validationIssue && (
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid color-mix(in srgb, var(--red) 24%, var(--bdr2) 76%)", background: "color-mix(in srgb, var(--red) 10%, var(--card) 90%)" }}>
+          <div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700, marginBottom: 4 }}>{validationIssue.title}</div>
+          <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.5 }}>{validationIssue.detail}</div>
+        </div>
+      )}
       <MFoot
         onClose={onClose}
         label="Guardar"
+        disabled={!canSubmit}
         onSave={async () => {
-          if (!String(form.supplier || form.supplierLegalName || "").trim()) return;
-          if (!String(form.number || "").trim()) return;
-          const normalizedItems = (form.items || [])
-            .map(item => ({
-              ...item,
-              quantity: Math.max(0, Number(item.quantity || 0)),
-              unitPrice: Math.max(0, Number(item.unitPrice || 0)),
-              discount: Math.max(0, Number(item.discount || 0)),
-              subtotal: lineSubtotal(item),
-            }))
-            .filter(item => item.description || item.quantity || item.unitPrice || item.discount || item.subtotal);
-          const nextAmount = normalizedItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
-          if (!nextAmount) return;
+          if (!canSubmit) return;
           const payload = {
             ...form,
             amount: nextAmount,

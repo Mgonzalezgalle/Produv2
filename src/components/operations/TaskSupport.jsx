@@ -122,6 +122,8 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
   const [assignedFilter,setAssignedFilter]=useState("");
   const [importantOnly,setImportantOnly]=useState(false);
   const [expandedIds,setExpandedIds]=useState([]);
+  const commentValidationMessage = !txt.trim() ? "Escribe un comentario antes de guardarlo." : "";
+  const canSubmitComment = !!txt.trim();
   const crewMap = Object.fromEntries((crewOptions||[]).filter(c=>c&&c.id).map(c=>[c.id,c]));
   const normalizedItems = (items||[]).map(item => normalizeCommentItem(item, normalizeCommentAttachments));
   const sortedItems = [...normalizedItems].sort((a,b)=>{
@@ -202,7 +204,8 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       </label>
     </div>}
     {canEdit&&<div style={{marginBottom:16}}>
-      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..."/>
+      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..." style={commentValidationMessage ? { borderColor: "color-mix(in srgb, var(--red) 72%, var(--bdr2) 28%)", boxShadow: "0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent 80%)" } : undefined}/>
+      {!!commentValidationMessage && <div style={{marginTop:6,fontSize:11,color:"var(--red)",fontWeight:600}}>{commentValidationMessage}</div>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,marginTop:10}}>
         <FG label="Tipo de comentario">
           <select value={kind} onChange={e=>setKind(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>
@@ -254,7 +257,7 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       </label>
       <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:8}}>
         {editingId&&<GBtn sm onClick={resetForm}>Cancelar</GBtn>}
-        <Btn sm onClick={submit}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
+        <Btn sm onClick={submit} s={!canSubmitComment ? { opacity:.6, cursor:"not-allowed" } : undefined}>{editingId?"Actualizar comentario":"Agregar comentario"}</Btn>
       </div>
     </div>}
     {filteredItems.length?filteredItems.map(it=>{ const kindMeta = commentKindMeta(it.kind); const expanded = expandedIds.includes(it.id); return <div key={it.id} style={{padding:"12px 0",borderTop:"1px solid var(--bdr)"}}>

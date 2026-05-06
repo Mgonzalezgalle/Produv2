@@ -21,6 +21,16 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
 
+function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null }) {
+  return (
+    <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.03),transparent)" }}>
+      <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: tone, lineHeight: 1 }}>{value}</div>
+      {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45, marginTop: 8 }}>{hint}</div>}
+    </div>
+  );
+}
+
 async function openPdfSourceInNewTab(src = "", fallbackName = "documento.pdf") {
   const trimmedSrc = String(src || "").trim();
   if (!trimmedSrc) return false;
@@ -509,11 +519,28 @@ export function TreasuryModule(props) {
   return (
     <div className="treasury-shell">
       <TreasuryStyles />
-      <ModuleHeader
-        module="Tesorería"
-        title="Tesorería"
-        description="Controla la cartera, revisa concentración de deuda, gestiona la cobranza operativa, concilia órdenes de compra con facturas y registra pagos manuales recibidos o realizados."
-      />
+      <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 56%,rgba(9,14,24,.3) 100%)",marginBottom:18,boxShadow:"0 18px 42px rgba(0,0,0,.1)"}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(320px,.95fr)",gap:16,alignItems:"stretch"}}>
+          <div style={{display:"grid",gap:12}}>
+            <ModuleHeader
+              module="Tesorería"
+              title="Tesorería"
+              description="Controla cartera, deuda, cobranza operativa, conciliación documental y pagos realizados desde una misma superficie financiera."
+            />
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Badge label={tab === 0 ? "Foco en cobranza" : "Foco en egresos"} color={tab === 0 ? "cyan" : "purple"} sm />
+              <Badge label={`${receivableSummary.overdueDocs} docs vencidos`} color={receivableSummary.overdueDocs ? "yellow" : "green"} sm />
+              <Badge label={`${payablesSummary.docs} egresos registrados`} color="gray" sm />
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <TreasurySurfaceMetric label="Cartera total" value={fmtM(receivableSummary.total)} tone="var(--cy)" hint="Lectura consolidada de cuentas por cobrar." />
+            <TreasurySurfaceMetric label="Pendiente" value={fmtM(receivableSummary.pending)} tone="#ffcc44" hint="Monto abierto aún no conciliado." />
+            <TreasurySurfaceMetric label="Vencido" value={fmtM(receivableSummary.overdue)} tone="var(--red)" hint={`${receivableSummary.overdueDocs} documento(s) con atraso.`} />
+            <TreasurySurfaceMetric label="Egresos" value={fmtM(payablesSummary.total)} tone="#a78bfa" hint={`${payablesSummary.docs} documento(s) en cuentas por pagar.`} />
+          </div>
+        </div>
+      </div>
       <div className="treasury-kpis">
         <KpiCard color="var(--cy)" label="Cartera total" value={fmtM(receivableSummary.total)} scope="CxC" />
         <KpiCard color="#ffcc44" label="Pendiente" value={fmtM(receivableSummary.pending)} scope="CxC" />

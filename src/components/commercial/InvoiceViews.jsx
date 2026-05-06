@@ -80,6 +80,16 @@ const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
 const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,280px),1fr))";
 const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,220px),1fr))";
 
+function BillingSurfaceMetric({ label, value, tone = "var(--cy)", hint = null }) {
+  return (
+    <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.03),transparent)" }}>
+      <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: tone, lineHeight: 1 }}>{value}</div>
+      {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45, marginTop: 8 }}>{hint}</div>}
+    </div>
+  );
+}
+
 async function getCommercialPdfRuntime() {
   if (!commercialPdfRuntimePromise) {
     commercialPdfRuntimePromise = Promise.all([
@@ -377,11 +387,28 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   }, [commentAttachmentFromFile, empresa, fmtD, fmtM, openEmailComposer]);
 
   return <div>
-    <ModuleHeader
-      module="Facturación"
-      title="Facturación"
-      description="Emite documentos y administra recurrencias. La cobranza operativa vive en Tesorería dentro de Cuentas por Cobrar."
-    />
+    <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 56%,rgba(9,14,24,.3) 100%)",marginBottom:18,boxShadow:"0 18px 42px rgba(0,0,0,.1)"}}>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(280px,.95fr)",gap:16,alignItems:"stretch"}}>
+        <div style={{display:"grid",gap:12}}>
+          <ModuleHeader
+            module="Facturación"
+            title="Facturación"
+            description="Emite documentos, administra recurrencias y sostiene el frente documental de la operación. La cobranza operativa vive en Tesorería dentro de Cuentas por Cobrar."
+          />
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <Badge label={`${emitidas} emitidas`} color="cyan" sm />
+            <Badge label={`${recurrentes} recurrentes`} color="purple" sm />
+            <Badge label={vencidas ? `${vencidas} atrasadas` : "Sin atrasos críticos"} color={vencidas ? "yellow" : "green"} sm />
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <BillingSurfaceMetric label="Documentos emitidos" value={fd.length} tone="var(--cy)" hint="Base documental visible en este módulo." />
+          <BillingSurfaceMetric label="Por cobrar" value={fmtM(pendiente)} tone="#ffcc44" hint={`${cuentasPorCobrar.length} documento(s) siguen abiertos.`} />
+          <BillingSurfaceMetric label="Cobrado" value={fmtM(pagado)} tone="#00e08a" hint="Monto ya conciliado sobre la emisión." />
+          <BillingSurfaceMetric label="Recurrencia" value={`${emitidas} / ${recurrentes}`} tone="#ff5566" hint={`Serie activas con ${vencidas} atraso(s).`} />
+        </div>
+      </div>
+    </div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
       <Stat label="Cuentas por cobrar" value={fmtM(pendiente)} accent="#ffcc44" vc="#ffcc44" sub={`${cuentasPorCobrar.length} documento(s)`}/>
@@ -389,7 +416,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       <Stat label="Emitidos / Recurrentes" value={`${emitidas} / ${recurrentes}`} accent="#ff5566" vc="#ff5566" sub={`atrasadas: ${vencidas}`}/>
     </div>
     <Tabs tabs={["Emisión","Órdenes de Compra Recibidas","Recurrencias"]} active={Math.min(tab,2)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
-    <div style={{background:"var(--cg)",border:"1px solid var(--cm)",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"var(--cy)"}}>
+    <div style={{background:"linear-gradient(180deg,rgba(57,208,255,.1),rgba(57,208,255,.04))",border:"1px solid var(--cm)",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:12,color:"var(--cy)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>
       ℹ En Producciones, la facturación solo incluye <b>Auspiciadores Principales y Secundarios</b>. No incluye canjes, colaboradores ni partners. El seguimiento de cobranza y pagos ahora se gestiona desde <b>Tesorería → Cuentas por Cobrar</b>.
     </div>
     {tab===0 && <InvoiceIssuanceSection

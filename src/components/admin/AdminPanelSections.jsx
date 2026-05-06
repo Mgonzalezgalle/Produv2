@@ -918,42 +918,57 @@ export function UsersAdminSection({
   canManageAdmin = true,
 }) {
   const [pendingDeleteUser, setPendingDeleteUser] = React.useState(null);
+  const totalUsers = filteredUsers.length;
+  const activeCount = filteredUsers.filter(u => u.active).length;
+  const connectedCalendarCount = filteredUsers.filter(u => userGoogleCalendar(u).connected).length;
+  const crewCount = filteredUsers.filter(u => u.isCrew).length;
 
   return <div>
-    <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={uq} onChange={setUq} placeholder="Buscar usuario por nombre o email..."/>
-      <FilterSel value={uRole} onChange={setURole} options={roleOptions(empresa)} placeholder="Todos los roles"/>
-      <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}].map(o=>o.label)} placeholder="Todos los estados"/>
-    </div>
-    <div style={{marginBottom:14}}>
-      {filteredUsers.map(u=>{
-        const restrictedBySuper = u.role==="superadmin";
-        return <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr)",borderRadius:6,marginBottom:6}}>
-          <div style={{width:28,height:28,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
-          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)"}}>{u.email}</div></div>
-          <Badge label={getRoleConfig(u.role, empresa).label} color={getRoleConfig(u.role, empresa).badge} sm/>
-          {u.isCrew&&<Badge label={u.crewRole||"Crew"} color="cyan" sm/>}
-          <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
-          <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
-          {restrictedBySuper ? <Badge label="Gestiona Torre de Control" color="purple" sm/> : <>
-            <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} disabled={!canManageAdmin} s={{minWidth:74}}>Editar</GBtn>
-            <GBtn sm onClick={()=>resetAccess(u)} disabled={!canManageAdmin}>🔐 Reset</GBtn>
-            <GBtn sm onClick={()=>toggleUserActive(u)} disabled={!canManageAdmin}>{u.active?"Desactivar":"Activar"}</GBtn>
-            {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} disabled={!canManageAdmin} sm>Eliminar</DBtn>}
-          </>}
-        </div>;
-      })}
-      {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
-    </div>
-    <div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:8,padding:16}}>
+    <AdminPanelCard
+      eyebrow="Gobierno de acceso"
+      title="Usuarios del tenant"
+      description="Aquí administramos acceso, roles, estado y señales operativas como Google Calendar o pertenencia al crew."
+    >
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
+        <OverviewMetric label="Usuarios filtrados" value={totalUsers} tone="var(--wh)" hint="La cifra responde a tus filtros actuales." />
+        <OverviewMetric label="Activos" value={activeCount} tone="var(--cy)" hint="Usuarios listos para operar hoy." />
+        <OverviewMetric label="Google conectado" value={connectedCalendarCount} tone="#00e08a" hint="Sincronización individual activa." />
+        <OverviewMetric label="Crew interno" value={crewCount} tone="#ffcc44" hint="Usuarios marcados como parte del equipo operativo." />
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <SearchBar value={uq} onChange={setUq} placeholder="Buscar usuario por nombre o email..."/>
+        <FilterSel value={uRole} onChange={setURole} options={roleOptions(empresa)} placeholder="Todos los roles"/>
+        <FilterSel value={uState} onChange={setUState} options={[{value:"active",label:"Activos"},{value:"inactive",label:"Inactivos"}].map(o=>o.label)} placeholder="Todos los estados"/>
+      </div>
+      <div style={{marginBottom:0}}>
+        {filteredUsers.map(u=>{
+          const restrictedBySuper = u.role==="superadmin";
+          return <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"linear-gradient(180deg,rgba(255,255,255,.03),transparent)",border:"1px solid var(--bdr2)",borderRadius:12,marginBottom:8}}>
+            <div style={{width:30,height:30,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(u.name)}</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{u.name}</div><div style={{fontSize:11,color:"var(--gr2)",overflow:"hidden",textOverflow:"ellipsis"}}>{u.email}</div></div>
+            <Badge label={getRoleConfig(u.role, empresa).label} color={getRoleConfig(u.role, empresa).badge} sm/>
+            {u.isCrew&&<Badge label={u.crewRole||"Crew"} color="cyan" sm/>}
+            <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
+            <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
+            {restrictedBySuper ? <Badge label="Gestiona Torre de Control" color="purple" sm/> : <>
+              <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} disabled={!canManageAdmin} s={{minWidth:74}}>Editar</GBtn>
+              <GBtn sm onClick={()=>resetAccess(u)} disabled={!canManageAdmin}>🔐 Reset</GBtn>
+              <GBtn sm onClick={()=>toggleUserActive(u)} disabled={!canManageAdmin}>{u.active?"Desactivar":"Activar"}</GBtn>
+              {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} disabled={!canManageAdmin} sm>Eliminar</DBtn>}
+            </>}
+          </div>;
+        })}
+        {!filteredUsers.length&&<Empty text="Sin usuarios para este filtro"/>}
+      </div>
+    </AdminPanelCard>
+    <AdminPanelCard
+      eyebrow="Alta y edición"
+      title={uid2?"Editar usuario":"Agregar usuario"}
+      description={uid2 ? "Modifica nombre, correo, rol, estado o acceso de este usuario." : "Crea un nuevo usuario para esta empresa y asígnale un rol disponible."}
+      actions={uid2&&<Badge label={`Editando ${uf.name || "usuario"}`} color="cyan" sm/>}
+    >
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:14,flexWrap:"wrap"}}>
-        <div>
-          <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:4}}>{uid2?"Editar usuario":"Agregar usuario"}</div>
-          <div style={{fontSize:11,color:"var(--gr2)"}}>
-            {uid2 ? "Modifica nombre, correo, rol, estado o acceso de este usuario del tenant." : "Crea un nuevo usuario para esta empresa y asígnale un rol disponible dentro del tenant."}
-          </div>
-        </div>
-        {uid2&&<Badge label={`Editando ${uf.name || "usuario"}`} color="cyan" sm/>}
+        <div style={{fontSize:11,color:"var(--gr2)"}}>Las cuentas `Admin` y `Super Admin` se crean y gobiernan desde `Torre de Control &gt; Usuarios del sistema`.</div>
       </div>
       <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
       <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={editableRoleOptions.some(o=>o.value===(uf.role||"viewer"))?(uf.role||"viewer"):(editableRoleOptions[0]?.value||"viewer")} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{editableRoleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
@@ -969,7 +984,7 @@ export function UsersAdminSection({
         <Btn onClick={saveUser} disabled={!canManageAdmin}>{uid2?"Guardar cambios":"Crear usuario"}</Btn>
         {uid2&&<GBtn onClick={()=>{setUid2(null);setUf({});}}>Cancelar edición</GBtn>}
       </div>
-    </div>
+    </AdminPanelCard>
     <ConfirmActionDialog
       open={Boolean(pendingDeleteUser)}
       title="Eliminar usuario"
@@ -1015,14 +1030,29 @@ export function PlatformFoundationPanel({
   empresa,
   getRoleConfig,
 }) {
+  const remoteRoleCount = (platformSnapshot?.customRoles||[]).length;
+  const remoteShadowCount = (platformSnapshot?.userShadows||[]).length;
+  const promotionCount = (platformSnapshot?.promotionPlans||[]).length;
+
   return <div>
-    <div style={{fontSize:12,color:"var(--gr2)",marginBottom:14}}>Esta vista muestra el estado remoto del tenant dentro de Supabase foundation. Es solo de inspección y nos ayuda a validar la migración backend sin tocar productivo.</div>
-    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
-      <Btn onClick={planIdentityPromotions} disabled={platformPlanning}>{platformPlanning ? "Generando ruta..." : "Generar ruta de promoción"}</Btn>
-      <GBtn onClick={prepareIdentityMembershipBlueprints} disabled={platformPreparingMemberships}>{platformPreparingMemberships ? "Preparando..." : "Preparar membresías"}</GBtn>
-      <GBtn onClick={prepareMembershipTransitionQueue} disabled={platformQueueingMemberships}>{platformQueueingMemberships ? "Armando cola..." : "Preparar cola de transición"}</GBtn>
-      <GBtn onClick={refreshPlatformSnapshot} disabled={platformLoading}>{platformLoading ? "Actualizando..." : "Actualizar snapshot"}</GBtn>
-    </div>
+    <AdminPanelCard
+      eyebrow="Foundation remota"
+      title="Estado de plataforma"
+      description="Esta vista muestra el estado remoto dentro de Supabase foundation. La usamos para validar migración, consistencia y capacidad operativa sin tocar productivo."
+    >
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
+        <OverviewMetric label="Identidad" value={identityHealthLabel} tone={identityHealthLabel === "Alineado" ? "#00e08a" : identityHealthLabel === "Parcial" ? "#ffcc44" : "var(--gr3)"} hint="Cruza usuarios, roles y snapshots remotos." />
+        <OverviewMetric label="Roles remotos" value={remoteRoleCount} tone="var(--cy)" hint="Roles personalizados presentes en foundation." />
+        <OverviewMetric label="Usuarios shadow" value={remoteShadowCount} tone="#00e08a" hint="Sincronizados desde la operación actual." />
+        <OverviewMetric label="Rutas de promoción" value={promotionCount} tone="#ffcc44" hint="Listas para futura transición de identidad." />
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:0}}>
+        <Btn onClick={planIdentityPromotions} disabled={platformPlanning}>{platformPlanning ? "Generando ruta..." : "Generar ruta de promoción"}</Btn>
+        <GBtn onClick={prepareIdentityMembershipBlueprints} disabled={platformPreparingMemberships}>{platformPreparingMemberships ? "Preparando..." : "Preparar membresías"}</GBtn>
+        <GBtn onClick={prepareMembershipTransitionQueue} disabled={platformQueueingMemberships}>{platformQueueingMemberships ? "Armando cola..." : "Preparar cola de transición"}</GBtn>
+        <GBtn onClick={refreshPlatformSnapshot} disabled={platformLoading}>{platformLoading ? "Actualizando..." : "Actualizar snapshot"}</GBtn>
+      </div>
+    </AdminPanelCard>
     {platformLoading
       ? <Card title="Foundation remota"><div style={{fontSize:12,color:"var(--gr2)"}}>Cargando estado remoto…</div></Card>
       : platformSnapshot

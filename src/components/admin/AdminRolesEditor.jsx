@@ -3,6 +3,34 @@ import { Badge, Btn, DBtn, Empty, FG, FI, FSl, R3 } from "../../lib/ui/component
 import { getCustomRoles, PERMS, ROLE_COLOR_MAP, ROLE_PERMISSION_GROUPS, ROLES } from "../../lib/auth/authorization";
 import { requestConfirm } from "../../lib/ui/confirmService";
 
+function RolesPanelCard({ eyebrow = null, title, description = null, actions = null, children }) {
+  return (
+    <div style={{background:"linear-gradient(180deg,rgba(255,255,255,.03),transparent)",border:"1px solid var(--bdr2)",borderRadius:16,padding:16}}>
+      {(eyebrow || title || description || actions) && (
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:12}}>
+          <div>
+            {!!eyebrow && <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.4,marginBottom:6}}>{eyebrow}</div>}
+            {!!title && <div style={{fontSize:13,fontWeight:800,color:"var(--wh)",marginBottom:description ? 4 : 0}}>{title}</div>}
+            {!!description && <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.55,maxWidth:680}}>{description}</div>}
+          </div>
+          {actions}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function RoleOverviewMetric({ label, value, tone = "var(--cy)", hint = null }) {
+  return (
+    <div style={{padding:"12px 13px",borderRadius:14,border:"1px solid var(--bdr2)",background:"rgba(255,255,255,.03)"}}>
+      <div style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:8}}>{label}</div>
+      <div style={{fontFamily:"var(--fm)",fontSize:22,fontWeight:700,color:tone,lineHeight:1}}>{value}</div>
+      {!!hint && <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.45,marginTop:8}}>{hint}</div>}
+    </div>
+  );
+}
+
 export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformServices, ntf, uid, canManageAdmin=true }) {
   const [activeKey,setActiveKey]=useState("");
   const [draft,setDraft]=useState({label:"",color:"#7c7c8a",badge:"gray",permissions:[]});
@@ -28,6 +56,8 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformSe
   const selected=roleList.find(r=>r.key===activeKey);
   const tenantUsers=(users||[]).filter(u=>u.empId===empresa?.id);
   const selectedAssignedUsers=tenantUsers.filter(u=>u.role===selected?.key);
+  const baseRoleCount = roleList.filter(role => role.base).length;
+  const customRoleCount = roleList.filter(role => !role.base).length;
 
   const persistRoles=nextCustomRoles=>{
     if(!canManageAdmin) {
@@ -105,9 +135,20 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformSe
   const togglePerm=perm=>setDraft(p=>({...p,permissions:p.permissions.includes(perm)?p.permissions.filter(x=>x!==perm):[...p.permissions,perm]}));
 
   return <div>
-    <div style={{fontSize:12,color:"var(--gr2)",marginBottom:16}}>Crea roles personalizados por empresa y define qué módulos puede usar cada perfil. Los roles base se pueden revisar, pero no eliminar.</div>
-    <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,alignItems:"start"}}>
-      <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,overflow:"hidden"}}>
+    <RolesPanelCard
+      eyebrow="Gobierno de permisos"
+      title="Roles y permisos"
+      description="Crea roles personalizados por empresa y define qué capacidades puede usar cada perfil. Los roles base se pueden revisar, pero no eliminar."
+    >
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
+        <RoleOverviewMetric label="Roles totales" value={roleList.length} tone="var(--wh)" hint="Suma roles base y personalizados." />
+        <RoleOverviewMetric label="Roles base" value={baseRoleCount} tone="var(--cy)" hint="Solo lectura dentro del tenant." />
+        <RoleOverviewMetric label="Roles custom" value={customRoleCount} tone="#00e08a" hint="Modificables desde esta empresa." />
+        <RoleOverviewMetric label="Usuarios del tenant" value={tenantUsers.length} tone="#ffcc44" hint="Base actual para asignación de roles." />
+      </div>
+    </RolesPanelCard>
+    <div style={{display:"grid",gridTemplateColumns:"260px 1fr",gap:16,alignItems:"start"}}>
+      <RolesPanelCard eyebrow="Catálogo" title="Roles disponibles" description="Selecciona un rol para revisar su detalle o crear uno nuevo.">
         {roleList.map(role=><div key={role.key} onClick={()=>setActiveKey(role.key)} style={{padding:"11px 14px",cursor:"pointer",borderBottom:"1px solid var(--bdr)",background:activeKey===role.key?"var(--cg)":"transparent",borderLeft:activeKey===role.key?"3px solid var(--cy)":"3px solid transparent"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
             <span style={{fontSize:12,fontWeight:700,color:activeKey===role.key?"var(--cy)":"var(--gr3)"}}>{role.label}</span>
@@ -118,25 +159,25 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformSe
           </div>
           <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{(role.permissions||[]).length} permisos</div>
         </div>)}
-        <div style={{padding:12}}><Btn onClick={createRole} disabled={!canManageAdmin} sm>+ Nuevo rol</Btn></div>
-      </div>
-      {selected?<div style={{background:"var(--card2)",border:"1px solid var(--bdr2)",borderRadius:10,padding:16}}>
+        <div style={{paddingTop:12}}><Btn onClick={createRole} disabled={!canManageAdmin} sm>+ Nuevo rol</Btn></div>
+      </RolesPanelCard>
+      {selected?<RolesPanelCard
+        eyebrow="Detalle del rol"
+        title={`Rol: ${selected.label}`}
+        description={selected.base
+          ? "Los roles base se pueden revisar, pero no editar ni eliminar desde el tenant."
+          : selectedAssignedUsers.length
+            ? "Este rol está asignado a usuarios. Puedes editarlo, pero para eliminarlo primero debes reasignar esos usuarios a otro rol."
+            : "Puedes editar permisos, renombrar este rol o eliminarlo si ya no lo necesitas."}
+        actions={!selected.base&&<DBtn onClick={deleteRole} disabled={!canManageAdmin} sm>Eliminar rol</DBtn>}
+      >
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div>
-            <div style={{fontFamily:"var(--fh)",fontSize:13,fontWeight:700,marginBottom:4}}>Rol: {selected.label}</div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               <Badge label={selected.base?"Rol base":"Rol personalizado"} color={selected.base?"gray":"cyan"} sm/>
               <Badge label={`${selectedAssignedUsers.length} usuario${selectedAssignedUsers.length===1?"":"s"} asignado${selectedAssignedUsers.length===1?"":"s"}`} color="gray" sm/>
             </div>
           </div>
-          {!selected.base&&<DBtn onClick={deleteRole} disabled={!canManageAdmin} sm>Eliminar rol</DBtn>}
-        </div>
-        <div style={{fontSize:11,color:"var(--gr2)",marginBottom:14}}>
-          {selected.base
-            ? "Los roles base se pueden revisar, pero no editar ni eliminar desde el tenant."
-            : selectedAssignedUsers.length
-              ? "Este rol está asignado a usuarios. Puedes editarlo, pero para eliminarlo primero debes reasignar esos usuarios a otro rol."
-              : "Puedes editar permisos, renombrar este rol o eliminarlo si ya no lo necesitas."}
         </div>
         <R3>
           <FG label="Nombre del rol"><FI value={draft.label||""} onChange={e=>setDraft(p=>({...p,label:e.target.value}))} disabled={selected.base || !canManageAdmin}/></FG>
@@ -158,7 +199,7 @@ export function RolesEditor({ empresa, empresas, users, saveEmpresas, platformSe
           {!selected.base&&<Btn onClick={saveRole} disabled={!canManageAdmin}>Guardar cambios del rol</Btn>}
           {selected.base&&<div style={{fontSize:11,color:"var(--gr2)"}}>Los roles base se usan como referencia y no se editan desde aquí.</div>}
         </div>
-      </div>:<Empty text="Selecciona un rol para editar"/>}
+      </RolesPanelCard>:<Empty text="Selecciona un rol para editar"/>}
     </div>
   </div>;
 }

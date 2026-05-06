@@ -49,16 +49,19 @@ export function Badge({ label, color, sm }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: sm ? "2px 7px" : "3px 10px",
+        justifyContent: "center",
+        padding: sm ? "3px 8px" : "5px 11px",
         borderRadius: 20,
+        minHeight: sm ? 18 : 22,
         fontSize: sm ? 9 : 10,
         fontWeight: 700,
-        letterSpacing: 0.5,
+        letterSpacing: 0.7,
         textTransform: "uppercase",
         whiteSpace: "nowrap",
-        background: palette[0],
+        background: `linear-gradient(180deg, ${palette[0]}, color-mix(in srgb, ${palette[0]} 76%, transparent))`,
         color: palette[1],
         border: `1px solid ${palette[2]}`,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.03)",
       }}
     >
       {label}
@@ -309,17 +312,17 @@ export const XBtn = ({ onClick }) => <button onClick={onClick} style={{ padding:
 
 export function Stat({ label, value, sub, accent = "var(--cy)", vc }) {
   return (
-    <div style={{ background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 14, padding: "18px 20px", position: "relative", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,.08)" }}>
+    <div style={{ background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 16, padding: "18px 20px", position: "relative", overflow: "hidden", boxShadow: "0 14px 34px rgba(0,0,0,.08)" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: accent }} />
-      <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--gr2)", marginBottom: 10, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 500, color: vc || "var(--wh)" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 6 }}>{sub}</div>}
+      <div style={{ fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", color: "var(--gr2)", marginBottom: 10, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: vc || "var(--wh)", lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 8, lineHeight: 1.45 }}>{sub}</div>}
     </div>
   );
 }
 
 export const TH = ({ children, onClick, active = false, dir = "", style, title }) => (
-  <th onClick={onClick} title={title} style={{ textAlign: "left", padding: "12px 14px", fontSize: 10, letterSpacing: 1.7, textTransform: "uppercase", color: active ? "var(--cy)" : "var(--gr2)", borderBottom: "1px solid var(--bdr)", fontWeight: 700, whiteSpace: "nowrap", background: "linear-gradient(180deg,var(--card2),transparent)", cursor: onClick ? "pointer" : "default", userSelect: "none", ...style }}>
+  <th onClick={onClick} title={title} style={{ textAlign: "left", padding: "13px 14px", fontSize: 10, letterSpacing: 1.7, textTransform: "uppercase", color: active ? "var(--cy)" : "var(--gr2)", borderBottom: "1px solid var(--bdr)", fontWeight: 700, whiteSpace: "nowrap", background: "linear-gradient(180deg,var(--card2),rgba(255,255,255,.01))", cursor: onClick ? "pointer" : "default", userSelect: "none", ...style }}>
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <span>{children}</span>
       {active && <span style={{ fontSize: 10, lineHeight: 1 }}>{dir === "desc" ? "↓" : "↑"}</span>}
@@ -327,16 +330,16 @@ export const TH = ({ children, onClick, active = false, dir = "", style, title }
   </th>
 );
 
-export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding: "12px 14px", fontSize: 12.5, color: bold ? "var(--wh)" : "var(--gr3)", borderBottom: "1px solid var(--bdr)", fontFamily: mono ? "var(--fm)" : "inherit", fontWeight: bold ? 600 : 400, verticalAlign: "middle", ...style }}>{children}</td>;
+export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding: "13px 14px", fontSize: 12.5, color: bold ? "var(--wh)" : "var(--gr3)", borderBottom: "1px solid var(--bdr)", fontFamily: mono ? "var(--fm)" : "inherit", fontWeight: bold ? 600 : 400, verticalAlign: "middle", lineHeight: 1.5, ...style }}>{children}</td>;
 
 export function Card({ title, sub, action, children, style = {} }) {
   return (
-    <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, display: "block", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr)", borderRadius: 16, padding: 20, boxShadow: "0 12px 32px rgba(0,0,0,.08)", ...style }}>
+    <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, display: "block", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 18, padding: 20, boxShadow: "0 14px 34px rgba(0,0,0,.08)", ...style }}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid var(--bdr)" }}>
           <div>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800 }}>{title}</div>
-            {sub && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 3 }}>{sub}</div>}
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)" }}>{title}</div>
+            {sub && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4, lineHeight: 1.5 }}>{sub}</div>}
           </div>
           {action && <button onClick={action.fn} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--gr3)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{action.label}</button>}
         </div>
@@ -351,10 +354,11 @@ export function ModuleHeader({ module, title, description, actions, style = {} }
     <div style={{ width: "100%", minWidth: 0, marginBottom: 22, ...style }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
+          {module ? <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 8 }}>{module}</div> : null}
           <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 800, color: "var(--wh)", lineHeight: 1.05 }}>
             {title}
           </div>
-          {description ? <div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 8, lineHeight: 1.6, maxWidth: 760 }}>{description}</div> : null}
+          {description ? <div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 8, lineHeight: 1.65, maxWidth: 760 }}>{description}</div> : null}
         </div>
         {actions ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div> : null}
       </div>
@@ -372,8 +376,8 @@ export const Empty = ({ text, sub }) => (
 );
 
 export const Sep = () => <hr style={{ border: "none", borderTop: "1px solid var(--bdr)", margin: "16px 0" }} />;
-export const Tabs = ({ tabs, active, onChange }) => <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>{tabs.map((t, i) => <div key={t} onClick={() => onChange(i)} style={{ padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${active === i ? "var(--cm)" : "var(--bdr)"}`, borderRadius: 999, background: active === i ? "linear-gradient(180deg,var(--cg),transparent)" : "var(--card)", color: active === i ? "var(--cy)" : "var(--gr2)", whiteSpace: "nowrap", boxShadow: active === i ? "inset 0 0 0 1px var(--cg)" : "none" }}>{t}</div>)}</div>;
-export const KV = ({ label, value }) => <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 12, color: "var(--gr2)" }}>{label}</span><span style={{ fontSize: 13, textAlign: "right", maxWidth: "60%" }}>{value}</span></div>;
+export const Tabs = ({ tabs, active, onChange }) => <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>{tabs.map((t, i) => <div key={t} onClick={() => onChange(i)} style={{ padding: "10px 16px", minHeight: 42, display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${active === i ? "var(--cm)" : "var(--bdr2)"}`, borderRadius: 999, background: active === i ? "linear-gradient(180deg,var(--cg),transparent)" : "linear-gradient(180deg,var(--card),var(--card2))", color: active === i ? "var(--cy)" : "var(--gr2)", whiteSpace: "nowrap", boxShadow: active === i ? "inset 0 0 0 1px var(--cg)" : "0 6px 18px rgba(0,0,0,.04)" }}>{t}</div>)}</div>;
+export const KV = ({ label, value }) => <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 12, color: "var(--gr2)" }}>{label}</span><span style={{ fontSize: 13, textAlign: "right", maxWidth: "60%", color: "var(--wh)", fontWeight: 600 }}>{value}</span></div>;
 
 export function SearchBar({ value, onChange, placeholder }) {
   return <div className="search-wrap" style={{ display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,var(--sur),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 10, padding: "10px 13px", flex: "1 1 320px", minWidth: 260, width: "100%", boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gr2)" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg><input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ background: "none", border: "none", color: "var(--wh)", fontFamily: "var(--fb)", fontSize: 13, flex: 1, outline: "none", minWidth: 0 }} />{value && <span onClick={() => onChange("")} style={{ cursor: "pointer", color: "var(--gr2)", fontSize: 14 }}>×</span>}</div>;

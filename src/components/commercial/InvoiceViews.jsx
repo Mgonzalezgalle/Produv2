@@ -391,7 +391,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   const recurringSeriesCount = React.useMemo(() => (Array.isArray(seriesList) ? seriesList.length : 0), [seriesList]);
 
   return <div>
-    <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 56%,rgba(9,14,24,.3) 100%)",marginBottom:18,boxShadow:"0 18px 42px rgba(0,0,0,.1)"}}>
+    <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,#f7fbff 0%, #eef4fb 100%)",marginBottom:18,boxShadow:"0 14px 30px rgba(148,163,184,.18)"}}>
       <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(280px,.95fr)",gap:16,alignItems:"stretch"}}>
         <div style={{display:"grid",gap:12}}>
           <ModuleHeader
@@ -412,12 +412,6 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
           <BillingSurfaceMetric label="Recurrencias" value={recurringSeriesCount} tone="#ff5566" hint={`${vencidas} serie(s) con atraso y ${recurrentes} documento(s) recurrentes emitidos.`} />
         </div>
       </div>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
-      <Stat label="Documentos emitidos" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
-      <Stat label="Monto emitido" value={fmtM(emittedAmount)} accent="#00e08a" vc="#00e08a"/>
-      <Stat label="OC recibidas" value={purchaseOrderSummary.docs} accent="#ffcc44" vc="#ffcc44" sub={`pendiente match: ${fmtM(purchaseOrderSummary.pending)}`}/>
-      <Stat label="Series activas / atraso" value={`${recurringSeriesCount} / ${vencidas}`} accent="#ff5566" vc="#ff5566" sub={`documentos recurrentes: ${recurrentes}`}/>
     </div>
     <Tabs tabs={["Emisión","Órdenes de Compra Recibidas","Recurrencias"]} active={Math.min(tab,2)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>
     <div style={{background:"linear-gradient(180deg,rgba(57,208,255,.1),rgba(57,208,255,.04))",border:"1px solid var(--cm)",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:12,color:"var(--cy)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>

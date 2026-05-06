@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Badge,
   FilterSel,
   GBtn,
   ModuleHeader,

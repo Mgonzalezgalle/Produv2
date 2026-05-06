@@ -37,6 +37,7 @@ import {
 } from "../lib/integrations/billingDomain";
 import { buildBsaleInvoiceSyncDraft, mapProduInvoiceToBsale } from "../lib/integrations/bsaleBillingMapper";
 import { loadBsaleEmissionSessions, saveBsaleEmissionSessions } from "../lib/lab/bsaleMockApi";
+import { getUserFacingErrorMessage, notifyUserFacingError } from "../lib/ui/userFacingErrors";
 
 export function useLabBillingPlatform({
   curEmp,
@@ -467,7 +468,8 @@ export function useLabBillingPlatform({
           },
           error: err?.message || String(err),
         });
-        ntf(`${err?.message || "Bsale sandbox falló."}${entityName ? ` · Cliente: ${entityName}` : ""}`, "warn");
+        const readableError = getUserFacingErrorMessage(err, "No pudimos emitir este documento en Bsale.");
+        ntf(`${readableError}${entityName ? ` · Cliente: ${entityName}` : ""}`, "warn");
         return false;
       }
     }
@@ -481,7 +483,7 @@ export function useLabBillingPlatform({
     });
 
     if (!result?.ok) {
-      ntf(result?.error || "No pudimos preparar la emisión en Bsale.", "warn");
+      notifyUserFacingError(ntf, result, "No pudimos preparar la emisión en Bsale.");
       return false;
     }
 
@@ -532,7 +534,7 @@ export function useLabBillingPlatform({
         ntf("Estado Bsale sincronizado ✓");
         return true;
       } catch (err) {
-        ntf(err?.message || "No pudimos consultar el estado real en Bsale. Probamos el mock local.", "warn");
+        notifyUserFacingError(ntf, err, "No pudimos consultar el estado real en Bsale. Probamos el mock local.");
       }
     }
 
@@ -543,7 +545,7 @@ export function useLabBillingPlatform({
     );
 
     if (!result?.ok) {
-      ntf(result?.error || "No pudimos consultar el estado en Bsale.", "warn");
+      notifyUserFacingError(ntf, result, "No pudimos consultar el estado en Bsale.");
       return false;
     }
 

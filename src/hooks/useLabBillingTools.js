@@ -3,6 +3,7 @@ import { billingContact, openMailto, openWhatsApp } from "../lib/utils/helpers";
 import { resolveTransactionalEmailTemplate } from "../lib/integrations/transactionalEmailTemplates";
 import { buildMercadoPagoInvoicePaymentDraft, buildMercadoPagoPreferenceRequest } from "../lib/integrations/mercadoPagoPaymentsProvider";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
+import { alertUserFacingError, notifyUserFacingError } from "../lib/ui/userFacingErrors";
 
 function escapeHtml(value = "") {
   return String(value || "")
@@ -608,14 +609,12 @@ export function useLabBillingTools({
         ntf?.(`Correo enviado a ${recipients.join(", ")} ✓`);
         return remoteResult;
       }
-      if (remoteResult?.message) {
-        window.alert(`Resend no pudo entregar este correo todavía.\n\n${remoteResult.message}`);
-      }
+      notifyUserFacingError(ntf, remoteResult, "No pudimos entregar este correo todavía.");
     } catch (error) {
       console.error("[billing-tools] Falló el envío remoto de correo", error);
     }
     if (Array.isArray(draft?.attachments) && draft.attachments.length) {
-      window.alert("Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
+      alertUserFacingError({ userMessage: "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto." }, "Abriremos tu cliente de correo como respaldo, pero los adjuntos no viajarán automáticamente por mailto.");
     }
     openMailto(recipients.join(","), subject, body);
     ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);
@@ -625,7 +624,7 @@ export function useLabBillingTools({
   const sendBillingEmail = useCallback((doc, entity) => {
     const built = createBillingEmailDraft(doc, entity);
     if (!built.ok) {
-      alert(built.message || "No pudimos preparar el correo.");
+      alertUserFacingError(built, "No pudimos preparar el correo.");
       return;
     }
     void deliverEmailDraft(built.draft);
@@ -634,7 +633,7 @@ export function useLabBillingTools({
   const sendPaymentLinkEmail = useCallback((doc, entity) => {
     const built = createPaymentLinkEmailDraft(doc, entity);
     if (!built.ok) {
-      alert(built.message || "No pudimos preparar el correo.");
+      alertUserFacingError(built, "No pudimos preparar el correo.");
       return;
     }
     void deliverEmailDraft(built.draft);
@@ -643,7 +642,7 @@ export function useLabBillingTools({
   const sendBillingWhatsApp = useCallback((doc, entity) => {
     const contact = billingContact(entity, doc.tipo);
     if (!contact.tel) {
-      alert("La entidad no tiene teléfono registrado.");
+      alertUserFacingError({ userMessage: "La entidad no tiene teléfono registrado." }, "La entidad no tiene teléfono registrado.");
       return;
     }
     openWhatsApp(contact.tel, billingMessage(doc, entity));
@@ -652,12 +651,12 @@ export function useLabBillingTools({
   const sendPaymentLinkWhatsApp = useCallback((doc, entity) => {
     const contact = billingContact(entity, doc?.tipo);
     if (!contact.tel) {
-      alert("La entidad no tiene teléfono registrado.");
+      alertUserFacingError({ userMessage: "La entidad no tiene teléfono registrado." }, "La entidad no tiene teléfono registrado.");
       return;
     }
     const paymentLink = String(doc?.mercadoPago?.initPoint || "").trim();
     if (!paymentLink) {
-      alert("Primero debes generar el link de pago.");
+      alertUserFacingError({ userMessage: "Primero debes generar el link de pago." }, "Primero debes generar el link de pago.");
       return;
     }
     openWhatsApp(contact.tel, `Hola ${contact.nombre || contact.entidad || ""},\n\nTe compartimos el link de pago de la factura ${doc?.correlativo || ""} emitida por ${empresa?.nombre || "Produ"}.\n\n${paymentLink}\n\nQuedamos atentos.`);
@@ -666,7 +665,7 @@ export function useLabBillingTools({
   const sendStatementEmail = useCallback((docs, entity, type) => {
     const built = createStatementEmailDraft(docs, entity, type);
     if (!built.ok) {
-      alert(built.message || "No pudimos preparar el correo.");
+      alertUserFacingError(built, "No pudimos preparar el correo.");
       return;
     }
     void deliverEmailDraft(built.draft);
@@ -675,7 +674,7 @@ export function useLabBillingTools({
   const sendStatementWhatsApp = useCallback((docs, entity, type) => {
     const contact = billingContact(entity, type);
     if (!contact.tel) {
-      alert("La entidad no tiene teléfono registrado.");
+      alertUserFacingError({ userMessage: "La entidad no tiene teléfono registrado." }, "La entidad no tiene teléfono registrado.");
       return;
     }
     openWhatsApp(contact.tel, statementMessage(docs, entity, type));

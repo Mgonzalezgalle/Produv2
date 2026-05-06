@@ -8,6 +8,7 @@ import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationR
 import { canAccessAdminSection, canManageAdminPanel, getAccessibleAdminSections, getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
 import { appendOperationalAuditEntry, operationalAuditStorageKey } from "../lib/operations/operationalAudit";
+import { alertUserFacingError, notifyUserFacingError } from "../lib/ui/userFacingErrors";
 
 function safeText(value = "") {
   return String(value || "").trim();
@@ -501,7 +502,7 @@ export function useLabAdminPanelModule({
       targetEmail: target.email || "",
     });
     ntf("Acceso temporal generado ✓");
-    alert(`Acceso temporal para ${target.email}: ${temp}`);
+    alertUserFacingError({ userMessage: `Acceso temporal para ${target.email}: ${temp}` }, `Acceso temporal para ${target.email}: ${temp}`);
     return true;
   };
 
@@ -623,7 +624,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Plan de promoción generado ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos generar el plan de promoción.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos generar el plan de promoción.");
     } finally {
       setPlatformPlanning(false);
     }
@@ -642,7 +643,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Blueprints de membresía preparados ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos preparar las membresías.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos preparar las membresías.");
     } finally {
       setPlatformPreparingMemberships(false);
     }
@@ -661,7 +662,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Cola de transición preparada ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos preparar la cola de transición.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos preparar la cola de transición.");
     } finally {
       setPlatformQueueingMemberships(false);
     }
@@ -730,7 +731,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Configuración Bsale del tenant guardada ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos guardar la configuración Bsale del tenant.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos guardar la configuración Bsale del tenant.");
     } finally {
       setTenantBsaleSaving(false);
     }
@@ -815,7 +816,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Configuración Mercado Pago del tenant guardada ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos guardar la configuración de Mercado Pago.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos guardar la configuración de Mercado Pago.");
     } finally {
       setTenantMercadoPagoSaving(false);
     }
@@ -902,7 +903,7 @@ export function useLabAdminPanelModule({
       }
       ntf("Configuración Diio de la empresa guardada ✓");
     } catch (err) {
-      ntf(err?.message || "No pudimos guardar la configuración de Diio.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos guardar la configuración de Diio.");
     } finally {
       setTenantDiioSaving(false);
     }
@@ -943,7 +944,7 @@ export function useLabAdminPanelModule({
           },
         } : em));
         setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-        ntf(data?.message || "Diio no respondió con una conexión válida.", "warn");
+        notifyUserFacingError(ntf, data, "Diio no respondió con una conexión válida.");
         return false;
       }
       const nextTenantConfig = {
@@ -997,7 +998,7 @@ export function useLabAdminPanelModule({
         },
       } : em));
       setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-      ntf(err?.message || "No pudimos validar la conexión real con Diio.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos validar la conexión real con Diio.");
       return false;
     } finally {
       setTenantDiioTesting(false);
@@ -1032,7 +1033,7 @@ export function useLabAdminPanelModule({
           },
         } : em));
         setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-        ntf(data?.message || "No pudimos importar reuniones reales desde Diio.", "warn");
+        notifyUserFacingError(ntf, data, "No pudimos importar reuniones reales desde Diio.");
         return false;
       }
       const importedAt = String(data?.importedAt || new Date().toISOString());
@@ -1088,7 +1089,7 @@ export function useLabAdminPanelModule({
         },
       } : em));
       setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-      ntf(err?.message || "No pudimos importar reuniones reales desde Diio.", "warn");
+      notifyUserFacingError(ntf, err, "No pudimos importar reuniones reales desde Diio.");
       return false;
     } finally {
       setTenantDiioImporting(false);

@@ -204,7 +204,19 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
       </label>
     </div>}
     {canEdit&&<div style={{marginBottom:16}}>
-      <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..." style={commentValidationMessage ? VALIDATION_FIELD_STYLE : undefined}/>
+      <FTA
+        value={txt}
+        onChange={e=>setTxt(e.target.value)}
+        placeholder="Escribe una nota o comentario relevante..."
+        style={{
+          minHeight: 118,
+          padding: "14px 16px",
+          borderRadius: 12,
+          fontSize: 15,
+          lineHeight: 1.5,
+          ...((commentValidationMessage ? VALIDATION_FIELD_STYLE : undefined) || {}),
+        }}
+      />
       <ValidationHint>{commentValidationMessage}</ValidationHint>
       <div style={{marginTop:10}}>
         <FG label="Asignar comentario a">

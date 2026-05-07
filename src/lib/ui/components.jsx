@@ -257,10 +257,10 @@ export const FSl = ({ children, onClick, onMouseDown, onPointerDown, ...props })
     {children}
   </select>
 );
-export const FTA = forwardRef((props, ref) => (
+export const FTA = forwardRef(({ style, ...props }, ref) => (
   <textarea
     ref={ref}
-    style={{ ...FS, resize: "vertical", minHeight: 80 }}
+    style={{ ...FS, resize: "vertical", minHeight: 80, ...style }}
     {...props}
   />
 ));

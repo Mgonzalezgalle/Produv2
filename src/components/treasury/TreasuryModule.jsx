@@ -17,7 +17,7 @@ import { TreasuryPayableModal } from "./TreasuryPayableModal";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
 import { TreasuryPurchaseOrderModal } from "./TreasuryPurchaseOrderModal";
 import { TreasuryPayablesSection, TreasuryReceivablesSection } from "./TreasurySections";
-import { TreasuryStyles, SectionCard, KpiCard, useTableState } from "./TreasuryCore";
+import { TreasuryStyles, SectionCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
@@ -565,7 +565,7 @@ export function TreasuryModule(props) {
   return (
     <div className="treasury-shell">
       <TreasuryStyles />
-      <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 56%,rgba(9,14,24,.3) 100%)",marginBottom:18,boxShadow:"0 18px 42px rgba(0,0,0,.1)"}}>
+      <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,#f7fbff 0%, #eef4fb 100%)",marginBottom:18,boxShadow:"0 14px 30px rgba(148,163,184,.18)"}}>
         <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(320px,.95fr)",gap:16,alignItems:"stretch"}}>
           <div style={{display:"grid",gap:12}}>
             <ModuleHeader
@@ -591,18 +591,6 @@ export function TreasuryModule(props) {
             ))}
           </div>
         </div>
-      </div>
-      <div className="treasury-kpis">
-        {treasuryHero.kpis.map(kpi => (
-          <KpiCard
-            key={`${tab}-${kpi.label}`}
-            color={kpi.color}
-            label={kpi.label}
-            value={kpi.value}
-            sub={kpi.sub}
-            scope={kpi.scope}
-          />
-        ))}
       </div>
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>

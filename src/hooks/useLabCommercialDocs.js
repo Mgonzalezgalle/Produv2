@@ -306,6 +306,17 @@ export function useLabCommercialDocs({
           return { ...order, linkedInvoiceIds };
         });
         await setTreasuryPurchaseOrders(nextOrders);
+        await foundationInvoices().syncSnapshot({
+          registryName: "purchase_orders",
+          records: nextOrders,
+          metadata: {
+            reason: "purchase_order_invoice_linked",
+            actorUserId: currentUser?.id || "",
+            actorUserEmail: currentUser?.email || "",
+            affectedOrders: Array.from(createdByOrder.keys()),
+          },
+          degradedMessage: "No pudimos sincronizar las órdenes de compra con foundation.",
+        });
       }
 
       let nextMovs = Array.isArray(movimientos) ? [...movimientos] : [];

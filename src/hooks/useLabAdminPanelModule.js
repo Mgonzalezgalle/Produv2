@@ -8,6 +8,7 @@ import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationR
 import { canAccessAdminSection, canManageAdminPanel, getAccessibleAdminSections, getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
 import { appendOperationalAuditEntry, operationalAuditStorageKey } from "../lib/operations/operationalAudit";
+import { buildFinancialWorkflowAnalytics } from "../lib/operations/workflowAnalytics";
 import { alertUserFacingError, notifyUserFacingError } from "../lib/ui/userFacingErrors";
 
 function safeText(value = "") {
@@ -74,35 +75,51 @@ function buildFinancialRegistryHealth({
   invoices = [],
   receipts = [],
   disbursements = [],
+  purchaseOrders = [],
+  issuedOrders = [],
   remoteFinancialRegistries = {},
 } = {}) {
   const localInvoices = Array.isArray(invoices) ? invoices : [];
   const localReceipts = Array.isArray(receipts) ? receipts : [];
   const localDisbursements = Array.isArray(disbursements) ? disbursements : [];
+  const localPurchaseOrders = Array.isArray(purchaseOrders) ? purchaseOrders : [];
+  const localIssuedOrders = Array.isArray(issuedOrders) ? issuedOrders : [];
   const remoteInvoices = Array.isArray(remoteFinancialRegistries?.invoices?.records) ? remoteFinancialRegistries.invoices.records : [];
   const remoteReceipts = Array.isArray(remoteFinancialRegistries?.receipts?.records) ? remoteFinancialRegistries.receipts.records : [];
   const remoteDisbursements = Array.isArray(remoteFinancialRegistries?.disbursements?.records) ? remoteFinancialRegistries.disbursements.records : [];
+  const remotePurchaseOrders = Array.isArray(remoteFinancialRegistries?.purchase_orders?.records) ? remoteFinancialRegistries.purchase_orders.records : [];
+  const remoteIssuedOrders = Array.isArray(remoteFinancialRegistries?.issued_orders?.records) ? remoteFinancialRegistries.issued_orders.records : [];
 
   const invoicesCovered = localInvoices.length === 0 || remoteInvoices.length > 0;
   const receiptsCovered = localReceipts.length === 0 || remoteReceipts.length > 0;
   const disbursementsCovered = localDisbursements.length === 0 || remoteDisbursements.length > 0;
-  const foundationReady = invoicesCovered && receiptsCovered && disbursementsCovered;
+  const purchaseOrdersCovered = localPurchaseOrders.length === 0 || remotePurchaseOrders.length > 0;
+  const issuedOrdersCovered = localIssuedOrders.length === 0 || remoteIssuedOrders.length > 0;
+  const foundationReady = invoicesCovered && receiptsCovered && disbursementsCovered && purchaseOrdersCovered && issuedOrdersCovered;
   const warnings = [
     localInvoices.length > 0 && remoteInvoices.length === 0 ? "Las facturas locales todavía no tienen respaldo foundation visible." : "",
     localReceipts.length > 0 && remoteReceipts.length === 0 ? "Los receipts locales todavía no tienen respaldo foundation visible." : "",
     localDisbursements.length > 0 && remoteDisbursements.length === 0 ? "Los disbursements locales todavía no tienen respaldo foundation visible." : "",
+    localPurchaseOrders.length > 0 && remotePurchaseOrders.length === 0 ? "Las órdenes de compra locales todavía no tienen respaldo foundation visible." : "",
+    localIssuedOrders.length > 0 && remoteIssuedOrders.length === 0 ? "Las OC emitidas locales todavía no tienen respaldo foundation visible." : "",
   ].filter(Boolean);
 
   return {
     localInvoiceCount: localInvoices.length,
     localReceiptCount: localReceipts.length,
     localDisbursementCount: localDisbursements.length,
+    localPurchaseOrderCount: localPurchaseOrders.length,
+    localIssuedOrderCount: localIssuedOrders.length,
     remoteInvoiceCount: remoteInvoices.length,
     remoteReceiptCount: remoteReceipts.length,
     remoteDisbursementCount: remoteDisbursements.length,
+    remotePurchaseOrderCount: remotePurchaseOrders.length,
+    remoteIssuedOrderCount: remoteIssuedOrders.length,
     invoicesCovered,
     receiptsCovered,
     disbursementsCovered,
+    purchaseOrdersCovered,
+    issuedOrdersCovered,
     foundationReady,
     warningCount: warnings.length,
     warnings,
@@ -194,6 +211,9 @@ export function useLabAdminPanelModule({
     invoices: [],
     receipts: [],
     disbursements: [],
+    payables: [],
+    purchaseOrders: [],
+    issuedOrders: [],
   });
   const bsaleGovernance = empresa?.integrationConfigs?.bsale?.governance || {};
   const bsaleGovernanceMode = bsaleGovernance.mode || "disabled";
@@ -272,18 +292,30 @@ export function useLabAdminPanelModule({
     invoices: localFinancialRegistries.invoices,
     receipts: localFinancialRegistries.receipts,
     disbursements: localFinancialRegistries.disbursements,
+    purchaseOrders: localFinancialRegistries.purchaseOrders,
+    issuedOrders: localFinancialRegistries.issuedOrders,
+    remoteFinancialRegistries,
+  }), [localFinancialRegistries, remoteFinancialRegistries]);
+  const workflowAnalytics = useMemo(() => buildFinancialWorkflowAnalytics({
+    invoices: localFinancialRegistries.invoices,
+    receipts: localFinancialRegistries.receipts,
+    disbursements: localFinancialRegistries.disbursements,
+    payables: localFinancialRegistries.payables,
+    purchaseOrders: localFinancialRegistries.purchaseOrders,
+    issuedOrders: localFinancialRegistries.issuedOrders,
     remoteFinancialRegistries,
   }), [localFinancialRegistries, remoteFinancialRegistries]);
   const operationalHealth = useMemo(() => {
     const base = buildOperationalHealth(empresa, empUsers);
-    const warnings = [...base.warnings, ...financialRegistryHealth.warnings];
+    const warnings = [...base.warnings, ...financialRegistryHealth.warnings, ...workflowAnalytics.warnings];
     return {
       ...base,
       financialRegistryHealth,
+      workflowAnalytics,
       warningCount: warnings.length,
       warnings,
     };
-  }, [empresa, empUsers, financialRegistryHealth]);
+  }, [empresa, empUsers, financialRegistryHealth, workflowAnalytics]);
   const filteredUsers = empUsers.filter(u =>
     (!uq || u.name?.toLowerCase().includes(uq.toLowerCase()) || u.email?.toLowerCase().includes(uq.toLowerCase())) &&
     (!uRole || u.role === uRole) &&
@@ -345,7 +377,7 @@ export function useLabAdminPanelModule({
   useEffect(() => {
     let cancelled = false;
     if (!empresa?.id) {
-      setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [] });
+      setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [], payables: [], purchaseOrders: [], issuedOrders: [] });
       return () => {
         cancelled = true;
       };
@@ -354,18 +386,24 @@ export function useLabAdminPanelModule({
       Promise.resolve(dbGet?.(`produ:${empresa.id}:facturas`)),
       Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryReceipts`)),
       Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryDisbursements`)),
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryPayables`)),
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryPurchaseOrders`)),
+      Promise.resolve(dbGet?.(`produ:${empresa.id}:treasuryIssuedOrders`)),
     ])
-      .then(([invoices, receipts, disbursements]) => {
+      .then(([invoices, receipts, disbursements, payables, purchaseOrders, issuedOrders]) => {
         if (cancelled) return;
         setLocalFinancialRegistries({
           invoices: Array.isArray(invoices) ? invoices : [],
           receipts: Array.isArray(receipts) ? receipts : [],
           disbursements: Array.isArray(disbursements) ? disbursements : [],
+          payables: Array.isArray(payables) ? payables : [],
+          purchaseOrders: Array.isArray(purchaseOrders) ? purchaseOrders : [],
+          issuedOrders: Array.isArray(issuedOrders) ? issuedOrders : [],
         });
       })
       .catch(() => {
         if (!cancelled) {
-          setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [] });
+          setLocalFinancialRegistries({ invoices: [], receipts: [], disbursements: [], payables: [], purchaseOrders: [], issuedOrders: [] });
         }
       });
     return () => {
@@ -1119,6 +1157,7 @@ export function useLabAdminPanelModule({
     activeUsers,
     inactiveUsers,
     operationalHealth,
+    workflowAnalytics,
     criticalAuditEntries,
     operationalAuditEntries,
     referredSols,

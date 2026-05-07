@@ -71,6 +71,7 @@ export function EmpresaEditSection({
   verifyTenantDiioConnection,
   importTenantDiioMeetings,
   operationalHealth = null,
+  workflowAnalytics = null,
   criticalAuditEntries = [],
   operationalAuditEntries = [],
 }) {
@@ -278,12 +279,14 @@ export function EmpresaEditSection({
         <AdminPanelCard
           eyebrow="Cobertura financiera"
           title="Foundation y respaldo documental"
-          description="Lectura rápida del respaldo remoto para facturas, receipts y disbursements."
+          description="Lectura rápida del respaldo remoto para facturas, receipts, disbursements, órdenes de compra y OC emitidas."
         >
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
             <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
             <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
             <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
+            <Badge label={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "OC clientes cubiertas" : "OC clientes sin respaldo"} color={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "green" : "yellow"} sm />
+            <Badge label={operationalHealth.financialRegistryHealth.issuedOrdersCovered ? "OC emitidas cubiertas" : "OC emitidas sin respaldo"} color={operationalHealth.financialRegistryHealth.issuedOrdersCovered ? "green" : "yellow"} sm />
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
             <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
@@ -292,11 +295,41 @@ export function EmpresaEditSection({
             <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
             <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />
             <KV label="Disbursements foundation" value={operationalHealth.financialRegistryHealth.remoteDisbursementCount} />
+            <KV label="OC clientes locales" value={operationalHealth.financialRegistryHealth.localPurchaseOrderCount} />
+            <KV label="OC clientes foundation" value={operationalHealth.financialRegistryHealth.remotePurchaseOrderCount} />
+            <KV label="OC emitidas locales" value={operationalHealth.financialRegistryHealth.localIssuedOrderCount} />
+            <KV label="OC emitidas foundation" value={operationalHealth.financialRegistryHealth.remoteIssuedOrderCount} />
           </div>
           <div style={{display:"grid",gap:6}}>
             {operationalHealth.financialRegistryHealth.warnings.length
               ? operationalHealth.financialRegistryHealth.warnings.map((warning, index) => <div key={`financial-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
               : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas de cobertura financiera para estos registros.</div>}
+          </div>
+        </AdminPanelCard>
+      )}
+      {!!workflowAnalytics && (
+        <AdminPanelCard
+          eyebrow="Workflow financiero"
+          title="Lectura operativa y analítica inicial"
+          description="Primer corte para detectar cuellos de botella reales entre facturación, cobranza, órdenes de compra, pagos y cobertura foundation."
+        >
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            <Badge label={`Cobertura ${workflowAnalytics.coverageScore}%`} color={workflowAnalytics.coverageScore >= 100 ? "green" : "yellow"} sm />
+            <Badge label={`${workflowAnalytics.invoicesPendingCollection} factura(s) por cobrar`} color={workflowAnalytics.invoicesPendingCollection ? "yellow" : "green"} sm />
+            <Badge label={`${workflowAnalytics.payablesPendingPayment} cuenta(s) por pagar`} color={workflowAnalytics.payablesPendingPayment ? "yellow" : "green"} sm />
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
+            <KV label="Facturas sin receipt" value={workflowAnalytics.invoicesPendingCollection} />
+            <KV label="OC cliente sin factura" value={workflowAnalytics.purchaseOrdersWithoutInvoice} />
+            <KV label="Cuentas por pagar sin pago" value={workflowAnalytics.payablesPendingPayment} />
+            <KV label="Cuentas por pagar vencidas" value={workflowAnalytics.payablesOverdue} />
+            <KV label="OC emitidas sin ítems" value={workflowAnalytics.issuedOrdersWithoutItems} />
+            <KV label="OC emitidas sin proveedor" value={workflowAnalytics.issuedOrdersWithoutSupplier} />
+          </div>
+          <div style={{display:"grid",gap:6}}>
+            {workflowAnalytics.warnings.length
+              ? workflowAnalytics.warnings.map((warning, index) => <div key={`workflow-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
+              : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas relevantes en este primer corte analítico del workflow financiero.</div>}
           </div>
         </AdminPanelCard>
       )}

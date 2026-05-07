@@ -292,13 +292,25 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
         });
         let financialRegistries = {};
         try {
-          const [receiptsSnapshot, disbursementsSnapshot] = await Promise.all([
+          const [
+            invoicesSnapshot,
+            receiptsSnapshot,
+            disbursementsSnapshot,
+            purchaseOrdersSnapshot,
+            issuedOrdersSnapshot,
+          ] = await Promise.all([
+            this.getFinancialRegistrySnapshot(tenantId, "invoices"),
             this.getFinancialRegistrySnapshot(tenantId, "receipts"),
             this.getFinancialRegistrySnapshot(tenantId, "disbursements"),
+            this.getFinancialRegistrySnapshot(tenantId, "purchase_orders"),
+            this.getFinancialRegistrySnapshot(tenantId, "issued_orders"),
           ]);
           financialRegistries = {
+            invoices: invoicesSnapshot || null,
             receipts: receiptsSnapshot || null,
             disbursements: disbursementsSnapshot || null,
+            purchase_orders: purchaseOrdersSnapshot || null,
+            issued_orders: issuedOrdersSnapshot || null,
           };
         } catch {
           financialRegistries = {};

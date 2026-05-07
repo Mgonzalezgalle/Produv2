@@ -58,6 +58,36 @@ function sanitizeTreasuryDisbursement(next = {}, empId = "") {
   };
 }
 
+function sanitizeTreasuryPurchaseOrder(next = {}, empId = "") {
+  const amount = Number(next?.amount || 0);
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    clientId: String(next?.clientId || "").trim(),
+    number: String(next?.number || "").trim(),
+    issueDate: String(next?.issueDate || "").trim(),
+    status: String(next?.status || "Pendiente").trim() || "Pendiente",
+    amount: Number.isFinite(amount) ? amount : 0,
+    linkedInvoiceIds: Array.isArray(next?.linkedInvoiceIds) ? next.linkedInvoiceIds.filter(Boolean) : [],
+  };
+}
+
+function sanitizeTreasuryIssuedOrder(next = {}, empId = "") {
+  const amount = Number(next?.amount || 0);
+  const items = Array.isArray(next?.items) ? next.items : [];
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    supplier: String(next?.supplier || "").trim(),
+    number: String(next?.number || "").trim(),
+    issueDate: String(next?.issueDate || "").trim(),
+    amount: Number.isFinite(amount) ? amount : 0,
+    items,
+  };
+}
+
 export function useLabTreasuryModule({
   empresa,
   clientes,
@@ -107,6 +137,8 @@ export function useLabTreasuryModule({
   const [providerDraft, setProviderDraft] = useState(null);
   const receiptsRemoteHydratedRef = useRef("");
   const disbursementsRemoteHydratedRef = useRef("");
+  const purchaseOrdersRemoteHydratedRef = useRef("");
+  const issuedOrdersRemoteHydratedRef = useRef("");
   const foundationFinancialRegistry = useMemo(() => createFoundationFinancialRegistryCoordinator({
     empId,
     platformServices,
@@ -200,6 +232,8 @@ export function useLabTreasuryModule({
   useEffect(() => {
     receiptsRemoteHydratedRef.current = "";
     disbursementsRemoteHydratedRef.current = "";
+    purchaseOrdersRemoteHydratedRef.current = "";
+    issuedOrdersRemoteHydratedRef.current = "";
   }, [empId]);
 
   useEffect(() => {
@@ -239,6 +273,44 @@ export function useLabTreasuryModule({
       alive = false;
     };
   }, [foundationFinancialRegistry, setTreasuryDisbursements, treasuryDisbursements]);
+
+  useEffect(() => {
+    let alive = true;
+    foundationFinancialRegistry.rehydrateSnapshot({
+      registryName: "purchase_orders",
+      hydratedRef: purchaseOrdersRemoteHydratedRef,
+      currentRecords: treasuryPurchaseOrders,
+      setRecords: setTreasuryPurchaseOrders,
+      sanitizeRecord: sanitizeTreasuryPurchaseOrder,
+      isValidRecord: item => item.id && item.clientId && item.number,
+      mergeRecords: mergeById,
+      failureMessage: "No pudimos rehidratar purchase orders desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
+    return () => {
+      alive = false;
+    };
+  }, [foundationFinancialRegistry, setTreasuryPurchaseOrders, treasuryPurchaseOrders]);
+
+  useEffect(() => {
+    let alive = true;
+    foundationFinancialRegistry.rehydrateSnapshot({
+      registryName: "issued_orders",
+      hydratedRef: issuedOrdersRemoteHydratedRef,
+      currentRecords: treasuryIssuedOrders,
+      setRecords: setTreasuryIssuedOrders,
+      sanitizeRecord: sanitizeTreasuryIssuedOrder,
+      isValidRecord: item => item.id && item.number,
+      mergeRecords: mergeById,
+      failureMessage: "No pudimos rehidratar issued orders desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
+    return () => {
+      alive = false;
+    };
+  }, [foundationFinancialRegistry, setTreasuryIssuedOrders, treasuryIssuedOrders]);
 
   const savePayable = async next => {
     if (!canManageTreasury) return false;
@@ -288,12 +360,20 @@ export function useLabTreasuryModule({
   const savePurchaseOrder = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = withEmp(next);
+    const safeNext = sanitizeTreasuryPurchaseOrder(withEmp(next), empId);
     const exists = treasuryPurchaseOrders.some(item => item.id === safeNext.id);
-    const updated = exists
-      ? treasuryPurchaseOrders.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...treasuryPurchaseOrders, safeNext];
+    const updated = mergeById(treasuryPurchaseOrders, [safeNext]);
     await setTreasuryPurchaseOrders?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "purchase_orders",
+      records: updated,
+      metadata: {
+        reason: exists ? "purchase_order_updated" : "purchase_order_created",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -316,7 +396,18 @@ export function useLabTreasuryModule({
 
   const deletePurchaseOrder = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryPurchaseOrders?.(treasuryPurchaseOrders.filter(item => item.id !== id));
+    const updated = treasuryPurchaseOrders.filter(item => item.id !== id);
+    await setTreasuryPurchaseOrders?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "purchase_orders",
+      records: updated,
+      metadata: {
+        reason: "purchase_order_deleted",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -333,12 +424,20 @@ export function useLabTreasuryModule({
   const saveIssuedOrder = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = withEmp(next);
+    const safeNext = sanitizeTreasuryIssuedOrder(withEmp(next), empId);
     const exists = treasuryIssuedOrders.some(item => item.id === safeNext.id);
-    const updated = exists
-      ? treasuryIssuedOrders.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...treasuryIssuedOrders, safeNext];
+    const updated = mergeById(treasuryIssuedOrders, [safeNext]);
     await setTreasuryIssuedOrders?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "issued_orders",
+      records: updated,
+      metadata: {
+        reason: exists ? "issued_order_updated" : "issued_order_created",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar issued orders con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -360,7 +459,18 @@ export function useLabTreasuryModule({
 
   const deleteIssuedOrder = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryIssuedOrders?.(treasuryIssuedOrders.filter(item => item.id !== id));
+    const updated = treasuryIssuedOrders.filter(item => item.id !== id);
+    await setTreasuryIssuedOrders?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "issued_orders",
+      records: updated,
+      metadata: {
+        reason: "issued_order_deleted",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar issued orders con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",

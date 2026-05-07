@@ -206,18 +206,6 @@ export function ComentariosBlock({ items = [], onSave, canEdit, title = "Comenta
     {canEdit&&<div style={{marginBottom:16}}>
       <FTA value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Escribe una nota o comentario relevante..." style={commentValidationMessage ? VALIDATION_FIELD_STYLE : undefined}/>
       <ValidationHint>{commentValidationMessage}</ValidationHint>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10,marginTop:10}}>
-        <FG label="Tipo de comentario">
-          <select value={kind} onChange={e=>setKind(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--wh)"}}>
-            {COMMENT_KIND_OPTIONS.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </FG>
-        <FG label="Visibilidad interna">
-          <div style={{display:"flex",alignItems:"center",height:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",fontSize:12}}>
-            Operativo interno de Produ
-          </div>
-        </FG>
-      </div>
       <div style={{marginTop:10}}>
         <FG label="Asignar comentario a">
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>

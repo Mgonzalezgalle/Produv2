@@ -24,7 +24,7 @@ import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/u
 
 function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null }) {
   return (
-    <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.03),transparent)" }}>
+    <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.78),rgba(241,245,249,.9))", boxShadow: "0 10px 24px rgba(148,163,184,.12)" }}>
       <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>{label}</div>
       <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: tone, lineHeight: 1 }}>{value}</div>
       {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45, marginTop: 8 }}>{hint}</div>}

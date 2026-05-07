@@ -81,6 +81,29 @@ export function TreasuryStyles() {
       .treasury-modal-tab{border:0;background:transparent;color:var(--gr2);padding:0 0 12px;font-size:13px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
       .treasury-modal-tab.active{color:var(--cy);border-bottom-color:var(--cy)}
       .treasury-modal-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:14px}
+      body.light .treasury-tab,
+      body.light .treasury-subtab,
+      body.light .treasury-section,
+      body.light .treasury-provider-card,
+      body.light .treasury-mini-kpi,
+      body.light .treasury-list{
+        box-shadow:0 10px 24px rgba(148,163,184,.12);
+      }
+      body.light .treasury-tab,
+      body.light .treasury-subtab{
+        background:#ffffff;
+        border-color:#d7dee8;
+      }
+      body.light .treasury-section,
+      body.light .treasury-provider-card,
+      body.light .treasury-mini-kpi,
+      body.light .treasury-list{
+        background:linear-gradient(180deg,#ffffff 0%, #f8fbff 100%);
+      }
+      body.light .treasury-table thead th,
+      body.light .treasury-list-head{
+        background:linear-gradient(180deg,#f1f5f9 0%, rgba(241,245,249,.35) 100%);
+      }
       @media (max-width: 1100px){
         .treasury-kpis,.treasury-compact-grid,.treasury-provider-grid,.treasury-detail-grid,.treasury-modal-summary{grid-template-columns:1fr}
         .treasury-list-row{grid-template-columns:1fr;gap:8px}

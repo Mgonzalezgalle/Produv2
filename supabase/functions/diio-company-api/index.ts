@@ -226,8 +226,79 @@ async function listAllMeetings(companyUrl: string, accessToken: string) {
   };
 }
 
+async function listPhoneCalls(companyUrl: string, accessToken: string, page = 1, limit = 20) {
+  const response = await fetch(`${companyUrl}/api/external/v1/phone_calls?page=${page}&limit=${limit}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return {
+    ok: response.ok,
+    status: response.status,
+    raw,
+    parsed,
+  };
+}
+
+async function listAllPhoneCalls(companyUrl: string, accessToken: string) {
+  const allCalls: Record<string, unknown>[] = [];
+  let page = 1;
+  const limit = 100;
+  const maxPages = 20;
+  let lastResponse: { ok: boolean; status: number; raw: string; parsed: Record<string, unknown> | null } | null = null;
+
+  while (page <= maxPages) {
+    const current = await listPhoneCalls(companyUrl, accessToken, page, limit);
+    lastResponse = current;
+    if (!current.ok) return { ...current, phoneCalls: allCalls };
+    const currentCalls = Array.isArray(current.parsed?.phone_calls) ? current.parsed.phone_calls as Record<string, unknown>[] : [];
+    allCalls.push(...currentCalls);
+    const nextPage = Number(current.parsed?.next || 0);
+    if (!nextPage || currentCalls.length < limit) {
+      return { ...current, phoneCalls: allCalls };
+    }
+    page = nextPage;
+  }
+
+  return {
+    ok: true,
+    status: lastResponse?.status || 200,
+    raw: lastResponse?.raw || "",
+    parsed: lastResponse?.parsed || { phone_calls: allCalls },
+    phoneCalls: allCalls,
+  };
+}
+
 async function getMeetingDetail(companyUrl: string, accessToken: string, meetingId: string) {
   const response = await fetch(`${companyUrl}/api/external/v1/meetings/${encodeURIComponent(meetingId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return {
+    ok: response.ok,
+    status: response.status,
+    raw,
+    parsed,
+  };
+}
+
+async function getPhoneCallDetail(companyUrl: string, accessToken: string, phoneCallId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/phone_calls/${encodeURIComponent(phoneCallId)}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -330,6 +401,27 @@ async function listAllUsers(companyUrl: string, accessToken: string) {
     raw: lastResponse?.raw || "",
     parsed: lastResponse?.parsed || { users: allUsers },
     users: allUsers,
+  };
+}
+
+async function getPlaybookDetail(companyUrl: string, accessToken: string, playbookId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/playbooks/${encodeURIComponent(playbookId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return {
+    ok: response.ok,
+    status: response.status,
+    raw,
+    parsed,
   };
 }
 
@@ -505,9 +597,11 @@ function normalizeMeetingToInteraction(meeting: Record<string, unknown> = {}, te
     : detail.trackerValues && typeof detail.trackerValues === "object"
       ? detail.trackerValues
       : {};
-  const playbook = detail.playbook && typeof detail.playbook === "object"
-    ? detail.playbook
-    : {};
+  const playbook = meeting.playbookDetail && typeof meeting.playbookDetail === "object"
+    ? meeting.playbookDetail as Record<string, unknown>
+    : detail.playbook && typeof detail.playbook === "object"
+      ? detail.playbook
+      : {};
   const commitments = normalizeCommitments(Array.isArray(detail.commitments) ? detail.commitments : []);
   const summary = firstString(
     trackerSummary(trackerValues),
@@ -545,6 +639,9 @@ function normalizeMeetingToInteraction(meeting: Record<string, unknown> = {}, te
     tenantId,
     sourceId: firstString(meeting.id),
     sourceType: "meeting.finished",
+    analyzedStatus: firstString(detail.analyzed_status, meeting.analyzed_status),
+    errorCause: firstString(detail.error_cause, meeting.error_cause),
+    duration: Number(detail.duration || meeting.duration || 0),
     sourceUrl,
     recordedAt: firstString(detail.ended_at, detail.updated_at, detail.created_at, meeting.updated_at, meeting.created_at, meeting.scheduled_at),
     title: firstString(detail.title, detail.name, meeting.name, "Meeting"),
@@ -554,6 +651,79 @@ function normalizeMeetingToInteraction(meeting: Record<string, unknown> = {}, te
     trackerValues,
     playbook,
     participants: participantList.filter((item) => item.name || item.email || item.phone),
+    rawPayload: detail,
+    matchStatus: "pending",
+  };
+}
+
+function normalizePhoneCallToInteraction(phoneCall: Record<string, unknown> = {}, tenantId = "", companyUrl = "", usersIndex: Record<string, { id: string; name: string; email: string }> = {}) {
+  const detail = phoneCall.detail && typeof phoneCall.detail === "object"
+    ? phoneCall.detail as Record<string, unknown>
+    : phoneCall;
+  const transcriptDetail = phoneCall.transcriptDetail && typeof phoneCall.transcriptDetail === "object"
+    ? phoneCall.transcriptDetail as Record<string, unknown>
+    : {};
+  const attendees = detail.attendees && typeof detail.attendees === "object"
+    ? detail.attendees as Record<string, unknown>
+    : phoneCall.attendees && typeof phoneCall.attendees === "object"
+      ? phoneCall.attendees as Record<string, unknown>
+      : {};
+  const sellers = Array.isArray(attendees?.sellers) ? (attendees.sellers as Record<string, unknown>[]) : [];
+  const support = Array.isArray(attendees?.support) ? (attendees.support as Record<string, unknown>[]) : [];
+  const customers = Array.isArray(attendees?.customers) ? (attendees.customers as Record<string, unknown>[]) : [];
+  const trackerValues = detail.tracker_values && typeof detail.tracker_values === "object"
+    ? detail.tracker_values
+    : detail.trackerValues && typeof detail.trackerValues === "object"
+      ? detail.trackerValues
+      : {};
+  const playbook = phoneCall.playbookDetail && typeof phoneCall.playbookDetail === "object"
+    ? phoneCall.playbookDetail as Record<string, unknown>
+    : detail.playbook && typeof detail.playbook === "object"
+      ? detail.playbook
+      : {};
+  const commitments = normalizeCommitments(Array.isArray(detail.commitments) ? detail.commitments : []);
+  const summary = firstString(
+    trackerSummary(trackerValues),
+    detail.summary,
+    detail.notes,
+    detail.transcript_summary,
+    phoneCall.summary,
+  );
+  const transcript = firstString(
+    normalizeTranscript(transcriptDetail.transcript),
+    normalizeTranscript(transcriptDetail.transcription),
+    normalizeTranscript(transcriptDetail.text),
+    normalizeTranscript(detail.transcript),
+    normalizeTranscript(detail.transcription),
+    normalizeTranscript(detail.transcript_text),
+    normalizeTranscript(phoneCall.transcript),
+    normalizeTranscript(phoneCall.transcription),
+  );
+  const participants = normalizeParticipants([...sellers, ...support, ...customers], usersIndex);
+
+  return {
+    id: `diio_phone_call_${firstString(phoneCall.id)}`,
+    tenantId,
+    sourceId: firstString(phoneCall.id),
+    sourceType: "phone_call.finished",
+    analyzedStatus: firstString(detail.analyzed_status, phoneCall.analyzed_status),
+    errorCause: firstString(detail.error_cause, phoneCall.error_cause),
+    duration: Number(detail.duration || phoneCall.duration || 0),
+    sourceUrl: firstString(
+      detail.url,
+      detail.recording_url,
+      phoneCall.url,
+      phoneCall.recording_url,
+      companyUrl ? `${companyUrl}/dashboard?type=phone_calls` : "",
+    ),
+    recordedAt: firstString(detail.occurred_at, detail.ocurred_at, detail.updated_at, detail.created_at, phoneCall.occurred_at, phoneCall.ocurred_at, phoneCall.updated_at, phoneCall.created_at),
+    title: firstString(detail.title, detail.name, phoneCall.name, "Phone call"),
+    summary,
+    transcript,
+    commitments,
+    trackerValues,
+    playbook,
+    participants: participants.filter((item) => item.name || item.email || item.phone),
     rawPayload: detail,
     matchStatus: "pending",
   };
@@ -697,13 +867,74 @@ Deno.serve(async (req) => {
           const transcriptDetail = await getTranscriptDetail(companyUrl, refreshed.accessToken, transcriptId);
           if (transcriptDetail.ok && transcriptDetail.parsed) transcript = transcriptDetail.parsed;
         }
+        const playbookId = firstString(
+          detail.parsed.playbook && typeof detail.parsed.playbook === "object" ? (detail.parsed.playbook as Record<string, unknown>).id : "",
+          meeting.playbook && typeof meeting.playbook === "object" ? (meeting.playbook as Record<string, unknown>).id : "",
+        );
+        let playbookDetail: Record<string, unknown> | null = null;
+        if (playbookId) {
+          const playbookResponse = await getPlaybookDetail(companyUrl, refreshed.accessToken, playbookId);
+          if (playbookResponse.ok && playbookResponse.parsed) playbookDetail = playbookResponse.parsed;
+        }
         return {
           ...meeting,
           detail: detail.parsed,
           transcriptDetail: transcript,
+          playbookDetail,
         };
       }));
-      const nextQueue = detailedMeetings.reduce((acc, meeting) => upsertQueue(acc, normalizeMeetingToInteraction(meeting, tenantId, companyUrl, usersIndex)), queue);
+      const allCalls = await listAllPhoneCalls(companyUrl, refreshed.accessToken);
+      if (!allCalls.ok) {
+        return json({
+          ok: false,
+          error: allCalls.status === 401 ? "invalid_token" : "phone_calls_failed",
+          message: "Diio autenticó, pero no pudimos completar el histórico de llamadas.",
+          status: allCalls.status,
+          details: allCalls.parsed || allCalls.raw,
+        }, allCalls.status || 500);
+      }
+      const phoneCallsList = Array.isArray(allCalls.phoneCalls) ? allCalls.phoneCalls : [];
+      const detailedCalls = await Promise.all(phoneCallsList.map(async (phoneCall) => {
+        const phoneCallId = firstString(phoneCall.id);
+        if (!phoneCallId) return phoneCall;
+        const detail = await getPhoneCallDetail(companyUrl, refreshed.accessToken, phoneCallId);
+        if (!detail.ok || !detail.parsed) return phoneCall;
+        const transcriptId = firstString(
+          detail.parsed.last_transcript_id,
+          detail.parsed.transcript_id,
+          detail.parsed.transcriptId,
+          (detail.parsed.transcript as Record<string, unknown> | undefined)?.id,
+          (detail.parsed.transcription as Record<string, unknown> | undefined)?.id,
+          phoneCall.last_transcript_id,
+          phoneCall.transcript_id,
+          phoneCall.transcriptId,
+        );
+        let transcript: Record<string, unknown> | null = null;
+        if (transcriptId) {
+          const transcriptDetail = await getTranscriptDetail(companyUrl, refreshed.accessToken, transcriptId);
+          if (transcriptDetail.ok && transcriptDetail.parsed) transcript = transcriptDetail.parsed;
+        }
+        const playbookId = firstString(
+          detail.parsed.playbook && typeof detail.parsed.playbook === "object" ? (detail.parsed.playbook as Record<string, unknown>).id : "",
+          phoneCall.playbook && typeof phoneCall.playbook === "object" ? (phoneCall.playbook as Record<string, unknown>).id : "",
+        );
+        let playbookDetail: Record<string, unknown> | null = null;
+        if (playbookId) {
+          const playbookResponse = await getPlaybookDetail(companyUrl, refreshed.accessToken, playbookId);
+          if (playbookResponse.ok && playbookResponse.parsed) playbookDetail = playbookResponse.parsed;
+        }
+        return {
+          ...phoneCall,
+          detail: detail.parsed,
+          transcriptDetail: transcript,
+          playbookDetail,
+        };
+      }));
+      const importedInteractions = [
+        ...detailedMeetings.map((meeting) => normalizeMeetingToInteraction(meeting, tenantId, companyUrl, usersIndex)),
+        ...detailedCalls.map((phoneCall) => normalizePhoneCallToInteraction(phoneCall, tenantId, companyUrl, usersIndex)),
+      ];
+      const nextQueue = importedInteractions.reduce((acc, interaction) => upsertQueue(acc, interaction), queue);
       await saveStorageJson(client, getIncomingStorageKey(tenantId), nextQueue);
       const importedAt = new Date().toISOString();
       const nextEmpresasAfterImport = nextEmpresas.map((item) => {
@@ -730,7 +961,7 @@ Deno.serve(async (req) => {
                 connectedAt: firstString(currentTenant.connectedAt, tenantDiio.connectedAt, importedAt),
                 lastValidatedAt: firstString(currentTenant.lastValidatedAt, tenantDiio.lastValidatedAt, importedAt),
                 lastImportedAt: importedAt,
-                lastImportCount: detailedMeetings.length,
+                lastImportCount: importedInteractions.length,
                 lastImportQueueSize: nextQueue.length,
                 lastError: "",
               },
@@ -743,7 +974,9 @@ Deno.serve(async (req) => {
         ok: true,
         tenantId,
         companyUrl,
-        imported: detailedMeetings.length,
+        imported: importedInteractions.length,
+        importedMeetings: detailedMeetings.length,
+        importedPhoneCalls: detailedCalls.length,
         queueSize: nextQueue.length,
         importedAt,
       });

@@ -696,7 +696,7 @@ export function EmpresaEditSection({
                 <div style={{display:"grid",gap:8,fontSize:11,color:"var(--gr3)",lineHeight:1.6}}>
                   <div><b>1.</b> En Diio, crea el webhook usando la URL que entrega Produ arriba.</div>
                   <div><b>2.</b> Copia desde Diio el `webhook secret` y pégalo aquí junto con `Client ID`, `Client Secret` y `Refresh Token`.</div>
-                  <div><b>3.</b> Guarda, prueba la conexión real e importa reuniones para dejar operativa la empresa.</div>
+                  <div><b>3.</b> Guarda, prueba la conexión real e importa interacciones para dejar operativa la empresa.</div>
                 </div>
               </div>
               <R2>
@@ -750,7 +750,7 @@ export function EmpresaEditSection({
                 <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
                   <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Último import histórico</div>
                   <div style={{fontSize:12,fontWeight:700,color:"var(--gr3)"}}>
-                    {tenantDiioConfig?.lastImportedAt ? `${new Date(tenantDiioConfig.lastImportedAt).toLocaleString("es-CL")} · ${Number(tenantDiioConfig.lastImportCount || 0)} reuniones` : "Sin importar"}
+                    {tenantDiioConfig?.lastImportedAt ? `${new Date(tenantDiioConfig.lastImportedAt).toLocaleString("es-CL")} · ${Number(tenantDiioConfig.lastImportCount || 0)} interacciones` : "Sin importar"}
                   </div>
                 </div>
                 <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
@@ -768,7 +768,7 @@ export function EmpresaEditSection({
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <Btn onClick={saveTenantDiioConfig} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioSaving}>{tenantDiioSaving ? "Guardando..." : "Guardar Diio"}</Btn>
                 <GBtn onClick={verifyTenantDiioConnection} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioTesting || !diioReady}>{tenantDiioTesting ? "Probando..." : "Probar conexión real"}</GBtn>
-                <GBtn onClick={importTenantDiioMeetings} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioImporting || !diioReady}>{tenantDiioImporting ? "Importando..." : "Importar reuniones reales"}</GBtn>
+                <GBtn onClick={importTenantDiioMeetings} disabled={!canManageAdmin || !tenantCanEditDiioConfig || tenantDiioImporting || !diioReady}>{tenantDiioImporting ? "Importando..." : "Importar interacciones reales"}</GBtn>
               </div>
             </>}
       </div>

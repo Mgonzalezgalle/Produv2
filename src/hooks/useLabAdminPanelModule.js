@@ -1069,7 +1069,7 @@ export function useLabAdminPanelModule({
 
   const importTenantDiioMeetings = async () => {
     if (!empresa?.id) return false;
-    if (!enforceAdminSection("Empresa", "No tienes permisos para importar reuniones de Diio.")) return false;
+    if (!enforceAdminSection("Empresa", "No tienes permisos para importar interacciones de Diio.")) return false;
     setTenantDiioImporting(true);
     try {
       const { data, error } = await sb.functions.invoke("diio-company-api", {
@@ -1082,7 +1082,7 @@ export function useLabAdminPanelModule({
       if (data?.ok !== true) {
         const nextTenantConfig = {
           ...normalizeDiioTenantConnection(tenantDiioConfig),
-          lastError: String(data?.message || "No pudimos importar reuniones reales desde Diio."),
+          lastError: String(data?.message || "No pudimos importar interacciones reales desde Diio."),
         };
         await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
           ...em,
@@ -1095,7 +1095,7 @@ export function useLabAdminPanelModule({
           },
         } : em));
         setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-        notifyUserFacingError(ntf, data, "No pudimos importar reuniones reales desde Diio.");
+        notifyUserFacingError(ntf, data, "No pudimos importar interacciones reales desde Diio.");
         return false;
       }
       const importedAt = String(data?.importedAt || new Date().toISOString());
@@ -1128,17 +1128,19 @@ export function useLabAdminPanelModule({
           "diio:tenant",
           {
             imported: Number(data?.imported || 0),
+            importedMeetings: Number(data?.importedMeetings || 0),
+            importedPhoneCalls: Number(data?.importedPhoneCalls || 0),
             queueSize: Number(data?.queueSize || 0),
           },
         );
       }
       setTenantDiioConfig(prev => ({ ...prev, ...nextTenantConfig }));
-      ntf(`Importamos ${Number(data?.imported || 0)} reuniones reales desde Diio ✓`);
+      ntf(`Importamos ${Number(data?.imported || 0)} interacciones reales desde Diio ✓`);
       return true;
     } catch (err) {
       const nextTenantConfig = {
         ...normalizeDiioTenantConnection(tenantDiioConfig),
-        lastError: String(err?.message || "No pudimos importar reuniones reales desde Diio."),
+        lastError: String(err?.message || "No pudimos importar interacciones reales desde Diio."),
       };
       await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? {
         ...em,

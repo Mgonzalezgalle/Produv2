@@ -159,6 +159,10 @@ function normalizeDiioEvent(payload: Record<string, unknown> = {}, tenantId = ""
     tenantId,
     sourceId: firstString(data.id, payload.id, payload.webhook_object_id),
     sourceType: event || "meeting.finished",
+    analyzedStatus: firstString(data.analyzed_status, payload.analyzed_status),
+    errorCause: firstString(data.error_cause, payload.error_cause),
+    duration: Number(data.duration || payload.duration || 0),
+    integrationType: firstString(data.integration_type, payload.integration_type),
     sourceUrl: firstString(data.url, data.recording_url, payload.url),
     recordedAt: firstString(data.ended_at, data.created_at, payload.created_at, new Date().toISOString()),
     title: firstString(data.title, data.name, data.subject, payload.title),
@@ -176,6 +180,163 @@ function normalizeDiioEvent(payload: Record<string, unknown> = {}, tenantId = ""
     participants: normalizeParticipants(Array.isArray(data.participants) ? data.participants : attendeeList),
     rawPayload: payload,
     matchStatus: "pending",
+  };
+}
+
+async function refreshAccessToken({
+  companyUrl,
+  clientId,
+  clientSecret,
+  refreshToken,
+}: {
+  companyUrl: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}) {
+  const response = await fetch(`${companyUrl}/api/external/refresh_token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return {
+    ok: response.ok,
+    accessToken: firstString(parsed?.access_token),
+    parsed,
+  };
+}
+
+async function getMeetingDetail(companyUrl: string, accessToken: string, meetingId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/meetings/${encodeURIComponent(meetingId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return { ok: response.ok, parsed };
+}
+
+async function getPhoneCallDetail(companyUrl: string, accessToken: string, phoneCallId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/phone_calls/${encodeURIComponent(phoneCallId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return { ok: response.ok, parsed };
+}
+
+async function getTranscriptDetail(companyUrl: string, accessToken: string, transcriptId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/transcripts/${encodeURIComponent(transcriptId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return { ok: response.ok, parsed };
+}
+
+async function getPlaybookDetail(companyUrl: string, accessToken: string, playbookId: string) {
+  const response = await fetch(`${companyUrl}/api/external/v1/playbooks/${encodeURIComponent(playbookId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const raw = await response.text();
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  return { ok: response.ok, parsed };
+}
+
+async function enrichWebhookPayload(basePayload: Record<string, unknown>, tenantDiio: Record<string, unknown>) {
+  const eventType = firstString(basePayload.event, basePayload.type, basePayload.event_type);
+  if (!["meeting.finished", "phone_call.finished"].includes(eventType)) return basePayload;
+  const companyUrl = firstString(tenantDiio.companyUrl);
+  const clientId = firstString(tenantDiio.clientId);
+  const clientSecret = firstString(tenantDiio.clientSecret);
+  const refreshToken = firstString(tenantDiio.refreshToken);
+  if (!companyUrl || !clientId || !clientSecret || !refreshToken) return basePayload;
+
+  const refreshed = await refreshAccessToken({ companyUrl, clientId, clientSecret, refreshToken });
+  if (!refreshed.ok || !refreshed.accessToken) return basePayload;
+
+  const objectId = firstString(
+    basePayload.id,
+    basePayload.webhook_object_id,
+    basePayload.data && typeof basePayload.data === "object" ? (basePayload.data as Record<string, unknown>).id : "",
+  );
+  if (!objectId) return basePayload;
+
+  const detailResponse = eventType === "meeting.finished"
+    ? await getMeetingDetail(companyUrl, refreshed.accessToken, objectId)
+    : await getPhoneCallDetail(companyUrl, refreshed.accessToken, objectId);
+  if (!detailResponse.ok || !detailResponse.parsed) return basePayload;
+
+  const detail = detailResponse.parsed;
+  const transcriptId = firstString(
+    detail.last_transcript_id,
+    detail.transcript_id,
+    detail.transcriptId,
+    detail.transcript && typeof detail.transcript === "object" ? (detail.transcript as Record<string, unknown>).id : "",
+    detail.transcription && typeof detail.transcription === "object" ? (detail.transcription as Record<string, unknown>).id : "",
+  );
+  let transcriptDetail: Record<string, unknown> | null = null;
+  if (transcriptId) {
+    const transcriptResponse = await getTranscriptDetail(companyUrl, refreshed.accessToken, transcriptId);
+    if (transcriptResponse.ok && transcriptResponse.parsed) transcriptDetail = transcriptResponse.parsed;
+  }
+  const playbookId = firstString(
+    detail.playbook && typeof detail.playbook === "object" ? (detail.playbook as Record<string, unknown>).id : "",
+  );
+  let playbookDetail: Record<string, unknown> | null = null;
+  if (playbookId) {
+    const playbookResponse = await getPlaybookDetail(companyUrl, refreshed.accessToken, playbookId);
+    if (playbookResponse.ok && playbookResponse.parsed) playbookDetail = playbookResponse.parsed;
+  }
+
+  return {
+    ...basePayload,
+    data: {
+      ...(basePayload.data && typeof basePayload.data === "object" ? basePayload.data as Record<string, unknown> : {}),
+      ...detail,
+      transcript: transcriptDetail?.transcript || transcriptDetail?.transcription || detail.transcript,
+      playbook: playbookDetail || detail.playbook,
+    },
   };
 }
 
@@ -386,7 +547,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const interaction = normalizeDiioEvent(payload, tenantId);
+      const enrichedPayload = await enrichWebhookPayload(payload, tenantDiio);
+      const interaction = normalizeDiioEvent(enrichedPayload, tenantId);
       const storageKey = getIncomingStorageKey(tenantId);
       const currentQueue = await loadQueue(client, storageKey);
       const nextQueue = upsertQueue(currentQueue, interaction);
@@ -417,8 +579,8 @@ Deno.serve(async (req) => {
                 tenant: {
                   ...normalizeTenantDiioConfig(currentTenant),
                   lastWebhookAt: webhookAt,
-                  lastWebhookEvent: firstString(payload.event, payload.type, payload.event_type),
-                  lastWebhookObjectId: firstString(payload.webhook_object_id, payload.id, interaction.sourceId),
+                  lastWebhookEvent: firstString(enrichedPayload.event, enrichedPayload.type, enrichedPayload.event_type),
+                  lastWebhookObjectId: firstString(enrichedPayload.webhook_object_id, enrichedPayload.id, interaction.sourceId),
                   lastError: "",
                 },
               },

@@ -501,6 +501,7 @@ export function ViewContenidoDet(props) {
   const [tab, setTab] = useState(0);
   const [piezaQ, setPiezaQ] = useState("");
   const [piezaEstado, setPiezaEstado] = useState("");
+  const [piezaMes, setPiezaMes] = useState("");
   const [piezaResp, setPiezaResp] = useState("");
   const [piezaSort, setPiezaSort] = useState("name-asc");
   const [piezaDetailId, setPiezaDetailId] = useState("");
@@ -511,7 +512,7 @@ export function ViewContenidoDet(props) {
   const b = bal(id); const mv = (movimientos || []).filter(m => m.eid === id);
   const pCrew = (crew || []).filter(x => x.empId === empId && (pz.crewIds || []).includes(x.id));
   const piezasCamp = (pz.piezas || []).filter(pc => (pc.nom || "").toLowerCase().includes(piezaQ.toLowerCase()) && (!piezaEstado || pc.est === piezaEstado));
-  const piezasFiltradas = piezasCamp.filter(pc => (!piezaResp || pc.responsableId === piezaResp)).sort((a, b) => {
+  const piezasFiltradas = piezasCamp.filter(pc => (!piezaMes || pc.mes === piezaMes) && (!piezaResp || pc.responsableId === piezaResp)).sort((a, b) => {
     if (piezaSort === "name-desc") return String(b.nom || "").localeCompare(String(a.nom || ""));
     if (piezaSort === "date-desc") return String(b.publishDate || b.fin || "").localeCompare(String(a.publishDate || a.fin || ""));
     if (piezaSort === "date-asc") return String(a.publishDate || a.fin || "").localeCompare(String(b.publishDate || b.fin || ""));
@@ -572,16 +573,18 @@ export function ViewContenidoDet(props) {
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={piezaQ} onChange={v => setPiezaQ(v)} placeholder="Buscar pieza..." />
         <FilterSel value={piezaEstado} onChange={setPiezaEstado} options={DEFAULT_LISTAS.estadosPieza || []} placeholder="Todo estados" />
+        <FilterSel value={piezaMes} onChange={setPiezaMes} options={MESES} placeholder="Todos los meses" />
         <FilterSel value={piezaResp} onChange={setPiezaResp} options={pCrew.map(m => ({ value: m.id, label: m.nom }))} placeholder="Todos los responsables" />
-        {canManageContent && <Btn onClick={() => openM("pieza", { campId: id, plataforma: pz.plataforma, ini: pz.ini, fin: pz.fin })}>+ Nueva Pieza</Btn>}
+        {canManageContent && <Btn onClick={() => openM("pieza", { campId: id, plataforma: pz.plataforma, ini: pz.ini, fin: pz.fin, mes: pz.mes })}>+ Nueva Pieza</Btn>}
       </div>
       <Card>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH onClick={() => setPiezaSort(piezaSort === "name-asc" ? "name-desc" : "name-asc")} active={piezaSort === "name-asc" || piezaSort === "name-desc"} dir={piezaSort === "name-desc" ? "desc" : "asc"}>Pieza</TH><TH>Formato</TH><TH>Responsable</TH><TH onClick={() => setPiezaSort(piezaSort === "status-asc" ? "status-desc" : "status-asc")} active={piezaSort === "status-asc" || piezaSort === "status-desc"} dir={piezaSort === "status-desc" ? "desc" : "asc"}>Estado</TH><TH>Aprobación</TH><TH onClick={() => setPiezaSort(piezaSort === "date-asc" ? "date-desc" : "date-asc")} active={piezaSort === "date-asc" || piezaSort === "date-desc"} dir={piezaSort === "date-desc" ? "desc" : "asc"}>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
+          <thead><tr><TH onClick={() => setPiezaSort(piezaSort === "name-asc" ? "name-desc" : "name-asc")} active={piezaSort === "name-asc" || piezaSort === "name-desc"} dir={piezaSort === "name-desc" ? "desc" : "asc"}>Pieza</TH><TH>Formato</TH><TH>Mes</TH><TH>Responsable</TH><TH onClick={() => setPiezaSort(piezaSort === "status-asc" ? "status-desc" : "status-asc")} active={piezaSort === "status-asc" || piezaSort === "status-desc"} dir={piezaSort === "status-desc" ? "desc" : "asc"}>Estado</TH><TH>Aprobación</TH><TH onClick={() => setPiezaSort(piezaSort === "date-asc" ? "date-desc" : "date-asc")} active={piezaSort === "date-asc" || piezaSort === "date-desc"} dir={piezaSort === "date-desc" ? "desc" : "asc"}>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
             {piezasFiltradas.map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
               <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div></TD>
               <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>
+              <TD>{pc.mes || <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
               <TD>{pc.responsableId && crewMap[pc.responsableId] ? crewMap[pc.responsableId].nom : <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
               <TD onClick={e => e.stopPropagation()}>
                 <FSl value={pc.est || "Planificado"} onChange={e => updatePieceQuick(pc.id, { est: e.target.value })} disabled={!canManageContent}>
@@ -598,7 +601,7 @@ export function ViewContenidoDet(props) {
                 {canManageContent && <><GBtn sm onClick={() => openM("pieza", { ...pc, campId: id })}>✏</GBtn><XBtn onClick={() => deletePiece(pc.id)} /></>}
               </div></TD>
             </tr>)}
-            {!piezasFiltradas.length && <tr><td colSpan={8}><Empty text="Sin piezas" sub="Crea la primera para esta campaña" /></td></tr>}
+            {!piezasFiltradas.length && <tr><td colSpan={9}><Empty text="Sin piezas" sub="Crea la primera para esta campaña" /></td></tr>}
           </tbody>
         </table></div>
       </Card>
@@ -664,6 +667,7 @@ export function ViewContenidoDet(props) {
           <Card title="Resumen">
             <KV label="Estado" value={<Badge label={pieceDetail.est || "Planificado"} />} />
             <KV label="Formato" value={pieceDetail.formato || "—"} />
+            <KV label="Mes" value={pieceDetail.mes || "—"} />
             <KV label="Plataforma" value={pieceDetail.plataforma || "—"} />
             <KV label="Responsable" value={pieceDetail.responsableId && crewMap[pieceDetail.responsableId] ? crewMap[pieceDetail.responsableId].nom : "—"} />
             <KV label="Aprobación" value={<Badge label={pieceDetail.approval || "Pendiente"} color={(pieceDetail.approval || "Pendiente") === "Aprobada" ? "green" : (pieceDetail.approval || "Pendiente") === "Observada" ? "red" : (pieceDetail.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />} />

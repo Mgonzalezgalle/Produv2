@@ -330,6 +330,7 @@ export const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   nom: piece.nom || piece.titulo || "Nueva pieza",
   formato: piece.formato || "Reel",
   plataforma: piece.plataforma || campaign.plataforma || "Instagram",
+  mes: piece.mes || campaign.mes || MESES[new Date().getMonth()],
   est: piece.est || "Planificado",
   ini: piece.ini || campaign.ini || "",
   fin: piece.fin || "",

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
+import { appendWorkflowEventEntry } from "../lib/operations/workflowEvents";
 import { createFoundationFinancialRegistryCoordinator } from "../lib/backend/foundationFinancialRegistry";
 import {
   buildTreasuryProviders,
@@ -385,6 +386,21 @@ export function useLabTreasuryModule({
       },
       platformServices,
     });
+    await appendWorkflowEventEntry({
+      empId,
+      stream: "payables",
+      eventName: exists ? "payable_updated" : "payable_created",
+      entityType: "treasury_payable",
+      entityId: safeNext.id || "",
+      actor: currentUser,
+      payload: {
+        supplier: safeNext.supplier || "",
+        folio: safeNext.folio || "",
+        status: safeNext.status || "",
+        total: Number(safeNext.total || 0),
+      },
+      platformServices,
+    });
     setPayableOpen(false);
     setPayableDraft(null);
     return true;
@@ -408,6 +424,16 @@ export function useLabTreasuryModule({
       empId,
       area: "tesoreria",
       action: "payable_deleted",
+      entityType: "treasury_payable",
+      entityId: id || "",
+      actor: currentUser,
+      payload: {},
+      platformServices,
+    });
+    await appendWorkflowEventEntry({
+      empId,
+      stream: "payables",
+      eventName: "payable_deleted",
       entityType: "treasury_payable",
       entityId: id || "",
       actor: currentUser,

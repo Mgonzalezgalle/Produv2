@@ -10,6 +10,7 @@ import {
   recoverPreferredCrmStages,
 } from "../lib/utils/crm";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
+import { appendWorkflowEventEntry } from "../lib/operations/workflowEvents";
 import { requestConfirm } from "../lib/ui/confirmService";
 
 const uid = () => "_" + Math.random().toString(36).slice(2, 10);
@@ -133,6 +134,19 @@ export function useLabCrmModule({
       platformServices,
     });
   };
+  const recordCrmWorkflow = async (stream = "", eventName = "", entityType = "", entityId = "", payload = {}) => {
+    if (!hasTenant) return null;
+    return appendWorkflowEventEntry({
+      empId,
+      stream,
+      eventName,
+      entityType,
+      entityId,
+      actor: user,
+      payload,
+      platformServices,
+    });
+  };
 
   useEffect(() => {
     if (!mobileStageId && scopedStages[0]?.id) setMobileStageId(scopedStages[0].id);
@@ -152,6 +166,10 @@ export function useLabCrmModule({
       opportunityId: oppId,
       type,
       hasExtraContext: Object.keys(extra || {}).length > 0,
+    });
+    await recordCrmWorkflow("crm_activity", "activity_created", "crm_activity", entry.id || oppId, {
+      opportunityId: oppId,
+      type,
     });
     return true;
   };
@@ -173,6 +191,19 @@ export function useLabCrmModule({
         tipoNegocio: nextOpp.tipo_negocio || "",
         value: Number(nextOpp.monto_estimado || 0),
         ...((audit.payload && typeof audit.payload === "object") ? audit.payload : {}),
+      },
+    );
+    await recordCrmWorkflow(
+      "crm_opportunities",
+      audit.action || (exists ? "opportunity_updated" : "opportunity_created"),
+      "crm_opportunity",
+      nextOpp.id,
+      {
+        stageId: nextOpp.stageId || "",
+        status: nextOpp.status || "",
+        responsible: nextOpp.responsable || "",
+        tipoNegocio: nextOpp.tipo_negocio || "",
+        value: Number(nextOpp.monto_estimado || 0),
       },
     );
     return nextOpp;
@@ -292,6 +323,10 @@ export function useLabCrmModule({
       opportunityCount: selectedItems.length,
       tipoNegocio: bulkTipoNegocio,
     });
+    await recordCrmWorkflow("crm_opportunities", "opportunities_bulk_business_type_updated", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+      tipoNegocio: bulkTipoNegocio,
+    });
     ntf?.(`Tipo de negocio actualizado en ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} ✓`);
     clearSelection();
   };
@@ -309,6 +344,11 @@ export function useLabCrmModule({
       ...selectedItems.map(opp => crmActivityEntry(opp.id, `Responsable reasignado en lote a ${targetUser?.name || "nuevo responsable"}.`, "update", user, empId)),
     ]);
     await recordCrmAudit("opportunities_bulk_responsible_updated", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+      responsibleUserId: bulkResponsible,
+      responsibleUserName: targetUser?.name || "",
+    });
+    await recordCrmWorkflow("crm_opportunities", "opportunities_bulk_responsible_updated", "crm_opportunity_batch", selectedIds.join(","), {
       opportunityCount: selectedItems.length,
       responsibleUserId: bulkResponsible,
       responsibleUserName: targetUser?.name || "",
@@ -333,6 +373,9 @@ export function useLabCrmModule({
     await recordCrmAudit("opportunities_bulk_deleted", "crm_opportunity_batch", selectedIds.join(","), {
       opportunityCount: selectedItems.length,
     });
+    await recordCrmWorkflow("crm_opportunities", "opportunities_bulk_deleted", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+    });
     ntf?.(`Se eliminaron ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} ✓`, "warn");
     clearSelection();
   };
@@ -352,6 +395,9 @@ export function useLabCrmModule({
       }));
       await setCrmStages(normalized);
       await recordCrmAudit("stage_configuration_saved", "crm_stage_config", empId, {
+        stageCount: normalized.length,
+      });
+      await recordCrmWorkflow("crm_stages", "stage_configuration_saved", "crm_stage_config", empId, {
         stageCount: normalized.length,
       });
       ntf?.("Etapas CRM actualizadas ✓");
@@ -379,6 +425,11 @@ export function useLabCrmModule({
     }
     await saveStageConfig(nextStages);
     await recordCrmAudit("stage_removed", "crm_stage", stageId, {
+      removedStageName: stage.name || "",
+      fallbackStageId: fallback.id || "",
+      reassignedOpportunityCount: linked.length,
+    });
+    await recordCrmWorkflow("crm_stages", "stage_removed", "crm_stage", stageId, {
       removedStageName: stage.name || "",
       fallbackStageId: fallback.id || "",
       reassignedOpportunityCount: linked.length,

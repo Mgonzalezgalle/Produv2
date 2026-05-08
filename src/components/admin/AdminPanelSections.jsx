@@ -85,8 +85,22 @@ export function EmpresaEditSection({
     () => (operationalAuditEntries || []).filter(entry => entry?.area === "foundation" || entry?.entityType === "financial_registry"),
     [operationalAuditEntries],
   );
+  const workflowEventEntries = React.useMemo(
+    () => (operationalAuditEntries || []).filter(entry =>
+      entry?.area === "workflow"
+      || Boolean(entry?.payload?.workflowStream)
+      || Boolean(entry?.payload?.workflowEvent),
+    ),
+    [operationalAuditEntries],
+  );
   const visibleOperationalEntries = React.useMemo(
-    () => (operationalAuditEntries || []).filter(entry => !String(entry?.action || "").startsWith("blocked") && entry?.area !== "foundation" && entry?.entityType !== "financial_registry"),
+    () => (operationalAuditEntries || []).filter(
+      entry => !String(entry?.action || "").startsWith("blocked")
+        && entry?.area !== "foundation"
+        && entry?.area !== "workflow"
+        && entry?.entityType !== "financial_registry"
+        && !entry?.payload?.workflowStream,
+    ),
     [operationalAuditEntries],
   );
 
@@ -266,6 +280,7 @@ export function EmpresaEditSection({
             <KV label="Integraciones industrializadas" value={operationalHealth.integrationIndustrializedCount} />
             <KV label="Bloqueos recientes" value={blockedAdminEntries.length} />
             <KV label="Sync foundation" value={foundationSyncEntries.length} />
+            <KV label="Eventos workflow" value={workflowEventEntries.length} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
           <div style={{display:"grid",gap:6}}>
@@ -412,6 +427,41 @@ export function EmpresaEditSection({
                   </div>
                   <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
                     {entry?.payload?.message || `Registros: ${entry?.payload?.recordCount ?? "n/a"}`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </AdminPanelCard>
+      )}
+      {!!workflowEventEntries.length && (
+        <AdminPanelCard
+          eyebrow="Workflow"
+          title="Cola estructurada de eventos"
+          description="Eventos recientes de mutaciones sensibles que ya nos sirven como base para automatización, trazabilidad y analytics."
+          tone="success"
+          actions={<Badge label={`${workflowEventEntries.length} evento${workflowEventEntries.length === 1 ? "" : "s"}`} color="green" sm />}
+        >
+          <div style={{display:"grid",gap:8}}>
+            {workflowEventEntries.slice(0, 6).map(entry => {
+              const stream = entry?.payload?.workflowStream || entry?.area || "workflow";
+              const eventName = entry?.payload?.workflowEvent || entry?.action || "updated";
+              return (
+                <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
+                      {stream.replaceAll("_", " ")}
+                    </div>
+                    <Badge label={eventName.replaceAll("_", " ")} color="green" sm />
+                  </div>
+                  <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
+                    {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
+                    {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
+                    {entry?.entityId ? `ID ${entry.entityId}` : "Sin entidad específica"}
+                    {entry?.payload?.opportunityCount ? ` · ${entry.payload.opportunityCount} oportunidad(es)` : ""}
+                    {entry?.payload?.supplier ? ` · ${entry.payload.supplier}` : ""}
                   </div>
                 </div>
               );

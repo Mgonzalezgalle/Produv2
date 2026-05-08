@@ -172,6 +172,14 @@ export function AdminPanel(rawProps) {
   const healthWarnings = operationalHealth?.warningCount || 0;
   const adminStageLabel = canOpenPlatformTab ? "Gobierno total" : "Gobierno operativo";
   const currentTabDescription = ADMIN_TAB_META[activeAdminTab] || "Vista administrativa activa";
+  const lightMode = theme?.mode === "light";
+  const adminHeroBackground = lightMode
+    ? "linear-gradient(180deg, rgba(17,138,178,.12), rgba(255,255,255,.96) 54%, rgba(241,246,255,.92) 100%)"
+    : "linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 52%,rgba(9,14,24,.28) 100%)";
+  const adminHeroShadow = lightMode
+    ? "0 14px 30px rgba(17, 138, 178, .08)"
+    : "0 18px 42px rgba(0,0,0,.12)";
+  const adminHeroPanelBackground = lightMode ? "rgba(255,255,255,.78)" : "rgba(255,255,255,.03)";
 
   if (!canOpenAdminPanel) {
     return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`}>
@@ -194,7 +202,7 @@ export function AdminPanel(rawProps) {
   }
 
   return <Modal open={open} onClose={onClose} title="⚙ Panel Administrador" sub={`${empresa?.nombre || "Sistema"}`} extraWide>
-    <div style={{ padding: "22px 22px 18px", border: "1px solid var(--bdr2)", borderRadius: 24, background: "linear-gradient(180deg,var(--cg),rgba(9,14,24,.82) 52%,rgba(9,14,24,.28) 100%)", marginBottom: 18, boxShadow: "0 18px 42px rgba(0,0,0,.12)" }}>
+    <div style={{ padding: "22px 22px 18px", border: "1px solid var(--bdr2)", borderRadius: 24, background: adminHeroBackground, marginBottom: 18, boxShadow: adminHeroShadow }}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(300px,.95fr)", gap: 16, alignItems: "stretch", marginBottom: 16 }}>
         <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8 }}>Centro de control</div>
@@ -212,7 +220,7 @@ export function AdminPanel(rawProps) {
             <Badge label={healthWarnings ? `${healthWarnings} alerta${healthWarnings === 1 ? "" : "s"}` : "Sin alertas críticas"} color={healthWarnings ? "yellow" : "green"} sm />
           </div>
         </div>
-        <div style={{ border: "1px solid var(--bdr2)", borderRadius: 18, background: "rgba(255,255,255,.03)", padding: 14, display: "grid", gap: 10 }}>
+        <div style={{ border: "1px solid var(--bdr2)", borderRadius: 18, background: adminHeroPanelBackground, padding: 14, display: "grid", gap: 10 }}>
           <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.4 }}>Lectura rápida</div>
           <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_HEADER_GRID, gap: 8 }}>
             <AdminStatCard label="Usuarios activos" value={activeUsers} tone="var(--cy)" />

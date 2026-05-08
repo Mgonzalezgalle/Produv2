@@ -520,12 +520,6 @@ export function ViewContenidoDet(props) {
     if (piezaSort === "status-asc") return String(a.est || "").localeCompare(String(b.est || ""));
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
-  const piezasMesResumen = MESES.map(mes => ({
-    mes,
-    total: piezasFiltradas.filter(pc => pc.mes === mes).length,
-  })).filter(item => item.total > 0);
-  const piezasSinMes = piezasFiltradas.filter(pc => !pc.mes).length;
-  if (piezasSinMes) piezasMesResumen.push({ mes: "Sin mes", total: piezasSinMes });
   const piezasAgrupadasPorMes = piezasFiltradas.reduce((acc, pc) => {
     const mesKey = pc.mes || "Sin mes";
     if (!acc[mesKey]) acc[mesKey] = [];
@@ -587,13 +581,6 @@ export function ViewContenidoDet(props) {
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Aprobadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#7cffa6" }}>{piezasAprobadas}</div></div>
       </div>
-      {!!piezasMesResumen.length && <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        {piezasMesResumen.map(item => <div key={item.mes} style={{ minWidth: 140, background: "var(--card)", border: `1px solid ${piezaMes === item.mes ? "var(--cy)" : "var(--bdr)"}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer" }} onClick={() => setPiezaMes(prev => prev === item.mes ? "" : item.mes)}>
-          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{item.mes}</div>
-          <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: piezaMes === item.mes ? "var(--cy)" : "var(--gr4)" }}>{item.total}</div>
-          <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{item.total === 1 ? "pieza" : "piezas"}</div>
-        </div>)}
-      </div>}
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={piezaQ} onChange={v => setPiezaQ(v)} placeholder="Buscar pieza..." />
         <FilterSel value={piezaEstado} onChange={setPiezaEstado} options={DEFAULT_LISTAS.estadosPieza || []} placeholder="Todo estados" />

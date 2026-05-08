@@ -343,8 +343,48 @@ function buildParticipantSignals(participants = []) {
   return { emails, names, tokens: [...new Set(tokens)] };
 }
 
+function buildInteractionSignals(interaction = {}) {
+  const playbookEntry = Array.isArray(interaction?.playbook) ? interaction.playbook[0] : interaction?.playbook;
+  const playbookLabel = typeof playbookEntry === "string"
+    ? playbookEntry
+    : firstString(playbookEntry?.name, playbookEntry?.title, playbookEntry?.label, playbookEntry?.description);
+  const trackerEntries = normalizeTrackerValues(interaction?.trackerValues);
+  const trackerTokens = trackerEntries.flatMap((item) => compactWords([
+    item?.key,
+    item?.name,
+    item?.label,
+    item?.value,
+    item?.text,
+    item?.description,
+    item?.answer,
+  ].filter(Boolean).join(" ")));
+  const commitmentTokens = (Array.isArray(interaction?.commitments) ? interaction.commitments : []).flatMap((item) => {
+    if (typeof item === "string") return compactWords(item);
+    return compactWords([
+      item?.title,
+      item?.text,
+      item?.value,
+      item?.description,
+      item?.user?.name,
+      item?.user?.email,
+    ].filter(Boolean).join(" "));
+  });
+  const coreText = normalizeSearchText([
+    interaction?.title,
+    interaction?.summary,
+    interaction?.transcript,
+    playbookLabel,
+  ].filter(Boolean).join(" \n "));
+  return {
+    playbookLabel: normalizeSearchText(playbookLabel),
+    coreText,
+    tokens: [...new Set([...compactWords(coreText), ...trackerTokens, ...commitmentTokens])],
+  };
+}
+
 function buildTargetScore({ interaction, entity = {}, entityType = "" }) {
   const participantSignals = buildParticipantSignals(interaction?.participants);
+  const interactionSignals = buildInteractionSignals(interaction);
   const candidateFields = [
     entity?.nom,
     entity?.nombre,
@@ -389,8 +429,32 @@ function buildTargetScore({ interaction, entity = {}, entityType = "" }) {
     reasons.push(`shared_tokens:${sharedTokenCount}`);
   }
 
-  if (entityType === "crm_opportunity" && /meeting|phone_call|call|reunion/i.test(String(interaction?.sourceType || ""))) {
-    score = Math.min(1, score + 0.03);
+  const workflowTokenCount = interactionSignals.tokens.filter(token => candidateTokens.includes(token)).length;
+  if (workflowTokenCount > 0) {
+    score = Math.max(score, Math.min(0.94, 0.28 + workflowTokenCount * 0.1));
+    reasons.push(`workflow_tokens:${workflowTokenCount}`);
+  }
+
+  if (interactionSignals.playbookLabel) {
+    const playbookScore = scoreTermMatch(candidateText, interactionSignals.playbookLabel);
+    if (playbookScore >= 0.72) reasons.push("playbook_match");
+    score = Math.max(score, playbookScore * 0.78);
+  }
+
+  const narrativeScore = Math.max(
+    scoreTermMatch(interactionSignals.coreText, entityLabel),
+    scoreTermMatch(candidateText, interactionTitle),
+    scoreTermMatch(candidateText, interactionSummary),
+  );
+  if (narrativeScore >= 0.72) reasons.push("narrative_match");
+  score = Math.max(score, narrativeScore * 0.86);
+
+  if (entityType === "crm_opportunity" && /meeting|phone_call|call|reunion|llamada/i.test(String(interaction?.sourceType || ""))) {
+    score = Math.min(1, score + 0.04);
+  }
+
+  if (entityType !== "crm_opportunity" && interaction?.sourceType === "phone_call.finished") {
+    score = Math.max(0, score - 0.03);
   }
 
   return {

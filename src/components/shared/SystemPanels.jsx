@@ -116,6 +116,34 @@ function getDiioPlaybookLabel(interaction = {}) {
   return String(playbook?.name || playbook?.title || playbook?.label || "").trim();
 }
 
+function getDiioInteractionKindLabel(interaction = {}) {
+  const sourceType = String(interaction?.sourceType || "").trim();
+  if (sourceType.startsWith("phone_call")) return "Llamada";
+  if (sourceType.startsWith("meeting")) return "Reunión";
+  if (sourceType.startsWith("written_conversation")) return "Conversación";
+  return "Interacción";
+}
+
+function getDiioStatusTone(interaction = {}) {
+  const analyzedStatus = String(interaction?.analyzedStatus || "").trim().toLowerCase();
+  const errorCause = String(interaction?.errorCause || "").trim();
+  if (errorCause || analyzedStatus === "error") return { label: "Con error", color: "red" };
+  if (analyzedStatus === "finished") return { label: "Finalizada", color: "green" };
+  if (analyzedStatus === "in_progress") return { label: "En curso", color: "yellow" };
+  if (analyzedStatus === "pending") return { label: "Pendiente", color: "gray" };
+  return { label: "Sin estado", color: "gray" };
+}
+
+function formatDiioDurationLabel(interaction = {}) {
+  const totalSeconds = Number(interaction?.duration || 0);
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return "";
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  if (seconds === 0) return `${minutes} min`;
+  return `${minutes} min ${seconds}s`;
+}
+
 function formatDiioCommitmentLabel(item = {}, fmtD = value => value) {
   if (typeof item === "string") return item;
   const title = String(item?.title || item?.text || item?.value || item?.description || "").trim();
@@ -217,7 +245,10 @@ export function DiioInboxPanel({
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)", lineHeight: 1.35 }}>{item.title || "Interacción Diio"}</div>
                   <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{item.recordedAt ? fmtD(String(item.recordedAt).slice(0, 10)) : "Sin fecha"} · {item.sourceType || "meeting.finished"}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                    <Badge label={getDiioInteractionKindLabel(item)} color="cyan" sm />
                     <Badge label={item.matchStatus === "confirmed" ? "Confirmada" : "Pendiente"} color={item.matchStatus === "confirmed" ? "green" : "yellow"} sm />
+                    <Badge label={getDiioStatusTone(item).label} color={getDiioStatusTone(item).color} sm />
+                    {!!formatDiioDurationLabel(item) && <Badge label={formatDiioDurationLabel(item)} color="gray" sm />}
                     {primary && <Badge label={`${Math.round((primary.score || 0) * 100)}%`} color="orange" sm />}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
@@ -256,10 +287,18 @@ export function DiioInboxPanel({
                     <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{selected.sourceType || "meeting.finished"} · {selected.recordedAt ? fmtD(String(selected.recordedAt).slice(0, 10)) : "Sin fecha"}</div>
                   </div>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <Badge label={getDiioInteractionKindLabel(selected)} color="cyan" sm />
                     <Badge label={selected.matchStatus === "confirmed" ? "Confirmada" : "Pendiente"} color={selected.matchStatus === "confirmed" ? "green" : "yellow"} sm />
+                    <Badge label={getDiioStatusTone(selected).label} color={getDiioStatusTone(selected).color} sm />
+                    {!!formatDiioDurationLabel(selected) && <Badge label={formatDiioDurationLabel(selected)} color="gray" sm />}
                     {selected.sourceUrl && <a href={selected.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#8dc7ff", textDecoration: "none", fontWeight: 700 }}>Abrir fuente</a>}
                   </div>
                 </div>
+                {!!selected.errorCause && (
+                  <div style={{ fontSize: 11, color: "#ffb4b4", marginBottom: 10, padding: "8px 10px", borderRadius: 10, border: "1px solid rgba(255,85,102,.22)", background: "rgba(255,85,102,.08)" }}>
+                    Diio reportó error: {selected.errorCause}
+                  </div>
+                )}
                 {!!getDiioPlaybookLabel(selected) && (
                   <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>
                     Playbook: <span style={{ color: "var(--cy)", fontWeight: 700 }}>{getDiioPlaybookLabel(selected)}</span>

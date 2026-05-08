@@ -53,7 +53,19 @@ export async function appendOperationalAuditEntry({
   }
 
   try {
-    if (platformServices?.appendSyncAuditLog) {
+    if (platformServices?.appendOperationalEvent) {
+      await platformServices.appendOperationalEvent(safeEmpId, {
+        area: entry.area,
+        action: entry.action,
+        entityType: entry.entityType || entry.area,
+        entityId: entry.entityId || safeEmpId,
+        actor: entry.actor,
+        payload: {
+          ...((entry.payload && typeof entry.payload === "object") ? entry.payload : {}),
+          createdAt: entry.createdAt,
+        },
+      });
+    } else if (platformServices?.appendSyncAuditLog) {
       await platformServices.appendSyncAuditLog(
         safeEmpId,
         `${entry.area}_${entry.action}`,
@@ -63,6 +75,9 @@ export async function appendOperationalAuditEntry({
           actor: entry.actor,
           payload: entry.payload,
           createdAt: entry.createdAt,
+          auditType: "operational",
+          area: entry.area,
+          actionName: entry.action,
         },
       );
     }

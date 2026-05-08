@@ -152,6 +152,69 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
       }
     },
 
+    async appendOperationalEvent(tenantId, {
+      area = "operacion",
+      action = "updated",
+      entityType = "",
+      entityId = "",
+      actor = null,
+      payload = {},
+    } = {}) {
+      if (foundationRpcBreaker.has("append_legacy_operational_event")) {
+        if (fallbackServices?.appendOperationalEvent) {
+          return fallbackServices.appendOperationalEvent(tenantId, { area, action, entityType, entityId, actor, payload });
+        }
+        return this.appendSyncAuditLog(tenantId, `${area}_${action}`, entityType || area, entityId, {
+          ...payload,
+          auditType: "operational",
+          area,
+          actionName: action,
+          actor,
+        });
+      }
+      try {
+        const auditLog = await callSingleRpc("append_legacy_operational_event", {
+          legacy_emp_id: tenantId,
+          area_name: area,
+          action_name: action,
+          entity_type_name: entityType || area,
+          entity_identifier: entityId || "",
+          actor_data: actor && typeof actor === "object" ? actor : {},
+          payload_data: payload && typeof payload === "object" ? payload : {},
+        });
+        return { ok: true, source: "remote", auditLog };
+      } catch (error) {
+        foundationRpcBreaker.mark("append_legacy_operational_event");
+        if (fallbackServices?.appendOperationalEvent) {
+          return fallbackServices.appendOperationalEvent(tenantId, { area, action, entityType, entityId, actor, payload });
+        }
+        return this.appendSyncAuditLog(tenantId, `${area}_${action}`, entityType || area, entityId, {
+          ...payload,
+          auditType: "operational",
+          area,
+          actionName: action,
+          actor,
+        });
+      }
+    },
+
+    async getOperationalEvents(tenantId, limit = 24) {
+      if (foundationRpcBreaker.has("get_legacy_operational_events")) {
+        return fallbackServices?.getOperationalEvents ? fallbackServices.getOperationalEvents(tenantId, limit) : [];
+      }
+      try {
+        const events = await callSingleRpc("get_legacy_operational_events", {
+          legacy_emp_id: tenantId,
+          limit_count: Math.max(Number(limit || 24), 1),
+        });
+        return Array.isArray(events) ? events : [];
+      } catch (error) {
+        foundationRpcBreaker.mark("get_legacy_operational_events");
+        if (fallbackServices?.getOperationalEvents) return fallbackServices.getOperationalEvents(tenantId, limit);
+        return [];
+      }
+    },
+
     async syncLegacyTenant({ legacyEmpId = "", empresa = {} } = {}) {
       if (foundationRpcBreaker.has("sync_legacy_tenant_snapshot")) {
         if (fallbackServices?.syncLegacyTenant) {
@@ -317,6 +380,9 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
         }
         return {
           ...(snapshot || {}),
+          operationalEvents: Array.isArray(snapshot?.operationalEvents)
+            ? snapshot.operationalEvents
+            : await this.getOperationalEvents(tenantId, 12),
           financialRegistries,
         };
       } catch (error) {

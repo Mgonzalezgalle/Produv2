@@ -78,12 +78,26 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
     await dbSet("produ:financialRegistrySnapshots", safeNext);
     return safeNext;
   };
+  const loadPlatformAuditLogs = async () => (await dbGet("produ:platformAuditLogs")) || {};
+  const savePlatformAuditLogs = async next => {
+    const safeNext = next && typeof next === "object" ? next : {};
+    await dbSet("produ:platformAuditLogs", safeNext);
+    return safeNext;
+  };
+  const loadOperationalEvents = async () => (await dbGet("produ:operationalEvents")) || {};
+  const saveOperationalEvents = async next => {
+    const safeNext = next && typeof next === "object" ? next : {};
+    await dbSet("produ:operationalEvents", safeNext);
+    return safeNext;
+  };
   const buildTenantSnapshot = async tenantId => {
     const tenant = await loadEmpresas().then(empresas => empresas.find(emp => emp.id === tenantId) || null);
     if (!tenant) return null;
     const tenantUsers = await loadUsers().then(users => users.filter(user => user.empId === tenantId));
     const bsale = tenant?.integrationConfigs?.bsale || {};
     const bsaleSandbox = bsale?.sandbox || {};
+    const auditLogsMap = await loadPlatformAuditLogs();
+    const operationalEventsMap = await loadOperationalEvents();
     return {
       tenant: {
         id: tenant.id,
@@ -114,7 +128,8 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
       promotionPlans: [],
       membershipBlueprints: [],
       membershipTransitionQueue: [],
-      auditLogs: [],
+      auditLogs: Array.isArray(auditLogsMap?.[tenantId]) ? auditLogsMap[tenantId].slice(0, 12) : [],
+      operationalEvents: Array.isArray(operationalEventsMap?.[tenantId]) ? operationalEventsMap[tenantId].slice(0, 12) : [],
     };
   };
 
@@ -136,7 +151,8 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
     },
 
     async appendSyncAuditLog(tenantId, action, entityType, entityId = "", payload = {}) {
-      return {
+      const logs = await loadPlatformAuditLogs();
+      const entry = {
         id: uid(),
         tenantId,
         action,
@@ -146,6 +162,53 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
         createdAt: new Date().toISOString(),
         source: "fallback",
       };
+      const currentTenantLogs = Array.isArray(logs?.[tenantId]) ? logs[tenantId] : [];
+      await savePlatformAuditLogs({
+        ...logs,
+        [tenantId]: [entry, ...currentTenantLogs].slice(0, 40),
+      });
+      return entry;
+    },
+
+    async appendOperationalEvent(tenantId, draft = {}) {
+      const events = await loadOperationalEvents();
+      const entry = {
+        id: uid(),
+        tenantId,
+        area: String(draft.area || "operacion").trim() || "operacion",
+        action: String(draft.action || "updated").trim() || "updated",
+        entityType: String(draft.entityType || "").trim(),
+        entityId: String(draft.entityId || "").trim(),
+        actor: draft.actor && typeof draft.actor === "object" ? draft.actor : null,
+        payload: draft.payload && typeof draft.payload === "object" ? draft.payload : {},
+        createdAt: draft.createdAt || new Date().toISOString(),
+        source: "fallback",
+      };
+      const currentTenantEvents = Array.isArray(events?.[tenantId]) ? events[tenantId] : [];
+      await saveOperationalEvents({
+        ...events,
+        [tenantId]: [entry, ...currentTenantEvents].slice(0, 80),
+      });
+      await this.appendSyncAuditLog(
+        tenantId,
+        `${entry.area}_${entry.action}`,
+        entry.entityType || entry.area,
+        entry.entityId || tenantId,
+        {
+          ...entry.payload,
+          auditType: "operational",
+          area: entry.area,
+          actionName: entry.action,
+          actor: entry.actor,
+          source: "legacy_operational_event",
+        },
+      );
+      return entry;
+    },
+
+    async getOperationalEvents(tenantId, limit = 24) {
+      const events = await loadOperationalEvents();
+      return Array.isArray(events?.[tenantId]) ? events[tenantId].slice(0, Math.max(Number(limit || 24), 1)) : [];
     },
 
     async upsertFinancialRegistrySnapshot(tenantId, registryName, records = [], metadata = {}) {

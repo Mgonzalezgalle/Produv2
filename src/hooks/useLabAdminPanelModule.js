@@ -160,7 +160,7 @@ export function useLabAdminPanelModule({
   const [platformPlanning, setPlatformPlanning] = useState(false);
   const [platformPreparingMemberships, setPlatformPreparingMemberships] = useState(false);
   const [platformQueueingMemberships, setPlatformQueueingMemberships] = useState(false);
-  const [operationalAuditEntries, setOperationalAuditEntries] = useState([]);
+  const [localOperationalAuditEntries, setLocalOperationalAuditEntries] = useState([]);
   const [tenantBsaleConfig, setTenantBsaleConfig] = useState({
     mode: "sandbox",
     status: "draft",
@@ -429,7 +429,7 @@ export function useLabAdminPanelModule({
   useEffect(() => {
     let cancelled = false;
     if (!empresa?.id) {
-      setOperationalAuditEntries([]);
+      setLocalOperationalAuditEntries([]);
       return () => {
         cancelled = true;
       };
@@ -437,15 +437,30 @@ export function useLabAdminPanelModule({
     Promise.resolve(dbGet?.(operationalAuditStorageKey(empresa.id)))
       .then((entries) => {
         if (cancelled) return;
-        setOperationalAuditEntries(Array.isArray(entries) ? entries.slice(0, 8) : []);
+        setLocalOperationalAuditEntries(Array.isArray(entries) ? entries.slice(0, 8) : []);
       })
       .catch(() => {
-        if (!cancelled) setOperationalAuditEntries([]);
+        if (!cancelled) setLocalOperationalAuditEntries([]);
       });
     return () => {
       cancelled = true;
     };
   }, [dbGet, empresa?.id]);
+
+  const operationalAuditEntries = useMemo(() => {
+    const local = Array.isArray(localOperationalAuditEntries) ? localOperationalAuditEntries : [];
+    const remote = Array.isArray(platformSnapshot?.operationalEvents) ? platformSnapshot.operationalEvents : [];
+    const deduped = new Map();
+    [...local, ...remote].forEach((entry) => {
+      if (!entry || typeof entry !== "object") return;
+      const key = String(entry.id || `${entry.createdAt || ""}:${entry.area || ""}:${entry.action || ""}:${entry.entityId || ""}`).trim();
+      if (!key || deduped.has(key)) return;
+      deduped.set(key, entry);
+    });
+    return Array.from(deduped.values())
+      .sort((a, b) => String(b?.createdAt || "").localeCompare(String(a?.createdAt || "")))
+      .slice(0, 12);
+  }, [localOperationalAuditEntries, platformSnapshot]);
 
   const referralStatus = sol => {
     const targetEmp = (empresas || []).find(e => e.id === sol.empresaId);
@@ -511,7 +526,7 @@ export function useLabAdminPanelModule({
     }))
       .then((result) => {
         if (!result?.entry) return;
-        setOperationalAuditEntries((prev) => [result.entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 8));
+        setLocalOperationalAuditEntries((prev) => [result.entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 8));
       })
       .catch(() => null);
   };

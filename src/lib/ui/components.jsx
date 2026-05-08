@@ -278,7 +278,7 @@ export const ValidationBanner = ({ title, detail, style = {} }) => (title || det
 export const R2 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 12 }}>{children}</div>;
 export const R3 = ({ children }) => <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 12 }}>{children}</div>;
 
-export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false }) => (
+export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false, secondaryActionLabel = "", onSecondaryAction, secondaryDisabled = false }) => (
   <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--bdr)" }}>
     <button
       type="button"
@@ -290,6 +290,18 @@ export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false }) 
     >
       Cancelar
     </button>
+    {!!secondaryActionLabel && <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation();
+        if (secondaryDisabled) return;
+        onSecondaryAction?.();
+      }}
+      disabled={secondaryDisabled}
+      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--cy)", background: "transparent", color: secondaryDisabled ? "var(--gr2)" : "var(--cy)", cursor: secondaryDisabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: secondaryDisabled ? 0.7 : 1 }}
+    >
+      {secondaryActionLabel}
+    </button>}
     <button
       type="button"
       onClick={e => {

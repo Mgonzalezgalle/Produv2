@@ -41,7 +41,7 @@ export function useLabModalActions({
     return true;
   }, [cSave, canManageContracts, contratos, empId, setContratos, withEmp]);
 
-  const saveContentPiece = useCallback(async (d) => {
+  const saveContentPiece = useCallback(async (d, options = {}) => {
     if (!empId || !canManageContent) return false;
     const campId = mData?.campId;
     if (!campId) return false;
@@ -56,7 +56,7 @@ export function useLabModalActions({
           }
     ));
     await setPiezas(next);
-    closeM();
+    if (!options?.keepOpen) closeM();
     ntf("Pieza guardada ✓");
     return true;
   }, [canManageContent, closeM, empId, helpers, mData?.campId, ntf, piezas, setPiezas]);

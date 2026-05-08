@@ -100,6 +100,39 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
   const [f, setF] = useState({});
   useEffect(() => { setF(data?.id ? normalizeSocialPiece(data) : normalizeSocialPiece({ id: uid(), nom: "", formato: "Reel", plataforma: data?.plataforma || "Instagram", est: "Planificado", ini: data?.ini || today(), fin: "", des: "", link: "", comentarios: [] }, data || {})); }, [data, open, normalizeSocialPiece, today, uid]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const saveCurrent = async () => {
+    if (!f.nom?.trim()) return false;
+    const result = await onSave(f);
+    return result !== false;
+  };
+  const saveAndCreateAnother = async () => {
+    if (!f.nom?.trim()) return;
+    const saved = await onSave(f, { keepOpen: true });
+    if (saved === false) return;
+    setF(normalizeSocialPiece({
+      id: uid(),
+      nom: "",
+      formato: f.formato || "Reel",
+      plataforma: f.plataforma || data?.plataforma || "Instagram",
+      mes: f.mes || data?.mes || "",
+      est: "Planificado",
+      ini: f.ini || data?.ini || today(),
+      fin: f.fin || "",
+      des: "",
+      brief: "",
+      objetivo: "",
+      cta: "",
+      copy: "",
+      hashtags: "",
+      approval: "Pendiente",
+      publishDate: "",
+      publishedAt: "",
+      link: "",
+      finalLink: "",
+      responsableId: f.responsableId || "",
+      comentarios: [],
+    }, data || {}));
+  };
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Pieza" : "Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
     <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est || "Planificado"} onChange={e => u("est", e.target.value)}>{(listas?.estadosPieza || DEFAULT_LISTAS.estadosPieza).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
     <R3><FG label="Formato"><FSl value={f.formato || "Reel"} onChange={e => u("formato", e.target.value)}>{(listas?.formatosPieza || DEFAULT_LISTAS.formatosPieza).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Plataforma"><FSl value={f.plataforma || "Instagram"} onChange={e => u("plataforma", e.target.value)}>{(listas?.plataformasContenido || DEFAULT_LISTAS.plataformasContenido).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Responsable"><FSl value={f.responsableId || ""} onChange={e => u("responsableId", e.target.value)}><option value="">— Sin responsable —</option>{(crewOptions || []).map(member => <option key={member.id} value={member.id}>{member.nom} · {member.rol || "Crew"}</option>)}</FSl></FG></R3>
@@ -112,7 +145,7 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
     <FG label="Copy principal"><FTA value={f.copy || ""} onChange={e => u("copy", e.target.value)} placeholder="Texto o bajada principal que acompañará la publicación."/></FG>
     <FG label="Hashtags"><FI value={f.hashtags || ""} onChange={e => u("hashtags", e.target.value)} placeholder="#marca #campaña #contenido"/></FG>
     <FG label="Descripción / Brief"><FTA value={f.des || ""} onChange={e => u("des", e.target.value)} placeholder="Concepto creativo, referencias, notas y criterios editoriales..."/></FG>
-    <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
+    <MFoot onClose={onClose} onSave={saveCurrent} secondaryActionLabel={data?.id ? "" : "Guardar y crear otra"} onSecondaryAction={saveAndCreateAnother} />
   </Modal>;
 }
 

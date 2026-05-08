@@ -41,12 +41,13 @@ export function buildFinancialWorkflowAnalytics({
     invoices: localInvoices.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.invoices) / Math.max(localInvoices.length, 1)),
     receipts: localReceipts.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.receipts) / Math.max(localReceipts.length, 1)),
     disbursements: localDisbursements.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.disbursements) / Math.max(localDisbursements.length, 1)),
+    payables: localPayables.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.payables) / Math.max(localPayables.length, 1)),
     purchaseOrders: localPurchaseOrders.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.purchase_orders) / Math.max(localPurchaseOrders.length, 1)),
     issuedOrders: localIssuedOrders.length === 0 ? 1 : Math.min(1, countRecords(remoteFinancialRegistries?.issued_orders) / Math.max(localIssuedOrders.length, 1)),
   };
 
   const coverageScore = Math.round(
-    ((coverage.invoices + coverage.receipts + coverage.disbursements + coverage.purchaseOrders + coverage.issuedOrders) / 5) * 100,
+    ((coverage.invoices + coverage.receipts + coverage.disbursements + coverage.payables + coverage.purchaseOrders + coverage.issuedOrders) / 6) * 100,
   );
 
   const warnings = [

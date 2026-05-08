@@ -359,12 +359,14 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
             invoicesSnapshot,
             receiptsSnapshot,
             disbursementsSnapshot,
+            payablesSnapshot,
             purchaseOrdersSnapshot,
             issuedOrdersSnapshot,
           ] = await Promise.all([
             this.getFinancialRegistrySnapshot(tenantId, "invoices"),
             this.getFinancialRegistrySnapshot(tenantId, "receipts"),
             this.getFinancialRegistrySnapshot(tenantId, "disbursements"),
+            this.getFinancialRegistrySnapshot(tenantId, "payables"),
             this.getFinancialRegistrySnapshot(tenantId, "purchase_orders"),
             this.getFinancialRegistrySnapshot(tenantId, "issued_orders"),
           ]);
@@ -372,6 +374,7 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
             invoices: invoicesSnapshot || null,
             receipts: receiptsSnapshot || null,
             disbursements: disbursementsSnapshot || null,
+            payables: payablesSnapshot || null,
             purchase_orders: purchaseOrdersSnapshot || null,
             issued_orders: issuedOrdersSnapshot || null,
           };

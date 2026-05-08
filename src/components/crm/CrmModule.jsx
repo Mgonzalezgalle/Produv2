@@ -35,6 +35,7 @@ export function CrmModule({
   fmtD,
   canDo,
   platformApi,
+  platformServices,
 }) {
   const [emailComposerOpen, setEmailComposerOpen] = React.useState(false);
   const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
@@ -125,6 +126,7 @@ export function CrmModule({
     crmSavingRef,
     fmtD,
     canDo,
+    platformServices,
   });
 
   const openCrmEmailComposer = React.useCallback((opportunity, activity) => {

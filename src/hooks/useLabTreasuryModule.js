@@ -58,6 +58,26 @@ function sanitizeTreasuryDisbursement(next = {}, empId = "") {
   };
 }
 
+function sanitizeTreasuryPayable(next = {}, empId = "") {
+  const total = Number(next?.total || 0);
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    supplier: String(next?.supplier || "").trim(),
+    docType: String(next?.docType || "").trim(),
+    folio: String(next?.folio || "").trim(),
+    category: String(next?.category || "").trim(),
+    issueDate: String(next?.issueDate || "").trim(),
+    dueDate: String(next?.dueDate || "").trim(),
+    status: String(next?.status || "Pendiente").trim() || "Pendiente",
+    total: Number.isFinite(total) ? total : 0,
+    pdfName: String(next?.pdfName || "").trim(),
+    pdfUrl: String(next?.pdfUrl || "").trim(),
+    notes: String(next?.notes || "").trim(),
+  };
+}
+
 function sanitizeTreasuryPurchaseOrder(next = {}, empId = "") {
   const amount = Number(next?.amount || 0);
   return {
@@ -135,6 +155,7 @@ export function useLabTreasuryModule({
   const [disbursementDraft, setDisbursementDraft] = useState(null);
   const [providerOpen, setProviderOpen] = useState(false);
   const [providerDraft, setProviderDraft] = useState(null);
+  const payablesRemoteHydratedRef = useRef("");
   const receiptsRemoteHydratedRef = useRef("");
   const disbursementsRemoteHydratedRef = useRef("");
   const purchaseOrdersRemoteHydratedRef = useRef("");
@@ -230,11 +251,31 @@ export function useLabTreasuryModule({
   }, [setTreasuryDisbursements, treasuryDisbursements, treasuryDisbursementsRecovered]);
 
   useEffect(() => {
+    payablesRemoteHydratedRef.current = "";
     receiptsRemoteHydratedRef.current = "";
     disbursementsRemoteHydratedRef.current = "";
     purchaseOrdersRemoteHydratedRef.current = "";
     issuedOrdersRemoteHydratedRef.current = "";
   }, [empId]);
+
+  useEffect(() => {
+    let alive = true;
+    foundationFinancialRegistry.rehydrateSnapshot({
+      registryName: "payables",
+      hydratedRef: payablesRemoteHydratedRef,
+      currentRecords: treasuryPayables,
+      setRecords: setTreasuryPayables,
+      sanitizeRecord: sanitizeTreasuryPayable,
+      isValidRecord: item => item.id && item.supplier && item.total >= 0,
+      mergeRecords: mergeById,
+      failureMessage: "No pudimos rehidratar payables desde foundation.",
+    }).then(() => {
+      if (!alive) return;
+    });
+    return () => {
+      alive = false;
+    };
+  }, [foundationFinancialRegistry, setTreasuryPayables, treasuryPayables]);
 
   useEffect(() => {
     let alive = true;
@@ -315,12 +356,20 @@ export function useLabTreasuryModule({
   const savePayable = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = withEmp(next);
+    const safeNext = sanitizeTreasuryPayable(withEmp(next), empId);
     const exists = treasuryPayables.some(item => item.id === safeNext.id);
-    const updated = exists
-      ? treasuryPayables.map(item => item.id === safeNext.id ? safeNext : item)
-      : [...treasuryPayables, safeNext];
+    const updated = mergeById(treasuryPayables, [safeNext]);
     await setTreasuryPayables?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "payables",
+      records: updated,
+      metadata: {
+        reason: exists ? "payable_updated" : "payable_created",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar payables con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",
@@ -343,7 +392,18 @@ export function useLabTreasuryModule({
 
   const deletePayable = async id => {
     if (!canManageTreasury) return false;
-    await setTreasuryPayables?.(treasuryPayables.filter(item => item.id !== id));
+    const updated = treasuryPayables.filter(item => item.id !== id);
+    await setTreasuryPayables?.(updated);
+    await foundationFinancialRegistry.syncSnapshot({
+      registryName: "payables",
+      records: updated,
+      metadata: {
+        reason: "payable_deleted",
+        actorUserId: currentUser?.id || "",
+        actorUserEmail: currentUser?.email || "",
+      },
+      degradedMessage: "No pudimos sincronizar payables con foundation.",
+    });
     await appendOperationalAuditEntry({
       empId,
       area: "tesoreria",

@@ -279,10 +279,11 @@ export function EmpresaEditSection({
         <AdminPanelCard
           eyebrow="Cobertura financiera"
           title="Foundation y respaldo documental"
-          description="Lectura rápida del respaldo remoto para facturas, receipts, disbursements, órdenes de compra y OC emitidas."
+          description="Lectura rápida del respaldo remoto para facturas, cuentas por pagar, receipts, disbursements, órdenes de compra y OC emitidas."
         >
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
             <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
+            <Badge label={operationalHealth.financialRegistryHealth.payablesCovered ? "CxP cubiertas" : "CxP sin respaldo"} color={operationalHealth.financialRegistryHealth.payablesCovered ? "green" : "yellow"} sm />
             <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
             <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
             <Badge label={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "OC clientes cubiertas" : "OC clientes sin respaldo"} color={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "green" : "yellow"} sm />
@@ -291,6 +292,8 @@ export function EmpresaEditSection({
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
             <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
             <KV label="Facturas foundation" value={operationalHealth.financialRegistryHealth.remoteInvoiceCount} />
+            <KV label="CxP locales" value={operationalHealth.financialRegistryHealth.localPayableCount} />
+            <KV label="CxP foundation" value={operationalHealth.financialRegistryHealth.remotePayableCount} />
             <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
             <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
             <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />

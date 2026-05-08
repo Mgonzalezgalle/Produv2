@@ -9,6 +9,7 @@ import {
   normalizeCrmStages,
   recoverPreferredCrmStages,
 } from "../lib/utils/crm";
+import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 import { requestConfirm } from "../lib/ui/confirmService";
 
 const uid = () => "_" + Math.random().toString(36).slice(2, 10);
@@ -34,6 +35,7 @@ export function useLabCrmModule({
   crmSavingRef,
   fmtD,
   canDo,
+  platformServices = null,
 }) {
   const empId = empresa?.id;
   const isMobile = typeof window !== "undefined" ? window.innerWidth <= 768 : false;
@@ -118,6 +120,19 @@ export function useLabCrmModule({
   const mobileStage = scopedStages.find(stage => stage.id === activeMobileStageId) || scopedStages[0];
   const mobileStageItems = sorted.filter(opp => opp.stageId === activeMobileStageId);
   const hasTenant = Boolean(empId);
+  const recordCrmAudit = async (action, entityType, entityId = "", payload = {}) => {
+    if (!hasTenant) return null;
+    return appendOperationalAuditEntry({
+      empId,
+      area: "crm",
+      action,
+      entityType,
+      entityId: String(entityId || "").trim(),
+      actor: user,
+      payload,
+      platformServices,
+    });
+  };
 
   useEffect(() => {
     if (!mobileStageId && scopedStages[0]?.id) setMobileStageId(scopedStages[0].id);
@@ -131,28 +146,57 @@ export function useLabCrmModule({
   };
   const addActivity = async (oppId, text, type = "note", extra = {}) => {
     if (!hasTenant || !canManageCrm || !text?.trim()) return false;
-    await setCrmActivities([...(crmActivities || []), crmActivityEntry(oppId, text.trim(), type, user, empId, extra)]);
+    const entry = crmActivityEntry(oppId, text.trim(), type, user, empId, extra);
+    await setCrmActivities([...(crmActivities || []), entry]);
+    await recordCrmAudit("activity_created", "crm_activity", entry.id || oppId, {
+      opportunityId: oppId,
+      type,
+      hasExtraContext: Object.keys(extra || {}).length > 0,
+    });
     return true;
   };
-  const saveOpp = async (opp, activityText = "", activityType = "update") => {
+  const saveOpp = async (opp, activityText = "", activityType = "update", audit = {}) => {
     if (!hasTenant || !canManageCrm) return null;
     const nextOpp = crmNormalizeOpportunity({ ...opp, empId }, scopedStages);
     const exists = scopedOpps.some(item => item.id === nextOpp.id);
     const nextList = exists ? (crmOpps || []).map(item => item.id === nextOpp.id ? nextOpp : item) : [...(crmOpps || []), nextOpp];
     await persistOpps(nextList);
     if (activityText) await addActivity(nextOpp.id, activityText, activityType);
+    await recordCrmAudit(
+      audit.action || (exists ? "opportunity_updated" : "opportunity_created"),
+      "crm_opportunity",
+      nextOpp.id,
+      {
+        stageId: nextOpp.stageId || "",
+        status: nextOpp.status || "",
+        responsible: nextOpp.responsable || "",
+        tipoNegocio: nextOpp.tipo_negocio || "",
+        value: Number(nextOpp.monto_estimado || 0),
+        ...((audit.payload && typeof audit.payload === "object") ? audit.payload : {}),
+      },
+    );
     return nextOpp;
   };
   const updateStage = async (opp, stageId) => {
     if (!canManageCrm) return;
     const stage = crmStageMeta(stageId, scopedStages);
     const nextStatus = stage.closedWon ? "Ganada" : stage.closedLost ? "Perdida" : (opp.status === "Ganada" || opp.status === "Perdida" ? "Activa" : opp.status || "Activa");
-    await saveOpp({ ...opp, stageId, status: nextStatus }, `Etapa actualizada a ${stage.name}.`, "stage");
+    await saveOpp(
+      { ...opp, stageId, status: nextStatus },
+      `Etapa actualizada a ${stage.name}.`,
+      "stage",
+      { action: "opportunity_stage_updated", payload: { nextStageId: stageId, nextStageName: stage.name || "" } },
+    );
     ntf?.("Etapa actualizada ✓");
   };
   const updateQuickField = async (opp, key, value, label) => {
     if (!canManageCrm) return;
-    await saveOpp({ ...opp, [key]: value }, `${label} actualizado.`, "update");
+    await saveOpp(
+      { ...opp, [key]: value },
+      `${label} actualizado.`,
+      "update",
+      { action: "opportunity_field_updated", payload: { field: key, label, value: typeof value === "string" || typeof value === "number" ? value : "" } },
+    );
   };
   const passToEntity = async opp => {
     if (!hasTenant || !canManageCrm) return;
@@ -179,7 +223,12 @@ export function useLabCrmModule({
         };
         await setAuspiciadores([...(auspiciadores || []), newSponsor]);
       }
-      await saveOpp({ ...opp, linkedSponsorId: sponsorId, convertedAt: today(), convertedBy: user?.name || "", status: "Ganada", stageId: stageWon?.id || opp.stageId }, `Oportunidad vinculada al módulo de Auspiciadores${existing ? " (auspiciador existente)." : "."}`, "conversion");
+      await saveOpp(
+        { ...opp, linkedSponsorId: sponsorId, convertedAt: today(), convertedBy: user?.name || "", status: "Ganada", stageId: stageWon?.id || opp.stageId },
+        `Oportunidad vinculada al módulo de Auspiciadores${existing ? " (auspiciador existente)." : "."}`,
+        "conversion",
+        { action: "opportunity_converted", payload: { targetEntity: "sponsor", targetId: sponsorId, reusedExisting: Boolean(existing) } },
+      );
       ntf?.(existing ? "Vinculado a auspiciador existente ✓" : "Auspiciador creado desde CRM ✓");
       return;
     }
@@ -206,7 +255,12 @@ export function useLabCrmModule({
       };
       await setClientes([...(clientes || []), newClient]);
     }
-    await saveOpp({ ...opp, linkedClientId: clientId, convertedAt: today(), convertedBy: user?.name || "", status: "Ganada", stageId: stageWon?.id || opp.stageId }, `Oportunidad vinculada al módulo de Clientes${existing ? " (cliente existente)." : "."}`, "conversion");
+    await saveOpp(
+      { ...opp, linkedClientId: clientId, convertedAt: today(), convertedBy: user?.name || "", status: "Ganada", stageId: stageWon?.id || opp.stageId },
+      `Oportunidad vinculada al módulo de Clientes${existing ? " (cliente existente)." : "."}`,
+      "conversion",
+      { action: "opportunity_converted", payload: { targetEntity: "client", targetId: clientId, reusedExisting: Boolean(existing) } },
+    );
     ntf?.(existing ? "Vinculado a cliente existente ✓" : "Cliente creado desde CRM ✓");
   };
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -234,6 +288,10 @@ export function useLabCrmModule({
       ...(crmActivities || []),
       ...selectedItems.map(opp => crmActivityEntry(opp.id, `Tipo de negocio actualizado en lote a ${bulkTipoNegocio === "auspiciador" ? "Auspiciador" : "Cliente"}.`, "update", user, empId)),
     ]);
+    await recordCrmAudit("opportunities_bulk_business_type_updated", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+      tipoNegocio: bulkTipoNegocio,
+    });
     ntf?.(`Tipo de negocio actualizado en ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} ✓`);
     clearSelection();
   };
@@ -250,6 +308,11 @@ export function useLabCrmModule({
       ...(crmActivities || []),
       ...selectedItems.map(opp => crmActivityEntry(opp.id, `Responsable reasignado en lote a ${targetUser?.name || "nuevo responsable"}.`, "update", user, empId)),
     ]);
+    await recordCrmAudit("opportunities_bulk_responsible_updated", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+      responsibleUserId: bulkResponsible,
+      responsibleUserName: targetUser?.name || "",
+    });
     ntf?.(`Responsable actualizado en ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} ✓`);
     clearSelection();
   };
@@ -267,6 +330,9 @@ export function useLabCrmModule({
     if (tasksEnabled && canManageTasks) {
       await setTareas((Array.isArray(tareas) ? tareas : []).filter(task => !(task?.empId === empId && task.refTipo === "crm" && selectedSet.has(task.refId))));
     }
+    await recordCrmAudit("opportunities_bulk_deleted", "crm_opportunity_batch", selectedIds.join(","), {
+      opportunityCount: selectedItems.length,
+    });
     ntf?.(`Se eliminaron ${selectedItems.length} oportunidad${selectedItems.length === 1 ? "" : "es"} ✓`, "warn");
     clearSelection();
   };
@@ -285,6 +351,9 @@ export function useLabCrmModule({
         order: idx + 1,
       }));
       await setCrmStages(normalized);
+      await recordCrmAudit("stage_configuration_saved", "crm_stage_config", empId, {
+        stageCount: normalized.length,
+      });
       ntf?.("Etapas CRM actualizadas ✓");
       return true;
     } finally {
@@ -309,6 +378,11 @@ export function useLabCrmModule({
       await setCrmOpps(nextOpps);
     }
     await saveStageConfig(nextStages);
+    await recordCrmAudit("stage_removed", "crm_stage", stageId, {
+      removedStageName: stage.name || "",
+      fallbackStageId: fallback.id || "",
+      reassignedOpportunityCount: linked.length,
+    });
     ntf?.(`Etapa eliminada${linked.length ? ` y ${linked.length} oportunidad${linked.length === 1 ? "" : "es"} reasignada${linked.length === 1 ? "" : "s"}` : ""} ✓`);
   };
 

@@ -75,6 +75,7 @@ function buildFinancialRegistryHealth({
   invoices = [],
   receipts = [],
   disbursements = [],
+  payables = [],
   purchaseOrders = [],
   issuedOrders = [],
   remoteFinancialRegistries = {},
@@ -82,24 +83,28 @@ function buildFinancialRegistryHealth({
   const localInvoices = Array.isArray(invoices) ? invoices : [];
   const localReceipts = Array.isArray(receipts) ? receipts : [];
   const localDisbursements = Array.isArray(disbursements) ? disbursements : [];
+  const localPayables = Array.isArray(payables) ? payables : [];
   const localPurchaseOrders = Array.isArray(purchaseOrders) ? purchaseOrders : [];
   const localIssuedOrders = Array.isArray(issuedOrders) ? issuedOrders : [];
   const remoteInvoices = Array.isArray(remoteFinancialRegistries?.invoices?.records) ? remoteFinancialRegistries.invoices.records : [];
   const remoteReceipts = Array.isArray(remoteFinancialRegistries?.receipts?.records) ? remoteFinancialRegistries.receipts.records : [];
   const remoteDisbursements = Array.isArray(remoteFinancialRegistries?.disbursements?.records) ? remoteFinancialRegistries.disbursements.records : [];
+  const remotePayables = Array.isArray(remoteFinancialRegistries?.payables?.records) ? remoteFinancialRegistries.payables.records : [];
   const remotePurchaseOrders = Array.isArray(remoteFinancialRegistries?.purchase_orders?.records) ? remoteFinancialRegistries.purchase_orders.records : [];
   const remoteIssuedOrders = Array.isArray(remoteFinancialRegistries?.issued_orders?.records) ? remoteFinancialRegistries.issued_orders.records : [];
 
   const invoicesCovered = localInvoices.length === 0 || remoteInvoices.length > 0;
   const receiptsCovered = localReceipts.length === 0 || remoteReceipts.length > 0;
   const disbursementsCovered = localDisbursements.length === 0 || remoteDisbursements.length > 0;
+  const payablesCovered = localPayables.length === 0 || remotePayables.length > 0;
   const purchaseOrdersCovered = localPurchaseOrders.length === 0 || remotePurchaseOrders.length > 0;
   const issuedOrdersCovered = localIssuedOrders.length === 0 || remoteIssuedOrders.length > 0;
-  const foundationReady = invoicesCovered && receiptsCovered && disbursementsCovered && purchaseOrdersCovered && issuedOrdersCovered;
+  const foundationReady = invoicesCovered && receiptsCovered && disbursementsCovered && payablesCovered && purchaseOrdersCovered && issuedOrdersCovered;
   const warnings = [
     localInvoices.length > 0 && remoteInvoices.length === 0 ? "Las facturas locales todavía no tienen respaldo foundation visible." : "",
     localReceipts.length > 0 && remoteReceipts.length === 0 ? "Los receipts locales todavía no tienen respaldo foundation visible." : "",
     localDisbursements.length > 0 && remoteDisbursements.length === 0 ? "Los disbursements locales todavía no tienen respaldo foundation visible." : "",
+    localPayables.length > 0 && remotePayables.length === 0 ? "Las cuentas por pagar locales todavía no tienen respaldo foundation visible." : "",
     localPurchaseOrders.length > 0 && remotePurchaseOrders.length === 0 ? "Las órdenes de compra locales todavía no tienen respaldo foundation visible." : "",
     localIssuedOrders.length > 0 && remoteIssuedOrders.length === 0 ? "Las OC emitidas locales todavía no tienen respaldo foundation visible." : "",
   ].filter(Boolean);
@@ -108,16 +113,19 @@ function buildFinancialRegistryHealth({
     localInvoiceCount: localInvoices.length,
     localReceiptCount: localReceipts.length,
     localDisbursementCount: localDisbursements.length,
+    localPayableCount: localPayables.length,
     localPurchaseOrderCount: localPurchaseOrders.length,
     localIssuedOrderCount: localIssuedOrders.length,
     remoteInvoiceCount: remoteInvoices.length,
     remoteReceiptCount: remoteReceipts.length,
     remoteDisbursementCount: remoteDisbursements.length,
+    remotePayableCount: remotePayables.length,
     remotePurchaseOrderCount: remotePurchaseOrders.length,
     remoteIssuedOrderCount: remoteIssuedOrders.length,
     invoicesCovered,
     receiptsCovered,
     disbursementsCovered,
+    payablesCovered,
     purchaseOrdersCovered,
     issuedOrdersCovered,
     foundationReady,
@@ -292,6 +300,7 @@ export function useLabAdminPanelModule({
     invoices: localFinancialRegistries.invoices,
     receipts: localFinancialRegistries.receipts,
     disbursements: localFinancialRegistries.disbursements,
+    payables: localFinancialRegistries.payables,
     purchaseOrders: localFinancialRegistries.purchaseOrders,
     issuedOrders: localFinancialRegistries.issuedOrders,
     remoteFinancialRegistries,

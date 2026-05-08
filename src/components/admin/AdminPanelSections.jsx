@@ -203,7 +203,6 @@ export function EmpresaEditSection({
   const addonsCount = (empresa.addons || []).length;
   const hasLogo = Boolean(empresa?.logo);
   const paymentConfigured = Boolean(empresa?.paymentDetails?.holder && empresa?.paymentDetails?.bank && empresa?.paymentDetails?.accountNumber);
-  const healthTone = operationalHealth?.warningCount ? "warning" : "success";
 
   if (!editing) return (
     <div style={{ display:"grid", gap:14 }}>
@@ -258,8 +257,8 @@ export function EmpresaEditSection({
         <AdminPanelCard
           eyebrow="Salud operativa"
           title="Estado base de la empresa"
-          description="Visibilidad rápida para saber si la empresa está lista para operar sin revisar storage o foundation manualmente."
-          tone={healthTone}
+          description="Visibilidad rápida para revisar configuración general, perfiles activos y capacidades habilitadas."
+          tone={operationalHealth?.warningCount ? "warning" : "success"}
           actions={
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               <Badge label={operationalHealth.profileReady ? "Perfil OK" : "Perfil incompleto"} color={operationalHealth.profileReady ? "green" : "yellow"} sm />
@@ -279,219 +278,12 @@ export function EmpresaEditSection({
             <KV label="Integraciones activas" value={operationalHealth.integrationEnabledCount} />
             <KV label="Integraciones industrializadas" value={operationalHealth.integrationIndustrializedCount} />
             <KV label="Bloqueos recientes" value={blockedAdminEntries.length} />
-            <KV label="Sync foundation" value={foundationSyncEntries.length} />
-            <KV label="Eventos workflow" value={workflowEventEntries.length} />
             <KV label="Alertas" value={operationalHealth.warningCount} />
           </div>
           <div style={{display:"grid",gap:6}}>
             {operationalHealth.warnings.length
               ? operationalHealth.warnings.map((warning, index) => <div key={`tenant-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
               : <div style={{fontSize:11,color:"var(--gr2)"}}>No detectamos alertas críticas en la configuración base de esta empresa.</div>}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!operationalHealth?.financialRegistryHealth && (
-        <AdminPanelCard
-          eyebrow="Cobertura financiera"
-          title="Foundation y respaldo documental"
-          description="Lectura rápida del respaldo remoto para facturas, cuentas por pagar, receipts, disbursements, órdenes de compra y OC emitidas."
-        >
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-            <Badge label={operationalHealth.financialRegistryHealth.invoicesCovered ? "Facturas cubiertas" : "Facturas sin respaldo"} color={operationalHealth.financialRegistryHealth.invoicesCovered ? "green" : "yellow"} sm />
-            <Badge label={operationalHealth.financialRegistryHealth.payablesCovered ? "CxP cubiertas" : "CxP sin respaldo"} color={operationalHealth.financialRegistryHealth.payablesCovered ? "green" : "yellow"} sm />
-            <Badge label={operationalHealth.financialRegistryHealth.receiptsCovered ? "Receipts cubiertos" : "Receipts sin respaldo"} color={operationalHealth.financialRegistryHealth.receiptsCovered ? "green" : "yellow"} sm />
-            <Badge label={operationalHealth.financialRegistryHealth.disbursementsCovered ? "Disbursements cubiertos" : "Disbursements sin respaldo"} color={operationalHealth.financialRegistryHealth.disbursementsCovered ? "green" : "yellow"} sm />
-            <Badge label={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "OC clientes cubiertas" : "OC clientes sin respaldo"} color={operationalHealth.financialRegistryHealth.purchaseOrdersCovered ? "green" : "yellow"} sm />
-            <Badge label={operationalHealth.financialRegistryHealth.issuedOrdersCovered ? "OC emitidas cubiertas" : "OC emitidas sin respaldo"} color={operationalHealth.financialRegistryHealth.issuedOrdersCovered ? "green" : "yellow"} sm />
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
-            <KV label="Facturas locales" value={operationalHealth.financialRegistryHealth.localInvoiceCount} />
-            <KV label="Facturas foundation" value={operationalHealth.financialRegistryHealth.remoteInvoiceCount} />
-            <KV label="CxP locales" value={operationalHealth.financialRegistryHealth.localPayableCount} />
-            <KV label="CxP foundation" value={operationalHealth.financialRegistryHealth.remotePayableCount} />
-            <KV label="Receipts locales" value={operationalHealth.financialRegistryHealth.localReceiptCount} />
-            <KV label="Receipts foundation" value={operationalHealth.financialRegistryHealth.remoteReceiptCount} />
-            <KV label="Disbursements locales" value={operationalHealth.financialRegistryHealth.localDisbursementCount} />
-            <KV label="Disbursements foundation" value={operationalHealth.financialRegistryHealth.remoteDisbursementCount} />
-            <KV label="OC clientes locales" value={operationalHealth.financialRegistryHealth.localPurchaseOrderCount} />
-            <KV label="OC clientes foundation" value={operationalHealth.financialRegistryHealth.remotePurchaseOrderCount} />
-            <KV label="OC emitidas locales" value={operationalHealth.financialRegistryHealth.localIssuedOrderCount} />
-            <KV label="OC emitidas foundation" value={operationalHealth.financialRegistryHealth.remoteIssuedOrderCount} />
-          </div>
-          <div style={{display:"grid",gap:6}}>
-            {operationalHealth.financialRegistryHealth.warnings.length
-              ? operationalHealth.financialRegistryHealth.warnings.map((warning, index) => <div key={`financial-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
-              : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas de cobertura financiera para estos registros.</div>}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!workflowAnalytics && (
-        <AdminPanelCard
-          eyebrow="Workflow financiero"
-          title="Lectura operativa y analítica inicial"
-          description="Primer corte para detectar cuellos de botella reales entre facturación, cobranza, órdenes de compra, pagos y cobertura foundation."
-        >
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-            <Badge label={`Cobertura ${workflowAnalytics.coverageScore}%`} color={workflowAnalytics.coverageScore >= 100 ? "green" : "yellow"} sm />
-            <Badge label={`${workflowAnalytics.invoicesPendingCollection} factura(s) por cobrar`} color={workflowAnalytics.invoicesPendingCollection ? "yellow" : "green"} sm />
-            <Badge label={`${workflowAnalytics.payablesPendingPayment} cuenta(s) por pagar`} color={workflowAnalytics.payablesPendingPayment ? "yellow" : "green"} sm />
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:8}}>
-            <KV label="Facturas sin receipt" value={workflowAnalytics.invoicesPendingCollection} />
-            <KV label="OC cliente sin factura" value={workflowAnalytics.purchaseOrdersWithoutInvoice} />
-            <KV label="Cuentas por pagar sin pago" value={workflowAnalytics.payablesPendingPayment} />
-            <KV label="Cuentas por pagar vencidas" value={workflowAnalytics.payablesOverdue} />
-            <KV label="OC emitidas sin ítems" value={workflowAnalytics.issuedOrdersWithoutItems} />
-            <KV label="OC emitidas sin proveedor" value={workflowAnalytics.issuedOrdersWithoutSupplier} />
-          </div>
-          <div style={{display:"grid",gap:6}}>
-            {workflowAnalytics.warnings.length
-              ? workflowAnalytics.warnings.map((warning, index) => <div key={`workflow-warning-${index}`} style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>• {warning}</div>)
-              : <div style={{fontSize:11,color:"var(--gr2)"}}>No vemos alertas relevantes en este primer corte analítico del workflow financiero.</div>}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!criticalAuditEntries.length && (
-        <AdminPanelCard
-          eyebrow="Auditoría"
-          title="Cambios críticos recientes"
-          description="Últimos movimientos sobre claves de configuración o comportamiento sensible."
-        >
-          <div style={{display:"grid",gap:8}}>
-            {criticalAuditEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.targetKey}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.targetKey || "Clave crítica"}</div>
-                  <Badge label={entry?.action || "write"} color={String(entry?.action || "").startsWith("blocked") ? "yellow" : "gray"} sm />
-                </div>
-                <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>
-                  {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"} · previo {entry?.previous?.type || "n/a"} / siguiente {entry?.next?.type || "n/a"}
-                </div>
-              </div>
-            ))}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!blockedAdminEntries.length && (
-        <AdminPanelCard
-          eyebrow="Seguridad operativa"
-          title="Intentos bloqueados recientes"
-          description="Acciones administrativas que el sistema frenó por permisos insuficientes."
-          tone="warning"
-          actions={<Badge label={`${blockedAdminEntries.length} bloqueo${blockedAdminEntries.length === 1 ? "" : "s"}`} color="yellow" sm />}
-        >
-          <div style={{display:"grid",gap:8}}>
-            {blockedAdminEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid rgba(245, 158, 11, 0.24)",borderRadius:12,background:"var(--sur)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
-                    {entry?.payload?.section || entry?.entityId || "Sección administrativa"}
-                  </div>
-                  <Badge label="Bloqueado" color="yellow" sm />
-                </div>
-                <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
-                  {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
-                  {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
-                </div>
-                <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
-                  {entry?.payload?.attemptedAction || "Intento administrativo bloqueado"}
-                </div>
-              </div>
-            ))}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!foundationSyncEntries.length && (
-        <AdminPanelCard
-          eyebrow="Foundation"
-          title="Sincronización y autocuración"
-          description="Eventos recientes de respaldo remoto, degradación o rehidratación automática."
-          tone="success"
-          actions={<Badge label={`${foundationSyncEntries.length} evento${foundationSyncEntries.length === 1 ? "" : "s"}`} color="green" sm />}
-        >
-          <div style={{display:"grid",gap:8}}>
-            {foundationSyncEntries.slice(0, 4).map(entry => {
-              const isFailure = String(entry?.action || "").includes("failed") || String(entry?.action || "").includes("degraded");
-              const label = String(entry?.action || "foundation_event").replaceAll("_", " ");
-              return (
-                <div key={entry?.id || `${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
-                      {entry?.payload?.registryName || entry?.entityId || "foundation"}
-                    </div>
-                    <Badge label={label} color={isFailure ? "yellow" : "green"} sm />
-                  </div>
-                  <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
-                    {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
-                    {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
-                  </div>
-                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
-                    {entry?.payload?.message || `Registros: ${entry?.payload?.recordCount ?? "n/a"}`}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!workflowEventEntries.length && (
-        <AdminPanelCard
-          eyebrow="Workflow"
-          title="Cola estructurada de eventos"
-          description="Eventos recientes de mutaciones sensibles que ya nos sirven como base para automatización, trazabilidad y analytics."
-          tone="success"
-          actions={<Badge label={`${workflowEventEntries.length} evento${workflowEventEntries.length === 1 ? "" : "s"}`} color="green" sm />}
-        >
-          <div style={{display:"grid",gap:8}}>
-            {workflowEventEntries.slice(0, 6).map(entry => {
-              const stream = entry?.payload?.workflowStream || entry?.area || "workflow";
-              const eventName = entry?.payload?.workflowEvent || entry?.action || "updated";
-              return (
-                <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>
-                      {stream.replaceAll("_", " ")}
-                    </div>
-                    <Badge label={eventName.replaceAll("_", " ")} color="green" sm />
-                  </div>
-                  <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
-                    {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
-                    {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
-                  </div>
-                  <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
-                    {entry?.entityId ? `ID ${entry.entityId}` : "Sin entidad específica"}
-                    {entry?.payload?.opportunityCount ? ` · ${entry.payload.opportunityCount} oportunidad(es)` : ""}
-                    {entry?.payload?.supplier ? ` · ${entry.payload.supplier}` : ""}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </AdminPanelCard>
-      )}
-      {!!visibleOperationalEntries.length && (
-        <AdminPanelCard
-          eyebrow="Trazabilidad"
-          title="Últimos eventos operativos"
-          description="Lectura rápida de acciones relevantes sin mezclar bloqueos ni eventos foundation."
-        >
-          <div style={{display:"grid",gap:8}}>
-            {visibleOperationalEntries.slice(0, 4).map(entry => (
-              <div key={entry?.id || `${entry?.entityType}-${entry?.entityId}-${entry?.createdAt}`} style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"var(--wh)"}}>{entry?.entityType || entry?.area || "Operación"}</div>
-                  <Badge label={entry?.action || "updated"} color="gray" sm />
-                </div>
-                <div style={{fontSize:11,color:"var(--gr3)",lineHeight:1.5}}>
-                  {entry?.createdAt ? new Date(entry.createdAt).toLocaleString("es-CL") : "Sin fecha"}
-                  {entry?.actor?.email ? ` · ${entry.actor.email}` : ""}
-                </div>
-                <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5,marginTop:4}}>
-                  {entry?.entityId ? `ID ${entry.entityId}` : "Sin entidad específica"}
-                  {entry?.payloadSummary?.type ? ` · ${entry.payloadSummary.type}` : ""}
-                </div>
-              </div>
-            ))}
           </div>
         </AdminPanelCard>
       )}

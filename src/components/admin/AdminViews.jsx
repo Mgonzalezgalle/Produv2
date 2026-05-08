@@ -210,14 +210,14 @@ export function AdminPanel(rawProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
               <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 800, color: "var(--wh)", lineHeight: 1.1 }}>{empresa?.nombre || "Empresa"}</div>
               <Badge label={adminStageLabel} color={canOpenPlatformTab ? "cyan" : "purple"} sm />
-              <Badge label={empresa?.tenantCode || "Sin tenant"} color="gray" sm />
+              <Badge label={empresa?.tenantCode || "Sin código"} color="gray" sm />
             </div>
             <div style={{ fontSize: 13, color: "var(--gr2)", maxWidth: 760, lineHeight: 1.65 }}>{currentTabDescription}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Badge label={`${activeAdminTab}`} color="cyan" sm />
-            <Badge label={`Salud identidad: ${identityHealthLabel}`} color={identityHealthColor} sm />
-            <Badge label={healthWarnings ? `${healthWarnings} alerta${healthWarnings === 1 ? "" : "s"}` : "Sin alertas críticas"} color={healthWarnings ? "yellow" : "green"} sm />
+            <Badge label={empresa?.active !== false ? "Empresa activa" : "Empresa inactiva"} color={empresa?.active !== false ? "green" : "yellow"} sm />
+            <Badge label={`${(empresa?.addons || []).length} módulo${(empresa?.addons || []).length === 1 ? "" : "s"} activo${(empresa?.addons || []).length === 1 ? "" : "s"}`} color="gray" sm />
           </div>
         </div>
         <div style={{ border: "1px solid var(--bdr2)", borderRadius: 18, background: adminHeroPanelBackground, padding: 14, display: "grid", gap: 10 }}>
@@ -234,9 +234,9 @@ export function AdminPanel(rawProps) {
       </div>
     </div>
     <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_SUMMARY_GRID, gap: 10, marginBottom: 18, position: "relative", zIndex: 1 }}>
-      <AdminStatCard label="Sección activa" value={activeAdminTab} tone="var(--wh)" hint="La navegación mantiene una lectura única por contexto, sin mezclar gobierno y operación." />
-      <AdminStatCard label="Salud identidad" value={identityHealthLabel} tone={identityHealthLabel === "Alineado" ? "#00e08a" : identityHealthLabel === "Parcial" ? "#ffcc44" : "var(--gr3)"} hint={`Usuarios remotos: ${remoteUserShadowCount} · Roles remotos: ${remoteCustomRoleCount}`} />
-      <AdminStatCard label="Alertas de operación" value={healthWarnings} tone={healthWarnings ? "#ffcc44" : "#00e08a"} hint={healthWarnings ? "Conviene revisar la salud del tenant y la cobertura foundation." : "No detectamos señales críticas inmediatas."} />
+      <AdminStatCard label="Sección activa" value={activeAdminTab} tone="var(--wh)" hint="La navegación mantiene una lectura única por contexto." />
+      <AdminStatCard label="Usuarios activos" value={activeUsers} tone="var(--cy)" hint={`${inactiveUsers} usuario(s) inactivo(s) dentro de esta empresa.`} />
+      <AdminStatCard label="Módulos activos" value={(empresa?.addons || []).length} tone="#00e08a" hint="Las capacidades habilitadas se gestionan desde el gobierno de la cuenta." />
     </div>
     {activeAdminTab==="Colores"&&<ThemeSettingsPanel lt={lt} setLt={setLt} themePresets={themePresets} onSaveTheme={onSaveTheme} ntf={ntf} />}
     {activeAdminTab==="Usuarios"&&<UsersAdminSection

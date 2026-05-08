@@ -520,6 +520,23 @@ export function ViewContenidoDet(props) {
     if (piezaSort === "status-asc") return String(a.est || "").localeCompare(String(b.est || ""));
     return String(a.nom || "").localeCompare(String(b.nom || ""));
   });
+  const piezasMesResumen = MESES.map(mes => ({
+    mes,
+    total: piezasFiltradas.filter(pc => pc.mes === mes).length,
+  })).filter(item => item.total > 0);
+  const piezasSinMes = piezasFiltradas.filter(pc => !pc.mes).length;
+  if (piezasSinMes) piezasMesResumen.push({ mes: "Sin mes", total: piezasSinMes });
+  const piezasAgrupadasPorMes = piezasFiltradas.reduce((acc, pc) => {
+    const mesKey = pc.mes || "Sin mes";
+    if (!acc[mesKey]) acc[mesKey] = [];
+    acc[mesKey].push(pc);
+    return acc;
+  }, {});
+  const piezasMesOrden = Object.keys(piezasAgrupadasPorMes).sort((a, b) => {
+    if (a === "Sin mes") return 1;
+    if (b === "Sin mes") return -1;
+    return MESES.indexOf(a) - MESES.indexOf(b);
+  });
   const piezasPub = (pz.piezas || []).filter(pc => pc.est === "Publicado").length;
   const piezasProgramadas = (pz.piezas || []).filter(pc => pc.est === "Programado").length;
   const piezasRevision = (pz.piezas || []).filter(pc => (pc.approval || "Pendiente") === "En revisión" || pc.est === "Correcciones").length;
@@ -570,6 +587,13 @@ export function ViewContenidoDet(props) {
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
         <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Aprobadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#7cffa6" }}>{piezasAprobadas}</div></div>
       </div>
+      {!!piezasMesResumen.length && <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        {piezasMesResumen.map(item => <div key={item.mes} style={{ minWidth: 140, background: "var(--card)", border: `1px solid ${piezaMes === item.mes ? "var(--cy)" : "var(--bdr)"}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer" }} onClick={() => setPiezaMes(prev => prev === item.mes ? "" : item.mes)}>
+          <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{item.mes}</div>
+          <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: piezaMes === item.mes ? "var(--cy)" : "var(--gr4)" }}>{item.total}</div>
+          <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{item.total === 1 ? "pieza" : "piezas"}</div>
+        </div>)}
+      </div>}
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={piezaQ} onChange={v => setPiezaQ(v)} placeholder="Buscar pieza..." />
         <FilterSel value={piezaEstado} onChange={setPiezaEstado} options={DEFAULT_LISTAS.estadosPieza || []} placeholder="Todo estados" />
@@ -581,26 +605,36 @@ export function ViewContenidoDet(props) {
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr><TH onClick={() => setPiezaSort(piezaSort === "name-asc" ? "name-desc" : "name-asc")} active={piezaSort === "name-asc" || piezaSort === "name-desc"} dir={piezaSort === "name-desc" ? "desc" : "asc"}>Pieza</TH><TH>Formato</TH><TH>Mes</TH><TH>Responsable</TH><TH onClick={() => setPiezaSort(piezaSort === "status-asc" ? "status-desc" : "status-asc")} active={piezaSort === "status-asc" || piezaSort === "status-desc"} dir={piezaSort === "status-desc" ? "desc" : "asc"}>Estado</TH><TH>Aprobación</TH><TH onClick={() => setPiezaSort(piezaSort === "date-asc" ? "date-desc" : "date-asc")} active={piezaSort === "date-asc" || piezaSort === "date-desc"} dir={piezaSort === "date-desc" ? "desc" : "asc"}>Publicación</TH><TH>Enlace</TH><TH></TH></tr></thead>
           <tbody>
-            {piezasFiltradas.map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
-              <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div></TD>
-              <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>
-              <TD>{pc.mes || <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
-              <TD>{pc.responsableId && crewMap[pc.responsableId] ? crewMap[pc.responsableId].nom : <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
-              <TD onClick={e => e.stopPropagation()}>
-                <FSl value={pc.est || "Planificado"} onChange={e => updatePieceQuick(pc.id, { est: e.target.value })} disabled={!canManageContent}>
-                  {(DEFAULT_LISTAS.estadosPieza || []).map(o => <option key={o}>{o}</option>)}
-                </FSl>
-              </TD>
-              <TD><Badge label={pc.approval || "Pendiente"} color={(pc.approval || "Pendiente") === "Aprobada" ? "green" : (pc.approval || "Pendiente") === "Observada" ? "red" : (pc.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm /></TD>
-              <TD mono style={{ fontSize: 11 }}>{pc.publishDate ? fmtD(pc.publishDate) : pc.fin ? fmtD(pc.fin) : "—"}{pc.publishedAt && <div style={{ fontSize: 10, color: "#00e08a", marginTop: 4 }}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>
-              <TD style={{ fontSize: 11 }}>
-                {pc.link ? <a href={pc.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Pieza ↗</a> : <span style={{ color: "var(--gr2)" }}>—</span>}
-              </TD>
-              <TD onClick={e => e.stopPropagation()}><div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                <GBtn sm onClick={() => setPiezaDetailId(pc.id)}>Ver</GBtn>
-                {canManageContent && <><GBtn sm onClick={() => openM("pieza", { ...pc, campId: id })}>✏</GBtn><XBtn onClick={() => deletePiece(pc.id)} /></>}
-              </div></TD>
-            </tr>)}
+            {piezasMesOrden.flatMap(mes => [
+              <tr key={`month-${mes}`}>
+                <td colSpan={9} style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--card) 76%, var(--cy) 24%)", borderTop: "1px solid var(--bdr)", borderBottom: "1px solid var(--bdr)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--gr4)", textTransform: "uppercase", letterSpacing: 1 }}>{mes}</div>
+                    <div style={{ fontSize: 11, color: "var(--gr2)" }}>{piezasAgrupadasPorMes[mes].length} {piezasAgrupadasPorMes[mes].length === 1 ? "pieza" : "piezas"}</div>
+                  </div>
+                </td>
+              </tr>,
+              ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
+                <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div></TD>
+                <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>
+                <TD>{pc.mes || <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
+                <TD>{pc.responsableId && crewMap[pc.responsableId] ? crewMap[pc.responsableId].nom : <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
+                <TD onClick={e => e.stopPropagation()}>
+                  <FSl value={pc.est || "Planificado"} onChange={e => updatePieceQuick(pc.id, { est: e.target.value })} disabled={!canManageContent}>
+                    {(DEFAULT_LISTAS.estadosPieza || []).map(o => <option key={o}>{o}</option>)}
+                  </FSl>
+                </TD>
+                <TD><Badge label={pc.approval || "Pendiente"} color={(pc.approval || "Pendiente") === "Aprobada" ? "green" : (pc.approval || "Pendiente") === "Observada" ? "red" : (pc.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm /></TD>
+                <TD mono style={{ fontSize: 11 }}>{pc.publishDate ? fmtD(pc.publishDate) : pc.fin ? fmtD(pc.fin) : "—"}{pc.publishedAt && <div style={{ fontSize: 10, color: "#00e08a", marginTop: 4 }}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>
+                <TD style={{ fontSize: 11 }}>
+                  {pc.link ? <a href={pc.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Pieza ↗</a> : <span style={{ color: "var(--gr2)" }}>—</span>}
+                </TD>
+                <TD onClick={e => e.stopPropagation()}><div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                  <GBtn sm onClick={() => setPiezaDetailId(pc.id)}>Ver</GBtn>
+                  {canManageContent && <><GBtn sm onClick={() => openM("pieza", { ...pc, campId: id })}>✏</GBtn><XBtn onClick={() => deletePiece(pc.id)} /></>}
+                </div></TD>
+              </tr>),
+            ])}
             {!piezasFiltradas.length && <tr><td colSpan={9}><Empty text="Sin piezas" sub="Crea la primera para esta campaña" /></td></tr>}
           </tbody>
         </table></div>

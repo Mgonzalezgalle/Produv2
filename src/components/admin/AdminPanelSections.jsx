@@ -53,6 +53,12 @@ export function EmpresaEditSection({
   addons,
   companyGoogleCalendarEnabled,
   canManageAdmin = true,
+  bsaleGovernanceMode = "disabled",
+  tenantCanEditBsaleConfig = false,
+  tenantBsaleConfig = {},
+  setTenantBsaleConfig,
+  tenantBsaleSaving = false,
+  saveTenantBsaleConfig,
   mercadoPagoGovernanceMode = "disabled",
   tenantCanEditMercadoPagoConfig = false,
   tenantMercadoPagoConfig = {},
@@ -181,6 +187,8 @@ export function EmpresaEditSection({
     setEditing(false);
   };
 
+  const bsaleHasToken = Boolean(String(tenantBsaleConfig?.token || "").trim());
+  const bsaleReady = bsaleGovernanceMode !== "disabled" && bsaleHasToken && Boolean(String(tenantBsaleConfig?.officeId || "").trim());
   const mercadoPagoHasSeller = String(tenantMercadoPagoConfig?.sellerAccountLabel || "").trim();
   const mercadoPagoHasAccessToken = String(tenantMercadoPagoConfig?.accessToken || "").trim();
   const mercadoPagoHasWebhookSecret = String(tenantMercadoPagoConfig?.webhookSecret || "").trim();
@@ -250,6 +258,36 @@ export function EmpresaEditSection({
               <OverviewMetric label="Alertas" value={operationalHealth?.warningCount ?? 0} tone={operationalHealth?.warningCount ? "#ffcc44" : "#00e08a"} hint="Viene de la salud operativa consolidada." />
               <OverviewMetric label="Bloqueos recientes" value={blockedAdminEntries.length} tone={blockedAdminEntries.length ? "#ffcc44" : "var(--gr3)"} hint="Intentos administrativos frenados por permisos." />
             </div>
+          </div>
+        </div>
+      </AdminPanelCard>
+      <AdminPanelCard
+        eyebrow="Integraciones"
+        title="Conexiones operativas"
+        description="Aquí vemos qué integraciones están listas para operar en esta empresa. La configuración detallada se resuelve al editar la ficha."
+        actions={<GBtn sm onClick={() => setEditing(true)} disabled={!canManageAdmin}>Configurar integraciones</GBtn>}
+      >
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+          <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--wh)"}}>Bsale</div>
+              <Badge label={bsaleGovernanceMode === "disabled" ? "No habilitado" : bsaleReady ? "Listo" : "Pendiente"} color={bsaleGovernanceMode === "disabled" ? "gray" : bsaleReady ? "green" : "yellow"} sm />
+            </div>
+            <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.55}}>Motor tributario y emisión electrónica desde Produ.</div>
+          </div>
+          <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--wh)"}}>Mercado Pago</div>
+              <Badge label={mercadoPagoGovernanceMode === "disabled" ? "No habilitado" : mercadoPagoReadyForCollection ? "Listo" : "Pendiente"} color={mercadoPagoGovernanceMode === "disabled" ? "gray" : mercadoPagoReadyForCollection ? "green" : "yellow"} sm />
+            </div>
+            <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.55}}>Cobros online y links de pago para cartera.</div>
+          </div>
+          <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--wh)"}}>Diio</div>
+              <Badge label={diioGovernanceMode === "disabled" ? "No habilitado" : diioReady ? "Listo" : "Pendiente"} color={diioGovernanceMode === "disabled" ? "gray" : diioReady ? "green" : "yellow"} sm />
+            </div>
+            <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.55}}>Inteligencia conversacional y webhook operativo.</div>
           </div>
         </div>
       </AdminPanelCard>
@@ -357,6 +395,64 @@ export function EmpresaEditSection({
           {(empresa.addons||[]).length ? (empresa.addons||[]).map(key=><Badge key={key} label={addons[key]?.label||key} color="gray" sm/>) : <span style={{fontSize:11,color:"var(--gr2)"}}>Sin módulos activos</span>}
         </div>
         <div style={{fontSize:11,color:"var(--gr2)",marginTop:8}}>La activación y desactivación de módulos se administra desde Torre de Control.</div>
+      </div>
+      <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Facturación electrónica · Bsale</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Torre de Control habilita esta integración. Aquí la empresa deja sus credenciales y parámetros base para emitir desde Produ.</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <Badge label={bsaleGovernanceMode === "disabled" ? "No habilitado" : "Habilitado por Torre"} color={bsaleGovernanceMode === "disabled" ? "gray" : "green"} sm />
+            <Badge label={tenantBsaleConfig?.status || "disconnected"} color={tenantBsaleConfig?.status === "connected" ? "cyan" : "yellow"} sm />
+          </div>
+        </div>
+        {bsaleGovernanceMode === "disabled"
+          ? <div style={{fontSize:11,color:"var(--gr2)"}}>Bsale todavía no está habilitado para esta empresa. Debe activarse primero desde Torre de Control, en Integraciones.</div>
+          : <>
+              <R2>
+                <FG label="Estado conexión">
+                  <FSl value={tenantBsaleConfig?.status || "disconnected"} onChange={e=>setTenantBsaleConfig?.(p=>({...p,status:e.target.value}))}>
+                    <option value="disconnected">disconnected</option>
+                    <option value="draft">draft</option>
+                    <option value="connected">connected</option>
+                    <option value="invalid_credentials">invalid_credentials</option>
+                    <option value="paused">paused</option>
+                  </FSl>
+                </FG>
+                <FG label="Token Bsale">
+                  <FI type="password" value={tenantBsaleConfig?.token || ""} onChange={e=>setTenantBsaleConfig?.(p=>({...p,token:e.target.value,status:e.target.value ? "draft" : "disconnected"}))} placeholder="Token privado de Bsale" />
+                </FG>
+              </R2>
+              <R3>
+                <FG label="Office ID">
+                  <FI value={tenantBsaleConfig?.officeId || ""} onChange={e=>setTenantBsaleConfig?.(p=>({...p,officeId:e.target.value}))} placeholder="Sucursal / office id" />
+                </FG>
+                <FG label="Document Type ID">
+                  <FI value={tenantBsaleConfig?.documentTypeId || ""} onChange={e=>setTenantBsaleConfig?.(p=>({...p,documentTypeId:e.target.value}))} placeholder="Tipo de documento" />
+                </FG>
+                <FG label="Price List ID">
+                  <FI value={tenantBsaleConfig?.priceListId || ""} onChange={e=>setTenantBsaleConfig?.(p=>({...p,priceListId:e.target.value}))} placeholder="Lista de precios" />
+                </FG>
+              </R3>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:12}}>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Estado operativo</div>
+                  <div style={{fontSize:12,fontWeight:700,color:bsaleReady ? "var(--cy)" : "var(--gr3)"}}>
+                    {bsaleReady ? "Listo para emitir" : "Configuración incompleta"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Token</div>
+                  <div style={{fontSize:12,fontWeight:700,color:bsaleHasToken ? "var(--cy)" : "var(--gr3)"}}>
+                    {bsaleHasToken ? "Configurado" : "Pendiente"}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Btn onClick={saveTenantBsaleConfig} disabled={!canManageAdmin || !tenantCanEditBsaleConfig || tenantBsaleSaving}>{tenantBsaleSaving ? "Guardando..." : "Guardar Bsale"}</Btn>
+              </div>
+            </>}
       </div>
       <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
         <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>

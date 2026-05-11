@@ -80,6 +80,24 @@ const RESPONSIVE_STAT_GRID = "repeat(auto-fit,minmax(min(100%,180px),1fr))";
 const RESPONSIVE_CARD_GRID = "repeat(auto-fit,minmax(min(100%,280px),1fr))";
 const RESPONSIVE_DETAIL_GRID = "repeat(auto-fit,minmax(min(100%,220px),1fr))";
 
+function normalizePurchaseOrderDraft(next = {}, empId = "") {
+  const amount = Number(next?.amount || 0);
+  return {
+    ...next,
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    clientId: String(next?.clientId || "").trim(),
+    number: String(next?.number || "").trim(),
+    issueDate: String(next?.issueDate || "").trim(),
+    status: String(next?.status || "Pendiente").trim() || "Pendiente",
+    amount: Number.isFinite(amount) ? amount : 0,
+    linkedInvoiceIds: Array.isArray(next?.linkedInvoiceIds) ? next.linkedInvoiceIds.filter(Boolean) : [],
+    pdfName: String(next?.pdfName || "").trim(),
+    pdfUrl: String(next?.pdfUrl || "").trim(),
+    notes: String(next?.notes || "").trim(),
+  };
+}
+
 function BillingSurfaceMetric({ label, value, tone = "var(--cy)", hint = null }) {
   return (
     <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.03),transparent)" }}>
@@ -166,13 +184,26 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   }, [purchaseOrders, poQuery, poStatus]);
   const savePurchaseOrder = async next => {
     if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
-    const list = Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : [];
-    const exists = list.some(item => item.id === next.id);
-    const updated = exists ? list.map(item => item.id === next.id ? { ...next, empId: empresa?.id } : item) : [...list, { ...next, empId: empresa?.id }];
-    await treasury.setPurchaseOrders(updated);
-    setPoOpen(false);
-    setPoDraft(null);
-    return true;
+    const safeNext = normalizePurchaseOrderDraft(next, empresa?.id);
+    if (!safeNext.id || !safeNext.clientId || !safeNext.number || !Number(safeNext.amount || 0)) {
+      ntf?.("No pudimos guardar la OC porque faltan datos obligatorios.", "warn");
+      return false;
+    }
+    try {
+      await treasury.setPurchaseOrders((current = []) => {
+        const list = Array.isArray(current) ? current : [];
+        const exists = list.some(item => item.id === safeNext.id);
+        return exists
+          ? list.map(item => item.id === safeNext.id ? { ...item, ...safeNext } : item)
+          : [...list, safeNext];
+      });
+      setPoOpen(false);
+      setPoDraft(null);
+      return true;
+    } catch (err) {
+      alertUserFacingError(err, "No pudimos guardar la orden de compra.");
+      return false;
+    }
   };
   const updatePurchaseOrderStatus = async (row, status) => {
     if (!row || !status) return false;
@@ -181,8 +212,13 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   const isAcceptedPurchaseOrder = row => String(row?.status || "").trim().toLowerCase() === "aceptada";
   const deletePurchaseOrder = async id => {
     if (!canEdit || typeof treasury.setPurchaseOrders !== "function") return false;
-    await treasury.setPurchaseOrders((Array.isArray(treasury.purchaseOrders) ? treasury.purchaseOrders : []).filter(item => item.id !== id));
-    return true;
+    try {
+      await treasury.setPurchaseOrders((current = []) => (Array.isArray(current) ? current : []).filter(item => item.id !== id));
+      return true;
+    } catch (err) {
+      alertUserFacingError(err, "No pudimos eliminar la orden de compra.");
+      return false;
+    }
   };
   const createDocFromPurchaseOrder = () => {
     if (!poDocTarget) return;

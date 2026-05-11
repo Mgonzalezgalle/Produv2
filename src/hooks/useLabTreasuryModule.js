@@ -91,6 +91,9 @@ function sanitizeTreasuryPurchaseOrder(next = {}, empId = "") {
     status: String(next?.status || "Pendiente").trim() || "Pendiente",
     amount: Number.isFinite(amount) ? amount : 0,
     linkedInvoiceIds: Array.isArray(next?.linkedInvoiceIds) ? next.linkedInvoiceIds.filter(Boolean) : [],
+    pdfName: String(next?.pdfName || "").trim(),
+    pdfUrl: String(next?.pdfUrl || "").trim(),
+    notes: String(next?.notes || "").trim(),
   };
 }
 

@@ -472,6 +472,22 @@ export function ViewCliDet({
         action={canManageClients ? { label: clientPortal.enabled ? "Desactivar portal" : "Activar portal", fn: togglePortal } : null}
         style={{ marginBottom: 20 }}
       >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: clientPortal.enabled ? "#00e08a" : "var(--wh)" }}>
+              {clientPortal.enabled ? "Portal activo" : "Portal inactivo"}
+            </div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--cy)" }}>{clientPortal.authorizedEmails.length}</div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Actividad reciente</div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--wh)" }}>{portalHistory.length}</div>
+          </div>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
@@ -486,6 +502,7 @@ export function ViewCliDet({
             <Sep />
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Btn onClick={copyPortalUrl}>Copiar enlace</Btn>
+              <GBtn onClick={() => window.open(portalUrl, "_blank")}>Abrir portal</GBtn>
               <GBtn onClick={refreshPortalCode}>Regenerar código</GBtn>
               <GBtn onClick={syncPortalEmailsFromContacts}>Usar correos de contactos</GBtn>
               <GBtn onClick={editPortalEmails}>Editar correos autorizados</GBtn>

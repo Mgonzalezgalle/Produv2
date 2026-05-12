@@ -41,6 +41,17 @@ function clientDecisionLabel(decision = null, type = "content") {
   return decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios";
 }
 
+function accessCodeSlots(code = "") {
+  const clean = String(code || "").replace(/\D/g, "").slice(0, 6);
+  return Array.from({ length: 6 }, (_, index) => clean[index] || "");
+}
+
+function portalResponseTone(status = "") {
+  if (status === "approved") return { bg: "rgba(0,184,148,.10)", border: "rgba(0,184,148,.18)", color: "#009a78" };
+  if (status === "changes_requested" || status === "rejected") return { bg: "rgba(255,136,68,.10)", border: "rgba(255,136,68,.18)", color: "#d96a24" };
+  return { bg: "rgba(79,124,255,.08)", border: "rgba(79,124,255,.14)", color: "#4f7cff" };
+}
+
 async function resolvePortalPayload(empresas = [], slug = "") {
   const safeSlug = String(slug || "").trim();
   if (!safeSlug) return { error: "missing_slug" };
@@ -119,7 +130,31 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
             <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, marginBottom: 18 }}>
               Ingresa el código de 6 dígitos que te compartieron para entrar al portal de este cliente.
             </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {accessCodeSlots(code).map((digit, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      width: 54,
+                      height: 66,
+                      borderRadius: 18,
+                      border: `1px solid ${error ? "#ff5566" : digit ? "#4f7cff" : "#d7e3ff"}`,
+                      background: "#ffffff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: digit ? "0 14px 30px rgba(79,124,255,.12)" : "none",
+                      fontFamily: "var(--fm)",
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
+                    {digit || ""}
+                  </div>
+                ))}
+              </div>
               <input
                 value={code}
                 onChange={(event) => setCode(String(event.target.value || "").replace(/\D/g, "").slice(0, 6))}
@@ -128,20 +163,19 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                 }}
                 placeholder="000000"
                 inputMode="numeric"
+                aria-label="Código de acceso"
                 style={{
-                  width: 180,
-                  padding: "15px 18px",
-                  borderRadius: 16,
-                  border: `1px solid ${error ? "#ff5566" : "#c8d7ff"}`,
-                  outline: "none",
-                  fontFamily: "var(--fm)",
-                  fontSize: 24,
-                  letterSpacing: 5,
-                  color: "#0f172a",
-                  background: "#ffffff",
+                  position: "absolute",
+                  opacity: 0.001,
+                  pointerEvents: "none",
+                  width: 1,
+                  height: 1,
                 }}
               />
-              <Btn onClick={handleSubmit} s={{ minWidth: 180, opacity: canSubmit ? 1 : 0.65 }} disabled={!canSubmit}>Entrar al portal</Btn>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <Btn onClick={handleSubmit} s={{ minWidth: 180, opacity: canSubmit ? 1 : 0.65 }} disabled={!canSubmit}>Entrar al portal</Btn>
+                <div style={{ fontSize: 12, color: "#64748b" }}>Este acceso está pensado para revisar avances, responder piezas y revisar documentos.</div>
+              </div>
             </div>
             {error ? <div style={{ marginTop: 12, fontSize: 13, color: "#ff5566" }}>{error}</div> : null}
           </div>
@@ -443,15 +477,25 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Badge label={`${summary?.pendingApprovals.length || 0} contenido(s) por revisar`} color="purple" />
-              <Badge label={`${summary?.pendingBudgets.length || 0} presupuesto(s) pendiente(s)`} color="yellow" />
-              <Badge label={`${summary?.overdueInvoices.length || 0} documento(s) vencido(s)`} color={summary?.overdueInvoices.length ? "red" : "green"} />
-              <GBtn onClick={() => {
-                const sessionKey = buildClientPortalSessionKey(slug);
-                if (typeof window !== "undefined") window.sessionStorage.removeItem(sessionKey);
-                setAuthorized(false);
-              }}>Cerrar portal</GBtn>
+            <div style={{ display: "grid", gap: 10, minWidth: 280, flex: "0 0 320px" }}>
+              <div style={{ background: "#ffffff", border: "1px solid rgba(79,124,255,.12)", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(15,23,42,.05)" }}>
+                <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#64748b", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
+                <div style={{ display: "grid", gap: 8, fontSize: 13, color: "#334155" }}>
+                  <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div>
+                  <div>• {summary?.pendingBudgets.length || 0} propuesta(s) siguen pendientes.</div>
+                  <div>• {summary?.overdueInvoices.length || 0} documento(s) están vencidos.</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Badge label={`${summary?.pendingApprovals.length || 0} contenido(s) por revisar`} color="purple" />
+                <Badge label={`${summary?.pendingBudgets.length || 0} presupuesto(s) pendiente(s)`} color="yellow" />
+                <Badge label={`${summary?.overdueInvoices.length || 0} documento(s) vencido(s)`} color={summary?.overdueInvoices.length ? "red" : "green"} />
+                <GBtn onClick={() => {
+                  const sessionKey = buildClientPortalSessionKey(slug);
+                  if (typeof window !== "undefined") window.sessionStorage.removeItem(sessionKey);
+                  setAuthorized(false);
+                }}>Cerrar portal</GBtn>
+              </div>
             </div>
           </div>
 
@@ -497,11 +541,11 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
                   <div>• {summary?.overdueInvoices.length || 0} documento(s) ya están vencidos.</div>
                 </div>
               </Card>
-              <Card title="Próximos bloques del portal" sub="Ya dejamos listo el espacio para seguir creciendo este acceso compartido.">
+              <Card title="Cómo usar este espacio" sub="Aquí puedes revisar avances y responder lo que hoy necesita confirmación.">
                 <div style={{ display: "grid", gap: 10 }}>
-                  <div>• Aprobación directa de contenidos con feedback y brief adicional.</div>
-                  <div>• Aprobación de presupuestos con trazabilidad de decisión.</div>
-                  <div>• Seguimiento más fino por hitos y entregables de producción.</div>
+                  <div>• En contenidos puedes aprobar piezas o pedir ajustes con observaciones claras.</div>
+                  <div>• En presupuestos puedes responder propuestas sin salir de este enlace.</div>
+                  <div>• En documentos y pagos puedes revisar montos abiertos y vencimientos.</div>
                 </div>
               </Card>
             </div>
@@ -536,6 +580,20 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
                               {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
                               <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "approved", brief: "" })}>Aprobar</GBtn>
                               <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.brief || "" })}>Pedir cambios</GBtn>
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
+                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Estado actual</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revisión"}</div>
+                            </div>
+                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Canal</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
+                            </div>
+                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Entrega</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
                             </div>
                           </div>
                           {portalDecision?.brief ? <div style={{ marginTop: 10, fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line" }}><b style={{ color: "var(--wh)" }}>Último comentario del cliente:</b> {portalDecision.brief}</div> : null}
@@ -639,6 +697,11 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
             style={{ minHeight: 120 }}
           />
         </FG>
+        <div style={{ borderRadius: 16, padding: "12px 14px", background: portalResponseTone(contentDecision?.status).bg, border: `1px solid ${portalResponseTone(contentDecision?.status).border}`, color: portalResponseTone(contentDecision?.status).color, fontSize: 12, lineHeight: 1.6 }}>
+          {contentDecision?.status === "approved"
+            ? "Tu aprobación quedará registrada y el equipo verá inmediatamente que esta pieza ya fue validada desde el portal."
+            : "Tu observación quedará visible para el equipo junto con el comentario que dejes aquí."}
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <GBtn onClick={() => setContentDecision(null)}>Cancelar</GBtn>
           <Btn onClick={saveContentDecision} s={{ opacity: decisionSaving ? 0.7 : 1 }}>{contentDecision?.status === "approved" ? "Confirmar aprobación" : "Guardar observaciones"}</Btn>
@@ -659,6 +722,11 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
             style={{ minHeight: 120 }}
           />
         </FG>
+        <div style={{ borderRadius: 16, padding: "12px 14px", background: portalResponseTone(budgetDecision?.status).bg, border: `1px solid ${portalResponseTone(budgetDecision?.status).border}`, color: portalResponseTone(budgetDecision?.status).color, fontSize: 12, lineHeight: 1.6 }}>
+          {budgetDecision?.status === "approved"
+            ? "La respuesta quedará guardada para que el equipo continúe con el siguiente paso comercial."
+            : "La observación quedará registrada junto con tu comentario para que el presupuesto pueda revisarse."}
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <GBtn onClick={() => setBudgetDecision(null)}>Cancelar</GBtn>
           <Btn onClick={saveBudgetDecision} s={{ opacity: decisionSaving ? 0.7 : 1 }}>{budgetDecision?.status === "approved" ? "Confirmar aprobación" : "Guardar observación"}</Btn>

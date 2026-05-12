@@ -505,6 +505,12 @@ export function ViewContenidoDet(props) {
     if (!decision?.status) return null;
     return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios"} color={decision.status === "approved" ? "green" : "orange"} sm />;
   };
+  const pieceCommentsCount = piece => (Array.isArray(piece?.comentarios) ? piece.comentarios.filter(Boolean).length : 0);
+  const pieceLatestComment = piece => {
+    const items = Array.isArray(piece?.comentarios) ? piece.comentarios.filter(Boolean) : [];
+    if (!items.length) return null;
+    return [...items].sort((a, b) => String(b?.upd || b?.createdAt || b?.cr || "").localeCompare(String(a?.upd || a?.createdAt || a?.cr || "")))[0] || null;
+  };
   const bal = useBal(movimientos, empId);
   const [tab, setTab] = useState(0);
   const [piezaQ, setPiezaQ] = useState("");
@@ -610,7 +616,16 @@ export function ViewContenidoDet(props) {
                 </td>
               </tr>,
               ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
-                <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div>{pc.clientPortalDecision?.status ? <div style={{ fontSize: 10, color: "var(--org)", marginTop: 6, lineHeight: 1.5 }}>{portalDecisionSummary(pc.clientPortalDecision) || "Hay feedback del cliente en esta pieza."}</div> : null}</TD>
+                <TD bold>
+                  <div style={{ color: "var(--cy)" }}>{pc.nom}</div>
+                  <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
+                    {pieceCommentsCount(pc) ? <Badge label={`${pieceCommentsCount(pc)} comentario${pieceCommentsCount(pc) === 1 ? "" : "s"}`} color="gray" sm /> : null}
+                    {clientPortalBadge(pc.clientPortalDecision)}
+                  </div>
+                  {pc.clientPortalDecision?.status ? <div style={{ fontSize: 10, color: "var(--org)", marginTop: 6, lineHeight: 1.5 }}>{portalDecisionSummary(pc.clientPortalDecision) || "Hay feedback del cliente en esta pieza."}</div> : null}
+                  {pieceLatestComment(pc)?.text ? <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 6, lineHeight: 1.5 }}>Último comentario: {String(pieceLatestComment(pc).text).slice(0, 110)}</div> : null}
+                </TD>
                 <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>
                 <TD>{pc.mes || <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
                 <TD>{pc.responsableId && crewMap[pc.responsableId] ? crewMap[pc.responsableId].nom : <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
@@ -622,7 +637,6 @@ export function ViewContenidoDet(props) {
                 <TD>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <Badge label={pc.approval || "Pendiente"} color={(pc.approval || "Pendiente") === "Aprobada" ? "green" : (pc.approval || "Pendiente") === "Observada" ? "red" : (pc.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />
-                    {clientPortalBadge(pc.clientPortalDecision)}
                   </div>
                 </TD>
                 <TD mono style={{ fontSize: 11 }}>{pc.publishDate ? fmtD(pc.publishDate) : pc.fin ? fmtD(pc.fin) : "—"}{pc.publishedAt && <div style={{ fontSize: 10, color: "#00e08a", marginTop: 4 }}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>

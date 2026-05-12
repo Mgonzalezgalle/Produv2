@@ -7,6 +7,13 @@ import { ActivityTimelinePreviewModal } from "../shared/ActivityTimelinePreviewM
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
+  buildClientPortalUrl,
+  collectClientPortalEmails,
+  createClientPortalAccessCode,
+  normalizeClientPortal,
+  normalizePortalEmails,
+} from "../../lib/clients/clientPortal";
+import {
   Badge,
   Btn,
   Card,
@@ -195,7 +202,6 @@ export function ViewCliDet({
   countCampaignPieces,
   ini,
   ntf,
-  platformApi,
   user,
 }) {
   const empId = empresa?.id;
@@ -251,7 +257,24 @@ export function ViewCliDet({
   const [emailPreview, setEmailPreview] = useState(null);
   const [deleteClientConfirmOpen, setDeleteClientConfirmOpen] = useState(false);
   if (!c) return <Empty text="No encontrado" />;
+  const clientPortal = normalizeClientPortal(c.portal, c);
+  const portalUrl = buildClientPortalUrl(clientPortal, typeof window !== "undefined" ? window.location.origin : "");
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
+  const updateClientPortal = async updater => {
+    const nextClients = (clientes || []).map(item => {
+      if (item.id !== c.id) return item;
+      const currentPortal = normalizeClientPortal(item.portal, item);
+      const nextPortalDraft = typeof updater === "function" ? updater(currentPortal, item) : updater;
+      return {
+        ...item,
+        portal: {
+          ...normalizeClientPortal(nextPortalDraft, item),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    });
+    await setClientes(nextClients);
+  };
   const recordClientEmail = async ({ draft, recipients, delivery = null, source = "remote" }) => {
     if (!c?.id) return;
     const nextEntry = {
@@ -268,6 +291,41 @@ export function ViewCliDet({
     };
     const nextClients = (clientes || []).map(item => item.id === c.id ? { ...item, emailHistory: [nextEntry, ...(Array.isArray(item.emailHistory) ? item.emailHistory : [])].slice(0, 50) } : item);
     await setClientes(nextClients);
+  };
+  const copyPortalUrl = async () => {
+    if (!clientPortal?.slug) return;
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      ntf?.("Enlace del portal copiado ✓");
+      await updateClientPortal(portal => ({ ...portal, lastSharedAt: new Date().toISOString() }));
+    } catch {
+      window.prompt("Copia este enlace del portal:", portalUrl);
+    }
+  };
+  const togglePortal = async () => {
+    await updateClientPortal(portal => ({
+      ...portal,
+      enabled: !portal.enabled,
+      authorizedEmails: portal.authorizedEmails.length ? portal.authorizedEmails : collectClientPortalEmails(c),
+    }));
+    ntf?.(clientPortal.enabled ? "Portal desactivado" : "Portal activado ✓");
+  };
+  const refreshPortalCode = async () => {
+    await updateClientPortal(portal => ({ ...portal, accessCode: createClientPortalAccessCode() }));
+    ntf?.("Código del portal regenerado ✓");
+  };
+  const syncPortalEmailsFromContacts = async () => {
+    const nextEmails = collectClientPortalEmails(c);
+    await updateClientPortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
+    ntf?.(nextEmails.length ? "Correos autorizados sincronizados ✓" : "No hay correos en los contactos de este cliente.");
+  };
+  const editPortalEmails = async () => {
+    const suggested = clientPortal.authorizedEmails.join(", ");
+    const response = window.prompt("Correos autorizados para ingresar al portal (separados por coma)", suggested);
+    if (response == null) return;
+    const nextEmails = normalizePortalEmails(response);
+    await updateClientPortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
+    ntf?.("Correos autorizados actualizados ✓");
   };
   const openClientEmailChoice = contact => {
     if (!contact?.ema) return;
@@ -392,6 +450,50 @@ export function ViewCliDet({
           {c.not && <><Sep /><div style={{ fontSize: 12, color: "var(--gr3)" }}>{c.not}</div></>}
         </Card>
       </div>
+      <Card
+        title="Portal cliente"
+        sub="Preparamos el acceso externo de este cliente para seguimiento, aprobaciones y revisión documental."
+        action={canManageClients ? { label: clientPortal.enabled ? "Desactivar portal" : "Activar portal", fn: togglePortal } : null}
+        style={{ marginBottom: 20 }}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+              <Badge label={clientPortal.enabled ? "Portal activo" : "Portal inactivo"} color={clientPortal.enabled ? "green" : "gray"} />
+              <Badge label="Acceso por código" color="cyan" />
+              {clientPortal.authorizedEmails.length ? <Badge label={`${clientPortal.authorizedEmails.length} contacto(s) autorizado(s)`} color="purple" /> : <Badge label="Sin correos autorizados" color="yellow" />}
+            </div>
+            <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{portalUrl}</span>} />
+            <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{clientPortal.accessCode}</span>} />
+            <KV label="Último acceso" value={clientPortal.lastAccessAt ? fmtD(clientPortal.lastAccessAt) : "Todavía sin ingresos"} />
+            <KV label="Último envío del enlace" value={clientPortal.lastSharedAt ? fmtD(clientPortal.lastSharedAt) : "Aún no compartido"} />
+            <Sep />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Btn onClick={copyPortalUrl}>Copiar enlace</Btn>
+              <GBtn onClick={refreshPortalCode}>Regenerar código</GBtn>
+              <GBtn onClick={syncPortalEmailsFromContacts}>Usar correos de contactos</GBtn>
+              <GBtn onClick={editPortalEmails}>Editar correos autorizados</GBtn>
+            </div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá este cliente</div>
+            <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
+              <div>• Resumen con pendientes, aprobaciones y documentos por revisar.</div>
+              <div>• Contenidos para aprobar, observar o complementar con brief.</div>
+              <div>• Presupuestos listos para aceptar o devolver con comentarios.</div>
+              <div>• Documentos y pagos con foco en vencimientos y compromisos abiertos.</div>
+            </div>
+            <Sep />
+            <div style={{ fontSize: 11, color: "var(--gr3)", lineHeight: 1.6 }}>
+              El acceso nace desde este cliente y siempre quedará asociado a su propio enlace. Así evitamos mezclar información entre cuentas o entre clientes del mismo equipo.
+            </div>
+            <Sep />
+            <div style={{ fontSize: 11, color: "var(--gr2)" }}>
+              <b>Correos autorizados:</b> {clientPortal.authorizedEmails.length ? clientPortal.authorizedEmails.join(", ") : "Todavía no definimos correos para este portal."}
+            </div>
+          </div>
+        </div>
+      </Card>
       <Card title={`Correos enviados (${emailHistory.length})`} style={{ marginBottom: 20 }}>
         {emailHistory.length ? <div style={{ display: "grid", gap: 10 }}>
           {emailHistory.map(item => {

@@ -100,6 +100,7 @@ import { useLabTenantAdmin } from "./hooks/useLabTenantAdmin";
 import { useLabFreshdeskWidget } from "./hooks/useLabFreshdeskWidget";
 import { useLabTheme } from "./hooks/useLabTheme";
 import { assignedNameList, COLS_TAREAS, getAssignedIds, normalizeTaskAssignees } from "./lib/utils/tasks";
+import { resolveClientPortalSlugFromPath } from "./lib/clients/clientPortal";
 import {
   attachDiioToCommentCollection,
   attachDiioToCrmActivities,
@@ -160,6 +161,7 @@ const ViewDashboard = lazy(() => import("./components/dashboard/DashboardView").
 const ViewCalendario = lazy(() => import("./components/calendar/CalendarView").then(module => ({ default: module.ViewCalendario })));
 const ViewCliDet = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewCliDet })));
 const ViewClientes = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewClientes })));
+const ClientPortalView = lazy(() => import("./components/clients/ClientPortalView").then(module => ({ default: module.ClientPortalView })));
 const ViewCts = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewCts })));
 const ViewPres = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPres })));
 const ViewPresDet = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPresDet })));
@@ -216,6 +218,10 @@ export default function App(){
   const [diioIncoming,setDiioIncoming]=useState([]);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [moduleLoadingTimedOut, setModuleLoadingTimedOut] = useState(false);
+  const publicClientPortalSlug = useMemo(
+    () => (typeof window !== "undefined" ? resolveClientPortalSlugFromPath(window.location.pathname) : ""),
+    [],
+  );
   const sessionActivityRef = useRef(0);
   const moduleLoadingTimeoutRef = useRef(null);
   const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
@@ -1501,6 +1507,12 @@ export default function App(){
 
   // Screens
   if(!globalInitReady || !empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
+  if(publicClientPortalSlug) return <>
+    <StyleTag css={APP_SHELL_CSS}/>
+    <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>
+      <ClientPortalView empresas={empresas} slug={publicClientPortalSlug} />
+    </Suspense>
+  </>;
   if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;
   if(canManageSuperAdminPanel(curUser)&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
 

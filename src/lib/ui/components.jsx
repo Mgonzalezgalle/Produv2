@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 
 const BP = {
+  blue: ["#2f6ea818", "#2f6ea8", "#2f6ea835"],
   cyan: ["var(--cg)", "var(--cy)", "var(--cm)"],
   green: ["#00e08a18", "#00e08a", "#00e08a35"],
   red: ["#ff556618", "#ff5566", "#ff556635"],
@@ -43,7 +44,7 @@ const SM = {
 };
 
 export function Badge({ label, color, sm }) {
-  const palette = BP[color || SM[label] || "gray"];
+  const palette = BP[color || SM[label] || "gray"] || BP.gray;
   return (
     <span
       style={{

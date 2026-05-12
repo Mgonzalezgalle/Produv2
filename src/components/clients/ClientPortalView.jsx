@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dbGet, dbSet } from "../../hooks/useLabDataStore";
 import { countCampaignPieces, cobranzaState, normalizeEmailValue } from "../../lib/utils/helpers";
 import { buildClientPortalSessionKey, normalizeClientPortal } from "../../lib/clients/clientPortal";
@@ -122,6 +122,7 @@ function PublicPortalShell({ children }) {
 function PortalGate({ empresa, client, portal, onUnlock }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const codeInputRef = useRef(null);
   const canSubmit = code.trim().length === 6;
   const handleSubmit = () => {
     if (String(code).trim() !== String(portal?.accessCode || "").trim()) {
@@ -148,7 +149,11 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
               Ingresa el código de 6 dígitos que te compartieron para entrar al portal de este cliente.
             </div>
             <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => codeInputRef.current?.focus()}
+                style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", background: "transparent", border: "none", padding: 0, cursor: "text", textAlign: "left" }}
+              >
                 {accessCodeSlots(code).map((digit, index) => (
                   <div
                     key={index}
@@ -171,8 +176,9 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                     {digit || ""}
                   </div>
                 ))}
-              </div>
+              </button>
               <input
+                ref={codeInputRef}
                 value={code}
                 onChange={(event) => setCode(String(event.target.value || "").replace(/\D/g, "").slice(0, 6))}
                 onKeyDown={(event) => {
@@ -182,11 +188,16 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                 inputMode="numeric"
                 aria-label="Código de acceso"
                 style={{
-                  position: "absolute",
-                  opacity: 0.001,
-                  pointerEvents: "none",
-                  width: 1,
-                  height: 1,
+                  width: 220,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  border: `1px solid ${error ? "#ff5566" : "#c8d7ff"}`,
+                  outline: "none",
+                  fontFamily: "var(--fm)",
+                  fontSize: 18,
+                  letterSpacing: 4,
+                  color: "#0f172a",
+                  background: "#ffffff",
                 }}
               />
               <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>

@@ -361,16 +361,17 @@ export function useLabTreasuryModule({
     if (!empId) return false;
     const safeNext = sanitizeTreasuryPayable(withEmp(next), empId);
     const exists = treasuryPayables.some(item => item.id === safeNext.id);
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.upsertRecord({
       registryName: "payables",
+      record: safeNext,
       setRecords: setTreasuryPayables,
-      mutateRecords: current => mergeById(current, [safeNext]),
       metadata: {
         reason: exists ? "payable_updated" : "payable_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar payables con foundation.",
+      sanitizeRecord: sanitizeTreasuryPayable,
       audit: {
         area: "tesoreria",
         action: exists ? "payable_updated" : "payable_created",
@@ -403,16 +404,17 @@ export function useLabTreasuryModule({
 
   const deletePayable = async id => {
     if (!canManageTreasury) return false;
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.deleteRecord({
       registryName: "payables",
+      recordId: id,
       setRecords: setTreasuryPayables,
-      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "payable_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar payables con foundation.",
+      sanitizeRecord: sanitizeTreasuryPayable,
       audit: {
         area: "tesoreria",
         action: "payable_deleted",
@@ -436,16 +438,17 @@ export function useLabTreasuryModule({
     if (!empId) return false;
     const safeNext = sanitizeTreasuryPurchaseOrder(withEmp(next), empId);
     const exists = treasuryPurchaseOrders.some(item => item.id === safeNext.id);
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.upsertRecord({
       registryName: "purchase_orders",
+      record: safeNext,
       setRecords: setTreasuryPurchaseOrders,
-      mutateRecords: current => mergeById(current, [safeNext]),
       metadata: {
         reason: exists ? "purchase_order_updated" : "purchase_order_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
+      sanitizeRecord: sanitizeTreasuryPurchaseOrder,
       audit: {
         area: "tesoreria",
         action: exists ? "purchase_order_updated" : "purchase_order_created",
@@ -478,16 +481,17 @@ export function useLabTreasuryModule({
 
   const deletePurchaseOrder = async id => {
     if (!canManageTreasury) return false;
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.deleteRecord({
       registryName: "purchase_orders",
+      recordId: id,
       setRecords: setTreasuryPurchaseOrders,
-      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "purchase_order_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
+      sanitizeRecord: sanitizeTreasuryPurchaseOrder,
       audit: {
         area: "tesoreria",
         action: "purchase_order_deleted",

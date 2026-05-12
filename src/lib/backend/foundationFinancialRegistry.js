@@ -152,10 +152,143 @@ export function createFoundationFinancialRegistryCoordinator({
     };
   };
 
+  const upsertRecord = async ({
+    registryName = "",
+    record = {},
+    setRecords = null,
+    metadata = {},
+    degradedMessage = "No pudimos sincronizar registros con foundation.",
+    audit = null,
+    workflow = null,
+    sanitizeRecord = (item => item),
+  } = {}) => {
+    const safeRecord = sanitizeRecord(record, safeEmpId);
+    const safeRecordId = String(safeRecord?.id || "").trim();
+    if (!safeEmpId || !registryName || !safeRecordId || typeof setRecords !== "function") {
+      return { ok: false, source: "skipped", records: [] };
+    }
+    if (!platformServices?.upsertFinancialRegistryRecord) {
+      return mutateSnapshot({
+        registryName,
+        setRecords,
+        mutateRecords: current => {
+          const baseRecords = Array.isArray(current) ? current : [];
+          const exists = baseRecords.some(item => String(item?.id || "").trim() === safeRecordId);
+          return exists
+            ? baseRecords.map(item => String(item?.id || "").trim() === safeRecordId ? { ...item, ...safeRecord } : item)
+            : [...baseRecords, safeRecord];
+        },
+        metadata,
+        degradedMessage,
+        audit,
+        workflow,
+      });
+    }
+    const remoteResult = await platformServices.upsertFinancialRegistryRecord(safeEmpId, registryName, safeRecord, metadata);
+    const records = Array.isArray(remoteResult?.records)
+      ? remoteResult.records.map(item => sanitizeRecord(item, safeEmpId))
+      : [safeRecord];
+    await Promise.resolve(setRecords(records));
+    if (audit?.action) {
+      await appendOperationalAuditEntry({
+        empId: safeEmpId,
+        area: audit.area || "operacion",
+        action: audit.action,
+        entityType: audit.entityType || registryName,
+        entityId: audit.entityId || safeRecordId,
+        actor,
+        payload: audit.payload && typeof audit.payload === "object" ? audit.payload : {},
+        platformServices,
+      });
+    }
+    if (workflow?.stream && workflow?.eventName) {
+      await appendWorkflowEventEntry({
+        empId: safeEmpId,
+        stream: workflow.stream,
+        eventName: workflow.eventName,
+        entityType: workflow.entityType || audit?.entityType || registryName,
+        entityId: workflow.entityId || audit?.entityId || safeRecordId,
+        actor,
+        payload: workflow.payload && typeof workflow.payload === "object" ? workflow.payload : {},
+        platformServices,
+      });
+    }
+    return {
+      ok: true,
+      source: remoteResult?.source || "remote",
+      records,
+      syncResult: remoteResult,
+    };
+  };
+
+  const deleteRecord = async ({
+    registryName = "",
+    recordId = "",
+    setRecords = null,
+    metadata = {},
+    degradedMessage = "No pudimos sincronizar registros con foundation.",
+    audit = null,
+    workflow = null,
+    sanitizeRecord = (item => item),
+  } = {}) => {
+    const safeRecordId = String(recordId || "").trim();
+    if (!safeEmpId || !registryName || !safeRecordId || typeof setRecords !== "function") {
+      return { ok: false, source: "skipped", records: [] };
+    }
+    if (!platformServices?.deleteFinancialRegistryRecord) {
+      return mutateSnapshot({
+        registryName,
+        setRecords,
+        mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => String(item?.id || "").trim() !== safeRecordId),
+        metadata,
+        degradedMessage,
+        audit,
+        workflow,
+      });
+    }
+    const remoteResult = await platformServices.deleteFinancialRegistryRecord(safeEmpId, registryName, safeRecordId, metadata);
+    const records = Array.isArray(remoteResult?.records)
+      ? remoteResult.records.map(item => sanitizeRecord(item, safeEmpId))
+      : [];
+    await Promise.resolve(setRecords(records));
+    if (audit?.action) {
+      await appendOperationalAuditEntry({
+        empId: safeEmpId,
+        area: audit.area || "operacion",
+        action: audit.action,
+        entityType: audit.entityType || registryName,
+        entityId: audit.entityId || safeRecordId,
+        actor,
+        payload: audit.payload && typeof audit.payload === "object" ? audit.payload : {},
+        platformServices,
+      });
+    }
+    if (workflow?.stream && workflow?.eventName) {
+      await appendWorkflowEventEntry({
+        empId: safeEmpId,
+        stream: workflow.stream,
+        eventName: workflow.eventName,
+        entityType: workflow.entityType || audit?.entityType || registryName,
+        entityId: workflow.entityId || audit?.entityId || safeRecordId,
+        actor,
+        payload: workflow.payload && typeof workflow.payload === "object" ? workflow.payload : {},
+        platformServices,
+      });
+    }
+    return {
+      ok: true,
+      source: remoteResult?.source || "remote",
+      records,
+      syncResult: remoteResult,
+    };
+  };
+
   return {
     recordEvent,
     rehydrateSnapshot,
     syncSnapshot,
     mutateSnapshot,
+    upsertRecord,
+    deleteRecord,
   };
 }

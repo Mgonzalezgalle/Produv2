@@ -437,6 +437,50 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
       return data;
     },
 
+    async upsertFinancialRegistryRecord(tenantId, registryName, record = {}, metadata = {}) {
+      if (foundationRpcBreaker.has("upsert_legacy_financial_registry_record")) {
+        return fallbackServices?.upsertFinancialRegistryRecord
+          ? fallbackServices.upsertFinancialRegistryRecord(tenantId, registryName, record, metadata)
+          : null;
+      }
+      const { data, error } = await sb.rpc("upsert_legacy_financial_registry_record", {
+        legacy_emp_id: tenantId,
+        registry_name: registryName,
+        record_data: record && typeof record === "object" ? record : {},
+        metadata_data: metadata && typeof metadata === "object" ? metadata : {},
+      });
+      if (error) {
+        foundationRpcBreaker.mark("upsert_legacy_financial_registry_record");
+        if (fallbackServices?.upsertFinancialRegistryRecord) {
+          return fallbackServices.upsertFinancialRegistryRecord(tenantId, registryName, record, metadata);
+        }
+        throw new Error(error.message || "No pudimos persistir el registro financiero.");
+      }
+      return data;
+    },
+
+    async deleteFinancialRegistryRecord(tenantId, registryName, recordId = "", metadata = {}) {
+      if (foundationRpcBreaker.has("delete_legacy_financial_registry_record")) {
+        return fallbackServices?.deleteFinancialRegistryRecord
+          ? fallbackServices.deleteFinancialRegistryRecord(tenantId, registryName, recordId, metadata)
+          : null;
+      }
+      const { data, error } = await sb.rpc("delete_legacy_financial_registry_record", {
+        legacy_emp_id: tenantId,
+        registry_name: registryName,
+        record_id: recordId || "",
+        metadata_data: metadata && typeof metadata === "object" ? metadata : {},
+      });
+      if (error) {
+        foundationRpcBreaker.mark("delete_legacy_financial_registry_record");
+        if (fallbackServices?.deleteFinancialRegistryRecord) {
+          return fallbackServices.deleteFinancialRegistryRecord(tenantId, registryName, recordId, metadata);
+        }
+        throw new Error(error.message || "No pudimos eliminar el registro financiero.");
+      }
+      return data;
+    },
+
     async upsertBsaleSyncSession(tenantId, session = {}) {
       if (foundationRpcBreaker.has("upsert_bsale_sync_session")) {
         return fallbackServices?.upsertBsaleSyncSession ? fallbackServices.upsertBsaleSyncSession(tenantId, session) : null;

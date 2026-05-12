@@ -245,6 +245,36 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
       };
     },
 
+    async upsertFinancialRegistryRecord(tenantId, registryName, record = {}, metadata = {}) {
+      const snapshot = await this.getFinancialRegistrySnapshot(tenantId, registryName);
+      const safeRecord = record && typeof record === "object" ? record : {};
+      const safeId = String(safeRecord?.id || "").trim();
+      if (!safeId) throw new Error("record_id_required");
+      const currentRecords = Array.isArray(snapshot?.records) ? snapshot.records : [];
+      const exists = currentRecords.some(item => String(item?.id || "").trim() === safeId);
+      const nextRecords = exists
+        ? currentRecords.map(item => String(item?.id || "").trim() === safeId ? { ...item, ...safeRecord } : item)
+        : [...currentRecords, safeRecord];
+      return this.upsertFinancialRegistrySnapshot(tenantId, registryName, nextRecords, {
+        ...(metadata && typeof metadata === "object" ? metadata : {}),
+        lastMutation: "record_upsert",
+        mutatedRecordId: safeId,
+      });
+    },
+
+    async deleteFinancialRegistryRecord(tenantId, registryName, recordId = "", metadata = {}) {
+      const snapshot = await this.getFinancialRegistrySnapshot(tenantId, registryName);
+      const safeId = String(recordId || "").trim();
+      if (!safeId) throw new Error("record_id_required");
+      const currentRecords = Array.isArray(snapshot?.records) ? snapshot.records : [];
+      const nextRecords = currentRecords.filter(item => String(item?.id || "").trim() !== safeId);
+      return this.upsertFinancialRegistrySnapshot(tenantId, registryName, nextRecords, {
+        ...(metadata && typeof metadata === "object" ? metadata : {}),
+        lastMutation: "record_deleted",
+        mutatedRecordId: safeId,
+      });
+    },
+
     async getTenantPlatformSnapshot(tenantId) {
       const snapshot = (await buildTenantSnapshot(tenantId)) || {};
       const financialSnapshots = await loadFinancialRegistrySnapshots();

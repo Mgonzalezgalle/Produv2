@@ -170,11 +170,11 @@ function PublicPortalShell({ children }) {
 class PortalSectionBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { failed: false };
+    this.state = { failed: false, errorMessage: "" };
   }
 
-  static getDerivedStateFromError() {
-    return { failed: true };
+  static getDerivedStateFromError(error) {
+    return { failed: true, errorMessage: error?.message || "Error desconocido" };
   }
 
   componentDidCatch(error) {
@@ -189,8 +189,14 @@ class PortalSectionBoundary extends Component {
             <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#f8fbff", padding: 18, color: "#475569", lineHeight: 1.7 }}>
               Algo de esta vista vino con informacion incompleta. Ya dejamos el portal estable y puedes volver al resumen o intentar nuevamente.
             </div>
+            {this.state.errorMessage ? (
+              <div style={{ borderRadius: 14, border: "1px solid #ffd7bf", background: "#fff8f3", padding: "12px 14px", color: "#8a5b33", fontSize: 12, lineHeight: 1.6 }}>
+                <b style={{ color: "#0f172a" }}>Detalle tecnico:</b> {this.state.errorMessage}
+                {this.props.details ? <div style={{ marginTop: 8 }}><b style={{ color: "#0f172a" }}>Contexto:</b> {this.props.details}</div> : null}
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Btn onClick={() => this.setState({ failed: false })}>Intentar de nuevo</Btn>
+              <Btn onClick={() => this.setState({ failed: false, errorMessage: "" })}>Intentar de nuevo</Btn>
               {typeof this.props.onBack === "function" ? <GBtn onClick={this.props.onBack}>Volver al resumen</GBtn> : null}
             </div>
           </div>
@@ -444,6 +450,11 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     () => filteredContentCampaigns.filter(item => item && typeof item === "object"),
     [filteredContentCampaigns],
   );
+
+  const contentDebugDetails = useMemo(() => {
+    const ids = visibleContentPieces.slice(0, 6).map(item => safeText(item?.piece?.id, "sin-id")).join(", ");
+    return `campanas=${safeFilteredContentCampaigns.length} · piezas=${visibleContentPieces.length}${ids ? ` · ids=${ids}` : ""}`;
+  }, [safeFilteredContentCampaigns.length, visibleContentPieces]);
 
   const persistClientMutation = async ({ key, updater, payloadKey }) => {
     if (!payload?.empresa?.id || !payloadKey || typeof updater !== "function") return false;
@@ -896,7 +907,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         ) : null}
 
         {tab === "contenidos" ? (
-          <PortalSectionBoundary onBack={() => setTab("resumen")}>
+          <PortalSectionBoundary onBack={() => setTab("resumen")} details={contentDebugDetails}>
             <Card title="Contenidos" sub="Aqui puedes revisar las campanas y piezas que hoy estan vinculadas a tu operacion.">
             {Array.isArray(summary?.activeContent) && summary.activeContent.length ? <div style={{ display: "grid", gap: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
@@ -950,13 +961,14 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               {visibleContentPieces.length ? (
                 <div style={{ display: "grid", gap: 14 }}>
                   {visibleContentPieces.map((item) => {
-                    const piece = item?.piece;
-                    if (!piece?.id) return null;
-                    const portalDecision = piece.clientPortalDecision || null;
-                    const tone = portalResponseTone(portalDecision?.status);
-                    const previewUrl = resolvePiecePreviewUrl(piece);
-                    return (
-                      <div key={piece.id} style={{ padding: 18, borderRadius: 22, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 14px 28px rgba(15,23,42,.05)" }}>
+                    try {
+                      const piece = item?.piece;
+                      if (!piece?.id) return null;
+                      const portalDecision = piece.clientPortalDecision || null;
+                      const tone = portalResponseTone(portalDecision?.status);
+                      const previewUrl = resolvePiecePreviewUrl(piece);
+                      return (
+                        <div key={piece.id} style={{ padding: 18, borderRadius: 22, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 14px 28px rgba(15,23,42,.05)" }}>
                         <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 16, alignItems: "start" }}>
                           <div style={{ display: "grid", gap: 12 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -1023,8 +1035,16 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
+                        </div>
+                      );
+                    } catch (error) {
+                      return (
+                        <div key={safeText(item?.piece?.id, uid())} style={{ padding: 18, borderRadius: 22, background: "#fff8f3", border: "1px solid #ffd7bf", color: "#8a5b33", lineHeight: 1.7 }}>
+                          <b style={{ color: "#0f172a" }}>No pudimos mostrar una pieza.</b> {safeText(item?.piece?.nom, "Pieza sin nombre")}
+                          <div style={{ marginTop: 6, fontSize: 12 }}>Detalle: {error?.message || "Error desconocido"}</div>
+                        </div>
+                      );
+                    }
                   })}
                 </div>
               ) : (

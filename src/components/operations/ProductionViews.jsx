@@ -32,6 +32,15 @@ function parseTarifa(t) {
   return parseInt(String(t || 0).replace(/[^0-9]/g, ""), 10) || 0;
 }
 
+function resolvePiecePrimaryPreview(piece = {}) {
+  return piece.previewAssetUrl || piece.finalLink || piece.link || "";
+}
+
+function isImagePreviewUrl(value = "") {
+  const normalized = String(value || "").toLowerCase();
+  return normalized.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/.test(normalized);
+}
+
 function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, ini, fmtM }) {
   const safeCrew = (Array.isArray(crew) ? crew : []).filter(x => x && typeof x === "object" && x.id);
   const safeAssigned = Array.isArray(asignados) ? asignados.filter(Boolean) : [];
@@ -834,6 +843,8 @@ export function ViewPiezaDet(props) {
   const pCrew = (crew || []).filter(item => item.empId === empId && (campaign.crewIds || []).includes(item.id));
   const crewMap = Object.fromEntries((crew || []).filter(item => item && item.id).map(item => [item.id, item]));
   const portalDecision = piece.clientPortalDecision || null;
+  const previewUrl = resolvePiecePrimaryPreview(piece);
+  const previewIsImage = isImagePreviewUrl(previewUrl);
   const clientPortalBadge = decision => {
     if (!decision?.status) return null;
     return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios"} color={decision.status === "approved" ? "green" : "orange"} sm />;
@@ -881,6 +892,65 @@ export function ViewPiezaDet(props) {
       <Stat label="Aprobación" value={piece.approval || "Pendiente"} accent={(piece.approval || "Pendiente") === "Aprobada" ? "#00e08a" : (piece.approval || "Pendiente") === "Observada" ? "#ff5566" : "#ffcc44"} vc={(piece.approval || "Pendiente") === "Aprobada" ? "#00e08a" : (piece.approval || "Pendiente") === "Observada" ? "#ff5566" : "#ffcc44"} />
       <Stat label="Publicación" value={piece.publishDate ? fmtD(piece.publishDate) : "—"} accent="#8b5cf6" />
       <Stat label="Campaña" value={campaign.piezas?.length || 0} sub={`${campaign.piezas?.length || 0} pieza(s) en ${campaign.nom}`} accent="#4f7cff" vc="#4f7cff" />
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(320px,.8fr)", gap: 16, marginBottom: 20 }}>
+      <Card title="Vista principal" sub="La versión que hoy estamos usando para revisión y conversación con el cliente.">
+        <div style={{ display: "grid", gap: 14 }}>
+          {previewUrl ? (
+            previewIsImage ? (
+              <img src={previewUrl} alt={piece.nom} style={{ width: "100%", minHeight: 300, maxHeight: 520, objectFit: "cover", borderRadius: 18, border: "1px solid var(--bdr)" }} />
+            ) : (
+              <div style={{ borderRadius: 18, border: "1px solid var(--bdr)", background: "linear-gradient(180deg,var(--sur),var(--card2))", minHeight: 260, display: "grid", placeItems: "center", padding: 24 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 42, marginBottom: 10 }}>PDF</div>
+                  <div style={{ fontSize: 13, color: "var(--gr2)", marginBottom: 10 }}>{piece.previewAssetName || "Documento de revisión"}</div>
+                  <a href={previewUrl} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Abrir archivo ↗</a>
+                </div>
+              </div>
+            )
+          ) : (
+            <div style={{ borderRadius: 18, border: "1px dashed var(--bdr2)", background: "linear-gradient(180deg,var(--sur),var(--card2))", minHeight: 260, display: "grid", placeItems: "center", padding: 24, color: "var(--gr2)", textAlign: "center" }}>
+              <div>
+                <div style={{ fontSize: 38, marginBottom: 10, opacity: 0.45 }}>◫</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gr3)" }}>Todavía no hay preview cargado</div>
+                <div style={{ fontSize: 12, marginTop: 6 }}>Puedes subir una imagen o PDF desde editar pieza para que el portal cliente vea esta versión.</div>
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {piece.previewAssetUrl ? <GBtn onClick={() => window.open(piece.previewAssetUrl, "_blank", "noreferrer")}>Abrir preview portal</GBtn> : null}
+            {piece.link ? <GBtn onClick={() => window.open(piece.link, "_blank", "noreferrer")}>Abrir trabajo</GBtn> : null}
+            {piece.finalLink ? <GBtn onClick={() => window.open(piece.finalLink, "_blank", "noreferrer")}>Abrir final</GBtn> : null}
+            {canManageContent ? <Btn onClick={() => openM("pieza", { ...piece, campId: campaign.id })}>Actualizar pieza</Btn> : null}
+          </div>
+        </div>
+      </Card>
+      <Card title="Estado de revisión" sub="Lo más importante para saber dónde está esta pieza hoy.">
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ padding: "14px 16px", borderRadius: 16, background: "var(--sur)", border: "1px solid var(--bdr)" }}>
+            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, fontWeight: 700 }}>Estado interno</div>
+            <div style={{ marginTop: 8 }}><Badge label={piece.est || "Planificado"} /></div>
+          </div>
+          <div style={{ padding: "14px 16px", borderRadius: 16, background: "var(--sur)", border: "1px solid var(--bdr)" }}>
+            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, fontWeight: 700 }}>Aprobación</div>
+            <div style={{ marginTop: 8 }}><Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : (piece.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} /></div>
+          </div>
+          <div style={{ padding: "14px 16px", borderRadius: 16, background: "var(--sur)", border: "1px solid var(--bdr)" }}>
+            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, fontWeight: 700 }}>Respuesta del cliente</div>
+            <div style={{ marginTop: 8 }}>{clientPortalBadge(portalDecision) || <span style={{ fontSize: 12, color: "var(--gr2)" }}>Sin respuesta todavía</span>}</div>
+            {portalDecision?.comment ? <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, marginTop: 10 }}>{portalDecision.comment}</div> : null}
+            {portalDecision?.requestedChanges ? <div style={{ fontSize: 12, color: "var(--org)", lineHeight: 1.6, marginTop: 10 }}>{portalDecision.requestedChanges}</div> : null}
+          </div>
+          <div style={{ padding: "14px 16px", borderRadius: 16, background: "color-mix(in srgb, var(--card) 82%, var(--cy) 18%)", border: "1px solid var(--bdr)" }}>
+            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, fontWeight: 700 }}>Responsable y tiempos</div>
+            <div style={{ fontSize: 12, color: "var(--gr3)", lineHeight: 1.7, marginTop: 8 }}>
+              <div><b style={{ color: "var(--wh)" }}>Responsable:</b> {piece.responsableId && crewMap[piece.responsableId] ? crewMap[piece.responsableId].nom : "Sin responsable"}</div>
+              <div><b style={{ color: "var(--wh)" }}>Entrega:</b> {piece.fin ? fmtD(piece.fin) : "Por definir"}</div>
+              <div><b style={{ color: "var(--wh)" }}>Publicación:</b> {piece.publishDate ? fmtD(piece.publishDate) : "Sin fecha"}</div>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
     <Tabs tabs={["Resumen", "Brief y texto", "Comentarios"]} active={tab} onChange={setTab} />
     {tab === 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

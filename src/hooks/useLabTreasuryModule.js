@@ -593,16 +593,17 @@ export function useLabTreasuryModule({
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
     if (!safeNext.id || !safeNext.invoiceId) return false;
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.upsertRecord({
       registryName: "receipts",
+      record: { ...safeNext, amount: nextAmount },
       setRecords: setTreasuryReceipts,
-      mutateRecords: current => mergeById(current, [{ ...safeNext, amount: nextAmount }]),
       metadata: {
         reason: exists ? "receipt_updated" : "receipt_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar receipts con foundation.",
+      sanitizeRecord: sanitizeTreasuryReceipt,
       audit: {
         area: "tesoreria",
         action: exists ? "receipt_updated" : "receipt_created",
@@ -643,19 +644,17 @@ export function useLabTreasuryModule({
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
     if (!safeNext.id || !safeNext.payableId) return false;
     const exists = (Array.isArray(treasuryDisbursements) ? treasuryDisbursements : effectiveTreasuryDisbursements).some(item => item.id === safeNext.id);
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.upsertRecord({
       registryName: "disbursements",
+      record: { ...safeNext, amount: nextAmount },
       setRecords: setTreasuryDisbursements,
-      mutateRecords: current => {
-        const baseRecords = Array.isArray(current) && current.length ? current : effectiveTreasuryDisbursements;
-        return mergeById(baseRecords, [{ ...safeNext, amount: nextAmount }]);
-      },
       metadata: {
         reason: exists ? "disbursement_updated" : "disbursement_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar disbursements con foundation.",
+      sanitizeRecord: sanitizeTreasuryDisbursement,
       audit: {
         area: "tesoreria",
         action: exists ? "disbursement_updated" : "disbursement_created",
@@ -732,16 +731,17 @@ export function useLabTreasuryModule({
 
   const deleteReceipt = async id => {
     if (!canManageTreasury) return false;
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.deleteRecord({
       registryName: "receipts",
+      recordId: id,
       setRecords: setTreasuryReceipts,
-      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "receipt_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar receipts con foundation.",
+      sanitizeRecord: sanitizeTreasuryReceipt,
       audit: {
         area: "tesoreria",
         action: "receipt_deleted",
@@ -762,19 +762,17 @@ export function useLabTreasuryModule({
 
   const deleteDisbursement = async id => {
     if (!canManageTreasury) return false;
-    await foundationFinancialRegistry.mutateSnapshot({
+    await foundationFinancialRegistry.deleteRecord({
       registryName: "disbursements",
+      recordId: id,
       setRecords: setTreasuryDisbursements,
-      mutateRecords: current => {
-        const baseRecords = Array.isArray(current) && current.length ? current : effectiveTreasuryDisbursements;
-        return baseRecords.filter(item => item.id !== id);
-      },
       metadata: {
         reason: "disbursement_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar disbursements con foundation.",
+      sanitizeRecord: sanitizeTreasuryDisbursement,
       audit: {
         area: "tesoreria",
         action: "disbursement_deleted",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { dbGet, dbSet } from "../../hooks/useLabDataStore";
 import { countCampaignPieces, cobranzaState, normalizeEmailValue } from "../../lib/utils/helpers";
 import { buildClientPortalSessionKey, normalizeClientPortal } from "../../lib/clients/clientPortal";
@@ -143,6 +143,40 @@ function PublicPortalShell({ children }) {
       <div style={{ maxWidth: 1240, margin: "0 auto" }}>{children}</div>
     </div>
   );
+}
+
+class PortalSectionBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("[client-portal] Seccion del portal con error", error);
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <Card title="No pudimos abrir esta seccion" sub="Protegimos el portal para que una pieza invalida no deje la pantalla en blanco.">
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#f8fbff", padding: 18, color: "#475569", lineHeight: 1.7 }}>
+              Algo de esta vista vino con informacion incompleta. Ya dejamos el portal estable y puedes volver al resumen o intentar nuevamente.
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Btn onClick={() => this.setState({ failed: false })}>Intentar de nuevo</Btn>
+              {typeof this.props.onBack === "function" ? <GBtn onClick={this.props.onBack}>Volver al resumen</GBtn> : null}
+            </div>
+          </div>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function PortalGate({ empresa, client, portal, onUnlock }) {
@@ -343,6 +377,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
   const filteredContentCampaigns = useMemo(() => {
     let rows = Array.isArray(contentWorkspace?.campaigns) ? contentWorkspace.campaigns : [];
+    rows = rows.filter(item => item && typeof item === "object");
     if (contentCampaignFilter) rows = rows.filter(item => item.id === contentCampaignFilter);
     if (contentDecisionFilter === "queue") {
       rows = rows.filter(item => (Array.isArray(item.piezas) ? item.piezas : []).some(piece => !piece?.clientPortalDecision?.status));
@@ -382,6 +417,11 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     if (contentDecisionFilter === "changes") return contentWorkspace.observed[0] || null;
     return contentWorkspace.reviewQueue[0] || visibleContentPieces[0] || null;
   }, [contentDecisionFilter, contentWorkspace.approved, contentWorkspace.observed, contentWorkspace.reviewQueue, visibleContentPieces]);
+
+  const safeFilteredContentCampaigns = useMemo(
+    () => filteredContentCampaigns.filter(item => item && typeof item === "object"),
+    [filteredContentCampaigns],
+  );
 
   const persistClientMutation = async ({ key, updater, payloadKey }) => {
     if (!payload?.empresa?.id || !payloadKey || typeof updater !== "function") return false;
@@ -834,8 +874,9 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         ) : null}
 
         {tab === "contenidos" ? (
-          <Card title="Contenidos" sub="Aquí puedes revisar las campañas y piezas que hoy están vinculadas a tu operación.">
-            {summary?.activeContent.length ? <div style={{ display: "grid", gap: 16 }}>
+          <PortalSectionBoundary onBack={() => setTab("resumen")}>
+            <Card title="Contenidos" sub="Aqui puedes revisar las campanas y piezas que hoy estan vinculadas a tu operacion.">
+            {Array.isArray(summary?.activeContent) && summary.activeContent.length ? <div style={{ display: "grid", gap: 16 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
                 <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.10)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -1002,7 +1043,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   </div>
                 </div>
               </div>
-              {filteredContentCampaigns.map(item => {
+              {safeFilteredContentCampaigns.map(item => {
                 const metrics = countCampaignResponses(item);
                 return (
                   <div key={item.id} style={{ padding: 20, border: "1px solid #e5ddfb", borderRadius: 24, background: "linear-gradient(180deg, #faf7ff, #ffffff)", boxShadow: "0 14px 34px rgba(148,163,184,.08)" }}>
@@ -1114,8 +1155,9 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   No hay piezas visibles con el filtro actual. Puedes cambiar la campaña o volver a “Todo”.
                 </div>
               ) : null}
-            </div> : <Empty text="Todavía no hay campañas visibles" sub="Cuando este cliente tenga contenidos asociados, aparecerán aquí." />}
+            </div> : <Empty text="Todavia no hay campanas visibles" sub="Cuando este cliente tenga contenidos asociados, apareceran aqui." />}
           </Card>
+          </PortalSectionBoundary>
         ) : null}
 
         {tab === "presupuestos" ? (

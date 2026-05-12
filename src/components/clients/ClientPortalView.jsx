@@ -35,6 +35,12 @@ function uid() {
   return `portal_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function clientDecisionLabel(decision = null, type = "content") {
+  if (!decision?.status) return "";
+  if (type === "budget") return decision.status === "approved" ? "Cliente aprobó" : "Cliente observó";
+  return decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios";
+}
+
 async function resolvePortalPayload(empresas = [], slug = "") {
   const safeSlug = String(slug || "").trim();
   if (!safeSlug) return { error: "missing_slug" };
@@ -344,7 +350,6 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
     if (!contentDecision?.campaignId || !contentDecision?.pieceId || !contentDecision?.status) return;
     setDecisionSaving(true);
     setDecisionFeedback("");
-    const nextApproval = contentDecision.status === "approved" ? "Aprobada" : "Observada";
     const briefNote = String(contentDecision.brief || "").trim();
     const ok = await persistClientMutation({
       key: "piezas",
@@ -355,16 +360,12 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
           if (piece.id !== contentDecision.pieceId) return piece;
           return {
             ...piece,
-            approval: nextApproval,
             clientPortalDecision: {
               status: contentDecision.status,
               brief: briefNote,
               decidedAt: new Date().toISOString(),
               source: "client_portal",
             },
-            brief: briefNote
-              ? `${String(piece.brief || "").trim()}${String(piece.brief || "").trim() ? "\n\n" : ""}Brief adicional cliente:\n${briefNote}`
-              : piece.brief || "",
           };
         });
         return { ...campaign, piezas: nextPieces };
@@ -389,21 +390,18 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
     if (!budgetDecision?.budgetId || !budgetDecision?.status) return;
     setDecisionSaving(true);
     setDecisionFeedback("");
-    const nextStatus = budgetDecision.status === "approved" ? "Aceptado" : "Rechazado";
     const note = String(budgetDecision.note || "").trim();
     const ok = await persistClientMutation({
       key: "presupuestos",
       payloadKey: "presupuestos",
       updater: (records = []) => (Array.isArray(records) ? records : []).map(item => item.id === budgetDecision.budgetId ? {
         ...item,
-        estado: nextStatus,
         clientPortalDecision: {
           status: budgetDecision.status,
           note,
           decidedAt: new Date().toISOString(),
           source: "client_portal",
         },
-        obs: note ? `${String(item.obs || "").trim()}${String(item.obs || "").trim() ? "\n\n" : ""}Comentario cliente portal:\n${note}` : item.obs || "",
       } : item),
     });
     setDecisionSaving(false);
@@ -535,6 +533,7 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                               <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
+                              {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
                               <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "approved", brief: "" })}>Aprobar</GBtn>
                               <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.brief || "" })}>Pedir cambios</GBtn>
                             </div>
@@ -569,6 +568,7 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
                       <TD>
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                           <Badge label={item.estado || "Borrador"} color={approvedLikeStatus(item.estado) ? "green" : rejectedLikeStatus(item.estado) ? "red" : "yellow"} />
+                          {item.clientPortalDecision?.status ? <Badge label={clientDecisionLabel(item.clientPortalDecision, "budget")} color={item.clientPortalDecision.status === "approved" ? "green" : "orange"} /> : null}
                           <GBtn sm onClick={() => setBudgetDecision({ budgetId: item.id, status: "approved", note: "" })}>Aprobar</GBtn>
                           <GBtn sm onClick={() => setBudgetDecision({ budgetId: item.id, status: "rejected", note: item.clientPortalDecision?.note || "" })}>Observar</GBtn>
                         </div>

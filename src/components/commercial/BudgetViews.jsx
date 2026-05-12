@@ -124,6 +124,10 @@ export function BudgetListSection({
   recurringSummary, budgetRefLabel, today, fmtM, fmtMoney,
   setEstadoRapido, navTo, onOpenPdf, onSendWhatsApp, onSendEmail, onDelete,
 }) {
+  const clientPortalBadge = decision => {
+    if (!decision?.status) return null;
+    return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente observó"} color={decision.status === "approved" ? "green" : "orange"} sm />;
+  };
   return <div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
       <Stat label="Total" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
@@ -158,7 +162,7 @@ export function BudgetListSection({
               <TD><div style={{fontWeight:700}}>{p.titulo}</div><div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{recurringSummary(p, p.cr || today())}</div></TD>
               <TD>{c?c.nom:"—"}</TD>
               <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
-              <TD><Badge label={p.estado||"Borrador"}/></TD>
+              <TD><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}><Badge label={p.estado||"Borrador"}/>{clientPortalBadge(p.clientPortalDecision)}</div></TD>
               <TD mono style={{fontSize:11}}>{(p.items||[]).length}{p.recurring && <div style={{fontSize:10,color:"#00e08a",marginTop:4}}>{p.recMonths || 1} mes(es)</div>}</TD>
               <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>
                 {fmtMoney(p.total||0,budgetSummaryCurrency(p))}
@@ -658,6 +662,10 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
   const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
   const [emailComposerSending, setEmailComposerSending] = React.useState(false);
   if(!p) return <Empty text="No encontrado"/>;
+  const clientPortalBadge = decision => {
+    if (!decision?.status) return null;
+    return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente observó"} color={decision.status === "approved" ? "green" : "orange"} sm />;
+  };
   const deliverEmailDraft = async (draft = {}) => {
     const recipients = String(draft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
     if (!recipients.length) return { ok: false, message: "Debes indicar al menos un destinatario." };
@@ -734,7 +742,7 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
     setEmailComposerOpen(true);
   };
   return <div>
-    <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>]} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
+    <DetHeader title={p.titulo} tag="Presupuesto" badges={[<Badge key={0} label={p.estado||"Borrador"}/>, clientPortalBadge(p.clientPortalDecision)].filter(Boolean)} meta={[c&&`Cliente: ${c.nom}`,p.cr&&`Creado: ${fmtD(p.cr)}`,`Válido: ${p.validez||30} días`].filter(Boolean)}
       actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <Btn onClick={async()=>{ const { generateBudgetPdf, commercialPdfDeps } = await getCommercialPdfRuntime(); await generateBudgetPdf(p,c,empresa,commercialPdfDeps); }}>⬇ Descargar PDF</Btn>
         <GBtn onClick={openBudgetEmailComposer}>✉ Crear correo</GBtn>
@@ -777,7 +785,7 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
     </div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_DETAIL_GRID,gap:16,marginBottom:16}}>
       <Card title="Datos del Presupuesto">
-        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado",<Badge key={0} label={p.estado||"Borrador"}/>],["Moneda origen",p.moneda||"CLP"],[budgetUsesFx(p)?"Tipo de cambio":"Moneda operativa",budgetUsesFx(p)?`${Number(p.tipoCambio || 1)} CLP`:"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
+        {[["Correlativo",p.correlativo||"—"],["Cliente",c?.nom||"—"],["Tipo",p.tipo||"—"],["Referencia",budgetRefLabel(p,producciones,programas,piezas)],["Estado interno",<Badge key={0} label={p.estado||"Borrador"}/>],["Respuesta cliente",clientPortalBadge(p.clientPortalDecision) || "Sin respuesta todavía"],["Moneda origen",p.moneda||"CLP"],[budgetUsesFx(p)?"Tipo de cambio":"Moneda operativa",budgetUsesFx(p)?`${Number(p.tipoCambio || 1)} CLP`:"CLP"],["Impuesto",p.honorarios?"Boleta Honorarios 15,25%":p.iva?"IVA 19%":"No aplica"],["Validez",`${p.validez||30} días`],["Recurrencia",recurringSummary(p, p.cr || today())],["Contrato asociado",contrato?.nom||"—"],["Documento tributario posterior",p.autoFactura?"Listo para emitir":"Manual"],["Modo detalle",p.modoDetalle==="piezas"?"Precio por piezas":"Ítems personalizados"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
       </Card>
       <Card title="Información de Pago">
         {[["Método",p.metodoPago||"—"],["Fecha pago",p.fechaPago?fmtD(p.fechaPago):"—"],["Notas de pago",p.notasPago||"—"]].map(([l,v])=><KV key={l} label={l} value={v}/>)}
@@ -796,9 +804,10 @@ export function ViewPresDet({id,empresa,user,platformApi,presupuestos,clientes,p
         <div style={{display:"flex",justifyContent:"space-between",width:260,fontSize:15,fontWeight:700,paddingTop:8,borderTop:"1px solid var(--bdr)"}}><span>Total Final CLP</span><span style={{fontFamily:"var(--fm)",color:"var(--cy)"}}>{fmtMoney(p.total||0,"CLP")}</span></div>
       </div>
     </Card>
-    {(p.notasPago||p.obs)&&<Card title="Observaciones">
+    {(p.notasPago||p.obs||p.clientPortalDecision?.note)&&<Card title="Observaciones">
       {p.notasPago&&<div style={{marginBottom:p.obs?12:0}}><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Notas de pago</div><p style={{fontSize:12,color:"var(--gr3)",margin:0}}>{p.notasPago}</p></div>}
       {p.obs&&<div><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Observaciones comerciales</div><p style={{fontSize:12,color:"var(--gr3)",margin:0}}>{p.obs}</p></div>}
+      {p.clientPortalDecision?.note&&<div style={{marginTop:p.notasPago||p.obs?12:0}}><div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Comentario del cliente</div><p style={{fontSize:12,color:"var(--gr3)",margin:0,whiteSpace:"pre-line"}}>{p.clientPortalDecision.note}</p></div>}
     </Card>}
     <Modal open={convOpen} onClose={()=>setConvOpen(false)} title="Convertir presupuesto" sub="Crea el registro operativo correspondiente.">
       <FG label="Tipo de registro"><FSl value={convTipo} onChange={e=>setConvTipo(e.target.value)}><option value="produccion">📽 Nuevo Proyecto</option>{canPrograms&&<option value="programa">📺 Nueva Producción</option>}{canCreateContent&&<option value="contenido">📱 Nueva Campaña de Contenidos</option>}</FSl></FG>

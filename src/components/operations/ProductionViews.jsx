@@ -497,6 +497,10 @@ export function ViewContenidoDet(props) {
   const canManageContent = !!(canDo && canDo("contenidos"));
   const canManageMoves = !!(canDo && canDo("movimientos"));
   const canManageCalendar = !!(canDo && canDo("calendario"));
+  const clientPortalBadge = decision => {
+    if (!decision?.status) return null;
+    return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios"} color={decision.status === "approved" ? "green" : "orange"} sm />;
+  };
   const bal = useBal(movimientos, empId);
   const [tab, setTab] = useState(0);
   const [piezaQ, setPiezaQ] = useState("");
@@ -611,7 +615,12 @@ export function ViewContenidoDet(props) {
                     {(DEFAULT_LISTAS.estadosPieza || []).map(o => <option key={o}>{o}</option>)}
                   </FSl>
                 </TD>
-                <TD><Badge label={pc.approval || "Pendiente"} color={(pc.approval || "Pendiente") === "Aprobada" ? "green" : (pc.approval || "Pendiente") === "Observada" ? "red" : (pc.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm /></TD>
+                <TD>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <Badge label={pc.approval || "Pendiente"} color={(pc.approval || "Pendiente") === "Aprobada" ? "green" : (pc.approval || "Pendiente") === "Observada" ? "red" : (pc.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />
+                    {clientPortalBadge(pc.clientPortalDecision)}
+                  </div>
+                </TD>
                 <TD mono style={{ fontSize: 11 }}>{pc.publishDate ? fmtD(pc.publishDate) : pc.fin ? fmtD(pc.fin) : "—"}{pc.publishedAt && <div style={{ fontSize: 10, color: "#00e08a", marginTop: 4 }}>Publicado {fmtD(pc.publishedAt)}</div>}</TD>
                 <TD style={{ fontSize: 11 }}>
                   {pc.link ? <a href={pc.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Pieza ↗</a> : <span style={{ color: "var(--gr2)" }}>—</span>}
@@ -691,7 +700,8 @@ export function ViewContenidoDet(props) {
             <KV label="Mes" value={pieceDetail.mes || "—"} />
             <KV label="Plataforma" value={pieceDetail.plataforma || "—"} />
             <KV label="Responsable" value={pieceDetail.responsableId && crewMap[pieceDetail.responsableId] ? crewMap[pieceDetail.responsableId].nom : "—"} />
-            <KV label="Aprobación" value={<Badge label={pieceDetail.approval || "Pendiente"} color={(pieceDetail.approval || "Pendiente") === "Aprobada" ? "green" : (pieceDetail.approval || "Pendiente") === "Observada" ? "red" : (pieceDetail.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />} />
+            <KV label="Aprobación interna" value={<Badge label={pieceDetail.approval || "Pendiente"} color={(pieceDetail.approval || "Pendiente") === "Aprobada" ? "green" : (pieceDetail.approval || "Pendiente") === "Observada" ? "red" : (pieceDetail.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />} />
+            <KV label="Respuesta cliente" value={clientPortalBadge(pieceDetail.clientPortalDecision) || "Sin respuesta todavía"} />
           </Card>
           <Card title="Fechas y enlaces">
             <KV label="Inicio" value={pieceDetail.ini ? fmtD(pieceDetail.ini) : "—"} />
@@ -707,6 +717,10 @@ export function ViewContenidoDet(props) {
             <KV label="Objetivo" value={pieceDetail.objetivo || "—"} />
             <KV label="CTA" value={pieceDetail.cta || "—"} />
             <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{pieceDetail.brief || pieceDetail.des || "—"}</div>
+            {pieceDetail.clientPortalDecision?.brief ? <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, background: "var(--sur)", border: "1px solid var(--bdr)" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Comentario del cliente</div>
+              <div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.brief}</div>
+            </div> : null}
           </Card>
           <Card title="Texto">
             <KV label="Hashtags" value={pieceDetail.hashtags || "—"} />

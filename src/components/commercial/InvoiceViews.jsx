@@ -149,7 +149,7 @@ async function getCommercialPdfRuntime() {
   return commercialPdfRuntimePromise;
 }
 
-export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, ntf, treasury = {}, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync, platformApi, user }) {
+export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciadores, producciones, programas, piezas, presupuestos, contratos, openM, canDo, cDel, setFacturas, setMovimientos, saveFacturaDoc, deleteFacturaDoc, ntf, treasury = {}, emitFacturaToBsale, syncFacturaWithBsale, inspectFacturaBsaleSync, platformApi, user }) {
   const canEdit = canDo && canDo("facturacion");
   const canPres = Array.isArray(empresa?.addons) && empresa.addons.includes("presupuestos");
   const canContracts = Array.isArray(empresa?.addons) && empresa.addons.includes("contratos");
@@ -472,7 +472,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       sendBillingWhatsApp={sendBillingWhatsApp}
       sendStatementWhatsApp={sendStatementWhatsApp}
       onEditDoc={(f)=>openM("fact",f)}
-      onDeleteDoc={(id)=>{if(!canEdit) return; cDel(facturas,setFacturas,id,null,"Eliminada");}}
+      onDeleteDoc={(id)=>{if(!canEdit) return; if (typeof deleteFacturaDoc === "function") { void deleteFacturaDoc(id); return; } cDel(facturas,setFacturas,id,null,"Eliminada");}}
       onOpenPdf={async(f, ent, ref)=>{
         const { generateBillingPdf, commercialPdfDeps } = await getCommercialPdfRuntime();
         await generateBillingPdf(f, ent, ref, empresa, commercialPdfDeps);

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from "react";
-import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
 import { notifyUserFacingError } from "../lib/ui/userFacingErrors";
 import { createFoundationFinancialRegistryCoordinator } from "../lib/backend/foundationFinancialRegistry";
 
@@ -274,22 +273,60 @@ export function useLabCommercialDocs({
 
       const itemsById = new Map(currentFacts.map((x) => [x.id, x]));
       series.forEach((item) => itemsById.set(item.id, item));
-      const nextFacts = upsertById(
+      const normalizedSeries = Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id));
+      let nextFacts = upsertById(
         currentFacts,
-        Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id)),
+        normalizedSeries,
       );
-      await setFacturas(nextFacts);
-      await foundationInvoices().syncSnapshot({
-        registryName: "invoices",
-        records: nextFacts,
-        metadata: {
-          reason: isNew ? "invoice_created" : "invoice_updated",
-          actorUserId: currentUser?.id || "",
-          actorUserEmail: currentUser?.email || "",
-          recordCount: nextFacts.length,
-        },
-        degradedMessage: "No pudimos sincronizar facturas con foundation.",
-      });
+      for (const item of normalizedSeries) {
+        const invoiceExists = currentFacts.some(existing => existing.id === item.id);
+        const syncResult = await foundationInvoices().upsertRecord({
+          registryName: "invoices",
+          record: item,
+          setRecords: setFacturas,
+          metadata: {
+            reason: invoiceExists ? "invoice_updated" : "invoice_created",
+            actorUserId: currentUser?.id || "",
+            actorUserEmail: currentUser?.email || "",
+            recurring: recurringEnabled,
+            seriesId: item.seriesId || "",
+            seriesIndex: Number(item.seriesIndex || 0),
+          },
+          degradedMessage: "No pudimos sincronizar facturas con foundation.",
+          sanitizeRecord: (entry, empId) => sanitizeFacturaPayload(entry, empId, entry?.id || ""),
+          audit: {
+            area: "facturacion",
+            action: invoiceExists ? "invoice_updated" : "invoice_created",
+            entityType: "factura",
+            entityId: item.id || "",
+            payload: {
+              recurring: recurringEnabled,
+              seriesId: item.seriesId || "",
+              seriesIndex: Number(item.seriesIndex || 0),
+              total: Number(item.total || 0),
+              documentType: item.documentTypeCode || item.tipoDocumento || item.tipoDoc || "",
+              entityId: item.entidadId || "",
+              entityType: item.tipo || "",
+            },
+          },
+          workflow: {
+            stream: "invoices",
+            eventName: invoiceExists ? "invoice_updated" : "invoice_created",
+            entityType: "factura",
+            entityId: item.id || "",
+            payload: {
+              recurring: recurringEnabled,
+              seriesId: item.seriesId || "",
+              seriesIndex: Number(item.seriesIndex || 0),
+              total: Number(item.total || 0),
+              cobranzaEstado: item.cobranzaEstado || "",
+            },
+          },
+        });
+        if (Array.isArray(syncResult?.records) && syncResult.records.length) {
+          nextFacts = syncResult.records;
+        }
+      }
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
       if (createdItems.length && typeof setTreasuryPurchaseOrders === "function") {
@@ -344,24 +381,6 @@ export function useLabCommercialDocs({
       });
 
       await setMovimientos(nextMovs);
-      await appendOperationalAuditEntry({
-        empId: curEmp?.id,
-        area: "facturacion",
-        action: isNew ? "created" : "updated",
-        entityType: "factura",
-        entityId: recurringEnabled ? seriesId : (series[0]?.id || safeFact.id || ""),
-        actor: currentUser,
-        payload: {
-          recurring: recurringEnabled,
-          recurringMonths,
-          documentsAffected: series.map(item => item.id),
-          total: series.reduce((sum, item) => sum + Number(item.total || 0), 0),
-          documentType: safeFact.documentTypeCode || safeFact.tipoDocumento || safeFact.tipoDoc || "",
-          entityId: safeFact.entidadId || "",
-          entityType: safeFact.tipo || "",
-        },
-        platformServices,
-      });
       closeM();
       ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths === 1 ? "" : "s"})` : "Documento guardado ✓");
       return true;
@@ -390,9 +409,74 @@ export function useLabCommercialDocs({
     foundationInvoices,
   ]);
 
+  const deleteFacturaDoc = useCallback(async (facturaId) => {
+    if (!canManageBilling || !facturaId) return false;
+    const currentFacts = Array.isArray(facturas) ? facturas : [];
+    const target = currentFacts.find(item => item.id === facturaId);
+    if (!target) return false;
+    try {
+      await foundationInvoices().deleteRecord({
+        registryName: "invoices",
+        recordId: facturaId,
+        setRecords: setFacturas,
+        metadata: {
+          reason: "invoice_deleted",
+          actorUserId: currentUser?.id || "",
+          actorUserEmail: currentUser?.email || "",
+          recurring: target.recurring === true,
+          seriesId: target.seriesId || "",
+        },
+        degradedMessage: "No pudimos eliminar la factura en foundation.",
+        sanitizeRecord: (entry, empId) => sanitizeFacturaPayload(entry, empId, entry?.id || ""),
+        audit: {
+          area: "facturacion",
+          action: "invoice_deleted",
+          entityType: "factura",
+          entityId: facturaId,
+          payload: {
+            recurring: target.recurring === true,
+            seriesId: target.seriesId || "",
+            total: Number(target.total || 0),
+            documentType: target.documentTypeCode || target.tipoDocumento || target.tipoDoc || "",
+            entityId: target.entidadId || "",
+            entityType: target.tipo || "",
+          },
+        },
+        workflow: {
+          stream: "invoices",
+          eventName: "invoice_deleted",
+          entityType: "factura",
+          entityId: facturaId,
+          payload: {
+            recurring: target.recurring === true,
+            seriesId: target.seriesId || "",
+            cobranzaEstado: target.cobranzaEstado || "",
+          },
+        },
+      });
+      await setMovimientos((current = []) => (Array.isArray(current) ? current : []).filter(item => item.facturaId !== facturaId));
+      ntf("Eliminada", "warn");
+      return true;
+    } catch (error) {
+      console.error("[facturacion] No pudimos eliminar el documento", error);
+      notifyUserFacingError(ntf, error, "No pudimos eliminar el documento.", "error");
+      return false;
+    }
+  }, [
+    canManageBilling,
+    currentUser?.email,
+    currentUser?.id,
+    facturas,
+    foundationInvoices,
+    ntf,
+    setFacturas,
+    setMovimientos,
+  ]);
+
   return {
     saveMov,
     delMov,
     saveFacturaDoc,
+    deleteFacturaDoc,
   };
 }

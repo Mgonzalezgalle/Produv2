@@ -803,7 +803,7 @@ export default function App(){
       },
     });
   }, [ntf]);
-  const { saveMov, delMov, saveFacturaDoc } = useLabCommercialDocs({
+  const { saveMov, delMov, saveFacturaDoc, deleteFacturaDoc } = useLabCommercialDocs({
     curEmp,
     facturas,
     movimientos,
@@ -1055,6 +1055,7 @@ export default function App(){
     saveMov,
     delMov,
     saveFacturaDoc,
+    deleteFacturaDoc,
     ntf,
     theme,
     fmtM,
@@ -1062,7 +1063,7 @@ export default function App(){
     platformApi,
     platformServices,
     canDo:(a)=>canDo(curUser,a,curEmp),
-  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, normalizedCrmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, ntf, theme, platformApi, platformServices]);
+  }), [curEmp, curUser, L, tareas, clientes, producciones, programas, socialCampaigns, episodios, auspiciadores, crmOpps, crmActivities, crmStages, normalizedCrmStages, contratos, movimientos, crew, eventos, presupuestos, facturas, activos, treasuryPurchaseOrders, domainUsers, domainEmpresas, saveUsers, navTo, openM, cSave, cDel, saveMov, delMov, saveFacturaDoc, deleteFacturaDoc, ntf, theme, platformApi, platformServices]);
   const treasuryProps = useMemo(() => ({
     providers:treasuryProviders||[],
     setProviders:setTreasuryProviders,

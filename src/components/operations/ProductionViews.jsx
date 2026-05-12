@@ -524,7 +524,6 @@ export function ViewContenidoDet(props) {
   const [piezaMes, setPiezaMes] = useState("");
   const [piezaResp, setPiezaResp] = useState("");
   const [piezaSort, setPiezaSort] = useState("name-asc");
-  const [piezaDetailId, setPiezaDetailId] = useState("");
   const [deletePieceConfirmId, setDeletePieceConfirmId] = useState(null);
   const [deleteCampaignConfirmOpen, setDeleteCampaignConfirmOpen] = useState(false);
   const pz = (piezas || []).find(x => x.id === id); if (!pz) return <Empty text="No encontrado" />;
@@ -572,7 +571,6 @@ export function ViewContenidoDet(props) {
     await setPiezas(next);
     ntf && ntf("Pieza eliminada", "warn");
   };
-  const pieceDetail = (pz.piezas || []).find(pc => pc.id === piezaDetailId) || null;
   const updatePieceQuick = async (pieceId, patch = {}) => {
     if (!canManageContent) return;
     const base = (pz.piezas || []).find(pc => pc.id === pieceId);
@@ -621,7 +619,7 @@ export function ViewContenidoDet(props) {
                   </div>
                 </td>
               </tr>,
-              ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
+              ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => navTo("pieza-det", pc.id)} style={{ cursor: "pointer" }}>
                 <TD bold>
                   <div style={{ color: "var(--cy)" }}>{pc.nom}</div>
                   <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div>
@@ -652,7 +650,7 @@ export function ViewContenidoDet(props) {
                   {pc.link ? <a href={pc.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Pieza ↗</a> : <span style={{ color: "var(--gr2)" }}>—</span>}
                 </TD>
                 <TD onClick={e => e.stopPropagation()}><div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                  <GBtn sm onClick={() => setPiezaDetailId(pc.id)}>Ver</GBtn>
+                  <GBtn sm onClick={() => navTo("pieza-det", pc.id)}>Ver</GBtn>
                   {canManageContent && <><GBtn sm onClick={() => openM("pieza", { ...pc, campId: id })}>✏</GBtn><XBtn onClick={() => deletePiece(pc.id)} /></>}
                 </div></TD>
               </tr>),
@@ -717,69 +715,6 @@ export function ViewContenidoDet(props) {
       </Card>
     </div>}
     {tasksEnabled && tab === 8 && <TareasContexto title="Tareas de la Campaña" refTipo="pz" refId={id} tareas={Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object" && t.empId === empId) : []} producciones={producciones} programas={programas} piezas={piezas} crew={crew} openM={openM} setTareas={setTareas} canEdit={canDo && canDo("contenidos")} />}
-    <Modal open={!!pieceDetail} onClose={() => setPiezaDetailId("")} title={pieceDetail?.nom || "Pieza"} sub="Revisión completa de la pieza" wide>
-      {pieceDetail && <>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <Card title="Resumen">
-            <KV label="Estado" value={<Badge label={pieceDetail.est || "Planificado"} />} />
-            <KV label="Formato" value={pieceDetail.formato || "—"} />
-            <KV label="Mes" value={pieceDetail.mes || "—"} />
-            <KV label="Plataforma" value={pieceDetail.plataforma || "—"} />
-            <KV label="Responsable" value={pieceDetail.responsableId && crewMap[pieceDetail.responsableId] ? crewMap[pieceDetail.responsableId].nom : "—"} />
-            <KV label="Aprobación interna" value={<Badge label={pieceDetail.approval || "Pendiente"} color={(pieceDetail.approval || "Pendiente") === "Aprobada" ? "green" : (pieceDetail.approval || "Pendiente") === "Observada" ? "red" : (pieceDetail.approval || "Pendiente") === "En revisión" ? "yellow" : "gray"} sm />} />
-            <KV label="Respuesta cliente" value={clientPortalBadge(pieceDetail.clientPortalDecision) || "Sin respuesta todavía"} />
-          </Card>
-          <Card title="Fechas y enlaces">
-            <KV label="Inicio" value={pieceDetail.ini ? fmtD(pieceDetail.ini) : "—"} />
-            <KV label="Entrega" value={pieceDetail.fin ? fmtD(pieceDetail.fin) : "—"} />
-            <KV label="Publicación estimada" value={pieceDetail.publishDate ? fmtD(pieceDetail.publishDate) : "—"} />
-            <KV label="Publicación real" value={pieceDetail.publishedAt ? fmtD(pieceDetail.publishedAt) : "—"} />
-            <KV label="Preview portal" value={pieceDetail.previewAssetUrl ? <a href={pieceDetail.previewAssetUrl} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>{pieceDetail.previewAssetName || "Abrir archivo"} ↗</a> : "—"} />
-            <KV label="Link de trabajo" value={pieceDetail.link ? <a href={pieceDetail.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
-            <KV label="Link final" value={pieceDetail.finalLink ? <a href={pieceDetail.finalLink} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
-          </Card>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
-          <Card title="Brief">
-            <KV label="Objetivo" value={pieceDetail.objetivo || "—"} />
-            <KV label="CTA" value={pieceDetail.cta || "—"} />
-            <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{pieceDetail.brief || pieceDetail.des || "—"}</div>
-            {pieceDetail.clientPortalDecision?.status ? <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 12, background: "var(--sur)", border: "1px solid var(--bdr)", display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--wh)" }}>Respuesta del cliente</div>
-                {clientPortalBadge(pieceDetail.clientPortalDecision)}
-              </div>
-              {pieceDetail.clientPortalDecision.additionalBrief ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Brief adicional</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.additionalBrief}</div></div> : null}
-              {pieceDetail.clientPortalDecision.comment ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Comentario</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.comment}</div></div> : null}
-              {pieceDetail.clientPortalDecision.requestedChanges ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Corrección solicitada</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.requestedChanges}</div></div> : null}
-              {!pieceDetail.clientPortalDecision.additionalBrief && !pieceDetail.clientPortalDecision.comment && !pieceDetail.clientPortalDecision.requestedChanges && pieceDetail.clientPortalDecision.brief ? <div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.brief}</div> : null}
-            </div> : null}
-          </Card>
-          <Card title="Texto">
-            <KV label="Hashtags" value={pieceDetail.hashtags || "—"} />
-            <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{pieceDetail.copy || "—"}</div>
-          </Card>
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <ComentariosBlock
-            items={pieceDetail.comentarios || []}
-            onSave={async comentarios => {
-              if (!canManageContent) return;
-              await savePiece({ ...pieceDetail, comentarios });
-            }}
-            crewOptions={pCrew}
-            canEdit={canManageContent}
-            title="Comentarios de la pieza"
-            empresa={empresa}
-            currentUser={user}
-          />
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-          <GBtn onClick={() => setPiezaDetailId("")}>Cerrar</GBtn>
-          {canManageContent && <Btn onClick={() => { setPiezaDetailId(""); openM("pieza", { ...pieceDetail, campId: id }); }}>Editar pieza</Btn>}
-        </div>
-      </>}
-    </Modal>
     <ConfirmActionDialog
       open={Boolean(deletePieceConfirmId)}
       title="Eliminar pieza"
@@ -876,6 +811,139 @@ export function ViewEpDet(props) {
       onConfirm={() => {
         setDeleteEpisodeConfirmOpen(false);
         cDel(episodios, setEpisodios, id, () => navTo("pg-det", ep.pgId), "Episodio eliminado");
+      }}
+    />
+  </div>;
+}
+
+export function ViewPiezaDet(props) {
+  const {
+    id, empresa, user, clientes, piezas, movimientos, crew, navTo, openM, canDo, cDel, setPiezas,
+    useBal, fmtM, fmtD, ComentariosBlock,
+  } = props;
+  const empId = empresa?.id;
+  const canManageContent = !!(canDo && canDo("contenidos"));
+  const bal = useBal(movimientos, empId);
+  const [tab, setTab] = useState(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const campaign = (piezas || []).find(item => (Array.isArray(item?.piezas) ? item.piezas : []).some(piece => piece.id === id));
+  const piece = (Array.isArray(campaign?.piezas) ? campaign.piezas : []).find(item => item.id === id);
+  if (!campaign || !piece) return <Empty text="No encontrado" />;
+  const cli = (clientes || []).find(item => item.id === campaign.cliId);
+  const b = bal(campaign.id);
+  const pCrew = (crew || []).filter(item => item.empId === empId && (campaign.crewIds || []).includes(item.id));
+  const crewMap = Object.fromEntries((crew || []).filter(item => item && item.id).map(item => [item.id, item]));
+  const portalDecision = piece.clientPortalDecision || null;
+  const clientPortalBadge = decision => {
+    if (!decision?.status) return null;
+    return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios"} color={decision.status === "approved" ? "green" : "orange"} sm />;
+  };
+  const savePiece = async nextPiece => {
+    if (!canManageContent) return;
+    const next = (piezas || []).map(item => item.id !== campaign.id ? item : {
+      ...item,
+      piezas: (item.piezas || []).map(row => row.id === nextPiece.id ? nextPiece : row),
+    });
+    await setPiezas(next);
+  };
+  const deletePiece = async () => {
+    if (!canManageContent) return;
+    const next = (piezas || []).map(item => item.id !== campaign.id ? item : {
+      ...item,
+      piezas: (item.piezas || []).filter(row => row.id !== id),
+    });
+    await setPiezas(next);
+    navTo("contenido-det", campaign.id);
+  };
+  return <div>
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ width: 52, height: 52, background: "var(--cg)", border: "1px solid var(--cm)", borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ fontSize: 8, color: "var(--cy)", fontWeight: 700, letterSpacing: 1 }}>PZA</div>
+          <div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: "var(--cy)", lineHeight: 1 }}>{String(piece.mes || campaign.mes || "—").slice(0, 3).toUpperCase()}</div>
+        </div>
+        <div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 800 }}>{piece.nom}</div>
+          <div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 4, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <span onClick={() => navTo("contenido-det", campaign.id)} style={{ color: "var(--cy)", cursor: "pointer" }}>{campaign.nom}</span>
+            <Badge label={piece.est || "Planificado"} />
+            {clientPortalBadge(portalDecision)}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <GBtn onClick={() => navTo("contenido-det", campaign.id)}>← Volver a campaña</GBtn>
+        {canManageContent && <><GBtn onClick={() => openM("pieza", { ...piece, campId: campaign.id })}>✏ Editar</GBtn><DBtn onClick={() => setDeleteConfirmOpen(true)}>🗑</DBtn></>}
+      </div>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+      <Stat label="Estado" value={piece.est || "Planificado"} accent="var(--cy)" />
+      <Stat label="Aprobación" value={piece.approval || "Pendiente"} accent={(piece.approval || "Pendiente") === "Aprobada" ? "#00e08a" : (piece.approval || "Pendiente") === "Observada" ? "#ff5566" : "#ffcc44"} vc={(piece.approval || "Pendiente") === "Aprobada" ? "#00e08a" : (piece.approval || "Pendiente") === "Observada" ? "#ff5566" : "#ffcc44"} />
+      <Stat label="Publicación" value={piece.publishDate ? fmtD(piece.publishDate) : "—"} accent="#8b5cf6" />
+      <Stat label="Campaña" value={campaign.piezas?.length || 0} sub={`${campaign.piezas?.length || 0} pieza(s) en ${campaign.nom}`} accent="#4f7cff" vc="#4f7cff" />
+    </div>
+    <Tabs tabs={["Resumen", "Brief y texto", "Comentarios"]} active={tab} onChange={setTab} />
+    {tab === 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <Card title="Resumen">
+        <KV label="Cliente" value={cli?.nom || "—"} />
+        <KV label="Campaña" value={campaign.nom || "—"} />
+        <KV label="Formato" value={piece.formato || "—"} />
+        <KV label="Plataforma" value={piece.plataforma || "—"} />
+        <KV label="Mes" value={piece.mes || campaign.mes || "—"} />
+        <KV label="Responsable" value={piece.responsableId && crewMap[piece.responsableId] ? crewMap[piece.responsableId].nom : "—"} />
+        <KV label="Respuesta cliente" value={clientPortalBadge(portalDecision) || "Sin respuesta todavía"} />
+      </Card>
+      <Card title="Fechas y enlaces">
+        <KV label="Inicio" value={piece.ini ? fmtD(piece.ini) : "—"} />
+        <KV label="Entrega" value={piece.fin ? fmtD(piece.fin) : "—"} />
+        <KV label="Publicación estimada" value={piece.publishDate ? fmtD(piece.publishDate) : "—"} />
+        <KV label="Publicación real" value={piece.publishedAt ? fmtD(piece.publishedAt) : "—"} />
+        <KV label="Preview portal" value={piece.previewAssetUrl ? <a href={piece.previewAssetUrl} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>{piece.previewAssetName || "Abrir archivo"} ↗</a> : "—"} />
+        <KV label="Link de trabajo" value={piece.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
+        <KV label="Link final" value={piece.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
+      </Card>
+    </div>}
+    {tab === 1 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <Card title="Brief">
+        <KV label="Objetivo" value={piece.objetivo || "—"} />
+        <KV label="CTA" value={piece.cta || "—"} />
+        <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{piece.brief || piece.des || "—"}</div>
+        {portalDecision?.status ? <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 12, background: "var(--sur)", border: "1px solid var(--bdr)", display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--wh)" }}>Respuesta del cliente</div>
+            {clientPortalBadge(portalDecision)}
+          </div>
+          {portalDecision.additionalBrief ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Brief adicional</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{portalDecision.additionalBrief}</div></div> : null}
+          {portalDecision.comment ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Comentario</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{portalDecision.comment}</div></div> : null}
+          {portalDecision.requestedChanges ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Corrección solicitada</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{portalDecision.requestedChanges}</div></div> : null}
+        </div> : null}
+      </Card>
+      <Card title="Texto y publicación">
+        <KV label="Hashtags" value={piece.hashtags || "—"} />
+        <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{piece.copy || "—"}</div>
+      </Card>
+    </div>}
+    {tab === 2 && <ComentariosBlock
+      items={piece.comentarios || []}
+      onSave={async comentarios => {
+        if (!canManageContent) return;
+        await savePiece({ ...piece, comentarios });
+      }}
+      crewOptions={pCrew}
+      canEdit={canManageContent}
+      title="Comentarios de la pieza"
+      empresa={empresa}
+      currentUser={user}
+    />}
+    <ConfirmActionDialog
+      open={deleteConfirmOpen}
+      title="Eliminar pieza"
+      message="¿Eliminar pieza?"
+      confirmLabel="Eliminar pieza"
+      onClose={() => setDeleteConfirmOpen(false)}
+      onConfirm={() => {
+        setDeleteConfirmOpen(false);
+        void deletePiece();
       }}
     />
   </div>;

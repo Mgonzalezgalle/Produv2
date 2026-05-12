@@ -172,6 +172,7 @@ const ViewActivos = lazy(() => import("./components/operations/ProductionViews")
 const ViewAus = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewAus })));
 const ViewContenidos = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewContenidos })));
 const ViewContenidoDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewContenidoDet })));
+const ViewPiezaDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewPiezaDet })));
 const ViewCrew = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewCrew })));
 const ViewEpDet = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewEpDet })));
 const ViewPgs = lazy(() => import("./components/operations/ProductionViews").then(module => ({ default: module.ViewPgs })));
@@ -1024,6 +1025,7 @@ export default function App(){
     if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PROYECTOS",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
     if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
     if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
+    if(view==="pieza-det"){const campaign=socialCampaigns.find(x=>(Array.isArray(x?.piezas)?x.piezas:[]).some(piece=>piece.id===detId));const piece=(Array.isArray(campaign?.piezas)?campaign.piezas:[]).find(item=>item.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:campaign?.nom||"—",fn:()=>navTo("contenido-det",campaign?.id)},{l:piece?.nom||"Pieza"}];}
     if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
     if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
     if(view==="crm"){return [{l:"CRM"}];}
@@ -1475,6 +1477,7 @@ export default function App(){
       ViewPgDet,
       ViewContenidos,
       ViewContenidoDet,
+      ViewPiezaDet,
       ViewEpDet,
       CrmModule,
       ViewCrew,

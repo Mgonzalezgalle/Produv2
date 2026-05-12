@@ -51,6 +51,7 @@ export function AppViewRenderer({
     ViewPgDet,
     ViewContenidos,
     ViewContenidoDet,
+    ViewPiezaDet,
     ViewEpDet,
     CrmModule,
     ViewCrew,
@@ -114,6 +115,8 @@ export function AppViewRenderer({
       return withFullFrame(<ViewContenidos {...VP} setPiezas={modules.setters.setPiezas} useBal={useBal} fmtM={fmtM} countCampaignPieces={countCampaignPieces} />);
     case "contenido-det":
       return withFullFrame(<ViewContenidoDet {...VP} id={detId} setPiezas={modules.setters.setPiezas} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} countCampaignPieces={countCampaignPieces} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} normalizeSocialPiece={modules.normalizeSocialPiece} />);
+    case "pieza-det":
+      return withFullFrame(<ViewPiezaDet {...VP} id={detId} setPiezas={modules.setters.setPiezas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ComentariosBlock={comentariosBlockComponent} />);
     case "ep-det":
       return withFullFrame(<ViewEpDet {...VP} id={detId} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} />);
     case "crm":

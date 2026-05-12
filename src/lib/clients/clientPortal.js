@@ -70,13 +70,16 @@ export function buildClientPortalUrl(portal = null, origin = "") {
   const slug = String(portal?.slug || "").trim();
   if (!slug) return "";
   const base = String(origin || "").trim().replace(/\/+$/, "");
-  if (!base) return `/portal/clientes/${slug}`;
-  return `${base}/portal/clientes/${slug}`;
+  if (!base) return `#/portal/clientes/${slug}`;
+  return `${base}/#/portal/clientes/${slug}`;
 }
 
-export function resolveClientPortalSlugFromPath(pathname = "") {
-  const match = String(pathname || "").match(/^\/portal\/clientes\/([^/?#]+)/i);
-  return match ? decodeURIComponent(match[1]) : "";
+export function resolveClientPortalSlugFromPath(pathname = "", hash = "") {
+  const pathMatch = String(pathname || "").match(/^\/portal\/clientes\/([^/?#]+)/i);
+  if (pathMatch) return decodeURIComponent(pathMatch[1]);
+  const normalizedHash = String(hash || "").replace(/^#/, "");
+  const hashMatch = normalizedHash.match(/^\/portal\/clientes\/([^/?#]+)/i);
+  return hashMatch ? decodeURIComponent(hashMatch[1]) : "";
 }
 
 export function buildClientPortalSessionKey(slug = "") {

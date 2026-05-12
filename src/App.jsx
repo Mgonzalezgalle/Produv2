@@ -219,7 +219,7 @@ export default function App(){
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [moduleLoadingTimedOut, setModuleLoadingTimedOut] = useState(false);
   const publicClientPortalSlug = useMemo(
-    () => (typeof window !== "undefined" ? resolveClientPortalSlugFromPath(window.location.pathname) : ""),
+    () => (typeof window !== "undefined" ? resolveClientPortalSlugFromPath(window.location.pathname, window.location.hash) : ""),
     [],
   );
   const sessionActivityRef = useRef(0);

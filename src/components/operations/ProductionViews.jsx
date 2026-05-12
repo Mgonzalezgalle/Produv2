@@ -497,6 +497,10 @@ export function ViewContenidoDet(props) {
   const canManageContent = !!(canDo && canDo("contenidos"));
   const canManageMoves = !!(canDo && canDo("movimientos"));
   const canManageCalendar = !!(canDo && canDo("calendario"));
+  const portalDecisionSummary = decision => {
+    if (!decision) return "";
+    return [decision.requestedChanges, decision.comment, decision.additionalBrief, decision.brief].filter(Boolean)[0] || "";
+  };
   const clientPortalBadge = decision => {
     if (!decision?.status) return null;
     return <Badge label={decision.status === "approved" ? "Cliente aprobó" : "Cliente pidió cambios"} color={decision.status === "approved" ? "green" : "orange"} sm />;
@@ -606,7 +610,7 @@ export function ViewContenidoDet(props) {
                 </td>
               </tr>,
               ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => setPiezaDetailId(pc.id)} style={{ cursor: "pointer" }}>
-                <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div></TD>
+                <TD bold><div style={{ color: "var(--cy)" }}>{pc.nom}</div><div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div>{pc.clientPortalDecision?.status ? <div style={{ fontSize: 10, color: "var(--org)", marginTop: 6, lineHeight: 1.5 }}>{portalDecisionSummary(pc.clientPortalDecision) || "Hay feedback del cliente en esta pieza."}</div> : null}</TD>
                 <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>
                 <TD>{pc.mes || <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
                 <TD>{pc.responsableId && crewMap[pc.responsableId] ? crewMap[pc.responsableId].nom : <span style={{ color: "var(--gr2)" }}>—</span>}</TD>
@@ -717,9 +721,15 @@ export function ViewContenidoDet(props) {
             <KV label="Objetivo" value={pieceDetail.objetivo || "—"} />
             <KV label="CTA" value={pieceDetail.cta || "—"} />
             <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{pieceDetail.brief || pieceDetail.des || "—"}</div>
-            {pieceDetail.clientPortalDecision?.brief ? <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, background: "var(--sur)", border: "1px solid var(--bdr)" }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Comentario del cliente</div>
-              <div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.brief}</div>
+            {pieceDetail.clientPortalDecision?.status ? <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 12, background: "var(--sur)", border: "1px solid var(--bdr)", display: "grid", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--wh)" }}>Respuesta del cliente</div>
+                {clientPortalBadge(pieceDetail.clientPortalDecision)}
+              </div>
+              {pieceDetail.clientPortalDecision.additionalBrief ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Brief adicional</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.additionalBrief}</div></div> : null}
+              {pieceDetail.clientPortalDecision.comment ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Comentario</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.comment}</div></div> : null}
+              {pieceDetail.clientPortalDecision.requestedChanges ? <div><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Corrección solicitada</div><div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.requestedChanges}</div></div> : null}
+              {!pieceDetail.clientPortalDecision.additionalBrief && !pieceDetail.clientPortalDecision.comment && !pieceDetail.clientPortalDecision.requestedChanges && pieceDetail.clientPortalDecision.brief ? <div style={{ fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line", lineHeight: 1.6 }}>{pieceDetail.clientPortalDecision.brief}</div> : null}
             </div> : null}
           </Card>
           <Card title="Texto">

@@ -364,7 +364,7 @@ export default function App(){
     daysUntil,
     fmtM,
   }), []);
-  const alertas = useLabAlerts(episodios, programas, eventos || [], tasksEnabled ? (tareas || []) : [], facturas || [], contratos || [], empId, alertHelpers);
+  const alertas = useLabAlerts(episodios, programas, eventos || [], tasksEnabled ? (tareas || []) : [], facturas || [], contratos || [], curEmp?.portalAlerts || [], empId, alertHelpers);
 
   const { theme, applyTheme, saveTheme } = useLabTheme({
     THEME_PRESETS,

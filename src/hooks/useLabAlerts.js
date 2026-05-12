@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, empId, helpers) {
+function calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, portalAlerts, empId, helpers) {
   const { cobranzaState, daysUntil, fmtM } = helpers;
   const hoy = new Date();
   const alerts = [];
@@ -51,24 +51,39 @@ function calcAlertas(episodios, programas, eventos, tareas, facturas, contratos,
     pushAlert({ id: ct.id + "_ct", tipo, area: "comercial", icon: "📄", titulo: label, sub: ct.est || "Vigente", fecha: ct.vig, diff: Math.max(days, 0) });
   });
 
+  (portalAlerts || []).filter(Boolean).forEach(item => {
+    const createdAt = item.createdAt || new Date().toISOString();
+    pushAlert({
+      id: item.id || `${createdAt}_portal`,
+      tipo: item.tipo || "info",
+      area: item.area || "clientes",
+      icon: item.icon || "🗨️",
+      titulo: item.titulo || "Nueva respuesta en portal cliente",
+      sub: item.sub || "",
+      fecha: createdAt,
+      diff: 0,
+    });
+  });
+
   return alerts.sort((a, b) => {
     const pri = { urgente: 0, pronto: 1, info: 2 };
     return (pri[a.tipo] ?? 9) - (pri[b.tipo] ?? 9) || a.diff - b.diff;
   });
 }
 
-export function useLabAlerts(episodios, programas, eventos, tareas, facturas, contratos, empId, helpers) {
+export function useLabAlerts(episodios, programas, eventos, tareas, facturas, contratos, portalAlerts, empId, helpers) {
   const [alerts, setAlerts] = useState([]);
   const epLen = (episodios || []).length;
   const evLen = (eventos || []).length;
   const tarLen = (tareas || []).length;
   const factLen = (facturas || []).length;
   const ctLen = (contratos || []).length;
+  const portalLen = (portalAlerts || []).length;
 
   useEffect(() => {
-    const nextAlerts = calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, empId, helpers);
+    const nextAlerts = calcAlertas(episodios, programas, eventos, tareas, facturas, contratos, portalAlerts, empId, helpers);
     setAlerts(prev => JSON.stringify(prev) === JSON.stringify(nextAlerts) ? prev : nextAlerts);
-  }, [epLen, evLen, tarLen, factLen, ctLen, empId, helpers, episodios, programas, eventos, tareas, facturas, contratos]);
+  }, [epLen, evLen, tarLen, factLen, ctLen, portalLen, empId, helpers, episodios, programas, eventos, tareas, facturas, contratos, portalAlerts]);
 
   return alerts;
 }

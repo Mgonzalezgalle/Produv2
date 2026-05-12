@@ -53,6 +53,32 @@ function portalResponseTone(status = "") {
   return { bg: "#edf5ff", border: "#cfe0fb", color: "#2f6ea8" };
 }
 
+function resolvePiecePreviewUrl(piece = {}) {
+  const candidates = [piece.finalLink, piece.link].filter(Boolean);
+  return candidates[0] || "";
+}
+
+function isLikelyImageUrl(value = "") {
+  const normalized = String(value || "").toLowerCase();
+  return /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/.test(normalized);
+}
+
+function buildPortalContentSummary({ status = "", brief = "", comment = "", requestedChanges = "" } = {}) {
+  const parts = [];
+  if (brief) parts.push(`Brief adicional:\n${brief}`);
+  if (comment) parts.push(`Comentario:\n${comment}`);
+  if (status === "changes_requested" && requestedChanges) parts.push(`Correcciones solicitadas:\n${requestedChanges}`);
+  return parts.join("\n\n").trim();
+}
+
+function countCampaignResponses(campaign = null) {
+  const pieces = Array.isArray(campaign?.piezas) ? campaign.piezas : [];
+  const pending = pieces.filter(piece => !piece?.clientPortalDecision?.status).length;
+  const approved = pieces.filter(piece => piece?.clientPortalDecision?.status === "approved").length;
+  const observed = pieces.filter(piece => piece?.clientPortalDecision?.status === "changes_requested").length;
+  return { pending, approved, observed, total: pieces.length };
+}
+
 async function resolvePortalPayload(empresas = [], slug = "") {
   const safeSlug = String(slug || "").trim();
   if (!safeSlug) return { error: "missing_slug" };
@@ -218,6 +244,8 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const [payload, setPayload] = useState(null);
   const [authorized, setAuthorized] = useState(false);
   const [tab, setTab] = useState("resumen");
+  const [contentDecisionFilter, setContentDecisionFilter] = useState("all");
+  const [contentCampaignFilter, setContentCampaignFilter] = useState("");
   const [contentDecision, setContentDecision] = useState(null);
   const [budgetDecision, setBudgetDecision] = useState(null);
   const [decisionSaving, setDecisionSaving] = useState(false);
@@ -286,6 +314,73 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       pendingAmount: pendingInvoices.reduce((sum, item) => sum + Number(item?.total || 0), 0),
     };
   }, [payload]);
+
+  const contentWorkspace = useMemo(() => {
+    const campaigns = Array.isArray(summary?.activeContent) ? summary.activeContent : [];
+    const campaignOptions = campaigns.map(item => ({ value: item.id, label: item.nom || "Campaña" }));
+    const pieces = campaigns.flatMap(campaign => (Array.isArray(campaign?.piezas) ? campaign.piezas : []).map(piece => ({
+      campaignId: campaign.id,
+      campaignName: campaign.nom || "Campaña",
+      campaignMonth: [campaign.mes, campaign.ano].filter(Boolean).join(" "),
+      campaignStatus: campaign.est || "Planificada",
+      campaignBrief: campaign.brief || "",
+      piece,
+    })));
+    const reviewQueue = pieces.filter(item => !item.piece?.clientPortalDecision?.status);
+    const responded = pieces.filter(item => !!item.piece?.clientPortalDecision?.status);
+    const approved = pieces.filter(item => item.piece?.clientPortalDecision?.status === "approved");
+    const observed = pieces.filter(item => item.piece?.clientPortalDecision?.status === "changes_requested");
+    return {
+      campaigns,
+      campaignOptions,
+      pieces,
+      reviewQueue,
+      responded,
+      approved,
+      observed,
+    };
+  }, [summary?.activeContent]);
+
+  const filteredContentCampaigns = useMemo(() => {
+    let rows = Array.isArray(contentWorkspace?.campaigns) ? contentWorkspace.campaigns : [];
+    if (contentCampaignFilter) rows = rows.filter(item => item.id === contentCampaignFilter);
+    if (contentDecisionFilter === "queue") {
+      rows = rows.filter(item => (Array.isArray(item.piezas) ? item.piezas : []).some(piece => !piece?.clientPortalDecision?.status));
+    }
+    if (contentDecisionFilter === "approved") {
+      rows = rows.filter(item => (Array.isArray(item.piezas) ? item.piezas : []).some(piece => piece?.clientPortalDecision?.status === "approved"));
+    }
+    if (contentDecisionFilter === "changes") {
+      rows = rows.filter(item => (Array.isArray(item.piezas) ? item.piezas : []).some(piece => piece?.clientPortalDecision?.status === "changes_requested"));
+    }
+    return rows;
+  }, [contentWorkspace?.campaigns, contentCampaignFilter, contentDecisionFilter]);
+
+  const visibleContentPieces = useMemo(() => (
+    filteredContentCampaigns.flatMap(item => (
+      (Array.isArray(item?.piezas) ? item.piezas : [])
+        .filter(piece => {
+          const portalDecision = piece?.clientPortalDecision || null;
+          if (contentDecisionFilter === "queue") return !portalDecision?.status;
+          if (contentDecisionFilter === "approved") return portalDecision?.status === "approved";
+          if (contentDecisionFilter === "changes") return portalDecision?.status === "changes_requested";
+          return true;
+        })
+        .map(piece => ({
+          campaignId: item.id,
+          campaignName: item.nom || "Campaña",
+          campaignMonth: [item.mes, item.ano].filter(Boolean).join(" "),
+          campaignPlatform: item.plataforma || "Contenido",
+          piece,
+        }))
+    ))
+  ), [filteredContentCampaigns, contentDecisionFilter]);
+
+  const contentFocusPiece = useMemo(() => {
+    if (contentDecisionFilter === "approved") return contentWorkspace.approved[0] || null;
+    if (contentDecisionFilter === "changes") return contentWorkspace.observed[0] || null;
+    return contentWorkspace.reviewQueue[0] || visibleContentPieces[0] || null;
+  }, [contentDecisionFilter, contentWorkspace.approved, contentWorkspace.observed, contentWorkspace.reviewQueue, visibleContentPieces]);
 
   const persistClientMutation = async ({ key, updater, payloadKey }) => {
     if (!payload?.empresa?.id || !payloadKey || typeof updater !== "function") return false;
@@ -387,14 +482,20 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
     const empresasKey = "produ:empresas";
     const currentEmpresas = await dbGet(empresasKey);
-    const systemMessage = {
+    const portalAlert = {
       id: uid(),
-      title: `Portal cliente · ${payload.client.nom}`,
+      tipo: action?.includes("changes") || action?.includes("rejected") ? "urgente" : "info",
+      area: "clientes",
+      icon: "🗨️",
+      titulo: `Portal cliente · ${payload.client.nom}`,
+      sub: headline,
       body: `${headline}${text ? `\n\n${text}` : ""}`,
       createdAt: now,
+      source: "client_portal",
+      clientId: payload.client.id,
     };
     const nextEmpresas = (Array.isArray(currentEmpresas) ? currentEmpresas : []).map(item => item.id === payload.empresa.id
-      ? { ...item, systemMessages: [systemMessage, ...(Array.isArray(item.systemMessages) ? item.systemMessages : [])].slice(0, 30) }
+      ? { ...item, portalAlerts: [portalAlert, ...(Array.isArray(item.portalAlerts) ? item.portalAlerts : [])].slice(0, 50) }
       : item);
     await dbSet(empresasKey, nextEmpresas);
 
@@ -492,6 +593,15 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     setDecisionSaving(true);
     setDecisionFeedback("");
     const briefNote = String(contentDecision.brief || "").trim();
+    const commentNote = String(contentDecision.comment || "").trim();
+    const requestedChangesNote = String(contentDecision.requestedChanges || "").trim();
+    const summaryNote = buildPortalContentSummary({
+      status: contentDecision.status,
+      brief: briefNote,
+      comment: commentNote,
+      requestedChanges: requestedChangesNote,
+    });
+    const now = new Date().toISOString();
     const ok = await persistClientMutation({
       key: "piezas",
       payloadKey: "piezas",
@@ -499,14 +609,30 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         if (campaign.id !== contentDecision.campaignId) return campaign;
         const nextPieces = (Array.isArray(campaign.piezas) ? campaign.piezas : []).map(piece => {
           if (piece.id !== contentDecision.pieceId) return piece;
+          const portalComment = {
+            id: uid(),
+            text: summaryNote || (contentDecision.status === "approved" ? "Cliente aprobó esta pieza desde el portal." : "Cliente solicitó correcciones desde el portal."),
+            kind: contentDecision.status === "approved" ? "Nota" : "Riesgo",
+            important: contentDecision.status !== "approved",
+            attachments: [],
+            photos: [],
+            cr: String(now).slice(0, 10),
+            createdAt: now,
+            authorName: payload.client.nom || "Cliente",
+            source: "client_portal",
+          };
           return {
             ...piece,
             clientPortalDecision: {
               status: contentDecision.status,
-              brief: briefNote,
-              decidedAt: new Date().toISOString(),
+              brief: summaryNote,
+              comment: commentNote,
+              requestedChanges: requestedChangesNote,
+              additionalBrief: briefNote,
+              decidedAt: now,
               source: "client_portal",
             },
+            comentarios: [portalComment, ...(Array.isArray(piece.comentarios) ? piece.comentarios : [])].slice(0, 100),
           };
         });
         return { ...campaign, piezas: nextPieces };
@@ -524,13 +650,15 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       signalPayload: {
         campaignId: contentDecision.campaignId,
         decision: contentDecision.status,
-        brief: briefNote,
+        brief: summaryNote,
+        comment: commentNote,
+        requestedChanges: requestedChangesNote,
       },
     });
     await appendPortalActivityAndSystemMessage({
       headline: contentDecision.status === "approved" ? "Contenido aprobado por el cliente" : "Cliente solicitó cambios en contenido",
       secondary: `${payload.client.nom} respondió desde su portal en contenidos.`,
-      text: briefNote,
+      text: summaryNote,
       action: contentDecision.status === "approved" ? "content_approved" : "content_changes_requested",
     });
     await sendInternalPortalNotification({
@@ -540,7 +668,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       body: [
         `${payload.client.nom} respondió desde su portal cliente.`,
         contentDecision.status === "approved" ? "La pieza quedó aprobada por el cliente." : "La pieza quedó observada por el cliente.",
-        briefNote ? `\nComentario:\n${briefNote}` : "",
+        summaryNote ? `\nDetalle:\n${summaryNote}` : "",
       ].filter(Boolean).join("\n\n"),
       recipients: resolveContentRecipients(contentDecision.campaignId, contentDecision.pieceId),
       entityType: "content_piece",
@@ -706,55 +834,285 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
         {tab === "contenidos" ? (
           <Card title="Contenidos" sub="Aquí puedes revisar las campañas y piezas que hoy están vinculadas a tu operación.">
-            {summary?.activeContent.length ? <div style={{ display: "grid", gap: 12 }}>
-              {summary.activeContent.map(item => (
-                <div key={item.id} style={{ padding: 18, border: "1px solid #e5ddfb", borderRadius: 20, background: "linear-gradient(180deg, #faf7ff, #ffffff)", boxShadow: "0 10px 24px rgba(148,163,184,.08)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            {summary?.activeContent.length ? <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
+                <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.10)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
                     <div>
-                      <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800 }}>{item.nom}</div>
-                      <div style={{ marginTop: 4, fontSize: 12, color: "#6b7c93" }}>{[item.mes, item.ano].filter(Boolean).join(" ")} · {countCampaignPieces(item)} pieza(s)</div>
+                      <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Cola de revisión</div>
+                      <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Te dejamos primero lo que hoy necesita una respuesta, para que puedas aprobar o pedir ajustes sin recorrer toda la lista.</div>
                     </div>
-                    <Badge label={item.est || "Planificada"} color="purple" />
+                    <Badge label={`${contentWorkspace.reviewQueue.length} por revisar`} color="cyan" />
                   </div>
-                  {item.brief ? <div style={{ marginTop: 12, fontSize: 13, color: "#5b6b82", whiteSpace: "pre-line" }}>{item.brief}</div> : null}
-                  {Array.isArray(item.piezas) && item.piezas.length ? <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-                    {item.piezas.map(piece => {
-                      const portalDecision = piece.clientPortalDecision || null;
-                      return (
-                        <div key={piece.id} style={{ padding: 16, borderRadius: 18, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 12px 28px rgba(15,23,42,.05)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                            <div>
-                              <div style={{ fontWeight: 700, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
-                              <div style={{ fontSize: 12, color: "#6b7c93", marginTop: 4 }}>{piece.tipo || "Contenido"} · {piece.formato || "Entregable"}</div>
-                            </div>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                              <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
-                              {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
-                              <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "approved", brief: "" })}>Aprobar</GBtn>
-                              <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.brief || "" })}>Pedir cambios</GBtn>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 16 }}>
+                    <Stat label="Pendientes" value={contentWorkspace.reviewQueue.length} accent="#2f6ea8" vc="#2f6ea8" />
+                    <Stat label="Aprobadas" value={contentWorkspace.approved.length} accent="#00b894" vc="#00b894" />
+                    <Stat label="Con cambios" value={contentWorkspace.observed.length} accent="#ff8844" vc="#ff8844" />
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                    {[
+                      ["all", "Todo"],
+                      ["queue", "Por revisar"],
+                      ["approved", "Aprobadas"],
+                      ["changes", "Con cambios"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setContentDecisionFilter(value)}
+                        style={{
+                          padding: "9px 14px",
+                          borderRadius: 999,
+                          border: `1px solid ${contentDecisionFilter === value ? "#2f6ea8" : "#dbe7f5"}`,
+                          background: contentDecisionFilter === value ? "#2f6ea8" : "#ffffff",
+                          color: contentDecisionFilter === value ? "#ffffff" : "#475569",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
+                    {contentWorkspace.reviewQueue.slice(0, 3).map(item => (
+                      <div key={item.piece.id} style={{ border: "1px solid #dbe7f5", borderRadius: 18, background: "#ffffff", padding: 16, boxShadow: "0 10px 20px rgba(15,23,42,.04)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{item.piece.nom || "Pieza"}</div>
+                            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7c93" }}>{item.campaignName} · {item.campaignMonth || "Sin mes"}</div>
+                            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <Badge label={item.piece.tipo || "Contenido"} color="blue" />
+                              <Badge label={item.piece.plataforma || "Canal"} color="purple" />
                             </div>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
-                            <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado actual</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revisión"}</div>
-                            </div>
-                            <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Canal</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
-                            </div>
-                            <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
-                            </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <GBtn sm onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: item.piece.id, status: "approved", brief: item.piece?.clientPortalDecision?.additionalBrief || "", comment: item.piece?.clientPortalDecision?.comment || "", requestedChanges: "" })}>Aprobar</GBtn>
+                            <GBtn sm onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: item.piece.id, status: "changes_requested", brief: item.piece?.clientPortalDecision?.additionalBrief || "", comment: item.piece?.clientPortalDecision?.comment || "", requestedChanges: item.piece?.clientPortalDecision?.requestedChanges || "" })}>Pedir cambios</GBtn>
                           </div>
-                          {portalDecision?.brief ? <div style={{ marginTop: 10, fontSize: 12, color: "#5b6b82", whiteSpace: "pre-line" }}><b style={{ color: "#0f172a" }}>Último comentario del cliente:</b> {portalDecision.brief}</div> : null}
                         </div>
-                      );
-                    })}
-                  </div> : null}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{item.piece.est || "En revisión"}</div>
+                          </div>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Formato</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{item.piece.formato || "Entregable"}</div>
+                          </div>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(item.piece.fecha || item.piece.fechaEntrega || item.piece.publishDate || "")}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {!contentWorkspace.reviewQueue.length ? (
+                      <div style={{ borderRadius: 18, border: "1px dashed #dbe7f5", padding: 18, color: "#5b6b82", background: "#ffffff" }}>
+                        No tienes piezas pendientes de respuesta por ahora.
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              ))}
+                <div style={{ display: "grid", gap: 16 }}>
+                  <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "linear-gradient(180deg,#ffffff,#f8fbff)", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.10)" }}>
+                    <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Filtra tu revisión</div>
+                    <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Puedes concentrarte en una campaña puntual o revisar todo el trabajo pendiente desde una sola vista.</div>
+                    <div style={{ marginTop: 16 }}>
+                      <FG label="Campaña">
+                        <select
+                          value={contentCampaignFilter}
+                          onChange={(event) => setContentCampaignFilter(event.target.value)}
+                          style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid #dbe7f5", background: "#ffffff", color: "#0f172a", fontSize: 13 }}
+                        >
+                          <option value="">Todas las campañas</option>
+                          {contentWorkspace.campaignOptions.map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </FG>
+                    </div>
+                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                      <div style={{ borderRadius: 16, background: "#edf5ff", border: "1px solid #d7e6fb", padding: "14px 16px" }}>
+                        <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Campañas visibles</div>
+                        <div style={{ marginTop: 6, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8" }}>{filteredContentCampaigns.length}</div>
+                      </div>
+                      <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #dbe7f5", padding: "14px 16px" }}>
+                        <div style={{ fontSize: 12, color: "#5b6b82", lineHeight: 1.7 }}>
+                          Cada respuesta que dejes aquí queda visible para el equipo, junto con el comentario o brief adicional que registres.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "#ffffff", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.08)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Vista rápida</div>
+                        <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Un ejemplo visible de lo que hoy está en foco dentro del portal.</div>
+                      </div>
+                      {contentFocusPiece?.piece?.clientPortalDecision?.status ? <Badge label={clientDecisionLabel(contentFocusPiece.piece.clientPortalDecision, "content")} color={contentFocusPiece.piece.clientPortalDecision.status === "approved" ? "green" : "orange"} /> : <Badge label="Pendiente de respuesta" color="cyan" />}
+                    </div>
+                    {contentFocusPiece ? (
+                      <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
+                        <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 16 }}>
+                          <div style={{ fontSize: 11, letterSpacing: 1.15, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Pieza destacada</div>
+                          <div style={{ marginTop: 8, fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{contentFocusPiece.piece.nom || "Pieza"}</div>
+                          <div style={{ marginTop: 6, fontSize: 13, color: "#5b6b82", lineHeight: 1.6 }}>{contentFocusPiece.campaignName} · {contentFocusPiece.campaignMonth || "Sin mes"}</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                            <Badge label={contentFocusPiece.piece.tipo || "Contenido"} color="blue" />
+                            <Badge label={contentFocusPiece.piece.plataforma || contentFocusPiece.campaignPlatform || "Canal"} color="purple" />
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado interno</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{contentFocusPiece.piece.est || "En revisión"}</div>
+                          </div>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Aprobación actual</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{contentFocusPiece.piece.approval || "Pendiente"}</div>
+                          </div>
+                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(contentFocusPiece.piece.fecha || contentFocusPiece.piece.fechaEntrega || contentFocusPiece.piece.publishDate || "")}</div>
+                          </div>
+                        </div>
+                        {resolvePiecePreviewUrl(contentFocusPiece.piece) ? (
+                          <div style={{ borderRadius: 14, background: "#ffffff", border: "1px solid #dbe7f5", padding: "12px 14px" }}>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Previsualización</div>
+                            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {contentFocusPiece.piece.link ? <a href={contentFocusPiece.piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión de trabajo ↗</a> : null}
+                              {contentFocusPiece.piece.finalLink ? <a href={contentFocusPiece.piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión final ↗</a> : null}
+                            </div>
+                          </div>
+                        ) : null}
+                        {contentFocusPiece.piece?.clientPortalDecision?.brief ? (
+                          <div style={{ borderRadius: 14, background: "#fff8f3", border: "1px solid #ffd7bf", padding: "12px 14px", fontSize: 12, color: "#8a5b33", lineHeight: 1.7, whiteSpace: "pre-line" }}>
+                            <b style={{ color: "#0f172a" }}>Último comentario registrado:</b> {contentFocusPiece.piece.clientPortalDecision.brief}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 16, borderRadius: 16, border: "1px dashed #dbe7f5", padding: 16, color: "#5b6b82", background: "#f8fbff" }}>
+                        Todavía no hay piezas visibles con el filtro actual.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {filteredContentCampaigns.map(item => {
+                const metrics = countCampaignResponses(item);
+                return (
+                  <div key={item.id} style={{ padding: 20, border: "1px solid #e5ddfb", borderRadius: 24, background: "linear-gradient(180deg, #faf7ff, #ffffff)", boxShadow: "0 14px 34px rgba(148,163,184,.08)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 16, alignItems: "start" }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ fontFamily: "var(--fh)", fontSize: 20, fontWeight: 900, color: "#0f172a" }}>{item.nom}</div>
+                            <div style={{ marginTop: 4, fontSize: 13, color: "#6b7c93" }}>{[item.mes, item.ano].filter(Boolean).join(" ")} · {countCampaignPieces(item)} pieza(s)</div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <Badge label={item.est || "Planificada"} color="purple" />
+                            {metrics.pending ? <Badge label={`${metrics.pending} pendiente(s)`} color="cyan" /> : null}
+                          </div>
+                        </div>
+                        {item.brief ? <div style={{ marginTop: 14, fontSize: 13, color: "#5b6b82", whiteSpace: "pre-line", lineHeight: 1.7 }}>{item.brief}</div> : null}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
+                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #e5ddfb", padding: "12px 14px" }}>
+                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#7b67a6", fontWeight: 700 }}>Pendientes</div>
+                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8" }}>{metrics.pending}</div>
+                        </div>
+                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #d9f4e6", padding: "12px 14px" }}>
+                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#2f8f66", fontWeight: 700 }}>Aprobadas</div>
+                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#0f9f63" }}>{metrics.approved}</div>
+                        </div>
+                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #ffe0cc", padding: "12px 14px" }}>
+                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#bd6a28", fontWeight: 700 }}>Con cambios</div>
+                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#e1712f" }}>{metrics.observed}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {Array.isArray(item.piezas) && item.piezas.length ? <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+                      {item.piezas.map(piece => {
+                        const portalDecision = piece.clientPortalDecision || null;
+                        if (contentDecisionFilter === "queue" && portalDecision?.status) return null;
+                        if (contentDecisionFilter === "approved" && portalDecision?.status !== "approved") return null;
+                        if (contentDecisionFilter === "changes" && portalDecision?.status !== "changes_requested") return null;
+                        const tone = portalResponseTone(portalDecision?.status);
+                        return (
+                          <div key={piece.id} style={{ padding: 18, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 12px 28px rgba(15,23,42,.05)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 14, alignItems: "start" }}>
+                              <div>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                                  <div>
+                                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
+                                    <div style={{ fontSize: 12, color: "#6b7c93", marginTop: 4 }}>{piece.tipo || "Contenido"} · {piece.formato || "Entregable"}</div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                    <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
+                                    {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
+                                  </div>
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
+                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado actual</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revisión"}</div>
+                                  </div>
+                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Canal</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
+                                  </div>
+                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
+                                  </div>
+                                </div>
+                                {portalDecision?.brief ? <div style={{ marginTop: 12, borderRadius: 14, background: tone.bg, border: `1px solid ${tone.border}`, padding: "12px 14px", fontSize: 12, color: tone.color, whiteSpace: "pre-line", lineHeight: 1.7 }}><b style={{ color: "#0f172a" }}>Comentario registrado:</b> {portalDecision.brief}</div> : null}
+                              </div>
+                              <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 14, display: "grid", gap: 12 }}>
+                                {resolvePiecePreviewUrl(piece) ? (
+                                  <div style={{ borderRadius: 14, border: "1px solid #dbe7f5", background: "#ffffff", padding: 10 }}>
+                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Vista de la pieza</div>
+                                    {isLikelyImageUrl(resolvePiecePreviewUrl(piece)) ? (
+                                      <img src={resolvePiecePreviewUrl(piece)} alt={piece.nom || "Pieza"} style={{ width: "100%", height: 132, objectFit: "cover", borderRadius: 12, marginTop: 8, border: "1px solid #dbe7f5" }} />
+                                    ) : (
+                                      <div style={{ marginTop: 8, borderRadius: 12, background: "linear-gradient(135deg,#edf5ff,#f8fbff)", border: "1px solid #dbe7f5", padding: 14 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
+                                        <div style={{ marginTop: 6, fontSize: 12, color: "#6b7c93", lineHeight: 1.6 }}>Puedes abrir la versión de trabajo o la versión final para revisar el contenido antes de responder.</div>
+                                      </div>
+                                    )}
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                                      {piece.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver trabajo ↗</a> : null}
+                                      {piece.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver final ↗</a> : null}
+                                    </div>
+                                  </div>
+                                ) : null}
+                                <div>
+                                  <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Acción</div>
+                                  <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 6, lineHeight: 1.6 }}>
+                                    Responde esta pieza y el equipo verá tu decisión junto con cualquier observación adicional.
+                                  </div>
+                                </div>
+                                <div style={{ display: "grid", gap: 8 }}>
+                                  <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "approved", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: "" })}>Aprobar pieza</GBtn>
+                                  <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: portalDecision?.requestedChanges || "" })}>Pedir cambios</GBtn>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div> : null}
+                  </div>
+                );
+              })}
+              {!visibleContentPieces.length ? (
+                <div style={{ borderRadius: 18, border: "1px dashed #dbe7f5", padding: 18, color: "#5b6b82", background: "#f8fbff" }}>
+                  No hay piezas visibles con el filtro actual. Puedes cambiar la campaña o volver a “Todo”.
+                </div>
+              ) : null}
             </div> : <Empty text="Todavía no hay campañas visibles" sub="Cuando este cliente tenga contenidos asociados, aparecerán aquí." />}
           </Card>
         ) : null}
@@ -841,14 +1199,62 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         title={contentDecision?.status === "approved" ? "Aprobar contenido" : "Pedir cambios"}
         sub={contentDecision?.status === "approved" ? "Puedes aprobar la pieza tal como está o dejar un brief complementario." : "Deja indicaciones claras para que el equipo ajuste esta pieza."}
       >
-        <FG label="Brief adicional u observaciones">
+        {contentDecision ? (() => {
+          const campaign = (Array.isArray(payload?.piezas) ? payload.piezas : []).find(item => item.id === contentDecision.campaignId);
+          const piece = (Array.isArray(campaign?.piezas) ? campaign.piezas : []).find(item => item.id === contentDecision.pieceId);
+          const previewUrl = resolvePiecePreviewUrl(piece);
+          return (
+            <div style={{ display: "grid", gap: 14, marginBottom: 16 }}>
+              <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--fh)", fontSize: 17, fontWeight: 900, color: "#0f172a" }}>{piece?.nom || "Pieza"}</div>
+                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7c93" }}>{campaign?.nom || "Campaña"} · {piece?.tipo || "Contenido"} · {piece?.formato || "Entregable"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {piece?.plataforma ? <Badge label={piece.plataforma} color="purple" /> : null}
+                    {piece?.approval ? <Badge label={piece.approval} color={piece.approval === "Aprobada" ? "green" : piece.approval === "Observada" ? "red" : "yellow"} /> : null}
+                  </div>
+                </div>
+                {previewUrl ? (
+                  <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                    {isLikelyImageUrl(previewUrl) ? <img src={previewUrl} alt={piece?.nom || "Pieza"} style={{ width: "100%", maxHeight: 260, objectFit: "cover", borderRadius: 16, border: "1px solid #dbe7f5" }} /> : null}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {piece?.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión de trabajo ↗</a> : null}
+                      {piece?.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión final ↗</a> : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })() : null}
+        <FG label="Brief adicional">
           <FTA
             value={contentDecision?.brief || ""}
             onChange={(event) => setContentDecision(current => current ? { ...current, brief: event.target.value } : current)}
-            placeholder={contentDecision?.status === "approved" ? "Opcional: agrega contexto adicional para la siguiente versión o publicación." : "Describe qué cambios necesitas y qué tono o foco debe ajustarse."}
-            style={{ minHeight: 120 }}
+            placeholder="Agrega contexto, tono, referencias o foco para el equipo."
+            style={{ minHeight: 90 }}
           />
         </FG>
+        <FG label="Comentario">
+          <FTA
+            value={contentDecision?.comment || ""}
+            onChange={(event) => setContentDecision(current => current ? { ...current, comment: event.target.value } : current)}
+            placeholder="Comparte observaciones, dudas o contexto adicional sobre esta pieza."
+            style={{ minHeight: 90 }}
+          />
+        </FG>
+        {contentDecision?.status === "changes_requested" ? (
+          <FG label="Corrección solicitada">
+            <FTA
+              value={contentDecision?.requestedChanges || ""}
+              onChange={(event) => setContentDecision(current => current ? { ...current, requestedChanges: event.target.value } : current)}
+              placeholder="Explica exactamente qué debe corregirse antes de aprobar esta pieza."
+              style={{ minHeight: 120 }}
+            />
+          </FG>
+        ) : null}
         <div style={{ borderRadius: 16, padding: "12px 14px", background: portalResponseTone(contentDecision?.status).bg, border: `1px solid ${portalResponseTone(contentDecision?.status).border}`, color: portalResponseTone(contentDecision?.status).color, fontSize: 12, lineHeight: 1.6 }}>
           {contentDecision?.status === "approved"
             ? "Tu aprobación quedará registrada y el equipo verá inmediatamente que esta pieza ya fue validada desde el portal."

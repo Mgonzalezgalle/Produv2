@@ -830,6 +830,7 @@ export default function App(){
     platformApi,
     platformServices,
     setFacturas,
+    saveFacturaDoc,
     ntf,
     dbGet,
     dbSet,

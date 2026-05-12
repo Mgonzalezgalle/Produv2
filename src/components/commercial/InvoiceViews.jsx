@@ -365,6 +365,8 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     canEdit,
     setFacturas,
     setMovimientos,
+    saveFacturaDoc,
+    deleteFacturaDoc,
     invoiceEntityName,
     cobranzaState,
     today,

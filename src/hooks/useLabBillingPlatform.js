@@ -47,11 +47,26 @@ export function useLabBillingPlatform({
   platformGateway,
   platformApi,
   setFacturas,
+  saveFacturaDoc,
   ntf,
   dbGet,
   dbSet,
   platformServices,
 }) {
+  const persistFacturaPatch = useCallback(async (factura, patch = {}) => {
+    const nextFactura = { ...(factura || {}), ...(patch || {}) };
+    if (typeof saveFacturaDoc === "function") {
+      return saveFacturaDoc(nextFactura);
+    }
+    if (typeof setFacturas === "function") {
+      await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
+        item.id === factura?.id ? nextFactura : item
+      )));
+      return true;
+    }
+    return false;
+  }, [saveFacturaDoc, setFacturas]);
+
   const ensureBsaleClient = useCallback(async ({ config, clientePayload }) => {
     const code = String(clientePayload?.rut || "").trim();
     const company = String(
@@ -284,9 +299,7 @@ export function useLabBillingPlatform({
             const currentSessions = await loadBsaleEmissionSessions(dbGet);
             await saveBsaleEmissionSessions(dbSet, [...currentSessions, record]);
           }
-          await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-            item.id === factura.id ? { ...item, ...amountPatch, externalSync } : item
-          )));
+          await persistFacturaPatch(factura, { ...amountPatch, externalSync });
           ntf("Nota de Crédito emitida en Bsale sandbox ✓");
           return true;
         }
@@ -358,9 +371,7 @@ export function useLabBillingPlatform({
             const currentSessions = await loadBsaleEmissionSessions(dbGet);
             await saveBsaleEmissionSessions(dbSet, [...currentSessions, record]);
           }
-          await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-            item.id === factura.id ? { ...item, ...amountPatch, externalSync } : item
-          )));
+          await persistFacturaPatch(factura, { ...amountPatch, externalSync });
           ntf("Nota de Débito emitida en motor tributario ✓");
           return true;
         }
@@ -446,9 +457,7 @@ export function useLabBillingPlatform({
           await saveBsaleEmissionSessions(dbSet, [...currentSessions, record]);
         }
 
-        await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-          item.id === factura.id ? { ...item, ...amountPatch, externalSync } : item
-        )));
+        await persistFacturaPatch(factura, { ...amountPatch, externalSync });
 
         ntf("Documento emitido en Bsale sandbox ✓");
         return true;
@@ -487,13 +496,11 @@ export function useLabBillingPlatform({
       return false;
     }
 
-    await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-      item.id === factura.id ? { ...item, ...result.facturaPatch } : item
-    )));
+    await persistFacturaPatch(factura, result.facturaPatch);
 
     ntf("Emisión Bsale preparada en modo mock ✓");
     return true;
-  }, [auspiciadores, clientes, curEmp, dbGet, dbSet, facturas, ntf, platformGateway, platformServices, setFacturas]);
+  }, [auspiciadores, clientes, curEmp, dbGet, dbSet, facturas, ntf, persistFacturaPatch, platformGateway, platformServices]);
 
   const syncFacturaWithBsale = useCallback(async (factura) => {
     if (!factura?.id) return false;
@@ -528,9 +535,7 @@ export function useLabBillingPlatform({
             },
           });
         }
-        await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-          item.id === factura.id ? { ...item, ...amountPatch, externalSync } : item
-        )));
+        await persistFacturaPatch(factura, { ...amountPatch, externalSync });
         ntf("Estado Bsale sincronizado ✓");
         return true;
       } catch (err) {
@@ -549,13 +554,11 @@ export function useLabBillingPlatform({
       return false;
     }
 
-    await setFacturas(prev => (Array.isArray(prev) ? prev : []).map(item => (
-      item.id === factura.id ? { ...item, externalSync: result.externalSync } : item
-    )));
+    await persistFacturaPatch(factura, { externalSync: result.externalSync });
 
     ntf("Estado Bsale sincronizado ✓");
     return true;
-  }, [curEmp?.id, ntf, platformApi, platformGateway, platformServices, setFacturas]);
+  }, [curEmp?.id, ntf, persistFacturaPatch, platformApi, platformGateway, platformServices]);
 
   const inspectFacturaBsaleSync = useCallback(async (factura) => {
     if (!factura?.id) return [];

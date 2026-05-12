@@ -15,6 +15,8 @@ export function useLabInvoiceList({
   canEdit = false,
   setFacturas,
   setMovimientos,
+  saveFacturaDoc,
+  deleteFacturaDoc,
   invoiceEntityName,
   cobranzaState,
   today,
@@ -94,15 +96,23 @@ export function useLabInvoiceList({
   const emitidas = fd.filter((f) => f.estado === "Emitida").length;
   const recurrentes = fd.filter((f) => f.recurring).length;
 
-  const applyBulkEstado = () => {
+  const applyBulkEstado = async () => {
     if (!canEdit) return false;
-    if (!bulkEstado) return;
-    setFacturas((facturas || []).map((item) => (
-      selectedIds.includes(item.id) && !isProtectedElectronicDocument(item)
-        ? { ...item, estado: bulkEstado }
-        : item
-    )));
+    if (!bulkEstado) return false;
+    const targets = (facturas || []).filter((item) => selectedIds.includes(item.id) && !isProtectedElectronicDocument(item));
+    if (typeof saveFacturaDoc === "function") {
+      for (const item of targets) {
+        await saveFacturaDoc({ ...item, estado: bulkEstado });
+      }
+    } else {
+      setFacturas((facturas || []).map((item) => (
+        selectedIds.includes(item.id) && !isProtectedElectronicDocument(item)
+          ? { ...item, estado: bulkEstado }
+          : item
+      )));
+    }
     setSelectedIds([]);
+    return true;
   };
 
   const deleteSelected = async () => {
@@ -118,20 +128,38 @@ export function useLabInvoiceList({
         .filter((item) => selectedIds.includes(item.id) && !isProtectedElectronicDocument(item))
         .map((item) => item.id),
     );
-    setFacturas((facturas || []).filter((item) => !removableIds.has(item.id)));
-    setMovimientos((Array.isArray(movimientos) ? movimientos : []).filter((m) => !removableIds.has(m.facturaId)));
+    if (typeof deleteFacturaDoc === "function") {
+      for (const facturaId of removableIds) {
+        await deleteFacturaDoc(facturaId);
+      }
+    } else {
+      setFacturas((facturas || []).filter((item) => !removableIds.has(item.id)));
+      setMovimientos((Array.isArray(movimientos) ? movimientos : []).filter((m) => !removableIds.has(m.facturaId)));
+    }
     setSelectedIds([]);
   };
 
-  const applyBulkCobranza = () => {
+  const applyBulkCobranza = async () => {
     if (!canEdit) return false;
-    if (!bulkCobranza) return;
-    setFacturas((facturas || []).map((item) => (
-      selectedIds.includes(item.id) && supportsCollectionTracking(item)
-        ? { ...item, cobranzaEstado: bulkCobranza, fechaPago: bulkCobranza === "Pagado" ? (item.fechaPago || today()) : "" }
-        : item
-    )));
+    if (!bulkCobranza) return false;
+    const targets = (facturas || []).filter((item) => selectedIds.includes(item.id) && supportsCollectionTracking(item));
+    if (typeof saveFacturaDoc === "function") {
+      for (const item of targets) {
+        await saveFacturaDoc({
+          ...item,
+          cobranzaEstado: bulkCobranza,
+          fechaPago: bulkCobranza === "Pagado" ? (item.fechaPago || today()) : "",
+        });
+      }
+    } else {
+      setFacturas((facturas || []).map((item) => (
+        selectedIds.includes(item.id) && supportsCollectionTracking(item)
+          ? { ...item, cobranzaEstado: bulkCobranza, fechaPago: bulkCobranza === "Pagado" ? (item.fechaPago || today()) : "" }
+          : item
+      )));
+    }
     setSelectedIds([]);
+    return true;
   };
 
   return {

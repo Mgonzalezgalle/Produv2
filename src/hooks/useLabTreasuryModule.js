@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { appendOperationalAuditEntry } from "../lib/operations/operationalAudit";
-import { appendWorkflowEventEntry } from "../lib/operations/workflowEvents";
 import { createFoundationFinancialRegistryCoordinator } from "../lib/backend/foundationFinancialRegistry";
 import {
   buildTreasuryProviders,
@@ -362,47 +361,40 @@ export function useLabTreasuryModule({
     if (!empId) return false;
     const safeNext = sanitizeTreasuryPayable(withEmp(next), empId);
     const exists = treasuryPayables.some(item => item.id === safeNext.id);
-    const updated = mergeById(treasuryPayables, [safeNext]);
-    await setTreasuryPayables?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "payables",
-      records: updated,
+      setRecords: setTreasuryPayables,
+      mutateRecords: current => mergeById(current, [safeNext]),
       metadata: {
         reason: exists ? "payable_updated" : "payable_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar payables con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: exists ? "payable_updated" : "payable_created",
-      entityType: "treasury_payable",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        supplier: safeNext.supplier || "",
-        folio: safeNext.folio || "",
-        total: Number(safeNext.total || 0),
-        status: safeNext.status || "",
+      audit: {
+        area: "tesoreria",
+        action: exists ? "payable_updated" : "payable_created",
+        entityType: "treasury_payable",
+        entityId: safeNext.id || "",
+        payload: {
+          supplier: safeNext.supplier || "",
+          folio: safeNext.folio || "",
+          total: Number(safeNext.total || 0),
+          status: safeNext.status || "",
+        },
       },
-      platformServices,
-    });
-    await appendWorkflowEventEntry({
-      empId,
-      stream: "payables",
-      eventName: exists ? "payable_updated" : "payable_created",
-      entityType: "treasury_payable",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        supplier: safeNext.supplier || "",
-        folio: safeNext.folio || "",
-        status: safeNext.status || "",
-        total: Number(safeNext.total || 0),
+      workflow: {
+        stream: "payables",
+        eventName: exists ? "payable_updated" : "payable_created",
+        entityType: "treasury_payable",
+        entityId: safeNext.id || "",
+        payload: {
+          supplier: safeNext.supplier || "",
+          folio: safeNext.folio || "",
+          status: safeNext.status || "",
+          total: Number(safeNext.total || 0),
+        },
       },
-      platformServices,
     });
     setPayableOpen(false);
     setPayableDraft(null);
@@ -411,37 +403,30 @@ export function useLabTreasuryModule({
 
   const deletePayable = async id => {
     if (!canManageTreasury) return false;
-    const updated = treasuryPayables.filter(item => item.id !== id);
-    await setTreasuryPayables?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "payables",
-      records: updated,
+      setRecords: setTreasuryPayables,
+      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "payable_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar payables con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: "payable_deleted",
-      entityType: "treasury_payable",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
-    });
-    await appendWorkflowEventEntry({
-      empId,
-      stream: "payables",
-      eventName: "payable_deleted",
-      entityType: "treasury_payable",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
+      audit: {
+        area: "tesoreria",
+        action: "payable_deleted",
+        entityType: "treasury_payable",
+        entityId: id || "",
+        payload: {},
+      },
+      workflow: {
+        stream: "payables",
+        eventName: "payable_deleted",
+        entityType: "treasury_payable",
+        entityId: id || "",
+        payload: {},
+      },
     });
     return true;
   };
@@ -451,32 +436,40 @@ export function useLabTreasuryModule({
     if (!empId) return false;
     const safeNext = sanitizeTreasuryPurchaseOrder(withEmp(next), empId);
     const exists = treasuryPurchaseOrders.some(item => item.id === safeNext.id);
-    const updated = mergeById(treasuryPurchaseOrders, [safeNext]);
-    await setTreasuryPurchaseOrders?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "purchase_orders",
-      records: updated,
+      setRecords: setTreasuryPurchaseOrders,
+      mutateRecords: current => mergeById(current, [safeNext]),
       metadata: {
         reason: exists ? "purchase_order_updated" : "purchase_order_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: exists ? "purchase_order_updated" : "purchase_order_created",
-      entityType: "treasury_purchase_order",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        number: safeNext.number || "",
-        clientId: safeNext.clientId || "",
-        amount: Number(safeNext.amount || 0),
-        status: safeNext.status || "",
+      audit: {
+        area: "tesoreria",
+        action: exists ? "purchase_order_updated" : "purchase_order_created",
+        entityType: "treasury_purchase_order",
+        entityId: safeNext.id || "",
+        payload: {
+          number: safeNext.number || "",
+          clientId: safeNext.clientId || "",
+          amount: Number(safeNext.amount || 0),
+          status: safeNext.status || "",
+        },
       },
-      platformServices,
+      workflow: {
+        stream: "purchase_orders",
+        eventName: exists ? "purchase_order_updated" : "purchase_order_created",
+        entityType: "treasury_purchase_order",
+        entityId: safeNext.id || "",
+        payload: {
+          number: safeNext.number || "",
+          clientId: safeNext.clientId || "",
+          amount: Number(safeNext.amount || 0),
+          status: safeNext.status || "",
+        },
+      },
     });
     setPoOpen(false);
     setPoDraft(null);
@@ -485,27 +478,30 @@ export function useLabTreasuryModule({
 
   const deletePurchaseOrder = async id => {
     if (!canManageTreasury) return false;
-    const updated = treasuryPurchaseOrders.filter(item => item.id !== id);
-    await setTreasuryPurchaseOrders?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "purchase_orders",
-      records: updated,
+      setRecords: setTreasuryPurchaseOrders,
+      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "purchase_order_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar purchase orders con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: "purchase_order_deleted",
-      entityType: "treasury_purchase_order",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
+      audit: {
+        area: "tesoreria",
+        action: "purchase_order_deleted",
+        entityType: "treasury_purchase_order",
+        entityId: id || "",
+        payload: {},
+      },
+      workflow: {
+        stream: "purchase_orders",
+        eventName: "purchase_order_deleted",
+        entityType: "treasury_purchase_order",
+        entityId: id || "",
+        payload: {},
+      },
     });
     return true;
   };
@@ -515,31 +511,38 @@ export function useLabTreasuryModule({
     if (!empId) return false;
     const safeNext = sanitizeTreasuryIssuedOrder(withEmp(next), empId);
     const exists = treasuryIssuedOrders.some(item => item.id === safeNext.id);
-    const updated = mergeById(treasuryIssuedOrders, [safeNext]);
-    await setTreasuryIssuedOrders?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "issued_orders",
-      records: updated,
+      setRecords: setTreasuryIssuedOrders,
+      mutateRecords: current => mergeById(current, [safeNext]),
       metadata: {
         reason: exists ? "issued_order_updated" : "issued_order_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar issued orders con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: exists ? "issued_order_updated" : "issued_order_created",
-      entityType: "treasury_issued_order",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        supplier: safeNext.supplier || "",
-        number: safeNext.number || "",
-        amount: Number(safeNext.amount || 0),
+      audit: {
+        area: "tesoreria",
+        action: exists ? "issued_order_updated" : "issued_order_created",
+        entityType: "treasury_issued_order",
+        entityId: safeNext.id || "",
+        payload: {
+          supplier: safeNext.supplier || "",
+          number: safeNext.number || "",
+          amount: Number(safeNext.amount || 0),
+        },
       },
-      platformServices,
+      workflow: {
+        stream: "issued_orders",
+        eventName: exists ? "issued_order_updated" : "issued_order_created",
+        entityType: "treasury_issued_order",
+        entityId: safeNext.id || "",
+        payload: {
+          supplier: safeNext.supplier || "",
+          number: safeNext.number || "",
+          amount: Number(safeNext.amount || 0),
+        },
+      },
     });
     setIssuedOpen(false);
     setIssuedDraft(null);
@@ -548,27 +551,30 @@ export function useLabTreasuryModule({
 
   const deleteIssuedOrder = async id => {
     if (!canManageTreasury) return false;
-    const updated = treasuryIssuedOrders.filter(item => item.id !== id);
-    await setTreasuryIssuedOrders?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "issued_orders",
-      records: updated,
+      setRecords: setTreasuryIssuedOrders,
+      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "issued_order_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar issued orders con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: "issued_order_deleted",
-      entityType: "treasury_issued_order",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
+      audit: {
+        area: "tesoreria",
+        action: "issued_order_deleted",
+        entityType: "treasury_issued_order",
+        entityId: id || "",
+        payload: {},
+      },
+      workflow: {
+        stream: "issued_orders",
+        eventName: "issued_order_deleted",
+        entityType: "treasury_issued_order",
+        entityId: id || "",
+        payload: {},
+      },
     });
     return true;
   };
@@ -583,32 +589,40 @@ export function useLabTreasuryModule({
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
     if (!safeNext.id || !safeNext.invoiceId) return false;
     const exists = treasuryReceipts.some(item => item.id === safeNext.id);
-    const updated = mergeById(treasuryReceipts, [{ ...safeNext, amount: nextAmount }]);
-    await setTreasuryReceipts?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "receipts",
-      records: updated,
+      setRecords: setTreasuryReceipts,
+      mutateRecords: current => mergeById(current, [{ ...safeNext, amount: nextAmount }]),
       metadata: {
         reason: exists ? "receipt_updated" : "receipt_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar receipts con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: exists ? "receipt_updated" : "receipt_created",
-      entityType: "treasury_receipt",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        invoiceId: safeNext.invoiceId || "",
-        amount: Number(safeNext.amount || 0),
-        method: safeNext.method || "",
-        reference: safeNext.reference || "",
+      audit: {
+        area: "tesoreria",
+        action: exists ? "receipt_updated" : "receipt_created",
+        entityType: "treasury_receipt",
+        entityId: safeNext.id || "",
+        payload: {
+          invoiceId: safeNext.invoiceId || "",
+          amount: Number(safeNext.amount || 0),
+          method: safeNext.method || "",
+          reference: safeNext.reference || "",
+        },
       },
-      platformServices,
+      workflow: {
+        stream: "receipts",
+        eventName: exists ? "receipt_updated" : "receipt_created",
+        entityType: "treasury_receipt",
+        entityId: safeNext.id || "",
+        payload: {
+          invoiceId: safeNext.invoiceId || "",
+          amount: Number(safeNext.amount || 0),
+          method: safeNext.method || "",
+          reference: safeNext.reference || "",
+        },
+      },
     });
     setReceiptOpen(false);
     setReceiptDraft(null);
@@ -624,34 +638,44 @@ export function useLabTreasuryModule({
     if (!nextAmount || nextAmount <= 0) return false;
     if (maxAmount > 0 && nextAmount > maxAmount) return false;
     if (!safeNext.id || !safeNext.payableId) return false;
-    const baseDisbursements = Array.isArray(treasuryDisbursements) ? treasuryDisbursements : effectiveTreasuryDisbursements;
-    const exists = baseDisbursements.some(item => item.id === safeNext.id);
-    const updated = mergeById(baseDisbursements, [{ ...safeNext, amount: nextAmount }]);
-    await setTreasuryDisbursements?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    const exists = (Array.isArray(treasuryDisbursements) ? treasuryDisbursements : effectiveTreasuryDisbursements).some(item => item.id === safeNext.id);
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "disbursements",
-      records: updated,
+      setRecords: setTreasuryDisbursements,
+      mutateRecords: current => {
+        const baseRecords = Array.isArray(current) && current.length ? current : effectiveTreasuryDisbursements;
+        return mergeById(baseRecords, [{ ...safeNext, amount: nextAmount }]);
+      },
       metadata: {
         reason: exists ? "disbursement_updated" : "disbursement_created",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar disbursements con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: exists ? "disbursement_updated" : "disbursement_created",
-      entityType: "treasury_disbursement",
-      entityId: safeNext.id || "",
-      actor: currentUser,
-      payload: {
-        payableId: safeNext.payableId || "",
-        amount: Number(safeNext.amount || 0),
-        method: safeNext.method || "",
-        reference: safeNext.reference || "",
+      audit: {
+        area: "tesoreria",
+        action: exists ? "disbursement_updated" : "disbursement_created",
+        entityType: "treasury_disbursement",
+        entityId: safeNext.id || "",
+        payload: {
+          payableId: safeNext.payableId || "",
+          amount: Number(safeNext.amount || 0),
+          method: safeNext.method || "",
+          reference: safeNext.reference || "",
+        },
       },
-      platformServices,
+      workflow: {
+        stream: "disbursements",
+        eventName: exists ? "disbursement_updated" : "disbursement_created",
+        entityType: "treasury_disbursement",
+        entityId: safeNext.id || "",
+        payload: {
+          payableId: safeNext.payableId || "",
+          amount: Number(safeNext.amount || 0),
+          method: safeNext.method || "",
+          reference: safeNext.reference || "",
+        },
+      },
     });
     setDisbursementOpen(false);
     setDisbursementDraft(null);
@@ -704,57 +728,63 @@ export function useLabTreasuryModule({
 
   const deleteReceipt = async id => {
     if (!canManageTreasury) return false;
-    const updated = (Array.isArray(treasuryReceipts) ? treasuryReceipts : []).filter(item => item.id !== id);
-    await setTreasuryReceipts?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "receipts",
-      records: updated,
+      setRecords: setTreasuryReceipts,
+      mutateRecords: current => (Array.isArray(current) ? current : []).filter(item => item.id !== id),
       metadata: {
         reason: "receipt_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar receipts con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: "receipt_deleted",
-      entityType: "treasury_receipt",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
+      audit: {
+        area: "tesoreria",
+        action: "receipt_deleted",
+        entityType: "treasury_receipt",
+        entityId: id || "",
+        payload: {},
+      },
+      workflow: {
+        stream: "receipts",
+        eventName: "receipt_deleted",
+        entityType: "treasury_receipt",
+        entityId: id || "",
+        payload: {},
+      },
     });
     return true;
   };
 
   const deleteDisbursement = async id => {
     if (!canManageTreasury) return false;
-    const baseDisbursements = Array.isArray(treasuryDisbursements) && treasuryDisbursements.length
-      ? treasuryDisbursements
-      : effectiveTreasuryDisbursements;
-    const updated = baseDisbursements.filter(item => item.id !== id);
-    await setTreasuryDisbursements?.(updated);
-    await foundationFinancialRegistry.syncSnapshot({
+    await foundationFinancialRegistry.mutateSnapshot({
       registryName: "disbursements",
-      records: updated,
+      setRecords: setTreasuryDisbursements,
+      mutateRecords: current => {
+        const baseRecords = Array.isArray(current) && current.length ? current : effectiveTreasuryDisbursements;
+        return baseRecords.filter(item => item.id !== id);
+      },
       metadata: {
         reason: "disbursement_deleted",
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
       degradedMessage: "No pudimos sincronizar disbursements con foundation.",
-    });
-    await appendOperationalAuditEntry({
-      empId,
-      area: "tesoreria",
-      action: "disbursement_deleted",
-      entityType: "treasury_disbursement",
-      entityId: id || "",
-      actor: currentUser,
-      payload: {},
-      platformServices,
+      audit: {
+        area: "tesoreria",
+        action: "disbursement_deleted",
+        entityType: "treasury_disbursement",
+        entityId: id || "",
+        payload: {},
+      },
+      workflow: {
+        stream: "disbursements",
+        eventName: "disbursement_deleted",
+        entityType: "treasury_disbursement",
+        entityId: id || "",
+        payload: {},
+      },
     });
     return true;
   };

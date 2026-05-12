@@ -1,4 +1,5 @@
 import { appendOperationalAuditEntry } from "../operations/operationalAudit";
+import { appendWorkflowEventEntry } from "../operations/workflowEvents";
 
 export function createFoundationFinancialRegistryCoordinator({
   empId = "",
@@ -94,9 +95,67 @@ export function createFoundationFinancialRegistryCoordinator({
     }
   };
 
+  const mutateSnapshot = async ({
+    registryName = "",
+    setRecords = null,
+    mutateRecords = (current => current),
+    metadata = {},
+    degradedMessage = "No pudimos sincronizar registros con foundation.",
+    audit = null,
+    workflow = null,
+  } = {}) => {
+    if (!safeEmpId || !registryName || typeof setRecords !== "function") {
+      return { ok: false, source: "skipped", records: [] };
+    }
+    let updatedRecords = [];
+    await Promise.resolve(setRecords((current = []) => {
+      const baseRecords = Array.isArray(current) ? current : [];
+      const nextRecords = mutateRecords(baseRecords);
+      updatedRecords = Array.isArray(nextRecords) ? nextRecords : baseRecords;
+      return updatedRecords;
+    }));
+    const syncResult = await syncSnapshot({
+      registryName,
+      records: updatedRecords,
+      metadata,
+      degradedMessage,
+    });
+    if (audit?.action) {
+      await appendOperationalAuditEntry({
+        empId: safeEmpId,
+        area: audit.area || "operacion",
+        action: audit.action,
+        entityType: audit.entityType || registryName,
+        entityId: audit.entityId || "",
+        actor,
+        payload: audit.payload && typeof audit.payload === "object" ? audit.payload : {},
+        platformServices,
+      });
+    }
+    if (workflow?.stream && workflow?.eventName) {
+      await appendWorkflowEventEntry({
+        empId: safeEmpId,
+        stream: workflow.stream,
+        eventName: workflow.eventName,
+        entityType: workflow.entityType || audit?.entityType || registryName,
+        entityId: workflow.entityId || audit?.entityId || "",
+        actor,
+        payload: workflow.payload && typeof workflow.payload === "object" ? workflow.payload : {},
+        platformServices,
+      });
+    }
+    return {
+      ok: true,
+      source: syncResult?.source || "local",
+      records: updatedRecords,
+      syncResult,
+    };
+  };
+
   return {
     recordEvent,
     rehydrateSnapshot,
     syncSnapshot,
+    mutateSnapshot,
   };
 }

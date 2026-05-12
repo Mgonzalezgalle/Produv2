@@ -4,6 +4,11 @@ import { getBsaleBillingConfig } from "../lib/integrations/bsaleBilling";
 import { getRemoteBsaleSnapshot, getRemoteProvisionedModules } from "../components/admin/towerControlHealth";
 import { normalizeDiioTenantConnection } from "../lib/integrations/diioIntegration";
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
+import {
+  buildTenantBsaleConfigState,
+  buildTenantMercadoPagoConfigState,
+  persistTenantIntegrationConfig,
+} from "../lib/integrations/tenantIntegrationConfigs";
 import { buildTenantIntegrationMaturity } from "../lib/integrations/integrationRegistry";
 import { canAccessAdminSection, canManageAdminPanel, getAccessibleAdminSections, getCustomRoles } from "../lib/auth/authorization";
 import { requiresLocalTwoFactor } from "../lib/auth/localTwoFactor";
@@ -246,41 +251,21 @@ export function useLabAdminPanelModule({
   useEffect(() => {
     const envConfig = getBsaleBillingConfig();
     const current = empresa?.integrationConfigs?.bsale?.sandbox || {};
-    const source = current.token
-      ? (tenantCanEditBsaleConfig ? "tenant" : "governed")
-      : (envConfig.token ? "environment" : "unset");
-    setTenantBsaleConfig({
-      mode: bsaleGovernanceMode,
-      status: current.status || "draft",
-      token: current.token || "",
-      officeId: current.officeId || "",
-      documentTypeId: current.documentTypeId || "",
-      priceListId: current.priceListId || "",
-      source,
-      governed: bsaleGovernanceMode !== "disabled",
+    setTenantBsaleConfig(buildTenantBsaleConfigState(current, {
+      governanceMode: bsaleGovernanceMode,
       tenantCanEdit: tenantCanEditBsaleConfig,
-    });
+      envConfig,
+    }));
   }, [empresa, bsaleGovernanceMode, tenantCanEditBsaleConfig]);
 
   useEffect(() => {
     const envConfig = getMercadoPagoPaymentsConfig();
     const current = empresa?.integrationConfigs?.mercadoPago?.tenant || {};
-    const source = current.publicKey || current.accessToken
-      ? "tenant"
-      : (envConfig.appId || envConfig.publicKey ? "environment" : "unset");
-    setTenantMercadoPagoConfig({
-      mode: mercadoPagoGovernanceMode,
-      status: current.status || "disconnected",
-      sellerAccountLabel: current.sellerAccountLabel || "",
-      publicKey: current.publicKey || "",
-      accessToken: current.accessToken || "",
-      webhookSecret: current.webhookSecret || "",
-      defaultExpirationDays: current.defaultExpirationDays || "7",
-      enablePaymentLinksInCollection: current.enablePaymentLinksInCollection !== false,
-      source,
-      governed: mercadoPagoGovernanceMode !== "disabled",
+    setTenantMercadoPagoConfig(buildTenantMercadoPagoConfigState(current, {
+      governanceMode: mercadoPagoGovernanceMode,
       tenantCanEdit: tenantCanEditMercadoPagoConfig,
-    });
+      envConfig,
+    }));
   }, [empresa, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig]);
 
   useEffect(() => {
@@ -740,53 +725,47 @@ export function useLabAdminPanelModule({
     }
     setTenantBsaleSaving(true);
     try {
-      const nextIntegrationConfigs = {
-        ...(empresa?.integrationConfigs || {}),
-        bsale: {
-          ...((empresa?.integrationConfigs || {}).bsale || {}),
-          sandbox: {
-            status: tenantBsaleConfig.status || "draft",
-            token: String(tenantBsaleConfig.token || "").trim(),
-            officeId: String(tenantBsaleConfig.officeId || "").trim(),
-            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
-            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
-          },
-        },
+      const nextTenantConfig = {
+        status: tenantBsaleConfig.status || "draft",
+        token: String(tenantBsaleConfig.token || "").trim(),
+        officeId: String(tenantBsaleConfig.officeId || "").trim(),
+        documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
+        priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
       };
-      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
-      if (platformServices?.upsertIntegrationCredentialSnapshot) {
-        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+      const tokenConfigured = Boolean(nextTenantConfig.token);
+      await persistTenantIntegrationConfig({
+        empresa,
+        empresas,
+        saveEmpresas,
+        platformServices,
+        provider: "bsale",
+        environment: "sandbox",
+        nextConfig: nextTenantConfig,
+        credentialSnapshot: {
           provider: "bsale",
           environment: "sandbox",
-          status: tenantBsaleConfig.status || "draft",
-          secretConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
+          status: nextTenantConfig.status,
+          secretConfigured: tokenConfigured,
           config: {
-            officeId: String(tenantBsaleConfig.officeId || "").trim(),
-            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
-            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
+            officeId: nextTenantConfig.officeId,
+            documentTypeId: nextTenantConfig.documentTypeId,
+            priceListId: nextTenantConfig.priceListId,
           },
           metadata: {
             source: "tenant_admin",
             governedMode: bsaleGovernanceMode,
-            tokenConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
+            tokenConfigured,
           },
-        });
-      }
-      if (platformServices?.appendSyncAuditLog) {
-        await platformServices.appendSyncAuditLog(
-          empresa.id,
-          "tenant_bsale_config_saved",
-          "integration_config",
-          "bsale:sandbox",
-          {
-            status: tenantBsaleConfig.status || "draft",
-            tokenConfigured: Boolean(String(tenantBsaleConfig.token || "").trim()),
-            officeId: String(tenantBsaleConfig.officeId || "").trim(),
-            documentTypeId: String(tenantBsaleConfig.documentTypeId || "").trim(),
-            priceListId: String(tenantBsaleConfig.priceListId || "").trim(),
-          },
-        );
-      }
+        },
+        auditAction: "tenant_bsale_config_saved",
+        auditPayload: {
+          status: nextTenantConfig.status,
+          tokenConfigured,
+          officeId: nextTenantConfig.officeId,
+          documentTypeId: nextTenantConfig.documentTypeId,
+          priceListId: nextTenantConfig.priceListId,
+        },
+      });
       setTenantBsaleConfig(prev => ({ ...prev, source: prev.token ? "tenant" : "unset", tenantCanEdit: true }));
       if (platformServices?.getTenantPlatformSnapshot) {
         refreshPlatformSnapshot();
@@ -815,58 +794,51 @@ export function useLabAdminPanelModule({
       const inferredStatus = hasAccessToken && (hasSeller || hasPublicKey)
         ? "connected"
         : (hasSeller || hasPublicKey || hasAccessToken ? "draft" : "disconnected");
-      const nextIntegrationConfigs = {
-        ...(empresa?.integrationConfigs || {}),
-        mercadoPago: {
-          ...((empresa?.integrationConfigs || {}).mercadoPago || {}),
-          tenant: {
-            status: inferredStatus,
-            sellerAccountLabel: hasSeller,
-            publicKey: hasPublicKey,
-            accessToken: hasAccessToken,
-            webhookSecret: String(tenantMercadoPagoConfig.webhookSecret || "").trim(),
-            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
-            enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
-          },
-        },
+      const nextTenantConfig = {
+        status: inferredStatus,
+        sellerAccountLabel: hasSeller,
+        publicKey: hasPublicKey,
+        accessToken: hasAccessToken,
+        webhookSecret: String(tenantMercadoPagoConfig.webhookSecret || "").trim(),
+        defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
+        enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
       };
-      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
-      if (platformServices?.upsertIntegrationCredentialSnapshot) {
-        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+      await persistTenantIntegrationConfig({
+        empresa,
+        empresas,
+        saveEmpresas,
+        platformServices,
+        provider: "mercadoPago",
+        environment: "tenant",
+        nextConfig: nextTenantConfig,
+        credentialSnapshot: {
           provider: "mercadopago",
           environment: "tenant",
           status: inferredStatus,
-          secretConfigured: Boolean(hasAccessToken || String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
+          secretConfigured: Boolean(hasAccessToken || nextTenantConfig.webhookSecret),
           config: {
             sellerAccountLabel: hasSeller,
             publicKeyConfigured: Boolean(hasPublicKey),
-            webhookSecretConfigured: Boolean(String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
-            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
-            enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
+            webhookSecretConfigured: Boolean(nextTenantConfig.webhookSecret),
+            defaultExpirationDays: nextTenantConfig.defaultExpirationDays,
+            enablePaymentLinksInCollection: nextTenantConfig.enablePaymentLinksInCollection,
           },
           metadata: {
             source: "tenant_admin",
             governedMode: mercadoPagoGovernanceMode,
           },
-        });
-      }
-      if (platformServices?.appendSyncAuditLog) {
-        await platformServices.appendSyncAuditLog(
-          empresa.id,
-          "tenant_mercadopago_config_saved",
-          "integration_config",
-          "mercadopago:tenant",
-          {
-            status: inferredStatus,
-            sellerConfigured: Boolean(hasSeller),
-            publicKeyConfigured: Boolean(hasPublicKey),
-            accessTokenConfigured: Boolean(hasAccessToken),
-            webhookSecretConfigured: Boolean(String(tenantMercadoPagoConfig.webhookSecret || "").trim()),
-            defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
-            paymentLinksEnabled: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
-          },
-        );
-      }
+        },
+        auditAction: "tenant_mercadopago_config_saved",
+        auditPayload: {
+          status: inferredStatus,
+          sellerConfigured: Boolean(hasSeller),
+          publicKeyConfigured: Boolean(hasPublicKey),
+          accessTokenConfigured: Boolean(hasAccessToken),
+          webhookSecretConfigured: Boolean(nextTenantConfig.webhookSecret),
+          defaultExpirationDays: nextTenantConfig.defaultExpirationDays,
+          paymentLinksEnabled: nextTenantConfig.enablePaymentLinksInCollection,
+        },
+      });
       setTenantMercadoPagoConfig(prev => ({
         ...prev,
         status: inferredStatus,
@@ -909,16 +881,15 @@ export function useLabAdminPanelModule({
         connected: false,
         connectedAt: "",
       };
-      const nextIntegrationConfigs = {
-        ...(empresa?.integrationConfigs || {}),
-        diio: {
-          ...((empresa?.integrationConfigs || {}).diio || {}),
-          tenant: nextTenantConfig,
-        },
-      };
-      await saveEmpresas((empresas || []).map(em => em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em));
-      if (platformServices?.upsertIntegrationCredentialSnapshot) {
-        await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, {
+      await persistTenantIntegrationConfig({
+        empresa,
+        empresas,
+        saveEmpresas,
+        platformServices,
+        provider: "diio",
+        environment: "tenant",
+        nextConfig: nextTenantConfig,
+        credentialSnapshot: {
           provider: "diio",
           environment: "tenant",
           status: inferredStatus,
@@ -935,24 +906,17 @@ export function useLabAdminPanelModule({
             source: "tenant_admin",
             governedMode: diioGovernanceMode,
           },
-        });
-      }
-      if (platformServices?.appendSyncAuditLog) {
-        await platformServices.appendSyncAuditLog(
-          empresa.id,
-          "tenant_diio_config_saved",
-          "integration_config",
-          "diio:tenant",
-          {
-            status: inferredStatus,
-            workspaceConfigured: Boolean(hasWorkspace),
-            companyUrlConfigured: Boolean(hasCompanyUrl),
-            clientIdConfigured: Boolean(hasClientId),
-            refreshTokenConfigured: Boolean(hasRefreshToken),
-            webhookSecretConfigured: Boolean(hasWebhookSecret),
-          },
-        );
-      }
+        },
+        auditAction: "tenant_diio_config_saved",
+        auditPayload: {
+          status: inferredStatus,
+          workspaceConfigured: Boolean(hasWorkspace),
+          companyUrlConfigured: Boolean(hasCompanyUrl),
+          clientIdConfigured: Boolean(hasClientId),
+          refreshTokenConfigured: Boolean(hasRefreshToken),
+          webhookSecretConfigured: Boolean(hasWebhookSecret),
+        },
+      });
       setTenantDiioConfig(prev => ({
         ...prev,
         ...nextTenantConfig,

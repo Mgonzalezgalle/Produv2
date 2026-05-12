@@ -877,284 +877,139 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           <PortalSectionBoundary onBack={() => setTab("resumen")}>
             <Card title="Contenidos" sub="Aqui puedes revisar las campanas y piezas que hoy estan vinculadas a tu operacion.">
             {Array.isArray(summary?.activeContent) && summary.activeContent.length ? <div style={{ display: "grid", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
-                <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.10)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Cola de revisión</div>
-                      <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Te dejamos primero lo que hoy necesita una respuesta, para que puedas aprobar o pedir ajustes sin recorrer toda la lista.</div>
-                    </div>
-                    <Badge label={`${contentWorkspace.reviewQueue.length} por revisar`} color="cyan" />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 16 }}>
-                    <Stat label="Pendientes" value={contentWorkspace.reviewQueue.length} accent="#2f6ea8" vc="#2f6ea8" />
-                    <Stat label="Aprobadas" value={contentWorkspace.approved.length} accent="#00b894" vc="#00b894" />
-                    <Stat label="Con cambios" value={contentWorkspace.observed.length} accent="#ff8844" vc="#ff8844" />
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-                    {[
-                      ["all", "Todo"],
-                      ["queue", "Por revisar"],
-                      ["approved", "Aprobadas"],
-                      ["changes", "Con cambios"],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setContentDecisionFilter(value)}
-                        style={{
-                          padding: "9px 14px",
-                          borderRadius: 999,
-                          border: `1px solid ${contentDecisionFilter === value ? "#2f6ea8" : "#dbe7f5"}`,
-                          background: contentDecisionFilter === value ? "#2f6ea8" : "#ffffff",
-                          color: contentDecisionFilter === value ? "#ffffff" : "#475569",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
-                    {contentWorkspace.reviewQueue.filter(item => item?.piece?.id).slice(0, 3).map(item => (
-                      <div key={item.piece.id} style={{ border: "1px solid #dbe7f5", borderRadius: 18, background: "#ffffff", padding: 16, boxShadow: "0 10px 20px rgba(15,23,42,.04)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{item.piece.nom || "Pieza"}</div>
-                            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7c93" }}>{item.campaignName} · {item.campaignMonth || "Sin mes"}</div>
-                            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              <Badge label={item.piece.tipo || "Contenido"} color="blue" />
-                              <Badge label={item.piece.plataforma || "Canal"} color="purple" />
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <GBtn sm onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: item.piece.id, status: "approved", brief: item.piece?.clientPortalDecision?.additionalBrief || "", comment: item.piece?.clientPortalDecision?.comment || "", requestedChanges: "" })}>Aprobar</GBtn>
-                            <GBtn sm onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: item.piece.id, status: "changes_requested", brief: item.piece?.clientPortalDecision?.additionalBrief || "", comment: item.piece?.clientPortalDecision?.comment || "", requestedChanges: item.piece?.clientPortalDecision?.requestedChanges || "" })}>Pedir cambios</GBtn>
-                          </div>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{item.piece.est || "En revisión"}</div>
-                          </div>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Formato</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{item.piece.formato || "Entregable"}</div>
-                          </div>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(item.piece.fecha || item.piece.fechaEntrega || item.piece.publishDate || "")}</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {!contentWorkspace.reviewQueue.length ? (
-                      <div style={{ borderRadius: 18, border: "1px dashed #dbe7f5", padding: 18, color: "#5b6b82", background: "#ffffff" }}>
-                        No tienes piezas pendientes de respuesta por ahora.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                <div style={{ display: "grid", gap: 16 }}>
-                  <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "linear-gradient(180deg,#ffffff,#f8fbff)", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.10)" }}>
-                    <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Filtra tu revisión</div>
-                    <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Puedes concentrarte en una campaña puntual o revisar todo el trabajo pendiente desde una sola vista.</div>
-                    <div style={{ marginTop: 16 }}>
-                      <FG label="Campaña">
-                        <select
-                          value={contentCampaignFilter}
-                          onChange={(event) => setContentCampaignFilter(event.target.value)}
-                          style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid #dbe7f5", background: "#ffffff", color: "#0f172a", fontSize: 13 }}
-                        >
-                          <option value="">Todas las campañas</option>
-                          {contentWorkspace.campaignOptions.map(option => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
-                      </FG>
-                    </div>
-                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                      <div style={{ borderRadius: 16, background: "#edf5ff", border: "1px solid #d7e6fb", padding: "14px 16px" }}>
-                        <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Campañas visibles</div>
-                        <div style={{ marginTop: 6, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8" }}>{filteredContentCampaigns.length}</div>
-                      </div>
-                      <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #dbe7f5", padding: "14px 16px" }}>
-                        <div style={{ fontSize: 12, color: "#5b6b82", lineHeight: 1.7 }}>
-                          Cada respuesta que dejes aquí queda visible para el equipo, junto con el comentario o brief adicional que registres.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ border: "1px solid #dbe7f5", borderRadius: 24, background: "#ffffff", padding: 20, boxShadow: "0 14px 34px rgba(148,163,184,.08)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>Vista rápida</div>
-                        <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 4, lineHeight: 1.6 }}>Un ejemplo visible de lo que hoy está en foco dentro del portal.</div>
-                      </div>
-                      {contentFocusPiece?.piece?.clientPortalDecision?.status ? <Badge label={clientDecisionLabel(contentFocusPiece.piece.clientPortalDecision, "content")} color={contentFocusPiece.piece.clientPortalDecision.status === "approved" ? "green" : "orange"} /> : <Badge label="Pendiente de respuesta" color="cyan" />}
-                    </div>
-                    {contentFocusPiece ? (
-                      <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
-                        <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 16 }}>
-                          <div style={{ fontSize: 11, letterSpacing: 1.15, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Pieza destacada</div>
-                          <div style={{ marginTop: 8, fontFamily: "var(--fh)", fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{contentFocusPiece.piece.nom || "Pieza"}</div>
-                          <div style={{ marginTop: 6, fontSize: 13, color: "#5b6b82", lineHeight: 1.6 }}>{contentFocusPiece.campaignName} · {contentFocusPiece.campaignMonth || "Sin mes"}</div>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                            <Badge label={contentFocusPiece.piece.tipo || "Contenido"} color="blue" />
-                            <Badge label={contentFocusPiece.piece.plataforma || contentFocusPiece.campaignPlatform || "Canal"} color="purple" />
-                          </div>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado interno</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{contentFocusPiece.piece.est || "En revisión"}</div>
-                          </div>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Aprobación actual</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{contentFocusPiece.piece.approval || "Pendiente"}</div>
-                          </div>
-                          <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(contentFocusPiece.piece.fecha || contentFocusPiece.piece.fechaEntrega || contentFocusPiece.piece.publishDate || "")}</div>
-                          </div>
-                        </div>
-                        {resolvePiecePreviewUrl(contentFocusPiece.piece) ? (
-                          <div style={{ borderRadius: 14, background: "#ffffff", border: "1px solid #dbe7f5", padding: "12px 14px" }}>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Previsualización</div>
-                            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              {contentFocusPiece.piece.link ? <a href={contentFocusPiece.piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión de trabajo ↗</a> : null}
-                              {contentFocusPiece.piece.finalLink ? <a href={contentFocusPiece.piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir versión final ↗</a> : null}
-                            </div>
-                          </div>
-                        ) : null}
-                        {contentFocusPiece.piece?.clientPortalDecision?.brief ? (
-                          <div style={{ borderRadius: 14, background: "#fff8f3", border: "1px solid #ffd7bf", padding: "12px 14px", fontSize: 12, color: "#8a5b33", lineHeight: 1.7, whiteSpace: "pre-line" }}>
-                            <b style={{ color: "#0f172a" }}>Último comentario registrado:</b> {contentFocusPiece.piece.clientPortalDecision.brief}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 16, borderRadius: 16, border: "1px dashed #dbe7f5", padding: 16, color: "#5b6b82", background: "#f8fbff" }}>
-                        Todavía no hay piezas visibles con el filtro actual.
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
+                <Stat label="Pendientes" value={contentWorkspace.reviewQueue.length} accent="#2f6ea8" vc="#2f6ea8" />
+                <Stat label="Aprobadas" value={contentWorkspace.approved.length} accent="#00b894" vc="#00b894" />
+                <Stat label="Con cambios" value={contentWorkspace.observed.length} accent="#ff8844" vc="#ff8844" />
+                <Stat label="Piezas visibles" value={visibleContentPieces.length} accent="#8b5cf6" vc="#8b5cf6" />
               </div>
-              {safeFilteredContentCampaigns.map(item => {
-                const metrics = countCampaignResponses(item);
-                return (
-                  <div key={item.id} style={{ padding: 20, border: "1px solid #e5ddfb", borderRadius: 24, background: "linear-gradient(180deg, #faf7ff, #ffffff)", boxShadow: "0 14px 34px rgba(148,163,184,.08)" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 16, alignItems: "start" }}>
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                          <div>
-                            <div style={{ fontFamily: "var(--fh)", fontSize: 20, fontWeight: 900, color: "#0f172a" }}>{item.nom}</div>
-                            <div style={{ marginTop: 4, fontSize: 13, color: "#6b7c93" }}>{[item.mes, item.ano].filter(Boolean).join(" ")} · {countCampaignPieces(item)} pieza(s)</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <Badge label={item.est || "Planificada"} color="purple" />
-                            {metrics.pending ? <Badge label={`${metrics.pending} pendiente(s)`} color="cyan" /> : null}
-                          </div>
-                        </div>
-                        {item.brief ? <div style={{ marginTop: 14, fontSize: 13, color: "#5b6b82", whiteSpace: "pre-line", lineHeight: 1.7 }}>{item.brief}</div> : null}
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
-                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #e5ddfb", padding: "12px 14px" }}>
-                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#7b67a6", fontWeight: 700 }}>Pendientes</div>
-                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8" }}>{metrics.pending}</div>
-                        </div>
-                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #d9f4e6", padding: "12px 14px" }}>
-                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#2f8f66", fontWeight: 700 }}>Aprobadas</div>
-                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#0f9f63" }}>{metrics.approved}</div>
-                        </div>
-                        <div style={{ borderRadius: 16, background: "#ffffff", border: "1px solid #ffe0cc", padding: "12px 14px" }}>
-                          <div style={{ fontSize: 10, letterSpacing: 1.15, textTransform: "uppercase", color: "#bd6a28", fontWeight: 700 }}>Con cambios</div>
-                          <div style={{ marginTop: 5, fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#e1712f" }}>{metrics.observed}</div>
-                        </div>
-                      </div>
-                    </div>
-                    {Array.isArray(item.piezas) && item.piezas.length ? <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-                      {item.piezas.filter(Boolean).map(piece => {
-                        const portalDecision = piece.clientPortalDecision || null;
-                        if (contentDecisionFilter === "queue" && portalDecision?.status) return null;
-                        if (contentDecisionFilter === "approved" && portalDecision?.status !== "approved") return null;
-                        if (contentDecisionFilter === "changes" && portalDecision?.status !== "changes_requested") return null;
-                        const tone = portalResponseTone(portalDecision?.status);
-                        return (
-                          <div key={piece.id} style={{ padding: 18, borderRadius: 20, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 12px 28px rgba(15,23,42,.05)" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 14, alignItems: "start" }}>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {[
+                    ["all", "Todo"],
+                    ["queue", "Por revisar"],
+                    ["approved", "Aprobadas"],
+                    ["changes", "Con cambios"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setContentDecisionFilter(value)}
+                      style={{
+                        padding: "9px 14px",
+                        borderRadius: 999,
+                        border: `1px solid ${contentDecisionFilter === value ? "#2f6ea8" : "#dbe7f5"}`,
+                        background: contentDecisionFilter === value ? "#2f6ea8" : "#ffffff",
+                        color: contentDecisionFilter === value ? "#ffffff" : "#475569",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <FG label="Campana">
+                  <select
+                    value={contentCampaignFilter}
+                    onChange={(event) => setContentCampaignFilter(event.target.value)}
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid #dbe7f5", background: "#ffffff", color: "#0f172a", fontSize: 13 }}
+                  >
+                    <option value="">Todas las campanas</option>
+                    {contentWorkspace.campaignOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </FG>
+              </div>
+
+              {visibleContentPieces.length ? (
+                <div style={{ display: "grid", gap: 14 }}>
+                  {visibleContentPieces.map((item) => {
+                    const piece = item?.piece;
+                    if (!piece?.id) return null;
+                    const portalDecision = piece.clientPortalDecision || null;
+                    const tone = portalResponseTone(portalDecision?.status);
+                    const previewUrl = resolvePiecePreviewUrl(piece);
+                    return (
+                      <div key={piece.id} style={{ padding: 18, borderRadius: 22, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 14px 28px rgba(15,23,42,.05)" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 16, alignItems: "start" }}>
+                          <div style={{ display: "grid", gap: 12 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                               <div>
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                                  <div>
-                                    <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
-                                    <div style={{ fontSize: 12, color: "#6b7c93", marginTop: 4 }}>{piece.tipo || "Contenido"} · {piece.formato || "Entregable"}</div>
-                                  </div>
-                                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                                    <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
-                                    {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
-                                  </div>
-                                </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
-                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado actual</div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revisión"}</div>
-                                  </div>
-                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Canal</div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
-                                  </div>
-                                  <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
-                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
-                                  </div>
-                                </div>
-                                {portalDecision?.brief ? <div style={{ marginTop: 12, borderRadius: 14, background: tone.bg, border: `1px solid ${tone.border}`, padding: "12px 14px", fontSize: 12, color: tone.color, whiteSpace: "pre-line", lineHeight: 1.7 }}><b style={{ color: "#0f172a" }}>Comentario registrado:</b> {portalDecision.brief}</div> : null}
+                                <div style={{ fontWeight: 900, fontSize: 17, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
+                                <div style={{ fontSize: 13, color: "#6b7c93", marginTop: 4 }}>{item.campaignName || "Campana"} · {item.campaignMonth || "Sin mes"}</div>
                               </div>
-                              <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 14, display: "grid", gap: 12 }}>
-                                {resolvePiecePreviewUrl(piece) ? (
-                                  <div style={{ borderRadius: 14, border: "1px solid #dbe7f5", background: "#ffffff", padding: 10 }}>
-                                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Vista de la pieza</div>
-                                    {isLikelyImageUrl(resolvePiecePreviewUrl(piece)) ? (
-                                      <img src={resolvePiecePreviewUrl(piece)} alt={piece.nom || "Pieza"} style={{ width: "100%", height: 132, objectFit: "cover", borderRadius: 12, marginTop: 8, border: "1px solid #dbe7f5" }} />
-                                    ) : (
-                                      <div style={{ marginTop: 8, borderRadius: 12, background: "linear-gradient(135deg,#edf5ff,#f8fbff)", border: "1px solid #dbe7f5", padding: 14 }}>
-                                        <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
-                                        <div style={{ marginTop: 6, fontSize: 12, color: "#6b7c93", lineHeight: 1.6 }}>Puedes abrir la versión de trabajo o la versión final para revisar el contenido antes de responder.</div>
-                                      </div>
-                                    )}
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                                      {piece.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver trabajo ↗</a> : null}
-                                      {piece.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver final ↗</a> : null}
-                                    </div>
-                                  </div>
-                                ) : null}
-                                <div>
-                                  <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Acción</div>
-                                  <div style={{ fontSize: 13, color: "#5b6b82", marginTop: 6, lineHeight: 1.6 }}>
-                                    Responde esta pieza y el equipo verá tu decisión junto con cualquier observación adicional.
-                                  </div>
-                                </div>
-                                <div style={{ display: "grid", gap: 8 }}>
-                                  <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "approved", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: "" })}>Aprobar pieza</GBtn>
-                                  <GBtn onClick={() => setContentDecision({ campaignId: item.id, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: portalDecision?.requestedChanges || "" })}>Pedir cambios</GBtn>
-                                </div>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <Badge label={piece.tipo || "Contenido"} color="blue" />
+                                <Badge label={piece.plataforma || item.campaignPlatform || "Canal"} color="purple" />
+                                <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
+                                {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
                               </div>
                             </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
+                              <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revision"}</div>
+                              </div>
+                              <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Formato</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.formato || "Entregable"}</div>
+                              </div>
+                              <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
+                              </div>
+                            </div>
+
+                            {portalDecision?.brief ? (
+                              <div style={{ borderRadius: 14, background: tone.bg, border: `1px solid ${tone.border}`, padding: "12px 14px", fontSize: 12, color: tone.color, lineHeight: 1.7, whiteSpace: "pre-line" }}>
+                                <b style={{ color: "#0f172a" }}>Comentario registrado:</b> {portalDecision.brief}
+                              </div>
+                            ) : null}
                           </div>
-                        );
-                      })}
-                    </div> : null}
-                  </div>
-                );
-              })}
-              {!visibleContentPieces.length ? (
-                <div style={{ borderRadius: 18, border: "1px dashed #dbe7f5", padding: 18, color: "#5b6b82", background: "#f8fbff" }}>
-                  No hay piezas visibles con el filtro actual. Puedes cambiar la campaña o volver a “Todo”.
+
+                          <div style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "linear-gradient(180deg,#f8fbff,#ffffff)", padding: 14, display: "grid", gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Previsualizacion</div>
+                              {previewUrl ? (
+                                isLikelyImageUrl(previewUrl) ? (
+                                  <img src={previewUrl} alt={piece.nom || "Pieza"} style={{ width: "100%", height: 152, objectFit: "cover", borderRadius: 12, marginTop: 8, border: "1px solid #dbe7f5", background: "#ffffff" }} />
+                                ) : (
+                                  <div style={{ marginTop: 8, borderRadius: 12, background: "#ffffff", border: "1px solid #dbe7f5", padding: 14, fontSize: 12, color: "#5b6b82", lineHeight: 1.6 }}>
+                                    Esta pieza tiene un enlace de revision. Puedes abrirlo desde los accesos directos de abajo.
+                                  </div>
+                                )
+                              ) : (
+                                <div style={{ marginTop: 8, borderRadius: 12, background: "#ffffff", border: "1px dashed #dbe7f5", padding: 14, fontSize: 12, color: "#5b6b82", lineHeight: 1.6 }}>
+                                  Todavia no hay una vista previa cargada para esta pieza.
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {piece.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver trabajo ↗</a> : null}
+                              {piece.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver final ↗</a> : null}
+                            </div>
+
+                            <div style={{ display: "grid", gap: 8 }}>
+                              <GBtn onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: piece.id, status: "approved", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: "" })}>Aprobar pieza</GBtn>
+                              <GBtn onClick={() => setContentDecision({ campaignId: item.campaignId, pieceId: piece.id, status: "changes_requested", brief: portalDecision?.additionalBrief || "", comment: portalDecision?.comment || "", requestedChanges: portalDecision?.requestedChanges || "" })}>Pedir cambios</GBtn>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : null}
+              ) : (
+                <div style={{ borderRadius: 18, border: "1px dashed #dbe7f5", padding: 18, color: "#5b6b82", background: "#f8fbff" }}>
+                  No hay piezas visibles con el filtro actual. Puedes cambiar la campana o volver a “Todo”.
+                </div>
+              )}
             </div> : <Empty text="Todavia no hay campanas visibles" sub="Cuando este cliente tenga contenidos asociados, apareceran aqui." />}
           </Card>
           </PortalSectionBoundary>

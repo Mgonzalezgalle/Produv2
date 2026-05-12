@@ -66,6 +66,13 @@ function portalSecondary(item = {}) {
   return String(item?.secondary || "").trim() || "Acción registrada desde el acceso externo del cliente.";
 }
 
+function fmtPortalTimestamp(value = "") {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export function ViewClientes({
   empresa,
   clientes,
@@ -497,8 +504,8 @@ export function ViewCliDet({
             </div>
             <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{portalUrl}</span>} />
             <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{clientPortal.accessCode}</span>} />
-            <KV label="Último acceso" value={clientPortal.lastAccessAt ? fmtD(clientPortal.lastAccessAt) : "Todavía sin ingresos"} />
-            <KV label="Último envío del enlace" value={clientPortal.lastSharedAt ? fmtD(clientPortal.lastSharedAt) : "Aún no compartido"} />
+            <KV label="Último acceso" value={clientPortal.lastAccessAt ? fmtPortalTimestamp(clientPortal.lastAccessAt) : "Todavía sin ingresos"} />
+            <KV label="Último envío del enlace" value={clientPortal.lastSharedAt ? fmtPortalTimestamp(clientPortal.lastSharedAt) : "Aún no compartido"} />
             <Sep />
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Btn onClick={copyPortalUrl}>Copiar enlace</Btn>

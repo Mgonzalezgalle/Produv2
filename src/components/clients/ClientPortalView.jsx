@@ -48,9 +48,9 @@ function accessCodeSlots(code = "") {
 }
 
 function portalResponseTone(status = "") {
-  if (status === "approved") return { bg: "rgba(0,184,148,.10)", border: "rgba(0,184,148,.18)", color: "#009a78" };
-  if (status === "changes_requested" || status === "rejected") return { bg: "rgba(255,136,68,.10)", border: "rgba(255,136,68,.18)", color: "#d96a24" };
-  return { bg: "rgba(79,124,255,.08)", border: "rgba(79,124,255,.14)", color: "#4f7cff" };
+  if (status === "approved") return { bg: "color-mix(in srgb, var(--grn) 14%, transparent)", border: "color-mix(in srgb, var(--grn) 30%, transparent)", color: "var(--grn)" };
+  if (status === "changes_requested" || status === "rejected") return { bg: "color-mix(in srgb, var(--org) 14%, transparent)", border: "color-mix(in srgb, var(--org) 30%, transparent)", color: "var(--org)" };
+  return { bg: "var(--cg)", border: "var(--cm)", color: "var(--cy)" };
 }
 
 async function resolvePortalPayload(empresas = [], slug = "") {
@@ -113,7 +113,7 @@ function uniqueEmails(values = []) {
 
 function PublicPortalShell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(79,124,255,.18), transparent 32%), radial-gradient(circle at top right, rgba(168,85,247,.12), transparent 28%), linear-gradient(180deg, #eef4ff 0%, #f7faff 46%, #ffffff 100%)", padding: "40px 20px" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, color-mix(in srgb, var(--cy) 16%, transparent), transparent 32%), radial-gradient(circle at top right, color-mix(in srgb, var(--pur) 14%, transparent), transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 84%, #091018 16%) 0%, var(--bg) 48%, #050607 100%)", padding: "40px 20px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto" }}>{children}</div>
     </div>
   );
@@ -134,18 +134,18 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
   };
   return (
     <PublicPortalShell>
-      <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid rgba(79,124,255,.18)", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
-        <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eefb", background: "linear-gradient(135deg, rgba(79,124,255,.08), rgba(255,255,255,.9) 45%, rgba(168,85,247,.06))" }}>
-          <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#4f7cff", marginBottom: 12 }}>Portal cliente</div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{client?.nom || "Cliente"}</div>
-          <div style={{ fontSize: 15, color: "#64748b", marginTop: 10 }}>
-            Estás entrando al espacio compartido por <b style={{ color: "#0f172a" }}>{empresa?.nombre || empresa?.nom || "Produ"}</b> para revisar avances, documentos y pendientes.
+      <div style={{ maxWidth: 760, margin: "0 auto", background: "var(--card)", border: "1px solid var(--bdr2)", boxShadow: "0 28px 80px rgba(0,0,0,.34)", borderRadius: 28, overflow: "hidden" }}>
+        <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid var(--bdr)", background: "linear-gradient(135deg, var(--cg), rgba(20,20,22,.92) 45%, rgba(168,85,247,.08))" }}>
+          <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "var(--cy)", marginBottom: 12 }}>Portal cliente</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, color: "var(--wh)", lineHeight: 1.1 }}>{client?.nom || "Cliente"}</div>
+          <div style={{ fontSize: 15, color: "var(--gr3)", marginTop: 10 }}>
+            Estás entrando al espacio compartido por <b style={{ color: "var(--wh)" }}>{empresa?.nombre || empresa?.nom || "Produ"}</b> para revisar avances, documentos y pendientes.
           </div>
         </div>
         <div style={{ padding: 36, display: "grid", gap: 20 }}>
-          <div style={{ background: "#f6f9ff", border: "1px solid #dbe7ff", borderRadius: 22, padding: 24 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Código de acceso</div>
-            <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, marginBottom: 18 }}>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 22, padding: 24 }}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 16, fontWeight: 800, color: "var(--wh)", marginBottom: 8 }}>Código de acceso</div>
+            <div style={{ fontSize: 14, color: "var(--gr3)", lineHeight: 1.6, marginBottom: 18 }}>
               Ingresa el código de 6 dígitos que te compartieron para entrar al portal de este cliente.
             </div>
             <div style={{ display: "grid", gap: 16 }}>
@@ -161,16 +161,16 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                       width: 54,
                       height: 66,
                       borderRadius: 18,
-                      border: `1px solid ${error ? "#ff5566" : digit ? "#4f7cff" : "#d7e3ff"}`,
-                      background: "#ffffff",
+                      border: `1px solid ${error ? "var(--red)" : digit ? "var(--cy)" : "var(--bdr2)"}`,
+                      background: "var(--card)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      boxShadow: digit ? "0 14px 30px rgba(79,124,255,.12)" : "none",
+                      boxShadow: digit ? "0 14px 30px rgba(0,212,232,.12)" : "none",
                       fontFamily: "var(--fm)",
                       fontSize: 24,
                       fontWeight: 700,
-                      color: "#0f172a",
+                      color: "var(--wh)",
                     }}
                   >
                     {digit || ""}
@@ -191,21 +191,21 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                   width: 220,
                   padding: "12px 14px",
                   borderRadius: 14,
-                  border: `1px solid ${error ? "#ff5566" : "#c8d7ff"}`,
+                  border: `1px solid ${error ? "var(--red)" : "var(--bdr2)"}`,
                   outline: "none",
                   fontFamily: "var(--fm)",
                   fontSize: 18,
                   letterSpacing: 4,
-                  color: "#0f172a",
-                  background: "#ffffff",
+                  color: "var(--wh)",
+                  background: "var(--card)",
                 }}
               />
               <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                 <Btn onClick={handleSubmit} s={{ minWidth: 180, opacity: canSubmit ? 1 : 0.65 }} disabled={!canSubmit}>Entrar al portal</Btn>
-                <div style={{ fontSize: 12, color: "#64748b" }}>Este acceso está pensado para revisar avances, responder piezas y revisar documentos.</div>
+                <div style={{ fontSize: 12, color: "var(--gr2)" }}>Este acceso está pensado para revisar avances, responder piezas y revisar documentos.</div>
               </div>
             </div>
-            {error ? <div style={{ marginTop: 12, fontSize: 13, color: "#ff5566" }}>{error}</div> : null}
+            {error ? <div style={{ marginTop: 12, fontSize: 13, color: "var(--red)" }}>{error}</div> : null}
           </div>
         </div>
       </div>
@@ -599,31 +599,31 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   return (
     <PublicPortalShell>
       <div style={{ display: "grid", gap: 20 }}>
-        <div style={{ background: "#ffffff", border: "1px solid rgba(79,124,255,.14)", borderRadius: 28, boxShadow: "0 28px 80px rgba(15,23,42,.08)", overflow: "hidden" }}>
-          <div style={{ padding: "30px 30px 24px", borderBottom: "1px solid #ebf0fb", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start", background: "linear-gradient(135deg, rgba(79,124,255,.07), rgba(255,255,255,.94) 48%, rgba(168,85,247,.06))" }}>
+        <div style={{ background: "var(--card)", border: "1px solid var(--bdr2)", borderRadius: 28, boxShadow: "0 28px 80px rgba(0,0,0,.34)", overflow: "hidden" }}>
+          <div style={{ padding: "30px 30px 24px", borderBottom: "1px solid var(--bdr)", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start", background: "linear-gradient(135deg, var(--cg), rgba(20,20,22,.94) 48%, rgba(168,85,247,.08))" }}>
             <div>
-              <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800, color: "#4f7cff", marginBottom: 10 }}>Portal cliente</div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 900, color: "#0f172a" }}>{payload.client.nom}</div>
-              <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>{headerMeta}</div>
+              <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800, color: "var(--cy)", marginBottom: 10 }}>Portal cliente</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 900, color: "var(--wh)" }}>{payload.client.nom}</div>
+              <div style={{ marginTop: 8, fontSize: 14, color: "var(--gr3)" }}>{headerMeta}</div>
               <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
-                <div style={{ background: "#ffffff", border: "1px solid rgba(79,124,255,.12)", borderRadius: 16, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Contenidos por revisar</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#4f7cff", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
+                <div style={{ background: "var(--sur)", border: "1px solid var(--cm)", borderRadius: 16, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Contenidos por revisar</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--cy)", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
                 </div>
-                <div style={{ background: "#ffffff", border: "1px solid rgba(168,85,247,.14)", borderRadius: 16, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Presupuestos pendientes</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#8b5cf6", marginTop: 6 }}>{summary?.pendingBudgets.length || 0}</div>
+                <div style={{ background: "var(--sur)", border: "1px solid color-mix(in srgb, var(--pur) 30%, transparent)", borderRadius: 16, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Presupuestos pendientes</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--pur)", marginTop: 6 }}>{summary?.pendingBudgets.length || 0}</div>
                 </div>
-                <div style={{ background: "#ffffff", border: "1px solid rgba(255,136,68,.14)", borderRadius: 16, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Monto pendiente</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ff8844", marginTop: 6 }}>{fmtMoney(summary?.pendingAmount || 0)}</div>
+                <div style={{ background: "var(--sur)", border: "1px solid color-mix(in srgb, var(--org) 30%, transparent)", borderRadius: 16, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Monto pendiente</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--org)", marginTop: 6 }}>{fmtMoney(summary?.pendingAmount || 0)}</div>
                 </div>
               </div>
             </div>
             <div style={{ display: "grid", gap: 10, minWidth: 280, flex: "0 0 320px" }}>
-              <div style={{ background: "#ffffff", border: "1px solid rgba(79,124,255,.12)", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(15,23,42,.05)" }}>
-                <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#64748b", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
-                <div style={{ display: "grid", gap: 8, fontSize: 13, color: "#334155" }}>
+              <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(0,0,0,.18)" }}>
+                <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
+                <div style={{ display: "grid", gap: 8, fontSize: 13, color: "var(--gr3)" }}>
                   <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div>
                   <div>• {summary?.pendingBudgets.length || 0} propuesta(s) siguen pendientes.</div>
                   <div>• {summary?.overdueInvoices.length || 0} documento(s) están vencidos.</div>
@@ -652,12 +652,12 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   style={{
                     borderRadius: 999,
                     padding: "10px 16px",
-                    border: `1px solid ${tab === id ? accent : "#dbe3f4"}`,
-                    background: tab === id ? accent : "#ffffff",
-                    color: tab === id ? "#ffffff" : "#475569",
+                    border: `1px solid ${tab === id ? accent : "var(--bdr2)"}`,
+                    background: tab === id ? accent : "var(--sur)",
+                    color: tab === id ? "#ffffff" : "var(--gr3)",
                     fontWeight: 700,
                     cursor: "pointer",
-                    boxShadow: tab === id ? "0 12px 30px rgba(15,23,42,.12)" : "none",
+                    boxShadow: tab === id ? "0 12px 30px rgba(0,0,0,.26)" : "none",
                   }}
                 >
                   {label}
@@ -726,17 +726,17 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                             </div>
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 12 }}>
-                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Estado actual</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revisión"}</div>
+                            <div style={{ borderRadius: 14, background: "var(--sur)", border: "1px solid var(--bdr)", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Estado actual</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)", marginTop: 4 }}>{piece.est || "En revisión"}</div>
                             </div>
-                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Canal</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
+                            <div style={{ borderRadius: 14, background: "var(--sur)", border: "1px solid var(--bdr)", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Canal</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)", marginTop: 4 }}>{piece.plataforma || item.plataforma || "Contenido"}</div>
                             </div>
-                            <div style={{ borderRadius: 14, background: "#f8fbff", border: "1px solid #e4edff", padding: "10px 12px" }}>
-                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#64748b", fontWeight: 700 }}>Entrega</div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
+                            <div style={{ borderRadius: 14, background: "var(--sur)", border: "1px solid var(--bdr)", padding: "10px 12px" }}>
+                              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 700 }}>Entrega</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wh)", marginTop: 4 }}>{fmtDate(piece.fecha || piece.fechaEntrega || piece.publishDate || "")}</div>
                             </div>
                           </div>
                           {portalDecision?.brief ? <div style={{ marginTop: 10, fontSize: 12, color: "var(--gr2)", whiteSpace: "pre-line" }}><b style={{ color: "var(--wh)" }}>Último comentario del cliente:</b> {portalDecision.brief}</div> : null}

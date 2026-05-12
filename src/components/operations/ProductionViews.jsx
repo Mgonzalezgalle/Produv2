@@ -737,6 +737,20 @@ export function ViewContenidoDet(props) {
             <div style={{ fontSize: 12, color: "var(--gr3)", whiteSpace: "pre-line", lineHeight: 1.6, marginTop: 12 }}>{pieceDetail.copy || "—"}</div>
           </Card>
         </div>
+        <div style={{ marginTop: 16 }}>
+          <ComentariosBlock
+            items={pieceDetail.comentarios || []}
+            onSave={async comentarios => {
+              if (!canManageContent) return;
+              await savePiece({ ...pieceDetail, comentarios });
+            }}
+            crewOptions={pCrew}
+            canEdit={canManageContent}
+            title="Comentarios de la pieza"
+            empresa={empresa}
+            currentUser={user}
+          />
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <GBtn onClick={() => setPiezaDetailId("")}>Cerrar</GBtn>
           {canManageContent && <Btn onClick={() => { setPiezaDetailId(""); openM("pieza", { ...pieceDetail, campId: id }); }}>Editar pieza</Btn>}

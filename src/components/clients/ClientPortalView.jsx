@@ -680,13 +680,14 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           const portalComment = {
             id: uid(),
             text: summaryNote || (contentDecision.status === "approved" ? "Cliente aprobó esta pieza desde el portal." : "Cliente solicitó correcciones desde el portal."),
-            kind: contentDecision.status === "approved" ? "Nota" : "Riesgo",
+            kind: contentDecision.status === "approved" ? "decision" : "risk",
             important: contentDecision.status !== "approved",
             attachments: [],
             photos: [],
             cr: String(now).slice(0, 10),
             createdAt: now,
             authorName: payload.client.nom || "Cliente",
+            authorId: payload.client.id || "client_portal",
             source: "client_portal",
           };
           return {
@@ -700,6 +701,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               decidedAt: now,
               source: "client_portal",
             },
+            brief: briefNote ? piece.brief ? `${piece.brief}\n\n[Cliente]\n${briefNote}` : `[Cliente]\n${briefNote}` : piece.brief || "",
             comentarios: [portalComment, ...(Array.isArray(piece.comentarios) ? piece.comentarios : [])].slice(0, 100),
           };
         });

@@ -734,6 +734,7 @@ export function ViewContenidoDet(props) {
             <KV label="Entrega" value={pieceDetail.fin ? fmtD(pieceDetail.fin) : "—"} />
             <KV label="Publicación estimada" value={pieceDetail.publishDate ? fmtD(pieceDetail.publishDate) : "—"} />
             <KV label="Publicación real" value={pieceDetail.publishedAt ? fmtD(pieceDetail.publishedAt) : "—"} />
+            <KV label="Preview portal" value={pieceDetail.previewAssetUrl ? <a href={pieceDetail.previewAssetUrl} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>{pieceDetail.previewAssetName || "Abrir archivo"} ↗</a> : "—"} />
             <KV label="Link de trabajo" value={pieceDetail.link ? <a href={pieceDetail.link} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
             <KV label="Link final" value={pieceDetail.finalLink ? <a href={pieceDetail.finalLink} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", textDecoration: "none", fontWeight: 700 }}>Abrir ↗</a> : "—"} />
           </Card>

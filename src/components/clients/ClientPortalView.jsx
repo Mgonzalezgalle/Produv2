@@ -76,13 +76,17 @@ function safeUrl(value = "") {
 }
 
 function resolvePiecePreviewUrl(piece = {}) {
-  const candidates = [safeUrl(piece.finalLink), safeUrl(piece.link)].filter(Boolean);
+  const candidates = [
+    safeUrl(piece.previewAssetUrl),
+    safeUrl(piece.finalLink),
+    safeUrl(piece.link),
+  ].filter(Boolean);
   return candidates[0] || "";
 }
 
 function isLikelyImageUrl(value = "") {
   const normalized = String(value || "").toLowerCase();
-  return /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/.test(normalized);
+  return normalized.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/.test(normalized);
 }
 
 function buildPortalContentSummary({ status = "", brief = "", comment = "", requestedChanges = "" } = {}) {

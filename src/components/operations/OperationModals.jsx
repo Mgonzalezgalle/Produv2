@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { DEFAULT_LISTAS } from "../../lib/utils/helpers";
+import React, { useEffect, useRef, useState } from "react";
+import { DEFAULT_LISTAS, fileToDataUrl } from "../../lib/utils/helpers";
 import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2, R3, XBtn } from "../../lib/ui/components";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -98,6 +98,8 @@ export function MCampanaContenido({ open, data, clientes, listas, onClose, onSav
 
 export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSave, normalizeSocialPiece, uid, today }) {
   const [f, setF] = useState({});
+  const [fileError, setFileError] = useState("");
+  const fileRef = useRef(null);
   useEffect(() => { setF(data?.id ? normalizeSocialPiece(data) : normalizeSocialPiece({ id: uid(), nom: "", formato: "Reel", plataforma: data?.plataforma || "Instagram", est: "Planificado", ini: data?.ini || today(), fin: "", des: "", link: "", comentarios: [] }, data || {})); }, [data, open, normalizeSocialPiece, today, uid]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
   const saveCurrent = async () => {
@@ -129,9 +131,43 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
       publishedAt: "",
       link: "",
       finalLink: "",
+      previewAssetUrl: "",
+      previewAssetName: "",
+      previewAssetType: "",
       responsableId: f.responsableId || "",
       comentarios: [],
     }, data || {}));
+  };
+  const onPreviewFileChange = async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setFileError("");
+    try {
+      const fileType = String(file.type || "");
+      const isPdf = fileType === "application/pdf" || String(file.name || "").toLowerCase().endsWith(".pdf");
+      const isImage = fileType.startsWith("image/");
+      if (!isPdf && !isImage) {
+        setFileError("Sube una imagen o un PDF para la previsualización.");
+        event.target.value = "";
+        return;
+      }
+      const dataUrl = await fileToDataUrl(file);
+      setF(prev => ({
+        ...prev,
+        previewAssetUrl: dataUrl,
+        previewAssetName: file.name || (isPdf ? "preview.pdf" : "preview"),
+        previewAssetType: isPdf ? "pdf" : "image",
+      }));
+    } catch {
+      setFileError("No pudimos leer el archivo. Intenta nuevamente.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+  const clearPreviewAsset = () => {
+    setF(prev => ({ ...prev, previewAssetUrl: "", previewAssetName: "", previewAssetType: "" }));
+    setFileError("");
+    if (fileRef.current) fileRef.current.value = "";
   };
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Pieza" : "Nueva Pieza"} sub="Pieza dentro de una campaña" wide>
     <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Nombre de la pieza"/></FG><FG label="Estado"><FSl value={f.est || "Planificado"} onChange={e => u("est", e.target.value)}>{(listas?.estadosPieza || DEFAULT_LISTAS.estadosPieza).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
@@ -140,6 +176,25 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
     <R2><FG label="Fecha de Publicación"><FI type="date" value={f.publishDate || ""} onChange={e => u("publishDate", e.target.value)} /></FG><FG label="Fecha de publicación real"><FI type="date" value={f.publishedAt || ""} onChange={e => u("publishedAt", e.target.value)} /></FG></R2>
     <R2><FG label="Estado de aprobación"><FSl value={f.approval || "Pendiente"} onChange={e => u("approval", e.target.value)}><option>Pendiente</option><option>En revisión</option><option>Aprobada</option><option>Observada</option></FSl></FG><div /></R2>
     <R2><FG label="Enlace de trabajo"><FI value={f.link || ""} onChange={e => u("link", e.target.value)} placeholder="https://drive.google.com/..."/></FG><FG label="Versión final / Link final"><FI value={f.finalLink || ""} onChange={e => u("finalLink", e.target.value)} placeholder="https://instagram.com/... o drive final"/></FG></R2>
+    <FG label="Archivo para previsualización en portal">
+      <div style={{ display: "grid", gap: 10 }}>
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={onPreviewFileChange} style={{ width: "100%", color: "var(--gr3)" }} />
+        {fileError ? <div style={{ fontSize: 11, color: "var(--red)", fontWeight: 600 }}>{fileError}</div> : null}
+        {f.previewAssetUrl ? <div style={{ display: "grid", gap: 10, padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gr3)" }}>{f.previewAssetName || "Archivo cargado"}</div>
+              <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>
+                {f.previewAssetType === "pdf" ? "Este PDF se mostrará como archivo principal del portal." : "Esta imagen se mostrará como previsualización principal del portal."}
+              </div>
+            </div>
+            <GBtn sm onClick={clearPreviewAsset}>Quitar archivo</GBtn>
+          </div>
+          {f.previewAssetType === "image" ? <img src={f.previewAssetUrl} alt={f.previewAssetName || "Preview"} style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 12, border: "1px solid var(--bdr)" }} /> : null}
+          {f.previewAssetType === "pdf" ? <a href={f.previewAssetUrl} target="_blank" rel="noreferrer" style={{ color: "var(--cy)", fontWeight: 700, textDecoration: "none" }}>Abrir PDF cargado ↗</a> : null}
+        </div> : <div style={{ fontSize: 10, color: "var(--gr2)" }}>Si subes una imagen o un PDF aquí, el portal cliente lo usará primero como previsualización de la pieza.</div>}
+      </div>
+    </FG>
     <FG label="Brief de la pieza"><FTA value={f.brief || ""} onChange={e => u("brief", e.target.value)} placeholder="Qué se necesita, foco, tono, referencias y criterios del cliente."/></FG>
     <R2><FG label="Objetivo de la pieza"><FI value={f.objetivo || ""} onChange={e => u("objetivo", e.target.value)} placeholder="Awareness, conversión, engagement..."/></FG><FG label="CTA"><FI value={f.cta || ""} onChange={e => u("cta", e.target.value)} placeholder="Desliza, compra, comenta, guarda..."/></FG></R2>
     <FG label="Copy principal"><FTA value={f.copy || ""} onChange={e => u("copy", e.target.value)} placeholder="Texto o bajada principal que acompañará la publicación."/></FG>

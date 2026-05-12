@@ -346,6 +346,9 @@ export const normalizeSocialPiece = (piece = {}, campaign = {}) => ({
   publishedAt: piece.publishedAt || "",
   link: piece.link || piece.url || "",
   finalLink: piece.finalLink || "",
+  previewAssetUrl: piece.previewAssetUrl || piece.previewUrl || "",
+  previewAssetName: piece.previewAssetName || piece.previewName || "",
+  previewAssetType: piece.previewAssetType || piece.previewType || "",
   comentarios: Array.isArray(piece.comentarios) ? piece.comentarios : [],
 });
 

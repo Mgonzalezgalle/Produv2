@@ -318,7 +318,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const contentWorkspace = useMemo(() => {
     const campaigns = Array.isArray(summary?.activeContent) ? summary.activeContent : [];
     const campaignOptions = campaigns.map(item => ({ value: item.id, label: item.nom || "Campaña" }));
-    const pieces = campaigns.flatMap(campaign => (Array.isArray(campaign?.piezas) ? campaign.piezas : []).map(piece => ({
+    const pieces = campaigns.flatMap(campaign => (Array.isArray(campaign?.piezas) ? campaign.piezas : []).filter(Boolean).map(piece => ({
       campaignId: campaign.id,
       campaignName: campaign.nom || "Campaña",
       campaignMonth: [campaign.mes, campaign.ano].filter(Boolean).join(" "),
@@ -876,7 +876,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                     ))}
                   </div>
                   <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
-                    {contentWorkspace.reviewQueue.slice(0, 3).map(item => (
+                    {contentWorkspace.reviewQueue.filter(item => item?.piece?.id).slice(0, 3).map(item => (
                       <div key={item.piece.id} style={{ border: "1px solid #dbe7f5", borderRadius: 18, background: "#ffffff", padding: 16, boxShadow: "0 10px 20px rgba(15,23,42,.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                           <div>
@@ -1035,7 +1035,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                       </div>
                     </div>
                     {Array.isArray(item.piezas) && item.piezas.length ? <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-                      {item.piezas.map(piece => {
+                      {item.piezas.filter(Boolean).map(piece => {
                         const portalDecision = piece.clientPortalDecision || null;
                         if (contentDecisionFilter === "queue" && portalDecision?.status) return null;
                         if (contentDecisionFilter === "approved" && portalDecision?.status !== "approved") return null;

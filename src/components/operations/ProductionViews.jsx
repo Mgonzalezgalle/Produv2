@@ -511,6 +511,12 @@ export function ViewContenidoDet(props) {
     if (!items.length) return null;
     return [...items].sort((a, b) => String(b?.upd || b?.createdAt || b?.cr || "").localeCompare(String(a?.upd || a?.createdAt || a?.cr || "")))[0] || null;
   };
+  const pieceHasClientFeedback = piece => (Array.isArray(piece?.comentarios) ? piece.comentarios : []).some(comment => String(comment?.source || "").trim() === "client_portal");
+  const pieceLatestClientFeedback = piece => {
+    const items = (Array.isArray(piece?.comentarios) ? piece.comentarios : []).filter(comment => String(comment?.source || "").trim() === "client_portal");
+    if (!items.length) return null;
+    return [...items].sort((a, b) => String(b?.upd || b?.createdAt || b?.cr || "").localeCompare(String(a?.upd || a?.createdAt || a?.cr || "")))[0] || null;
+  };
   const bal = useBal(movimientos, empId);
   const [tab, setTab] = useState(0);
   const [piezaQ, setPiezaQ] = useState("");
@@ -622,8 +628,10 @@ export function ViewContenidoDet(props) {
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
                     {pieceCommentsCount(pc) ? <Badge label={`${pieceCommentsCount(pc)} comentario${pieceCommentsCount(pc) === 1 ? "" : "s"}`} color="gray" sm /> : null}
                     {clientPortalBadge(pc.clientPortalDecision)}
+                    {pieceHasClientFeedback(pc) ? <Badge label="Nuevo feedback cliente" color="orange" sm /> : null}
                   </div>
                   {pc.clientPortalDecision?.status ? <div style={{ fontSize: 10, color: "var(--org)", marginTop: 6, lineHeight: 1.5 }}>{portalDecisionSummary(pc.clientPortalDecision) || "Hay feedback del cliente en esta pieza."}</div> : null}
+                  {pieceLatestClientFeedback(pc)?.text ? <div style={{ fontSize: 10, color: "var(--cy)", marginTop: 6, lineHeight: 1.5 }}>Cliente: {String(pieceLatestClientFeedback(pc).text).slice(0, 110)}</div> : null}
                   {pieceLatestComment(pc)?.text ? <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 6, lineHeight: 1.5 }}>Último comentario: {String(pieceLatestComment(pc).text).slice(0, 110)}</div> : null}
                 </TD>
                 <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>

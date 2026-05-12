@@ -359,6 +359,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const visibleContentPieces = useMemo(() => (
     filteredContentCampaigns.flatMap(item => (
       (Array.isArray(item?.piezas) ? item.piezas : [])
+        .filter(Boolean)
         .filter(piece => {
           const portalDecision = piece?.clientPortalDecision || null;
           if (contentDecisionFilter === "queue") return !portalDecision?.status;

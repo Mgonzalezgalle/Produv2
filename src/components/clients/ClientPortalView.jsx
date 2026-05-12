@@ -53,8 +53,30 @@ function portalResponseTone(status = "") {
   return { bg: "#edf5ff", border: "#cfe0fb", color: "#2f6ea8" };
 }
 
+function safeText(value = "", fallback = "—") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value.trim() || fallback;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const joined = value
+      .map(item => safeText(item, ""))
+      .filter(Boolean)
+      .join(", ");
+    return joined || fallback;
+  }
+  if (typeof value === "object") {
+    return safeText(value.nom || value.nombre || value.label || value.name || value.value || "", fallback);
+  }
+  return fallback;
+}
+
+function safeUrl(value = "") {
+  const normalized = safeText(value, "");
+  return /^(https?:)?\/\//i.test(normalized) ? normalized : "";
+}
+
 function resolvePiecePreviewUrl(piece = {}) {
-  const candidates = [piece.finalLink, piece.link].filter(Boolean);
+  const candidates = [safeUrl(piece.finalLink), safeUrl(piece.link)].filter(Boolean);
   return candidates[0] || "";
 }
 
@@ -919,8 +941,8 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   >
                     <option value="">Todas las campanas</option>
                     {contentWorkspace.campaignOptions.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
+                          <option key={option.value} value={option.value}>{safeText(option.label, "Campana")}</option>
+                        ))}
                   </select>
                 </FG>
               </div>
@@ -939,13 +961,13 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                           <div style={{ display: "grid", gap: 12 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                               <div>
-                                <div style={{ fontWeight: 900, fontSize: 17, color: "#0f172a" }}>{piece.nom || "Pieza"}</div>
-                                <div style={{ fontSize: 13, color: "#6b7c93", marginTop: 4 }}>{item.campaignName || "Campana"} · {item.campaignMonth || "Sin mes"}</div>
+                                <div style={{ fontWeight: 900, fontSize: 17, color: "#0f172a" }}>{safeText(piece.nom, "Pieza")}</div>
+                                <div style={{ fontSize: 13, color: "#6b7c93", marginTop: 4 }}>{safeText(item.campaignName, "Campana")} · {safeText(item.campaignMonth, "Sin mes")}</div>
                               </div>
                               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                <Badge label={piece.tipo || "Contenido"} color="blue" />
-                                <Badge label={piece.plataforma || item.campaignPlatform || "Canal"} color="purple" />
-                                <Badge label={piece.approval || "Pendiente"} color={(piece.approval || "Pendiente") === "Aprobada" ? "green" : (piece.approval || "Pendiente") === "Observada" ? "red" : "yellow"} />
+                                <Badge label={safeText(piece.tipo, "Contenido")} color="blue" />
+                                <Badge label={safeText(piece.plataforma || item.campaignPlatform, "Canal")} color="purple" />
+                                <Badge label={safeText(piece.approval, "Pendiente")} color={safeText(piece.approval, "Pendiente") === "Aprobada" ? "green" : safeText(piece.approval, "Pendiente") === "Observada" ? "red" : "yellow"} />
                                 {portalDecision?.status ? <Badge label={clientDecisionLabel(portalDecision, "content")} color={portalDecision.status === "approved" ? "green" : "orange"} /> : null}
                               </div>
                             </div>
@@ -953,11 +975,11 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
                               <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
                                 <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.est || "En revision"}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{safeText(piece.est, "En revision")}</div>
                               </div>
                               <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
                                 <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Formato</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{piece.formato || "Entregable"}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{safeText(piece.formato, "Entregable")}</div>
                               </div>
                               <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
                                 <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Entrega</div>
@@ -967,7 +989,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
                             {portalDecision?.brief ? (
                               <div style={{ borderRadius: 14, background: tone.bg, border: `1px solid ${tone.border}`, padding: "12px 14px", fontSize: 12, color: tone.color, lineHeight: 1.7, whiteSpace: "pre-line" }}>
-                                <b style={{ color: "#0f172a" }}>Comentario registrado:</b> {portalDecision.brief}
+                                <b style={{ color: "#0f172a" }}>Comentario registrado:</b> {safeText(portalDecision.brief, "")}
                               </div>
                             ) : null}
                           </div>
@@ -977,7 +999,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                               <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Previsualizacion</div>
                               {previewUrl ? (
                                 isLikelyImageUrl(previewUrl) ? (
-                                  <img src={previewUrl} alt={piece.nom || "Pieza"} style={{ width: "100%", height: 152, objectFit: "cover", borderRadius: 12, marginTop: 8, border: "1px solid #dbe7f5", background: "#ffffff" }} />
+                                  <img src={previewUrl} alt={safeText(piece.nom, "Pieza")} style={{ width: "100%", height: 152, objectFit: "cover", borderRadius: 12, marginTop: 8, border: "1px solid #dbe7f5", background: "#ffffff" }} />
                                 ) : (
                                   <div style={{ marginTop: 8, borderRadius: 12, background: "#ffffff", border: "1px solid #dbe7f5", padding: 14, fontSize: 12, color: "#5b6b82", lineHeight: 1.6 }}>
                                     Esta pieza tiene un enlace de revision. Puedes abrirlo desde los accesos directos de abajo.
@@ -991,8 +1013,8 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                             </div>
 
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              {piece.link ? <a href={piece.link} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver trabajo ↗</a> : null}
-                              {piece.finalLink ? <a href={piece.finalLink} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver final ↗</a> : null}
+                              {safeUrl(piece.link) ? <a href={safeUrl(piece.link)} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver trabajo ↗</a> : null}
+                              {safeUrl(piece.finalLink) ? <a href={safeUrl(piece.finalLink)} target="_blank" rel="noreferrer" style={{ color: "#2f6ea8", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Ver final ↗</a> : null}
                             </div>
 
                             <div style={{ display: "grid", gap: 8 }}>

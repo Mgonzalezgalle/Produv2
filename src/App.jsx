@@ -1510,7 +1510,7 @@ export default function App(){
   if(publicClientPortalSlug) return <>
     <StyleTag css={APP_SHELL_CSS}/>
     <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>
-      <ClientPortalView empresas={empresas} slug={publicClientPortalSlug} />
+      <ClientPortalView empresas={empresas} slug={publicClientPortalSlug} platformServices={platformServices} platformApi={platformApi} />
     </Suspense>
   </>;
   if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;

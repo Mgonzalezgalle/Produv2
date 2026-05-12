@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { dbGet, dbSet } from "../../hooks/useLabDataStore";
-import { countCampaignPieces, cobranzaState } from "../../lib/utils/helpers";
+import { countCampaignPieces, cobranzaState, normalizeEmailValue } from "../../lib/utils/helpers";
 import { buildClientPortalSessionKey, normalizeClientPortal } from "../../lib/clients/clientPortal";
+import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
 import { Badge, Btn, Card, Empty, FG, FTA, GBtn, Modal, Stat, TD, TH } from "../../lib/ui/components";
 
 function todayIso() {
@@ -71,6 +72,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       presupuestos,
       facturas,
       purchaseOrders,
+      crew,
     ] = await Promise.all([
       dbGet(`produ:${empId}:producciones`),
       dbGet(`produ:${empId}:programas`),
@@ -78,6 +80,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       dbGet(`produ:${empId}:presupuestos`),
       dbGet(`produ:${empId}:facturas`),
       dbGet(`produ:${empId}:treasuryPurchaseOrders`),
+      dbGet(`produ:${empId}:crew`),
     ]);
     return {
       empresa,
@@ -89,9 +92,23 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       presupuestos: Array.isArray(presupuestos) ? presupuestos : [],
       facturas: Array.isArray(facturas) ? facturas : [],
       purchaseOrders: Array.isArray(purchaseOrders) ? purchaseOrders : [],
+      crew: Array.isArray(crew) ? crew : [],
     };
   }
   return { error: "not_found" };
+}
+
+function buildPortalActor(payload = null) {
+  return {
+    id: payload?.client?.id || "",
+    name: payload?.client?.nom || "Cliente",
+    email: Array.isArray(payload?.portal?.authorizedEmails) ? normalizeEmailValue(payload.portal.authorizedEmails[0] || "") : "",
+    role: "client_portal",
+  };
+}
+
+function uniqueEmails(values = []) {
+  return Array.from(new Set((Array.isArray(values) ? values : []).map(value => normalizeEmailValue(value)).filter(Boolean)));
 }
 
 function PublicPortalShell({ children }) {
@@ -185,7 +202,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
   );
 }
 
-export function ClientPortalView({ empresas = [], slug = "" }) {
+export function ClientPortalView({ empresas = [], slug = "", platformServices = null, platformApi = null }) {
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState(null);
   const [authorized, setAuthorized] = useState(false);
@@ -261,6 +278,68 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
     return true;
   };
 
+  const sendInternalPortalNotification = async ({
+    subject = "",
+    body = "",
+    recipients = [],
+    entityType = "client_portal",
+    entityId = "",
+  } = {}) => {
+    const to = uniqueEmails(recipients);
+    if (!to.length || !platformApi?.notifications?.sendTransactionalEmail || !payload?.empresa?.id) return;
+    try {
+      await platformApi.notifications.sendTransactionalEmail({
+        tenantId: payload.empresa.id,
+        templateKey: "client_portal_signal",
+        subject: String(subject || "").trim(),
+        to,
+        text: String(body || "").trim(),
+        html: `<p>${String(body || "").trim().replace(/\n/g, "<br />")}</p>`,
+        entityType,
+        entityId,
+        metadata: {
+          clientName: payload.client?.nom || "",
+          portalSlug: payload.portal?.slug || "",
+        },
+      });
+    } catch (error) {
+      console.error("[client-portal] No pudimos enviar la notificación interna", error);
+    }
+  };
+
+  const appendPortalWorkflowSignal = async ({
+    eventName = "",
+    entityType = "",
+    entityId = "",
+    signalPayload = {},
+  } = {}) => {
+    if (!payload?.empresa?.id || !eventName) return;
+    await appendWorkflowEventEntry({
+      empId: payload.empresa.id,
+      stream: "client_portal",
+      eventName,
+      entityType,
+      entityId,
+      actor: buildPortalActor(payload),
+      payload: {
+        clientId: payload.client?.id || "",
+        clientName: payload.client?.nom || "",
+        portalSlug: payload.portal?.slug || "",
+        ...((signalPayload && typeof signalPayload === "object") ? signalPayload : {}),
+      },
+      platformServices,
+    });
+  };
+
+  const resolveContentRecipients = (campaignId = "", pieceId = "") => {
+    const campaign = (Array.isArray(payload?.piezas) ? payload.piezas : []).find(item => item.id === campaignId);
+    const piece = (Array.isArray(campaign?.piezas) ? campaign.piezas : []).find(item => item.id === pieceId);
+    const responsibleEmail = normalizeEmailValue((Array.isArray(payload?.crew) ? payload.crew : []).find(member => member.id === piece?.responsableId)?.ema || "");
+    return uniqueEmails([responsibleEmail, payload?.empresa?.ema || ""]);
+  };
+
+  const resolveBudgetRecipients = () => uniqueEmails([payload?.empresa?.ema || ""]);
+
   const appendPortalActivityAndSystemMessage = async ({ headline, secondary, text, action }) => {
     if (!payload?.empresa?.id || !payload?.client?.id) return;
     const now = new Date().toISOString();
@@ -325,6 +404,14 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
       };
     });
     await dbSet(storageKey, nextClients);
+    await appendPortalWorkflowSignal({
+      eventName: "client_portal_accessed",
+      entityType: "client",
+      entityId: payload.client.id,
+      signalPayload: {
+        accessCodeProtected: true,
+      },
+    });
     setPayload((current) => current ? {
       ...current,
       client: {
@@ -410,11 +497,34 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
       setDecisionFeedback("No pudimos guardar esta decisión todavía. Intenta nuevamente.");
       return;
     }
+    await appendPortalWorkflowSignal({
+      eventName: contentDecision.status === "approved" ? "client_portal_content_approved" : "client_portal_content_changes_requested",
+      entityType: "content_piece",
+      entityId: contentDecision.pieceId,
+      signalPayload: {
+        campaignId: contentDecision.campaignId,
+        decision: contentDecision.status,
+        brief: briefNote,
+      },
+    });
     await appendPortalActivityAndSystemMessage({
       headline: contentDecision.status === "approved" ? "Contenido aprobado por el cliente" : "Cliente solicitó cambios en contenido",
       secondary: `${payload.client.nom} respondió desde su portal en contenidos.`,
       text: briefNote,
       action: contentDecision.status === "approved" ? "content_approved" : "content_changes_requested",
+    });
+    await sendInternalPortalNotification({
+      subject: contentDecision.status === "approved"
+        ? `${payload.client.nom} aprobó un contenido en Produ`
+        : `${payload.client.nom} pidió cambios en un contenido`,
+      body: [
+        `${payload.client.nom} respondió desde su portal cliente.`,
+        contentDecision.status === "approved" ? "La pieza quedó aprobada por el cliente." : "La pieza quedó observada por el cliente.",
+        briefNote ? `\nComentario:\n${briefNote}` : "",
+      ].filter(Boolean).join("\n\n"),
+      recipients: resolveContentRecipients(contentDecision.campaignId, contentDecision.pieceId),
+      entityType: "content_piece",
+      entityId: contentDecision.pieceId,
     });
     setDecisionFeedback(contentDecision.status === "approved" ? "Contenido aprobado correctamente." : "Dejamos registradas las observaciones para este contenido.");
     setContentDecision(null);
@@ -443,11 +553,33 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
       setDecisionFeedback("No pudimos guardar esta respuesta del presupuesto. Intenta nuevamente.");
       return;
     }
+    await appendPortalWorkflowSignal({
+      eventName: budgetDecision.status === "approved" ? "client_portal_budget_approved" : "client_portal_budget_rejected",
+      entityType: "budget",
+      entityId: budgetDecision.budgetId,
+      signalPayload: {
+        decision: budgetDecision.status,
+        note,
+      },
+    });
     await appendPortalActivityAndSystemMessage({
       headline: budgetDecision.status === "approved" ? "Presupuesto aprobado por el cliente" : "Cliente observó un presupuesto",
       secondary: `${payload.client.nom} respondió desde su portal en presupuestos.`,
       text: note,
       action: budgetDecision.status === "approved" ? "budget_approved" : "budget_rejected",
+    });
+    await sendInternalPortalNotification({
+      subject: budgetDecision.status === "approved"
+        ? `${payload.client.nom} aprobó un presupuesto en Produ`
+        : `${payload.client.nom} observó un presupuesto en Produ`,
+      body: [
+        `${payload.client.nom} respondió desde su portal cliente.`,
+        budgetDecision.status === "approved" ? "El presupuesto quedó aprobado por el cliente." : "El presupuesto quedó observado por el cliente.",
+        note ? `\nComentario:\n${note}` : "",
+      ].filter(Boolean).join("\n\n"),
+      recipients: resolveBudgetRecipients(),
+      entityType: "budget",
+      entityId: budgetDecision.budgetId,
     });
     setDecisionFeedback(budgetDecision.status === "approved" ? "Presupuesto aprobado correctamente." : "Presupuesto marcado con observaciones del cliente.");
     setBudgetDecision(null);

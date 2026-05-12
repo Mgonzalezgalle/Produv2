@@ -224,6 +224,15 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const [decisionFeedback, setDecisionFeedback] = useState("");
 
   useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const hadLightClass = document.body.classList.contains("light");
+    document.body.classList.add("light");
+    return () => {
+      if (!hadLightClass) document.body.classList.remove("light");
+    };
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     setLoading(true);
     resolvePortalPayload(empresas, slug)
@@ -699,7 +708,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           <Card title="Contenidos" sub="Aquí puedes revisar las campañas y piezas que hoy están vinculadas a tu operación.">
             {summary?.activeContent.length ? <div style={{ display: "grid", gap: 12 }}>
               {summary.activeContent.map(item => (
-                <div key={item.id} style={{ padding: 18, border: "1px solid rgba(139,92,246,.12)", borderRadius: 20, background: "linear-gradient(180deg, rgba(248,245,255,.92), #ffffff)" }}>
+                <div key={item.id} style={{ padding: 18, border: "1px solid #e5ddfb", borderRadius: 20, background: "linear-gradient(180deg, #faf7ff, #ffffff)", boxShadow: "0 10px 24px rgba(148,163,184,.08)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                     <div>
                       <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800 }}>{item.nom}</div>
@@ -791,7 +800,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               <Stat label="Vencidos" value={summary?.overdueInvoices.length || 0} accent={summary?.overdueInvoices.length ? "#ff5566" : "#00b894"} vc={summary?.overdueInvoices.length ? "#ff5566" : "#00b894"} />
               <Stat label="OC recibidas" value={summary?.orders.length || 0} accent="#ffcc44" vc="#ffcc44" />
             </div>
-            <Card title="Documentos y pagos" sub="Una vista rápida de facturas y vencimientos asociados a este cliente." style={{ background: "linear-gradient(180deg, rgba(255,248,242,.94), #ffffff)" }}>
+            <Card title="Documentos y pagos" sub="Una vista rápida de facturas y vencimientos asociados a este cliente." style={{ background: "linear-gradient(180deg, #fff8f4, #ffffff)", borderColor: "#ffe0cf" }}>
               {summary?.invoices.length ? <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>

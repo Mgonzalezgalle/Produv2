@@ -31,6 +31,10 @@ function rejectedLikeStatus(value = "") {
   return normalized === "rechazado" || normalized === "rechazada";
 }
 
+function uid() {
+  return `portal_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 async function resolvePortalPayload(empresas = [], slug = "") {
   const safeSlug = String(slug || "").trim();
   if (!safeSlug) return { error: "missing_slug" };
@@ -217,6 +221,53 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
     return true;
   };
 
+  const appendPortalActivityAndSystemMessage = async ({ headline, secondary, text, action }) => {
+    if (!payload?.empresa?.id || !payload?.client?.id) return;
+    const now = new Date().toISOString();
+    const activityEntry = {
+      id: uid(),
+      action,
+      headline,
+      secondary,
+      text: String(text || "").trim(),
+      createdAt: now,
+      authorName: payload.client.nom || "Cliente",
+      source: "client_portal",
+    };
+
+    const clientsKey = `produ:${payload.empresa.id}:clientes`;
+    const currentClients = await dbGet(clientsKey);
+    const nextClients = (Array.isArray(currentClients) ? currentClients : []).map(item => {
+      if (item.id !== payload.client.id) return item;
+      return {
+        ...item,
+        portalActivity: [activityEntry, ...(Array.isArray(item.portalActivity) ? item.portalActivity : [])].slice(0, 50),
+      };
+    });
+    await dbSet(clientsKey, nextClients);
+
+    const empresasKey = "produ:empresas";
+    const currentEmpresas = await dbGet(empresasKey);
+    const systemMessage = {
+      id: uid(),
+      title: `Portal cliente · ${payload.client.nom}`,
+      body: `${headline}${text ? `\n\n${text}` : ""}`,
+      createdAt: now,
+    };
+    const nextEmpresas = (Array.isArray(currentEmpresas) ? currentEmpresas : []).map(item => item.id === payload.empresa.id
+      ? { ...item, systemMessages: [systemMessage, ...(Array.isArray(item.systemMessages) ? item.systemMessages : [])].slice(0, 30) }
+      : item);
+    await dbSet(empresasKey, nextEmpresas);
+
+    setPayload((current) => current ? {
+      ...current,
+      client: {
+        ...current.client,
+        portalActivity: [activityEntry, ...(Array.isArray(current.client?.portalActivity) ? current.client.portalActivity : [])].slice(0, 50),
+      },
+    } : current);
+  };
+
   const markPortalAccess = async () => {
     if (!payload?.empresa?.id || !payload?.client?.id) return;
     const now = new Date().toISOString();
@@ -324,6 +375,12 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
       setDecisionFeedback("No pudimos guardar esta decisión todavía. Intenta nuevamente.");
       return;
     }
+    await appendPortalActivityAndSystemMessage({
+      headline: contentDecision.status === "approved" ? "Contenido aprobado por el cliente" : "Cliente solicitó cambios en contenido",
+      secondary: `${payload.client.nom} respondió desde su portal en contenidos.`,
+      text: briefNote,
+      action: contentDecision.status === "approved" ? "content_approved" : "content_changes_requested",
+    });
     setDecisionFeedback(contentDecision.status === "approved" ? "Contenido aprobado correctamente." : "Dejamos registradas las observaciones para este contenido.");
     setContentDecision(null);
   };
@@ -354,6 +411,12 @@ export function ClientPortalView({ empresas = [], slug = "" }) {
       setDecisionFeedback("No pudimos guardar esta respuesta del presupuesto. Intenta nuevamente.");
       return;
     }
+    await appendPortalActivityAndSystemMessage({
+      headline: budgetDecision.status === "approved" ? "Presupuesto aprobado por el cliente" : "Cliente observó un presupuesto",
+      secondary: `${payload.client.nom} respondió desde su portal en presupuestos.`,
+      text: note,
+      action: budgetDecision.status === "approved" ? "budget_approved" : "budget_rejected",
+    });
     setDecisionFeedback(budgetDecision.status === "approved" ? "Presupuesto aprobado correctamente." : "Presupuesto marcado con observaciones del cliente.");
     setBudgetDecision(null);
   };

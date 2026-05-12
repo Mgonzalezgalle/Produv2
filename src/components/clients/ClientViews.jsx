@@ -51,6 +51,21 @@ function timelineSecondary(item = {}) {
   return "Sin contexto adicional";
 }
 
+function portalMeta(item = {}) {
+  const action = String(item?.action || "").trim().toLowerCase();
+  if (action.includes("approved")) return { label: "Aprobación", eyebrow: "Portal cliente", accent: "#00e08a" };
+  if (action.includes("rejected") || action.includes("changes")) return { label: "Observación", eyebrow: "Portal cliente", accent: "#ff8844" };
+  return { label: "Actividad", eyebrow: "Portal cliente", accent: "#4f7cff" };
+}
+
+function portalHeadline(item = {}) {
+  return String(item?.headline || "").trim() || "Actividad registrada en portal cliente";
+}
+
+function portalSecondary(item = {}) {
+  return String(item?.secondary || "").trim() || "Acción registrada desde el acceso externo del cliente.";
+}
+
 export function ViewClientes({
   empresa,
   clientes,
@@ -260,6 +275,7 @@ export function ViewCliDet({
   const clientPortal = normalizeClientPortal(c.portal, c);
   const portalUrl = buildClientPortalUrl(clientPortal, typeof window !== "undefined" ? window.location.origin : "");
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
+  const portalHistory = Array.isArray(c.portalActivity) ? [...c.portalActivity].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const updateClientPortal = async updater => {
     const nextClients = (clientes || []).map(item => {
       if (item.id !== c.id) return item;
@@ -513,6 +529,22 @@ export function ViewCliDet({
             />;
           })}
         </div> : <Empty text="Sin correos enviados" sub="Aquí verás el historial de correos enviados a este cliente." />}
+      </Card>
+      <Card title={`Actividad del portal (${portalHistory.length})`} sub="Aquí verás las respuestas que el cliente deje desde su acceso compartido." style={{ marginBottom: 20 }}>
+        {portalHistory.length ? <div style={{ display: "grid", gap: 10 }}>
+          {portalHistory.map(item => (
+            <ActivityTimelineCard
+              key={item.id}
+              meta={portalMeta(item)}
+              headline={portalHeadline(item)}
+              secondary={portalSecondary(item)}
+              preview={item.text || "Sin comentario adicional"}
+              attachments={[]}
+              dateLabel={item.createdAt ? new Date(item.createdAt).toLocaleString("es-CL") : "—"}
+              authorLabel={item.authorName || "Cliente"}
+            />
+          ))}
+        </div> : <Empty text="Sin actividad del portal" sub="Cuando el cliente apruebe, observe o deje comentarios, aparecerán aquí." />}
       </Card>
       {associationBlocks.map(block => <Card key={block.key} title={`${block.title} (${block.count})`} action={block.action} style={{ marginBottom: 16 }}>{block.render()}</Card>)}
       <Card title={`Contratos (${cts.length})`} action={canDo?.("contratos") ? { label: "+ Nuevo", fn: () => openM("ct", { cliId: id }) } : null}>

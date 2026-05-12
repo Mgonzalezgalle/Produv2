@@ -440,12 +440,6 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     ))
   ), [filteredContentCampaigns, contentDecisionFilter]);
 
-  const contentFocusPiece = useMemo(() => {
-    if (contentDecisionFilter === "approved") return contentWorkspace.approved[0] || null;
-    if (contentDecisionFilter === "changes") return contentWorkspace.observed[0] || null;
-    return contentWorkspace.reviewQueue[0] || visibleContentPieces[0] || null;
-  }, [contentDecisionFilter, contentWorkspace.approved, contentWorkspace.observed, contentWorkspace.reviewQueue, visibleContentPieces]);
-
   const safeFilteredContentCampaigns = useMemo(
     () => filteredContentCampaigns.filter(item => item && typeof item === "object"),
     [filteredContentCampaigns],

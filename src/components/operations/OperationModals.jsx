@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { DEFAULT_LISTAS, fileToDataUrl } from "../../lib/utils/helpers";
+import { DEFAULT_LISTAS, commentAttachmentFromFile } from "../../lib/utils/helpers";
 import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2, R3, XBtn } from "../../lib/ui/components";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -151,12 +151,23 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
         event.target.value = "";
         return;
       }
-      const dataUrl = await fileToDataUrl(file);
+      if (isPdf && Number(file.size || 0) > 2.5 * 1024 * 1024) {
+        setFileError("El PDF es demasiado pesado. Intenta con uno de hasta 2.5 MB.");
+        event.target.value = "";
+        return;
+      }
+      const attachment = await commentAttachmentFromFile(file);
+      const dataUrl = attachment?.src || "";
+      if (!dataUrl) {
+        setFileError("No pudimos preparar este archivo para la previsualización.");
+        event.target.value = "";
+        return;
+      }
       setF(prev => ({
         ...prev,
         previewAssetUrl: dataUrl,
-        previewAssetName: file.name || (isPdf ? "preview.pdf" : "preview"),
-        previewAssetType: isPdf ? "pdf" : "image",
+        previewAssetName: attachment?.name || file.name || (isPdf ? "preview.pdf" : "preview"),
+        previewAssetType: attachment?.type || (isPdf ? "pdf" : "image"),
       }));
     } catch {
       setFileError("No pudimos leer el archivo. Intenta nuevamente.");

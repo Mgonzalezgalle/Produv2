@@ -55,10 +55,16 @@ export function useLabModalActions({
               : [...(c.piezas || []), helpers.normalizeSocialPiece(d, c)],
           }
     ));
-    await setPiezas(next);
-    if (!options?.keepOpen) closeM();
-    ntf("Pieza guardada ✓");
-    return true;
+    try {
+      await setPiezas(next);
+      if (!options?.keepOpen) closeM();
+      ntf("Pieza guardada ✓");
+      return true;
+    } catch (error) {
+      console.error("[content-piece-save] No pudimos guardar la pieza", error);
+      ntf("No pudimos guardar la pieza. Revisa el peso del archivo e inténtalo nuevamente.", "warn");
+      return false;
+    }
   }, [canManageContent, closeM, empId, helpers, mData?.campId, ntf, piezas, setPiezas]);
 
   const saveCrmOpp = useCallback(async (d) => {

@@ -72,7 +72,7 @@ function safeText(value = "", fallback = "—") {
 
 function safeUrl(value = "") {
   const normalized = safeText(value, "");
-  return /^(https?:)?\/\//i.test(normalized) ? normalized : "";
+  return /^(https?:)?\/\//i.test(normalized) || normalized.startsWith("data:") ? normalized : "";
 }
 
 function resolvePiecePreviewUrl(piece = {}) {
@@ -317,6 +317,8 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const [decisionSaving, setDecisionSaving] = useState(false);
   const [decisionFeedback, setDecisionFeedback] = useState("");
 
+  const reloadPortalPayload = useRef(async () => {});
+
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const hadLightClass = document.body.classList.contains("light");
@@ -328,24 +330,40 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    resolvePortalPayload(empresas, slug)
-      .then((result) => {
+    reloadPortalPayload.current = async ({ silent = false } = {}) => {
+      if (!silent) setLoading(true);
+      try {
+        const result = await resolvePortalPayload(empresas, slug);
         if (!alive) return;
         setPayload(result);
         const sessionKey = buildClientPortalSessionKey(slug);
         setAuthorized(typeof window !== "undefined" && window.sessionStorage.getItem(sessionKey) === "ok");
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         if (!alive) return;
         setPayload({ error: "load_failed" });
-        setLoading(false);
-      });
+      } finally {
+        if (!alive) return;
+        if (!silent) setLoading(false);
+      }
+    };
+    void reloadPortalPayload.current();
     return () => {
       alive = false;
     };
   }, [empresas, slug]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !authorized) return undefined;
+    const handleFocusRefresh = () => { void reloadPortalPayload.current({ silent: true }); };
+    const interval = window.setInterval(() => { void reloadPortalPayload.current({ silent: true }); }, 30000);
+    window.addEventListener("focus", handleFocusRefresh);
+    document.addEventListener("visibilitychange", handleFocusRefresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocusRefresh);
+      document.removeEventListener("visibilitychange", handleFocusRefresh);
+    };
+  }, [authorized]);
 
   const summary = useMemo(() => {
     const empresa = payload?.empresa;

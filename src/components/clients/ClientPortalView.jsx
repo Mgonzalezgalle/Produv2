@@ -1,8 +1,9 @@
 import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { dbGet, dbSet } from "../../hooks/useLabDataStore";
-import { countCampaignPieces, cobranzaState, normalizeEmailValue } from "../../lib/utils/helpers";
+import { countCampaignPieces, normalizeEmailValue } from "../../lib/utils/helpers";
 import { buildClientPortalSessionKey, normalizeClientPortal } from "../../lib/clients/clientPortal";
 import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
+import { buildTreasuryReceivables } from "../../lib/utils/treasury";
 import { Badge, Btn, Card, Empty, FG, FTA, GBtn, Modal, Stat, TD, TH } from "../../lib/ui/components";
 
 function todayIso() {
@@ -124,6 +125,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       presupuestos,
       facturas,
       purchaseOrders,
+      receipts,
       crew,
     ] = await Promise.all([
       dbGet(`produ:${empId}:producciones`),
@@ -132,18 +134,21 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       dbGet(`produ:${empId}:presupuestos`),
       dbGet(`produ:${empId}:facturas`),
       dbGet(`produ:${empId}:treasuryPurchaseOrders`),
+      dbGet(`produ:${empId}:treasuryReceipts`),
       dbGet(`produ:${empId}:crew`),
     ]);
     return {
       empresa,
       client,
       portal: normalizeClientPortal(client?.portal, client),
+      clients: Array.isArray(clients) ? clients : [],
       producciones: Array.isArray(producciones) ? producciones : [],
       programas: Array.isArray(programas) ? programas : [],
       piezas: Array.isArray(piezas) ? piezas : [],
       presupuestos: Array.isArray(presupuestos) ? presupuestos : [],
       facturas: Array.isArray(facturas) ? facturas : [],
       purchaseOrders: Array.isArray(purchaseOrders) ? purchaseOrders : [],
+      receipts: Array.isArray(receipts) ? receipts : [],
       crew: Array.isArray(crew) ? crew : [],
     };
   }
@@ -374,13 +379,15 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     const activePrograms = (payload?.programas || []).filter(item => item?.cliId === clientId);
     const activeContent = (payload?.piezas || []).filter(item => item?.cliId === clientId);
     const budgets = (payload?.presupuestos || []).filter(item => item?.cliId === clientId);
-    const invoices = (payload?.facturas || []).filter(item => item?.empId === empresa.id && item?.tipo === "cliente" && item?.entidadId === clientId);
-    const orders = (payload?.purchaseOrders || []).filter(item => item?.empId === empresa.id && item?.clientId === clientId);
-    const overdueInvoices = invoices.filter(item => {
-      const state = cobranzaState(item);
-      return state !== "Pagado" && item?.fechaVencimiento && item.fechaVencimiento < todayIso();
+    const invoices = buildTreasuryReceivables({
+      facturas: (payload?.facturas || []).filter(item => item?.empId === empresa.id && item?.tipo === "cliente" && item?.entidadId === clientId),
+      clientes: Array.isArray(payload?.clients) ? payload.clients : [client],
+      receipts: Array.isArray(payload?.receipts) ? payload.receipts : [],
+      empId: empresa.id,
     });
-    const pendingInvoices = invoices.filter(item => cobranzaState(item) !== "Pagado");
+    const orders = (payload?.purchaseOrders || []).filter(item => item?.empId === empresa.id && item?.clientId === clientId);
+    const overdueInvoices = invoices.filter(item => item?.bucket === "Vencido" && Number(item?.pending || 0) > 0);
+    const pendingInvoices = invoices.filter(item => Number(item?.pending || 0) > 0);
     const pendingBudgets = budgets.filter(item => !approvedLikeStatus(item?.estado) && !rejectedLikeStatus(item?.estado));
     const pendingApprovals = activeContent.filter(item => !["publicado", "aprobada", "aprobado"].includes(String(item?.est || "").trim().toLowerCase()));
     return {
@@ -395,7 +402,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       pendingBudgets,
       pendingApprovals,
       totalContentPieces: activeContent.reduce((sum, item) => sum + Number(countCampaignPieces(item) || 0), 0),
-      pendingAmount: pendingInvoices.reduce((sum, item) => sum + Number(item?.total || 0), 0),
+      pendingAmount: pendingInvoices.reduce((sum, item) => sum + Number(item?.pending || 0), 0),
     };
   }, [payload]);
 
@@ -714,6 +721,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           };
           return {
             ...piece,
+            approval: contentDecision.status === "approved" ? "Aprobada" : "Observada",
             clientPortalDecision: {
               status: contentDecision.status,
               brief: summaryNote,
@@ -780,6 +788,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       payloadKey: "presupuestos",
       updater: (records = []) => (Array.isArray(records) ? records : []).map(item => item.id === budgetDecision.budgetId ? {
         ...item,
+        estado: budgetDecision.status === "approved" ? "Aceptado" : "Rechazado",
         clientPortalDecision: {
           status: budgetDecision.status,
           note,
@@ -1149,14 +1158,14 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   </thead>
                   <tbody>
                     {summary.invoices.map(item => {
-                      const state = cobranzaState(item);
+                      const state = item?.cobranza || "Pendiente";
                       return (
                         <tr key={item.id}>
                           <TD bold>{item.correlativo || item.tipoDoc || "Documento"}</TD>
-                          <TD>{fmtDate(item.fecha || item.fechaEmision || "")}</TD>
+                          <TD>{fmtDate(item.fechaEmision || item.fecha || "")}</TD>
                           <TD>{fmtDate(item.fechaVencimiento || "")}</TD>
-                          <TD mono>{fmtMoney(item.total || 0)}</TD>
-                          <TD><Badge label={state || "Pendiente"} color={state === "Pagado" ? "green" : (item.fechaVencimiento && item.fechaVencimiento < todayIso() ? "red" : "yellow")} /></TD>
+                          <TD mono>{fmtMoney((Number(item.pending || 0) > 0 ? item.pending : item.total) || 0)}</TD>
+                          <TD><Badge label={state || "Pendiente"} color={state === "Pagado" ? "green" : (item.bucket === "Vencido" ? "red" : "yellow")} /></TD>
                         </tr>
                       );
                     })}

@@ -681,8 +681,6 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   const tabs = [
     ["resumen", "Resumen", "#4f7cff"],
     ["contenidos", "Contenidos", "#8b5cf6"],
-    ["presupuestos", "Presupuestos", "#00b894"],
-    ["documentos", "Documentos y pagos", "#ff8844"],
   ];
 
   const saveContentDecision = async () => {
@@ -849,12 +847,12 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
                 </div>
                 <div style={{ background: "#faf7ff", border: "1px solid #eadcff", borderRadius: 16, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Presupuestos pendientes</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#8e5cf6", marginTop: 6 }}>{summary?.pendingBudgets.length || 0}</div>
+                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Campañas activas</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#8e5cf6", marginTop: 6 }}>{summary?.activeContent.length || 0}</div>
                 </div>
                 <div style={{ background: "#fff8f4", border: "1px solid #ffe0cf", borderRadius: 16, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Monto pendiente</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#e1712f", marginTop: 6 }}>{fmtMoney(summary?.pendingAmount || 0)}</div>
+                  <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Piezas visibles</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#e1712f", marginTop: 6 }}>{summary?.totalContentPieces || 0}</div>
                 </div>
               </div>
             </div>
@@ -863,14 +861,14 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                 <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
                 <div style={{ display: "grid", gap: 8, fontSize: 13, color: "#334155" }}>
                   <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div>
-                  <div>• {summary?.pendingBudgets.length || 0} propuesta(s) siguen pendientes.</div>
-                  <div>• {summary?.overdueInvoices.length || 0} documento(s) están vencidos.</div>
+                  <div>• {summary?.activeContent.length || 0} campaña(s) siguen activas en este espacio.</div>
+                  <div>• {summary?.activeProductions.length || 0} producción(es) están visibles desde tu portal.</div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <Badge label={`${summary?.pendingApprovals.length || 0} contenido(s) por revisar`} color="purple" />
-                <Badge label={`${summary?.pendingBudgets.length || 0} presupuesto(s) pendiente(s)`} color="yellow" />
-                <Badge label={`${summary?.overdueInvoices.length || 0} documento(s) vencido(s)`} color={summary?.overdueInvoices.length ? "red" : "green"} />
+                <Badge label={`${summary?.activeContent.length || 0} campaña(s) activas`} color="cyan" />
+                <Badge label={`${summary?.totalContentPieces || 0} pieza(s) visibles`} color="yellow" />
                 <GBtn onClick={() => {
                   const sessionKey = buildClientPortalSessionKey(slug);
                   if (typeof window !== "undefined") window.sessionStorage.removeItem(sessionKey);
@@ -917,16 +915,16 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               <Card title="Lo que requiere atención hoy" sub="Una vista rápida para entrar a lo importante sin perder tiempo.">
                 <div style={{ display: "grid", gap: 10 }}>
                   <div>• {summary?.pendingApprovals.length || 0} campaña(s) de contenido todavía esperan revisión.</div>
-                  <div>• {summary?.pendingBudgets.length || 0} presupuesto(s) siguen pendientes de respuesta.</div>
-                  <div>• {summary?.pendingInvoices.length || 0} documento(s) siguen abiertos en documentos y pagos.</div>
-                  <div>• {summary?.overdueInvoices.length || 0} documento(s) ya están vencidos.</div>
+                  <div>• {summary?.activeContent.length || 0} campaña(s) están activas y visibles para tu equipo.</div>
+                  <div>• {summary?.totalContentPieces || 0} pieza(s) ya están disponibles en este portal.</div>
+                  <div>• {summary?.activeProductions.length || 0} producción(es) siguen en curso.</div>
                 </div>
               </Card>
               <Card title="Cómo usar este espacio" sub="Aquí puedes revisar avances y responder lo que hoy necesita confirmación.">
                 <div style={{ display: "grid", gap: 10 }}>
                   <div>• En contenidos puedes aprobar piezas o pedir ajustes con observaciones claras.</div>
-                  <div>• En presupuestos puedes responder propuestas sin salir de este enlace.</div>
-                  <div>• En documentos y pagos puedes revisar montos abiertos y vencimientos.</div>
+                  <div>• El brief adicional y los comentarios quedarán visibles dentro de Produ.</div>
+                  <div>• La relación documental y financiera ahora vive en un portal independiente.</div>
                 </div>
               </Card>
             </div>

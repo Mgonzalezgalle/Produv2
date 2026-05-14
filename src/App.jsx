@@ -101,6 +101,7 @@ import { useLabFreshdeskWidget } from "./hooks/useLabFreshdeskWidget";
 import { useLabTheme } from "./hooks/useLabTheme";
 import { assignedNameList, COLS_TAREAS, getAssignedIds, normalizeTaskAssignees } from "./lib/utils/tasks";
 import { resolveClientPortalSlugFromPath } from "./lib/clients/clientPortal";
+import { resolveFinancePortalRoute } from "./lib/clients/financialPortal";
 import {
   attachDiioToCommentCollection,
   attachDiioToCrmActivities,
@@ -162,6 +163,7 @@ const ViewCalendario = lazy(() => import("./components/calendar/CalendarView").t
 const ViewCliDet = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewCliDet })));
 const ViewClientes = lazy(() => import("./components/clients/ClientViews").then(module => ({ default: module.ViewClientes })));
 const ClientPortalView = lazy(() => import("./components/clients/ClientPortalView").then(module => ({ default: module.ClientPortalView })));
+const CounterpartyFinancePortalView = lazy(() => import("./components/clients/CounterpartyFinancePortalView").then(module => ({ default: module.CounterpartyFinancePortalView })));
 const ViewCts = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewCts })));
 const ViewPres = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPres })));
 const ViewPresDet = lazy(() => import("./components/commercial/BudgetViews").then(module => ({ default: module.ViewPresDet })));
@@ -221,6 +223,10 @@ export default function App(){
   const [moduleLoadingTimedOut, setModuleLoadingTimedOut] = useState(false);
   const publicClientPortalSlug = useMemo(
     () => (typeof window !== "undefined" ? resolveClientPortalSlugFromPath(window.location.pathname, window.location.hash) : ""),
+    [],
+  );
+  const publicFinancePortalDescriptor = useMemo(
+    () => (typeof window !== "undefined" ? resolveFinancePortalRoute(window.location.pathname, window.location.hash) : null),
     [],
   );
   const sessionActivityRef = useRef(0);
@@ -1510,6 +1516,12 @@ export default function App(){
 
   // Screens
   if(!globalInitReady || !empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
+  if(publicFinancePortalDescriptor) return <>
+    <StyleTag css={APP_SHELL_CSS}/>
+    <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>
+      <CounterpartyFinancePortalView empresas={empresas} descriptor={publicFinancePortalDescriptor} />
+    </Suspense>
+  </>;
   if(publicClientPortalSlug) return <>
     <StyleTag css={APP_SHELL_CSS}/>
     <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>

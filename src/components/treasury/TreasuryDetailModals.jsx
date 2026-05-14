@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { DBtn, GBtn, Modal } from "../../lib/ui/components";
 import { fmtD, fmtM } from "../../lib/utils/helpers";
 import {
+  buildFinancePortalUrl,
+  collectProviderFinancePortalEmails,
+  createFinancePortalAccessCode,
+  normalizeFinancePortalEmails,
+  normalizeProviderFinancePortal,
+} from "../../lib/clients/financialPortal";
+import {
   ContactActionButton,
   DetailTable,
   fieldInputStyle,
@@ -55,6 +62,8 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
       rut: provider?.rut || "",
       direccion: provider?.direccion || "",
       tipoProveedor: provider?.tipoProveedor || "",
+      creditLimit: Number(provider?.creditLimit || 0),
+      financialPortal: normalizeProviderFinancePortal(provider?.financialPortal, provider),
       contactos: Array.isArray(provider?.contactos) ? provider.contactos : [],
       bankAccounts: Array.isArray(provider?.bankAccounts) ? provider.bankAccounts : [],
     });
@@ -89,6 +98,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
     });
     onClose?.();
   };
+  const portalUrl = buildFinancePortalUrl(draft.financialPortal, "provider", typeof window !== "undefined" ? window.location.origin : "");
 
   return (
     <Modal open={open} onClose={onClose} title="" sub="" wide>
@@ -109,6 +119,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
           <button className={`treasury-modal-tab ${tab === "documentos" ? "active" : ""}`} onClick={() => setTab("documentos")}>Documentos</button>
           <button className={`treasury-modal-tab ${tab === "datos" ? "active" : ""}`} onClick={() => setTab("datos")}>Datos del proveedor</button>
           <button className={`treasury-modal-tab ${tab === "pagos" ? "active" : ""}`} onClick={() => setTab("pagos")}>Información de pago</button>
+          <button className={`treasury-modal-tab ${tab === "portal" ? "active" : ""}`} onClick={() => setTab("portal")}>Portal financiero</button>
         </div>
         <div className="treasury-modal-summary">
           <MiniKpiCard color="#4f7cff" label="Documentos por pagar" value={provider.payables.length} />
@@ -170,6 +181,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
               <label><div className="treasury-section-sub">Razón social</div><input style={fieldInputStyle()} value={draft.razonSocial} onChange={e => setDraft({ ...draft, razonSocial: e.target.value })} /></label>
               <label><div className="treasury-section-sub">RUT</div><input style={fieldInputStyle()} value={draft.rut} onChange={e => setDraft({ ...draft, rut: e.target.value })} /></label>
               <label><div className="treasury-section-sub">Tipo de proveedor</div><input style={fieldInputStyle()} value={draft.tipoProveedor} onChange={e => setDraft({ ...draft, tipoProveedor: e.target.value })} /></label>
+              <label><div className="treasury-section-sub">Línea de crédito</div><input type="number" min="0" style={fieldInputStyle()} value={draft.creditLimit || 0} onChange={e => setDraft({ ...draft, creditLimit: Number(e.target.value || 0) })} /></label>
             </div>
             <label style={{ display: "block", marginTop: 12 }}><div className="treasury-section-sub">Dirección</div><input style={fieldInputStyle()} value={draft.direccion} onChange={e => setDraft({ ...draft, direccion: e.target.value })} /></label>
             <div className="treasury-section-head" style={{ marginTop: 18, marginBottom: 10 }}>
@@ -222,6 +234,71 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}><DBtn sm onClick={() => removeBank(account.id)}>Eliminar cuenta</DBtn></div>
               </div>
             )) : <div className="treasury-muted" style={{ fontSize: 12 }}>Todavía no hay cuentas bancarias registradas para este proveedor.</div>}
+          </div>
+        ) : null}
+        {tab === "portal" ? (
+          <div className="treasury-detail">
+            <div className="treasury-section-head" style={{ marginBottom: 12 }}>
+              <div>
+                <div className="treasury-detail-title">Portal financiero del proveedor</div>
+                <div className="treasury-muted" style={{ fontSize: 12 }}>Este acceso externo está pensado para cuentas por pagar, pagos y órdenes de compra emitidas.</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <GBtn sm onClick={() => setDraft(current => ({ ...current, financialPortal: { ...normalizeProviderFinancePortal(current.financialPortal, current), enabled: !normalizeProviderFinancePortal(current.financialPortal, current).enabled } }))}>
+                  {normalizeProviderFinancePortal(draft.financialPortal, draft).enabled ? "Desactivar" : "Activar"}
+                </GBtn>
+                <GBtn sm onClick={() => {
+                  try {
+                    navigator.clipboard.writeText(portalUrl);
+                  } catch {}
+                }}>
+                  Copiar enlace
+                </GBtn>
+              </div>
+            </div>
+            <div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 16 }}>
+              <div><div className="meta-label">Estado</div><div className="meta-value">{normalizeProviderFinancePortal(draft.financialPortal, draft).enabled ? "Activo" : "Inactivo"}</div></div>
+              <div><div className="meta-label">Código de acceso</div><div className="meta-value" style={{ letterSpacing: 2, color: "var(--cy)" }}>{normalizeProviderFinancePortal(draft.financialPortal, draft).accessCode}</div></div>
+              <div><div className="meta-label">Último acceso</div><div className="meta-value">{normalizeProviderFinancePortal(draft.financialPortal, draft).lastAccessAt ? fmtD(String(normalizeProviderFinancePortal(draft.financialPortal, draft).lastAccessAt).slice(0, 10)) : "Sin ingresos"}</div></div>
+              <div><div className="meta-label">Enlace</div><div className="meta-value" style={{ fontSize: 12, wordBreak: "break-all" }}>{portalUrl || "Sin enlace"}</div></div>
+            </div>
+            <div style={{ display: "grid", gap: 12 }}>
+              <label>
+                <div className="treasury-section-sub">Correos autorizados</div>
+                <textarea
+                  style={{ ...fieldInputStyle(), minHeight: 92 }}
+                  value={normalizeProviderFinancePortal(draft.financialPortal, draft).authorizedEmails.join(", ")}
+                  onChange={e => setDraft(current => ({
+                    ...current,
+                    financialPortal: {
+                      ...normalizeProviderFinancePortal(current.financialPortal, current),
+                      authorizedEmails: normalizeFinancePortalEmails(e.target.value),
+                    },
+                  }))}
+                  placeholder="correo1@empresa.cl, correo2@empresa.cl"
+                />
+              </label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <GBtn sm onClick={() => setDraft(current => ({
+                  ...current,
+                  financialPortal: {
+                    ...normalizeProviderFinancePortal(current.financialPortal, current),
+                    accessCode: createFinancePortalAccessCode(),
+                  },
+                }))}>
+                  Regenerar código
+                </GBtn>
+                <GBtn sm onClick={() => setDraft(current => ({
+                  ...current,
+                  financialPortal: {
+                    ...normalizeProviderFinancePortal(current.financialPortal, current),
+                    authorizedEmails: collectProviderFinancePortalEmails(current),
+                  },
+                }))}>
+                  Usar correos del proveedor
+                </GBtn>
+              </div>
+            </div>
           </div>
         ) : null}
       </div>

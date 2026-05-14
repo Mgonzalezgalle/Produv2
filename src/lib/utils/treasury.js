@@ -490,6 +490,8 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
         rut: provider?.rut || "",
         direccion: provider?.direccion || "",
         tipoProveedor: provider?.tipoProveedor || "",
+        creditLimit: Number(provider?.creditLimit || 0),
+        financialPortal: provider?.financialPortal || null,
         contactos: emptyArray(provider?.contactos),
         bankAccounts: emptyArray(provider?.bankAccounts),
         payables: [],
@@ -508,6 +510,8 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
         rut: provider?.rut || current.rut,
         direccion: provider?.direccion || current.direccion,
         tipoProveedor: provider?.tipoProveedor || current.tipoProveedor,
+        creditLimit: Number(provider?.creditLimit || current.creditLimit || 0),
+        financialPortal: provider?.financialPortal || current.financialPortal || null,
         contactos: emptyArray(provider?.contactos).length ? emptyArray(provider?.contactos) : current.contactos,
         bankAccounts: emptyArray(provider?.bankAccounts).length ? emptyArray(provider?.bankAccounts) : current.bankAccounts,
       });
@@ -538,5 +542,13 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
       entry.issuedOrders.push(item);
     });
 
-  return Array.from(map.values()).sort((a, b) => Number(b.pending || 0) - Number(a.pending || 0) || String(a.name || "").localeCompare(String(b.name || "")));
+  return Array.from(map.values())
+    .map(item => ({
+      ...item,
+      availableCredit: Number(item.creditLimit || 0) ? Number(item.creditLimit || 0) - Number(item.pending || 0) : null,
+      overdue: (Array.isArray(item.payables) ? item.payables : [])
+        .filter(payable => payable.status === "Vencida")
+        .reduce((sum, payable) => sum + Number(payable.pending || 0), 0),
+    }))
+    .sort((a, b) => Number(b.pending || 0) - Number(a.pending || 0) || String(a.name || "").localeCompare(String(b.name || "")));
 }

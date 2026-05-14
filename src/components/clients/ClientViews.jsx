@@ -14,6 +14,13 @@ import {
   normalizePortalEmails,
 } from "../../lib/clients/clientPortal";
 import {
+  buildFinancePortalUrl,
+  collectClientFinancePortalEmails,
+  createFinancePortalAccessCode,
+  normalizeClientFinancePortal,
+  normalizeFinancePortalEmails,
+} from "../../lib/clients/financialPortal";
+import {
   Badge,
   Btn,
   Card,
@@ -281,6 +288,8 @@ export function ViewCliDet({
   if (!c) return <Empty text="No encontrado" />;
   const clientPortal = normalizeClientPortal(c.portal, c);
   const portalUrl = buildClientPortalUrl(clientPortal, typeof window !== "undefined" ? window.location.origin : "");
+  const financePortal = normalizeClientFinancePortal(c.financialPortal, c);
+  const financePortalUrl = buildFinancePortalUrl(financePortal, "client", typeof window !== "undefined" ? window.location.origin : "");
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const portalHistory = Array.isArray(c.portalActivity) ? [...c.portalActivity].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const updateClientPortal = async updater => {
@@ -313,6 +322,21 @@ export function ViewCliDet({
       delivery,
     };
     const nextClients = (clientes || []).map(item => item.id === c.id ? { ...item, emailHistory: [nextEntry, ...(Array.isArray(item.emailHistory) ? item.emailHistory : [])].slice(0, 50) } : item);
+    await setClientes(nextClients);
+  };
+  const updateClientFinancePortal = async updater => {
+    const nextClients = (clientes || []).map(item => {
+      if (item.id !== c.id) return item;
+      const currentPortal = normalizeClientFinancePortal(item.financialPortal, item);
+      const nextPortalDraft = typeof updater === "function" ? updater(currentPortal, item) : updater;
+      return {
+        ...item,
+        financialPortal: {
+          ...normalizeClientFinancePortal(nextPortalDraft, item),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    });
     await setClientes(nextClients);
   };
   const copyPortalUrl = async () => {
@@ -349,6 +373,41 @@ export function ViewCliDet({
     const nextEmails = normalizePortalEmails(response);
     await updateClientPortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
     ntf?.("Correos autorizados actualizados ✓");
+  };
+  const copyFinancePortalUrl = async () => {
+    if (!financePortal?.slug) return;
+    try {
+      await navigator.clipboard.writeText(financePortalUrl);
+      ntf?.("Enlace del portal financiero copiado ✓");
+      await updateClientFinancePortal(portal => ({ ...portal, lastSharedAt: new Date().toISOString() }));
+    } catch {
+      window.prompt("Copia este enlace del portal financiero:", financePortalUrl);
+    }
+  };
+  const toggleFinancePortal = async () => {
+    await updateClientFinancePortal(portal => ({
+      ...portal,
+      enabled: !portal.enabled,
+      authorizedEmails: portal.authorizedEmails.length ? portal.authorizedEmails : collectClientFinancePortalEmails(c),
+    }));
+    ntf?.(financePortal.enabled ? "Portal financiero desactivado" : "Portal financiero activado ✓");
+  };
+  const refreshFinancePortalCode = async () => {
+    await updateClientFinancePortal(portal => ({ ...portal, accessCode: createFinancePortalAccessCode() }));
+    ntf?.("Código del portal financiero regenerado ✓");
+  };
+  const syncFinancePortalEmailsFromContacts = async () => {
+    const nextEmails = collectClientFinancePortalEmails(c);
+    await updateClientFinancePortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
+    ntf?.(nextEmails.length ? "Correos del portal financiero sincronizados ✓" : "No hay correos en los contactos de este cliente.");
+  };
+  const editFinancePortalEmails = async () => {
+    const suggested = financePortal.authorizedEmails.join(", ");
+    const response = window.prompt("Correos autorizados para ingresar al portal financiero (separados por coma)", suggested);
+    if (response == null) return;
+    const nextEmails = normalizeFinancePortalEmails(response);
+    await updateClientFinancePortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
+    ntf?.("Correos autorizados del portal financiero actualizados ✓");
   };
   const openClientEmailChoice = contact => {
     if (!contact?.ema) return;
@@ -475,7 +534,7 @@ export function ViewCliDet({
       </div>
       <Card
         title="Portal cliente"
-        sub="Preparamos el acceso externo de este cliente para seguimiento, aprobaciones y revisión documental."
+        sub="Preparamos el acceso externo de este cliente para seguimiento, aprobaciones y revisión de contenidos o producciones."
         action={canManageClients ? { label: clientPortal.enabled ? "Desactivar portal" : "Activar portal", fn: togglePortal } : null}
         style={{ marginBottom: 20 }}
       >
@@ -521,15 +580,72 @@ export function ViewCliDet({
               <div>• Resumen con pendientes, aprobaciones y documentos por revisar.</div>
               <div>• Contenidos para aprobar, observar o complementar con brief.</div>
               <div>• Presupuestos listos para aceptar o devolver con comentarios.</div>
-              <div>• Documentos y pagos con foco en vencimientos y compromisos abiertos.</div>
+              <div>• Producciones y avances visibles para el cliente.</div>
             </div>
             <Sep />
             <div style={{ fontSize: 11, color: "var(--gr3)", lineHeight: 1.6 }}>
-              El acceso nace desde este cliente y siempre quedará asociado a su propio enlace. Así evitamos mezclar información entre cuentas o entre clientes del mismo equipo.
+              Este acceso queda reservado para seguimiento y revisión. La relación documental y financiera ahora vive en un portal separado.
             </div>
             <Sep />
             <div style={{ fontSize: 11, color: "var(--gr2)" }}>
               <b>Correos autorizados:</b> {clientPortal.authorizedEmails.length ? clientPortal.authorizedEmails.join(", ") : "Todavía no definimos correos para este portal."}
+            </div>
+          </div>
+        </div>
+      </Card>
+      <Card
+        title="Portal financiero"
+        sub="Este acceso externo está pensado para cuentas por cobrar: documentos, pagos, línea de crédito, órdenes de compra y presupuestos."
+        action={canManageClients ? { label: financePortal.enabled ? "Desactivar portal" : "Activar portal", fn: toggleFinancePortal } : null}
+        style={{ marginBottom: 20 }}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: financePortal.enabled ? "#00e08a" : "var(--wh)" }}>
+              {financePortal.enabled ? "Portal financiero activo" : "Portal financiero inactivo"}
+            </div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--cy)" }}>{financePortal.authorizedEmails.length}</div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Último acceso</div>
+            <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{financePortal.lastAccessAt ? fmtPortalTimestamp(financePortal.lastAccessAt) : "Sin ingresos"}</div>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+              <Badge label={financePortal.enabled ? "Portal activo" : "Portal inactivo"} color={financePortal.enabled ? "green" : "gray"} />
+              <Badge label="Cuentas por cobrar" color="cyan" />
+              <Badge label="Acceso por código" color="purple" />
+            </div>
+            <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{financePortalUrl}</span>} />
+            <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{financePortal.accessCode}</span>} />
+            <KV label="Último envío del enlace" value={financePortal.lastSharedAt ? fmtPortalTimestamp(financePortal.lastSharedAt) : "Aún no compartido"} />
+            <Sep />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Btn onClick={copyFinancePortalUrl}>Copiar enlace</Btn>
+              <GBtn onClick={() => window.open(financePortalUrl, "_blank")}>Abrir portal</GBtn>
+              <GBtn onClick={refreshFinancePortalCode}>Regenerar código</GBtn>
+              <GBtn onClick={syncFinancePortalEmailsFromContacts}>Usar correos de contactos</GBtn>
+              <GBtn onClick={editFinancePortalEmails}>Editar correos autorizados</GBtn>
+            </div>
+          </div>
+          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá este cliente</div>
+            <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
+              <div>• Documentos por cobrar y su estado de pago.</div>
+              <div>• Pagos ya registrados sobre su cuenta.</div>
+              <div>• Línea de crédito y cupo disponible.</div>
+              <div>• Órdenes de compra recibidas y su avance.</div>
+              <div>• Presupuestos asociados a su cuenta.</div>
+            </div>
+            <Sep />
+            <div style={{ fontSize: 11, color: "var(--gr3)", lineHeight: 1.6 }}>
+              Este portal es independiente del portal de revisión de contenidos y producciones. Aquí solo vive la relación documental y financiera con este cliente.
             </div>
           </div>
         </div>

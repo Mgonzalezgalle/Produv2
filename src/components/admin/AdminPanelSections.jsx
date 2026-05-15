@@ -698,6 +698,18 @@ export function TransactionalEmailTemplatesPanel({
       companyName: empresa?.nombre || empresa?.nom || "Produ",
       messageBody: "Queríamos tomar contacto para dar continuidad a la gestión.",
     },
+    client_portal_access: {
+      contactName: "Matías",
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      portalUrl: "https://portal.produ.cl/#/portal/clientes/playmedia-abc123",
+      accessCode: "483921",
+    },
+    client_finance_portal_access: {
+      contactName: "Finanzas Cliente",
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      portalUrl: "https://portal.produ.cl/#/portal/finanzas/clientes/playmedia-abc123",
+      accessCode: "761250",
+    },
     payables_supplier_contact: {
       contactName: "Proveedor",
       companyName: empresa?.nombre || empresa?.nom || "Produ",
@@ -705,6 +717,12 @@ export function TransactionalEmailTemplatesPanel({
       documentNumber: "SPU-882",
       paymentDate: "20/04/2026",
       totalFormatted: "$720.000",
+    },
+    provider_finance_portal_access: {
+      contactName: "Proveedor",
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      portalUrl: "https://portal.produ.cl/#/portal/finanzas/proveedores/proveedor-abc123",
+      accessCode: "294805",
     },
     password_reset: {
       contactName: "Usuario Produ",

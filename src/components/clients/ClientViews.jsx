@@ -232,6 +232,7 @@ export function ViewCliDet({
   ini,
   ntf,
   user,
+  platformApi,
 }) {
   const empId = empresa?.id;
   const canManageClients = !!canDo?.("clientes");
@@ -437,6 +438,52 @@ export function ViewCliDet({
     setEmailChoice(null);
     setEmailComposerOpen(true);
   };
+  const buildPortalAccessDraft = ({ kind = "content", portalRecord = null, portalAccessUrl = "", recipients = [], contactName = "" } = {}) => {
+    const templateKey = kind === "finance" ? "client_finance_portal_access" : "client_portal_access";
+    const resolved = resolveTransactionalEmailTemplate(empresa, templateKey, {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      contactName: contactName || c.nom || "equipo",
+      portalUrl: portalAccessUrl,
+      accessCode: portalRecord?.accessCode || "",
+    });
+    return {
+      tenantId: empresa?.id || "",
+      templateKey,
+      subject: resolved.subject,
+      to: recipients.join(", "),
+      body: resolved.body,
+      entityType: kind === "finance" ? "client_finance_portal" : "client_portal",
+      entityId: c.id || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: c.nom || "",
+        contactName: contactName || c.nom || "",
+        portalUrl: portalAccessUrl,
+      },
+    };
+  };
+  const openPortalAccessComposer = ({ kind = "content" } = {}) => {
+    const portalRecord = kind === "finance" ? financePortal : clientPortal;
+    const recipients = kind === "finance" ? financePortal.authorizedEmails : clientPortal.authorizedEmails;
+    if (!portalRecord?.enabled) {
+      ntf?.("Activa el portal antes de enviar el acceso.", "warn");
+      return;
+    }
+    if (!recipients.length) {
+      ntf?.("Define al menos un correo autorizado antes de enviar el acceso.", "warn");
+      return;
+    }
+    const primaryContact = Array.isArray(c.contactos) ? c.contactos.find(item => recipients.includes(String(item?.ema || item?.email || "").trim().toLowerCase())) || c.contactos[0] : null;
+    const draft = buildPortalAccessDraft({
+      kind,
+      portalRecord,
+      portalAccessUrl: kind === "finance" ? financePortalUrl : portalUrl,
+      recipients,
+      contactName: primaryContact?.nom || c.nom || "equipo",
+    });
+    setEmailComposerDraft(draft);
+    setEmailComposerOpen(true);
+  };
   const closeClientEmailComposer = () => {
     if (emailComposerSending) return;
     setEmailComposerOpen(false);
@@ -568,6 +615,7 @@ export function ViewCliDet({
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Btn onClick={copyPortalUrl}>Copiar enlace</Btn>
               <GBtn onClick={() => window.open(portalUrl, "_blank")}>Abrir portal</GBtn>
+              <GBtn onClick={() => openPortalAccessComposer({ kind: "content" })}>Enviar acceso</GBtn>
               <GBtn onClick={refreshPortalCode}>Regenerar código</GBtn>
               <GBtn onClick={syncPortalEmailsFromContacts}>Usar correos de contactos</GBtn>
               <GBtn onClick={editPortalEmails}>Editar correos autorizados</GBtn>
@@ -626,6 +674,7 @@ export function ViewCliDet({
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Btn onClick={copyFinancePortalUrl}>Copiar enlace</Btn>
               <GBtn onClick={() => window.open(financePortalUrl, "_blank")}>Abrir portal</GBtn>
+              <GBtn onClick={() => openPortalAccessComposer({ kind: "finance" })}>Enviar acceso</GBtn>
               <GBtn onClick={refreshFinancePortalCode}>Regenerar código</GBtn>
               <GBtn onClick={syncFinancePortalEmailsFromContacts}>Usar correos de contactos</GBtn>
               <GBtn onClick={editFinancePortalEmails}>Editar correos autorizados</GBtn>

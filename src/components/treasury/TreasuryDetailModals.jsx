@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { DBtn, GBtn, Modal } from "../../lib/ui/components";
 import { fmtD, fmtM } from "../../lib/utils/helpers";
+import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import {
   buildFinancePortalUrl,
   collectProviderFinancePortalEmails,
@@ -48,9 +50,12 @@ export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canMana
   );
 }
 
-export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierStatementEmail, onSupplierWhatsApp, onClose, onSave }) {
+export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierStatementEmail, onSupplierWhatsApp, onClose, onSave, empresa = null, platformApi = null, currentUser = null, ntf = null }) {
   const [tab, setTab] = useState("documentos");
   const [draft, setDraft] = useState(null);
+  const [portalEmailOpen, setPortalEmailOpen] = useState(false);
+  const [portalEmailDraft, setPortalEmailDraft] = useState(null);
+  const [portalEmailSending, setPortalEmailSending] = useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -111,6 +116,83 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
     onClose?.();
   };
   const portalUrl = buildFinancePortalUrl(draft.financialPortal, "provider", typeof window !== "undefined" ? window.location.origin : "");
+  const sendPortalAccess = () => {
+    const portal = normalizeProviderFinancePortal(draft.financialPortal, draft);
+    if (!portal.enabled) {
+      ntf?.("Activa el portal antes de enviar el acceso.", "warn");
+      return;
+    }
+    if (!portal.authorizedEmails.length) {
+      ntf?.("Define al menos un correo autorizado antes de enviar el acceso.", "warn");
+      return;
+    }
+    const primaryContact = (draft.contactos || []).find(item => portal.authorizedEmails.includes(String(item?.email || "").trim().toLowerCase())) || (draft.contactos || [])[0] || null;
+    const resolved = resolveTransactionalEmailTemplate(empresa, "provider_finance_portal_access", {
+      companyName: empresa?.nombre || empresa?.nom || "Produ",
+      contactName: primaryContact?.nombre || draft.name || provider?.name || "equipo",
+      portalUrl,
+      accessCode: portal.accessCode || "",
+    });
+    setPortalEmailDraft({
+      tenantId: empresa?.id || "",
+      templateKey: "provider_finance_portal_access",
+      subject: resolved.subject,
+      to: portal.authorizedEmails.join(", "),
+      body: resolved.body,
+      entityType: "provider_finance_portal",
+      entityId: draft.id || provider?.id || "",
+      metadata: {
+        companyName: empresa?.nombre || empresa?.nom || "Produ",
+        entityLabel: draft.name || provider?.name || "",
+        portalUrl,
+      },
+    });
+    setPortalEmailOpen(true);
+  };
+  const handleSendPortalAccess = async emailDraft => {
+    const recipients = String(emailDraft?.to || "").split(",").map(item => item.trim()).filter(Boolean);
+    if (!recipients.length) {
+      window.alert("Debes indicar al menos un destinatario.");
+      return;
+    }
+    setPortalEmailSending(true);
+    try {
+      const payload = {
+        tenantId: emailDraft?.tenantId || empresa?.id || "",
+        templateKey: emailDraft?.templateKey || "provider_finance_portal_access",
+        subject: String(emailDraft?.subject || "").trim(),
+        to: recipients,
+        text: String(emailDraft?.body || "").trim(),
+        html: `<p>${String(emailDraft?.body || "").trim().replace(/\n/g, "<br />")}</p>`,
+        replyTo: String(currentUser?.email || "").trim() || undefined,
+        attachments: Array.isArray(emailDraft?.attachments) ? emailDraft.attachments : [],
+        entityType: emailDraft?.entityType || "provider_finance_portal",
+        entityId: emailDraft?.entityId || draft.id || "",
+        metadata: emailDraft?.metadata || {},
+      };
+      const remoteResult = await platformApi?.notifications?.sendTransactionalEmail?.(payload);
+      if (!remoteResult?.ok) {
+        if (remoteResult?.message) window.alert(`No pudimos entregar este correo todavía.\n\n${remoteResult.message}`);
+        window.open(`mailto:${encodeURIComponent(recipients.join(","))}?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(payload.text)}`, "_blank");
+        ntf?.(`Abrimos tu cliente de correo para ${recipients.join(", ")}.`);
+      } else {
+        ntf?.(`Acceso enviado a ${recipients.join(", ")} ✓`);
+      }
+      const nextDraft = {
+        ...draft,
+        financialPortal: {
+          ...normalizeProviderFinancePortal(draft.financialPortal, draft),
+          lastSharedAt: new Date().toISOString(),
+        },
+      };
+      setDraft(nextDraft);
+      await persistPortalDraft(nextDraft);
+      setPortalEmailOpen(false);
+      setPortalEmailDraft(null);
+    } finally {
+      setPortalEmailSending(false);
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="" sub="" wide>
@@ -276,6 +358,9 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 }}>
                   Copiar enlace
                 </GBtn>
+                <GBtn sm onClick={sendPortalAccess}>
+                  Enviar acceso
+                </GBtn>
               </div>
             </div>
             <div className="treasury-provider-meta" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 16 }}>
@@ -337,6 +422,17 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
           </div>
         ) : null}
       </div>
+      <TransactionalEmailComposerModal
+        open={portalEmailOpen}
+        draft={portalEmailDraft}
+        sending={portalEmailSending}
+        onClose={() => {
+          if (portalEmailSending) return;
+          setPortalEmailOpen(false);
+          setPortalEmailDraft(null);
+        }}
+        onSend={handleSendPortalAccess}
+      />
     </Modal>
   );
 }

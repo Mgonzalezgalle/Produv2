@@ -704,7 +704,7 @@ export function TreasuryModule(props) {
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
-      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} />
+      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} empresa={props.empresa} platformApi={props.platformApi} currentUser={props.user} ntf={props.ntf} />
       <IssuedOrderDetailModal
         open={issuedDetailOpen}
         order={issuedDetailItem}

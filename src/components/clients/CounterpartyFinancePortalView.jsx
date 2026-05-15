@@ -220,9 +220,9 @@ function PublicFinanceShell({ children }) {
 function PortalBrandFooter() {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "18px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
-        <div style={{ fontSize: 13, color: "#6b7c93" }}>
-          Correo creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "16px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 13, color: "#6b7c93", textAlign: "center" }}>
+          Portal creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
         </div>
       </div>
       <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
@@ -241,44 +241,44 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
   };
   const current = palette[tone] || palette.blue;
   return (
-    <div style={{ background: current.bg, border: `1px solid ${current.border}`, borderRadius: 24, padding: "18px 18px 16px", minHeight: 116 }}>
-      <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: current.label, fontWeight: 800, marginBottom: 12 }}>{eyebrow}</div>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.05, color: current.value }}>{value}</div>
+    <div style={{ background: current.bg, border: `1px solid ${current.border}`, borderRadius: 22, padding: "15px 16px 14px", minHeight: 96 }}>
+      <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: current.label, fontWeight: 800, marginBottom: 10 }}>{eyebrow}</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 23, fontWeight: 900, lineHeight: 1.05, color: current.value }}>{value}</div>
     </div>
   );
 }
 
 function FinanceHero({ type = "client", companyName = "", counterpartyName = "", identity = "", subtitle = "", onClosePortal = null }) {
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 32, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
-      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "20px 24px" }}>
+    <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 28, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
+      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "16px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 50, height: 50, borderRadius: 16, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14 }}>
               {getInitials(companyName)}
             </div>
             <div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
-              <div style={{ fontSize: 13, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
+              <div style={{ fontSize: 12, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
             </div>
           </div>
-          <GBtn onClick={onClosePortal}>Cerrar portal</GBtn>
+          <GBtn onClick={onClosePortal} s={{ borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 700, borderColor: "rgba(255,255,255,.42)", color: "#ffffff", background: "rgba(255,255,255,.08)" }}>Cerrar portal</GBtn>
         </div>
       </div>
-      <div style={{ padding: "24px 24px 20px", display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(300px,.65fr)", gap: 18 }}>
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-          <div style={{ width: 66, height: 66, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, flexShrink: 0 }}>
+      <div style={{ padding: "20px 20px 18px", display: "grid", gridTemplateColumns: "minmax(0,1.45fr) minmax(280px,.55fr)", gap: 16 }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <div style={{ width: 58, height: 58, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, fontWeight: 900, flexShrink: 0 }}>
             {getInitials(counterpartyName)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, lineHeight: 1.04, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
-            <div style={{ marginTop: 8, fontSize: 14, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
-            <div style={{ marginTop: 14, fontSize: 14, lineHeight: 1.7, color: "#4c5f79", maxWidth: 720 }}>{subtitle}</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.04, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
+            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.65, color: "#4c5f79", maxWidth: 680 }}>{subtitle}</div>
           </div>
         </div>
-        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 22, padding: 18 }}>
-          <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: "#6f7f98", fontWeight: 800, marginBottom: 10 }}>Qué puedes hacer aquí</div>
-          <div style={{ display: "grid", gap: 10, fontSize: 13, color: "#465b78", lineHeight: 1.6 }}>
+        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 20, padding: 16 }}>
+          <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#6f7f98", fontWeight: 800, marginBottom: 8 }}>Qué puedes hacer aquí</div>
+          <div style={{ display: "grid", gap: 8, fontSize: 12.5, color: "#465b78", lineHeight: 1.55 }}>
             <div>• Revisar documentos, vencimientos y pagos asociados a tu cuenta.</div>
             <div>• Ver órdenes de compra y el estado de cada documento.</div>
             <div>• Consultar línea de crédito, saldos pendientes y documentos cerrados.</div>
@@ -294,8 +294,8 @@ function SectionActionBar({ onCsv = null, onPdf = null, right = null }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {onCsv ? <GBtn onClick={onCsv}>Descargar CSV</GBtn> : null}
-        {onPdf ? <GBtn onClick={onPdf}>Descargar PDF</GBtn> : null}
+        {onCsv ? <GBtn onClick={onCsv} s={{ borderRadius: 999, padding: "8px 13px", fontSize: 12, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar CSV</GBtn> : null}
+        {onPdf ? <GBtn onClick={onPdf} s={{ borderRadius: 999, padding: "8px 13px", fontSize: 12, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar PDF</GBtn> : null}
       </div>
       {right ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{right}</div> : null}
     </div>
@@ -395,7 +395,7 @@ function PortalGate({ payload, onUnlock }) {
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>
             {payload?.type === "provider" ? "Portal proveedores" : "Portal cuentas por cobrar"}
           </div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
           <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 10 }}>
             Este espacio fue preparado por <b style={{ color: "#0f172a" }}>{company}</b> para revisar documentos, pagos, órdenes de compra y presupuestos relacionados.
           </div>
@@ -426,7 +426,7 @@ function PortalGate({ payload, onUnlock }) {
               />
               {error ? <div style={{ color: "#c2410c", fontSize: 13 }}>{error}</div> : null}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Btn onClick={handleSubmit} disabled={!canSubmit}>Entrar al portal</Btn>
+                <Btn onClick={handleSubmit} disabled={!canSubmit} s={{ borderRadius: 999, padding: "10px 16px", fontSize: 12, fontWeight: 800 }}>Entrar al portal</Btn>
               </div>
             </div>
           </div>
@@ -452,8 +452,8 @@ function SectionTabs({ type, tab, setTab }) {
             border: `1px solid ${tab === key ? "#7cb2ea" : "#dbe7f5"}`,
             background: tab === key ? "#2f6ea8" : "#ffffff",
             color: tab === key ? "#ffffff" : "#35506d",
-            padding: "12px 18px",
-            fontSize: 14,
+            padding: "10px 15px",
+            fontSize: 12,
             fontWeight: 800,
             cursor: "pointer",
           }}
@@ -464,6 +464,59 @@ function SectionTabs({ type, tab, setTab }) {
     </div>
   );
 }
+
+const portalFieldStyle = {
+  minWidth: 180,
+  borderRadius: 12,
+  border: "1px solid #d7e4f5",
+  background: "#ffffff",
+  padding: "10px 12px",
+  fontSize: 13,
+  color: "#35506d",
+};
+
+const portalTableWrapStyle = {
+  overflowX: "auto",
+  border: "1px solid #dbe6f3",
+  borderRadius: 18,
+  background: "#fbfdff",
+};
+
+const portalTableStyle = {
+  width: "100%",
+  borderCollapse: "separate",
+  borderSpacing: 0,
+};
+
+const portalThStyle = {
+  padding: "11px 12px",
+  fontSize: 9.5,
+  letterSpacing: 1.5,
+};
+
+const portalTdStyle = {
+  padding: "11px 12px",
+  fontSize: 12,
+  lineHeight: 1.4,
+};
+
+const portalSecondaryBtnStyle = {
+  borderRadius: 999,
+  padding: "7px 12px",
+  fontSize: 11.5,
+  fontWeight: 700,
+  borderColor: "#d7e4f5",
+  color: "#35506d",
+  background: "#ffffff",
+};
+
+const portalPrimaryBtnStyle = {
+  borderRadius: 999,
+  padding: "8px 13px",
+  fontSize: 11.5,
+  fontWeight: 800,
+  boxShadow: "0 10px 24px rgba(47,110,168,.16)",
+};
 
 function buildPortalActor(payload = null) {
   const type = payload?.type === "provider" ? "supplier_finance_portal" : "client_finance_portal";
@@ -757,7 +810,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
         <PortalMetricCard eyebrow="Total por pagar" value={fmtMoney(receivableSummary.pending)} tone="blue" />
         <PortalMetricCard eyebrow="A tiempo" value={fmtMoney(onTimePending)} tone="green" />
         <PortalMetricCard eyebrow="Vencido" value={fmtMoney(overduePending)} tone="red" />
@@ -765,9 +818,9 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       </div>
       <SectionTabs type="client" tab={tab} setTab={setTab} />
       {tab === "resumen" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
           <Card title="Resumen financiero" sub="Aquí puedes revisar el estado actual de tus documentos, pagos y compromisos abiertos.">
-            <div style={{ display: "grid", gap: 10, fontSize: 14, color: "#53657e" }}>
+            <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Total por pagar:</b> {fmtMoney(receivableSummary.pending)}</div>
               <div><b style={{ color: "#0f172a" }}>Documentos vencidos:</b> {receivableSummary.overdueDocs}</div>
               <div><b style={{ color: "#0f172a" }}>Órdenes de compra recibidas:</b> {purchaseOrderSummary.docs}</div>
@@ -776,7 +829,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
             </div>
           </Card>
           <Card title="Lo más importante hoy" sub="Señales rápidas para saber qué revisar primero.">
-            <div style={{ display: "grid", gap: 10, fontSize: 14, color: "#53657e" }}>
+            <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div>• {receivableSummary.overdueDocs} documento(s) están vencidos.</div>
               <div>• {purchaseOrders.filter(item => item.pendingAmount > 0).length} orden(es) de compra siguen parcialmente abiertas.</div>
               <div>• {pendingBudgets.length} presupuesto(s) siguen pendientes de cierre.</div>
@@ -787,34 +840,34 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       {tab === "documentos" ? (
         <Card title="Facturas y documentos" sub="Revisa tus documentos, filtra por estado y paga en línea cuando el documento ya tenga un link activo en Produ.">
           <SectionActionBar onCsv={exportReceivablesCsv} onPdf={exportReceivablesPdf} />
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-            <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por número, tipo o estado" style={{ minWidth: 220, flex: "1 1 260px", borderRadius: 14, border: "1px solid #d7e4f5", background: "#f9fbff", padding: "12px 14px", fontSize: 14 }} />
-            <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={{ minWidth: 180, borderRadius: 14, border: "1px solid #d7e4f5", background: "#ffffff", padding: "12px 14px", fontSize: 14 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por número, tipo o estado" style={{ ...portalFieldStyle, minWidth: 220, flex: "1 1 260px", background: "#f9fbff" }} />
+            <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={portalFieldStyle}>
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
               <option value="overdue">Vencidos</option>
               <option value="paid">Pagados</option>
             </select>
           </div>
-          {visibleReceivables.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Tipo de documento</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Pagos</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
+          {visibleReceivables.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Número</TH><TH style={portalThStyle}>Tipo de documento</TH><TH style={portalThStyle}>Emisión</TH><TH style={portalThStyle}>Vencimiento</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Saldo</TH><TH style={portalThStyle}>Pagos</TH><TH style={portalThStyle}>Estado</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
             <tbody>{visibleReceivables.map(row => {
               const paymentLink = String(row?.mercadoPago?.initPoint || "").trim();
               return (
                 <tr key={row.id}>
-                  <TD>{row.correlativo || "—"}</TD>
-                  <TD>{safeText(row.tipoDoc || row.documentTypeCode || "Documento")}</TD>
-                  <TD>{fmtDate(row.fecha || row.fechaEmision)}</TD>
-                  <TD>{fmtDate(row.fechaVencimiento)}</TD>
-                  <TD>{fmtMoney(row.total)}</TD>
-                  <TD>{fmtMoney(row.pending)}</TD>
-                  <TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD>
-                  <TD><Badge label={resolveReceivableState(row).label} color={resolveReceivableState(row).color} sm /></TD>
-                  <TD>
+                  <TD style={portalTdStyle}>{row.correlativo || "—"}</TD>
+                  <TD style={portalTdStyle}>{safeText(row.tipoDoc || row.documentTypeCode || "Documento")}</TD>
+                  <TD style={portalTdStyle}>{fmtDate(row.fecha || row.fechaEmision)}</TD>
+                  <TD style={portalTdStyle}>{fmtDate(row.fechaVencimiento)}</TD>
+                  <TD style={portalTdStyle}>{fmtMoney(row.total)}</TD>
+                  <TD style={portalTdStyle}>{fmtMoney(row.pending)}</TD>
+                  <TD style={portalTdStyle}>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD>
+                  <TD style={portalTdStyle}><Badge label={resolveReceivableState(row).label} color={resolveReceivableState(row).color} sm /></TD>
+                  <TD style={portalTdStyle}>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Vista de documento ${row.correlativo || row.id}` })}>Ver</GBtn> : null}
-                      {row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Descarga de documento ${row.correlativo || row.id}`, mode: "download" })}>Descargar</GBtn> : null}
-                      {paymentLink ? <Btn onClick={() => onPortalAction?.({ type: "open_payment_link", url: paymentLink, entityType: "invoice", entityId: row.id, summary: `Intento de pago para ${row.correlativo || row.id}`, notify: true, email: true })}>Pagar ahora</Btn> : <GBtn disabled>Sin link de pago</GBtn>}
+                      {row.pdfUrl ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Vista de documento ${row.correlativo || row.id}` })}>Ver</GBtn> : null}
+                      {row.pdfUrl ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Descarga de documento ${row.correlativo || row.id}`, mode: "download" })}>Descargar</GBtn> : null}
+                      {paymentLink ? <Btn s={portalPrimaryBtnStyle} onClick={() => onPortalAction?.({ type: "open_payment_link", url: paymentLink, entityType: "invoice", entityId: row.id, summary: `Intento de pago para ${row.correlativo || row.id}`, notify: true, email: true })}>Pagar ahora</Btn> : <GBtn s={portalSecondaryBtnStyle}>Sin link de pago</GBtn>}
                     </div>
                   </TD>
                 </tr>
@@ -826,9 +879,9 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       {tab === "ordenes" ? (
         <Card title="Órdenes de compra recibidas" sub="Aquí puedes revisar las OC recibidas y su avance dentro de Produ.">
           <SectionActionBar onCsv={exportPurchaseOrdersCsv} onPdf={exportPurchaseOrdersPdf} />
-          {purchaseOrders.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Facturación</TH><TH>Saldo OC</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{purchaseOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><Badge label={row.billingStatus || "Pendiente"} color={row.pendingAmount <= 0 ? "green" : "cyan"} sm /></TD><TD>{fmtMoney(row.pendingAmount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Vista de OC ${row.number || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Descarga de OC ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+          {purchaseOrders.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Número</TH><TH style={portalThStyle}>Emisión</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Facturación</TH><TH style={portalThStyle}>Saldo OC</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
+            <tbody>{purchaseOrders.map(row => <tr key={row.id}><TD style={portalTdStyle}>{row.number || "—"}</TD><TD style={portalTdStyle}>{fmtDate(row.issueDate)}</TD><TD style={portalTdStyle}>{fmtMoney(row.amount)}</TD><TD style={portalTdStyle}><Badge label={row.billingStatus || "Pendiente"} color={row.pendingAmount <= 0 ? "green" : "cyan"} sm /></TD><TD style={portalTdStyle}>{fmtMoney(row.pendingAmount)}</TD><TD style={portalTdStyle}><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Vista de OC ${row.number || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Descarga de OC ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin órdenes de compra registradas" sub="Cuando se carguen OC para este cliente, aparecerán aquí." />}
         </Card>
       ) : null}
@@ -848,10 +901,10 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
                   <TD>{safeText(row.observacion || row.portalClientComment || row.clientPortalDecision?.note || "", "Sin observación")}</TD>
                   <TD>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                      <GBtn onClick={() => void previewBudgetRow(row)}>Ver</GBtn>
-                      <GBtn onClick={() => void downloadBudgetRow(row)}>Descargar</GBtn>
-                      <Btn onClick={() => { setBudgetDecision({ id: row.id, status: "approved", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Aprobar</Btn>
-                      <GBtn onClick={() => { setBudgetDecision({ id: row.id, status: "observed", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Observar</GBtn>
+                      <GBtn s={portalSecondaryBtnStyle} onClick={() => void previewBudgetRow(row)}>Ver</GBtn>
+                      <GBtn s={portalSecondaryBtnStyle} onClick={() => void downloadBudgetRow(row)}>Descargar</GBtn>
+                      <Btn s={portalPrimaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "approved", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Aprobar</Btn>
+                      <GBtn s={portalSecondaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "observed", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Observar</GBtn>
                     </div>
                   </TD>
                 </tr>
@@ -863,9 +916,9 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       {tab === "pagos" ? (
         <Card title="Pagos registrados" sub="Aquí puedes revisar los pagos ya asociados a tus documentos.">
           <SectionActionBar onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
-          {receiptLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Estado documento</TH><TH>Saldo documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{receiptLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.targetPending || 0)}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+          {receiptLog.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Fecha</TH><TH style={portalThStyle}>Documento</TH><TH style={portalThStyle}>Estado documento</TH><TH style={portalThStyle}>Saldo documento</TH><TH style={portalThStyle}>Método</TH><TH style={portalThStyle}>Referencia</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
+            <tbody>{receiptLog.map(row => <tr key={row.id}><TD style={portalTdStyle}>{fmtDate(row.date)}</TD><TD style={portalTdStyle}>{row.targetLabel || "—"}</TD><TD style={portalTdStyle}><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD style={portalTdStyle}>{fmtMoney(row.targetPending || 0)}</TD><TD style={portalTdStyle}>{safeText(row.method)}</TD><TD style={portalTdStyle}>{safeText(row.reference)}</TD><TD style={portalTdStyle}>{fmtMoney(row.amount)}</TD><TD style={portalTdStyle}><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin pagos registrados" sub="Los pagos conciliados aparecerán aquí." />}
         </Card>
       ) : null}
@@ -1058,7 +1111,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
         <PortalMetricCard eyebrow="Total por pagar" value={fmtMoney(payablesSummary.pending)} tone="blue" />
         <PortalMetricCard eyebrow="A tiempo" value={fmtMoney(Math.max(0, Number(payablesSummary.pending || 0) - Number(payablesSummary.overdue || 0)))} tone="green" />
         <PortalMetricCard eyebrow="Vencido" value={fmtMoney(payablesSummary.overdue)} tone="red" />
@@ -1066,9 +1119,9 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       </div>
       <SectionTabs type="provider" tab={tab} setTab={setTab} />
       {tab === "resumen" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
           <Card title="Resumen financiero" sub="Una vista simple del estado documental y de pagos de este proveedor.">
-            <div style={{ display: "grid", gap: 10, fontSize: 14, color: "#53657e" }}>
+            <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Documentos abiertos:</b> {payablesSummary.docs}</div>
               <div><b style={{ color: "#0f172a" }}>Monto por pagar:</b> {fmtMoney(payablesSummary.pending)}</div>
               <div><b style={{ color: "#0f172a" }}>Órdenes de compra emitidas:</b> {issuedOrderSummary.docs}</div>
@@ -1076,7 +1129,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
             </div>
           </Card>
           <Card title="Lo más importante hoy" sub="Señales rápidas para saber qué revisar primero.">
-            <div style={{ display: "grid", gap: 10, fontSize: 14, color: "#53657e" }}>
+            <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div>• {payables.filter(item => item.status === "Vencida").length} documento(s) están vencidos.</div>
               <div>• {disbursementLog.length} pago(s) ya fueron registrados.</div>
               <div>• {issuedOrders.length} orden(es) de compra emitidas están visibles en este portal.</div>
@@ -1087,36 +1140,36 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       {tab === "documentos" ? (
         <Card title="Documentos por pagar" sub="Revisa folios, vencimientos y saldo de cada documento asociado a este proveedor.">
           <SectionActionBar onCsv={exportPayablesCsv} onPdf={exportPayablesPdf} />
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-            <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por folio, tipo o estado" style={{ minWidth: 220, flex: "1 1 260px", borderRadius: 14, border: "1px solid #d7e4f5", background: "#f9fbff", padding: "12px 14px", fontSize: 14 }} />
-            <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={{ minWidth: 180, borderRadius: 14, border: "1px solid #d7e4f5", background: "#ffffff", padding: "12px 14px", fontSize: 14 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por folio, tipo o estado" style={{ ...portalFieldStyle, minWidth: 220, flex: "1 1 260px", background: "#f9fbff" }} />
+            <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={portalFieldStyle}>
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
               <option value="overdue">Vencidos</option>
               <option value="paid">Pagados</option>
             </select>
           </div>
-          {visiblePayables.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Tipo</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Pagos</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{visiblePayables.map(row => { const state = resolvePayableState(row); return <tr key={row.id}><TD>{row.folio || "—"}</TD><TD>{row.docType || "Documento"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtDate(row.dueDate)}</TD><TD>{fmtMoney(row.total)}</TD><TD>{fmtMoney(row.pending)}</TD><TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD><TD><Badge label={state.label} color={state.color} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Vista de documento ${row.folio || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Descarga de documento ${row.folio || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>; })}</tbody>
+          {visiblePayables.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Número</TH><TH style={portalThStyle}>Tipo</TH><TH style={portalThStyle}>Emisión</TH><TH style={portalThStyle}>Vencimiento</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Saldo</TH><TH style={portalThStyle}>Pagos</TH><TH style={portalThStyle}>Estado</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
+            <tbody>{visiblePayables.map(row => { const state = resolvePayableState(row); return <tr key={row.id}><TD style={portalTdStyle}>{row.folio || "—"}</TD><TD style={portalTdStyle}>{row.docType || "Documento"}</TD><TD style={portalTdStyle}>{fmtDate(row.issueDate)}</TD><TD style={portalTdStyle}>{fmtDate(row.dueDate)}</TD><TD style={portalTdStyle}>{fmtMoney(row.total)}</TD><TD style={portalTdStyle}>{fmtMoney(row.pending)}</TD><TD style={portalTdStyle}>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD><TD style={portalTdStyle}><Badge label={state.label} color={state.color} sm /></TD><TD style={portalTdStyle}><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Vista de documento ${row.folio || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Descarga de documento ${row.folio || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>; })}</tbody>
           </table></div> : <Empty text="Sin documentos para este filtro" sub="Ajusta la búsqueda o vuelve a revisar más tarde." />}
         </Card>
       ) : null}
       {tab === "ordenes" ? (
         <Card title="Órdenes de compra emitidas" sub="Órdenes emitidas desde Produ para este proveedor.">
           <SectionActionBar onCsv={exportIssuedOrdersCsv} onPdf={exportIssuedOrdersPdf} />
-          {issuedOrders.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Ítems</TH><TH>Aprobación</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Vista de OC emitida ${row.number || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Descarga de OC emitida ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+          {issuedOrders.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Número</TH><TH style={portalThStyle}>Emisión</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Ítems</TH><TH style={portalThStyle}>Aprobación</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
+            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD style={portalTdStyle}>{row.number || "—"}</TD><TD style={portalTdStyle}>{fmtDate(row.issueDate)}</TD><TD style={portalTdStyle}>{fmtMoney(row.amount)}</TD><TD style={portalTdStyle}>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD style={portalTdStyle}><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD><TD style={portalTdStyle}><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Vista de OC emitida ${row.number || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Descarga de OC emitida ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin órdenes emitidas" sub="Las órdenes emitidas desde Produ aparecerán aquí." />}
         </Card>
       ) : null}
       {tab === "pagos" ? (
         <Card title="Pagos registrados" sub="Pagos ya aplicados sobre documentos de este proveedor.">
           <SectionActionBar onCsv={exportDisbursementsCsv} onPdf={exportDisbursementsPdf} />
-          {disbursementLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Estado documento</TH><TH>Saldo documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{disbursementLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.targetPending || 0)}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+          {disbursementLog.length ? <div style={portalTableWrapStyle}><table style={portalTableStyle}>
+            <thead><tr><TH style={portalThStyle}>Fecha</TH><TH style={portalThStyle}>Documento</TH><TH style={portalThStyle}>Estado documento</TH><TH style={portalThStyle}>Saldo documento</TH><TH style={portalThStyle}>Método</TH><TH style={portalThStyle}>Referencia</TH><TH style={portalThStyle}>Monto</TH><TH style={portalThStyle}>Acciones</TH></tr></thead>
+            <tbody>{disbursementLog.map(row => <tr key={row.id}><TD style={portalTdStyle}>{fmtDate(row.date)}</TD><TD style={portalTdStyle}>{row.targetLabel || "—"}</TD><TD style={portalTdStyle}><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD style={portalTdStyle}>{fmtMoney(row.targetPending || 0)}</TD><TD style={portalTdStyle}>{safeText(row.method)}</TD><TD style={portalTdStyle}>{safeText(row.reference)}</TD><TD style={portalTdStyle}>{fmtMoney(row.amount)}</TD><TD style={portalTdStyle}><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "preview_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn s={portalSecondaryBtnStyle} onClick={() => onPortalAction?.({ type: "download_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin pagos registrados" sub="Los pagos realizados se verán aquí." />}
         </Card>
       ) : null}

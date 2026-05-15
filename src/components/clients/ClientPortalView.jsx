@@ -182,9 +182,9 @@ function PublicPortalShell({ children }) {
 function PortalBrandFooter() {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "18px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
-        <div style={{ fontSize: 13, color: "#6b7c93" }}>
-          Correo creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "16px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 13, color: "#6b7c93", textAlign: "center" }}>
+          Portal creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
         </div>
       </div>
       <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
@@ -252,8 +252,8 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
       <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #dbe6f3", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
         <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eef8", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>Portal cliente</div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{client?.nom || "Cliente"}</div>
-          <div style={{ fontSize: 15, color: "#5b6b82", marginTop: 10 }}>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{client?.nom || "Cliente"}</div>
+          <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 10 }}>
             Estás entrando al espacio compartido por <b style={{ color: "#0f172a" }}>{empresa?.nombre || empresa?.nom || "Produ"}</b> para revisar avances, documentos y pendientes.
           </div>
         </div>
@@ -316,7 +316,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                 }}
               />
               <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                <Btn onClick={handleSubmit} s={{ minWidth: 180, opacity: canSubmit ? 1 : 0.65 }} disabled={!canSubmit}>Entrar al portal</Btn>
+                <Btn onClick={handleSubmit} s={{ minWidth: 180, opacity: canSubmit ? 1 : 0.65, borderRadius: 999, padding: "10px 16px", fontSize: 12, fontWeight: 800 }} disabled={!canSubmit}>Entrar al portal</Btn>
                 <div style={{ fontSize: 12, color: "#6b7c93" }}>Este acceso está pensado para revisar avances, responder piezas y revisar documentos.</div>
               </div>
             </div>

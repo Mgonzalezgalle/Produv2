@@ -10,15 +10,15 @@ export function useLabTheme({
   dbSet,
 }) {
   const DEFAULT_T = useMemo(() => ({
-    ...THEME_PRESETS.clasico.dark,
-    preset: "clasico",
-    mode: "dark",
+    ...(THEME_PRESETS.brand?.light || THEME_PRESETS.clasico.light),
+    preset: THEME_PRESETS.brand ? "brand" : "clasico",
+    mode: "light",
   }), [THEME_PRESETS]);
 
   const resolveTheme = useCallback((rawTheme) => {
-    const presetKey = rawTheme?.preset || "clasico";
-    const mode = rawTheme?.mode || "dark";
-    const preset = THEME_PRESETS[presetKey] || THEME_PRESETS.clasico;
+    const presetKey = rawTheme?.preset || (THEME_PRESETS.brand ? "brand" : "clasico");
+    const mode = rawTheme?.mode || "light";
+    const preset = THEME_PRESETS[presetKey] || THEME_PRESETS.brand || THEME_PRESETS.clasico;
     const base = preset[mode] || preset.dark;
     return { ...base, ...rawTheme, preset: presetKey, mode };
   }, [THEME_PRESETS]);

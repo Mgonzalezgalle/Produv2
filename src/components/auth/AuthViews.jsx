@@ -34,8 +34,8 @@ class AuthModalErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:18,width:560,maxWidth:"100%",padding:28}}>
+        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(244,248,253,.72)",backdropFilter:"blur(14px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",border:"1px solid var(--bdr2)",borderRadius:24,width:560,maxWidth:"100%",padding:28,boxShadow:"0 28px 80px rgba(15,23,42,.14)"}}>
             <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,marginBottom:8}}>No pudimos abrir este flujo</div>
             <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.7,marginBottom:18}}>
               El login siguió estable, pero el wizard de contratación encontró un error de render. Ya lo tomamos para corregirlo sin tocar `productivo`.
@@ -347,33 +347,33 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     onLogin(updatedUser, buildSecondFactorSessionMeta());
   };
 
-  const GRID="linear-gradient(var(--bdr) 1px,transparent 1px),linear-gradient(90deg,var(--bdr) 1px,transparent 1px)";
+  const GRID="linear-gradient(rgba(47,110,168,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(47,110,168,.09) 1px,transparent 1px)";
   return <><div className="login-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
-    <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.4}}/>
-    <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 60% 50% at 50% 50%,var(--cg) 0%,transparent 70%)"}}/>
+    <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.55}}/>
+    <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 18% 18%, rgba(79,135,215,.22) 0%, transparent 36%),radial-gradient(circle at 82% 14%, rgba(47,110,168,.16) 0%, transparent 34%),linear-gradient(180deg,#fbfdff 0%,#f4f8fd 56%,#eef4fb 100%)"}}/>
     <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
-      <div className="login-promo" style={{background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 10%, var(--card)),var(--card))",border:"1px solid var(--bdr2)",borderRadius:20,padding:32,boxShadow:"0 24px 80px #0009",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
+      <div className="login-promo" style={{background:"linear-gradient(180deg,#ffffff 0%,#f7fbff 100%)",border:"1px solid var(--bdr2)",borderRadius:28,padding:34,boxShadow:"0 28px 80px rgba(15,23,42,.10)",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
         <div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:20}}>Contratación guiada</div>
-          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:42,lineHeight:1,fontWeight:800,maxWidth:420,marginBottom:14}}>Activa tu empresa en Produ</div>
-          <div className="login-promo-copy" style={{fontSize:14,color:"var(--gr2)",lineHeight:1.7,maxWidth:460,marginBottom:16}}>Completa los datos de tu empresa, define el primer administrador y elige los addons que necesitas hoy. Ideal para productoras, agencias y equipos de contenido.</div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 13px",borderRadius:999,border:"1px solid rgba(47,110,168,.16)",background:"rgba(47,110,168,.08)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:22}}>Contratación guiada</div>
+          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:44,lineHeight:1.02,fontWeight:800,maxWidth:470,marginBottom:14,color:"#152033"}}>La misma claridad de la web, ahora desde tu primer ingreso.</div>
+          <div className="login-promo-copy" style={{fontSize:15,color:"#66748d",lineHeight:1.8,maxWidth:500,marginBottom:18}}>Activa tu empresa, define al primer administrador y arma la base operativa de Produ con un flujo simple, claro y mucho más cercano a la experiencia comercial de la marca.</div>
           <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
-            {[["Módulos","Activa solo lo que necesitas"],["Equipo","Invita usuarios y crew"],["Comercial","Presupuestos e invoices"]].map(([title,sub])=><div key={title} style={{padding:"14px 14px",borderRadius:16,background:"rgba(8,8,9,.28)",border:"1px solid var(--bdr2)"}}><div style={{fontSize:12,fontWeight:800,color:"var(--wh)",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.5}}>{sub}</div></div>)}
+            {[["Base","Clientes, proyectos y calendario"],["Operación","Producción, contenido y seguimiento"],["Comercial","Presupuestos, contratos y documentos"]].map(([title,sub])=><div key={title} style={{padding:"15px 15px",borderRadius:18,background:"#f8fbff",border:"1px solid #dbe6f3"}}><div style={{fontSize:12,fontWeight:800,color:"#152033",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"#66748d",lineHeight:1.55}}>{sub}</div></div>)}
           </div>
         </div>
-          <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:12,alignItems:"end"}}>
-          <div style={{padding:18,borderRadius:18,background:"rgba(6,10,18,.5)",border:"1px solid var(--bdr2)"}}>
-            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
-            <div style={{display:"grid",gap:8,fontSize:12,color:"var(--gr3)"}}>
+        <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.08fr .92fr",gap:12,alignItems:"end"}}>
+          <div style={{padding:18,borderRadius:22,background:"linear-gradient(180deg,#173a78 0%,#10204f 100%)",border:"1px solid rgba(23,58,120,.35)",color:"#eff5ff"}}>
+            <div style={{fontSize:11,color:"rgba(239,245,255,.72)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
+            <div style={{display:"grid",gap:8,fontSize:12,color:"#eff5ff"}}>
               <div>• Base Produ: dashboard, calendario, clientes y proyectos</div>
               <div>• Addons según tu operación comercial, financiera u operativa</div>
               <div>• Activación guiada y supervisada por el equipo de Produ</div>
             </div>
           </div>
-          <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{padding:"14px 18px",borderRadius:14,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:selfServeLoading?"wait":"pointer",fontSize:14,fontWeight:800,boxShadow:"0 14px 40px var(--cm)",opacity:selfServeLoading?0.8:1}}>{selfServeLoading?"Cargando...":"¿Quieres contratar Produ?"}</button>
+          <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{padding:"15px 18px",borderRadius:16,border:"1px solid rgba(47,110,168,.16)",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:selfServeLoading?"wait":"pointer",fontSize:14,fontWeight:800,boxShadow:"0 18px 36px rgba(47,110,168,.24)",opacity:selfServeLoading?0.8:1}}>{selfServeLoading?"Cargando...":"Quiero activar Produ"}</button>
         </div>
       </div>
-      <div className="login-form" style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:20,padding:40,boxShadow:"0 24px 80px #0009"}}>
+      <div className="login-form" style={{background:"#ffffff",border:"1px solid var(--bdr2)",borderRadius:28,padding:40,boxShadow:"0 28px 80px rgba(15,23,42,.12)"}}>
       <form
         onSubmit={e => {
           e.preventDefault();
@@ -390,13 +390,13 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
         <BrandLockup size="md" align="center" />
       </div>
         {!pending2FA && !forgotMode && <>
-        <div style={{fontSize:17,fontWeight:700,fontFamily:"var(--fh)",marginBottom:4,textAlign:"center"}}>Bienvenido de vuelta</div>
-        <div className="login-subcopy" style={{fontSize:12,color:"var(--gr2)",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo</div>
+        <div style={{fontSize:20,fontWeight:800,fontFamily:"var(--fh)",marginBottom:6,textAlign:"center",color:"#152033"}}>Bienvenido de vuelta</div>
+        <div className="login-subcopy" style={{fontSize:12,color:"#66748d",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo con la misma experiencia clara y moderna de Produ.</div>
         <FG label="Email"><FI type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.cl" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
         <FG label="Contraseña">
           <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,alignItems:"center"}}>
             <FI type={showPass?"text":"password"} autoComplete="current-password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&login()}/>
-            <button type="button" onClick={()=>setShowPass(v=>!v)} style={{height:38,padding:"0 12px",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--sur)",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+            <button type="button" onClick={()=>setShowPass(v=>!v)} style={{height:40,padding:"0 12px",borderRadius:12,border:"1px solid var(--bdr2)",background:"#f8fbff",color:"#42526b",cursor:"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
               {showPass?"Ocultar":"Ver"}
             </button>
           </div>
@@ -476,9 +476,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
           Si el código de tu app siempre falla, verifica que tu teléfono use hora automática o reconfigura el autenticador con un QR nuevo.
         </div>
       </>}
-      {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:6,padding:"8px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
-      {!forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:16}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
-      {forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:12,borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:14,fontWeight:700,opacity:load?.7:1,marginBottom:16}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
+      {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:12,padding:"10px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
+      {!forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(47,110,168,.22)"}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
+      {forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(47,110,168,.22)"}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
       {pending2FA
         ? <div style={{textAlign:"center"}}>
             {pending2FA.mode === "verify" && (

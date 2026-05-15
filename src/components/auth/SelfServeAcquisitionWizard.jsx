@@ -31,8 +31,8 @@ export class AuthModalErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:18,width:560,maxWidth:"100%",padding:28}}>
+        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(244,248,253,.76)",backdropFilter:"blur(14px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",border:"1px solid var(--bdr2)",borderRadius:24,width:560,maxWidth:"100%",padding:28,boxShadow:"0 28px 80px rgba(15,23,42,.14)"}}>
             <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,marginBottom:8}}>No pudimos abrir este flujo</div>
             <div style={{fontSize:12,color:"var(--gr2)",lineHeight:1.7,marginBottom:18}}>
               El login siguió estable, pero el wizard de contratación encontró un error de render. Ya lo tomamos para corregirlo sin tocar `productivo`.
@@ -246,23 +246,24 @@ export function SelfServeAcquisitionWizard({
     setSolSent(true);
   };
 
-  return <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.8)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:"var(--card)",border:"1px solid var(--bdr2)",borderRadius:18,width:1120,maxWidth:"100%",padding:28,animation:"modalIn .2s ease",maxHeight:"92vh",overflow:"auto"}}>
+  return <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(244,248,253,.78)",backdropFilter:"blur(16px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"linear-gradient(180deg,#ffffff 0%,#f8fbff 100%)",border:"1px solid var(--bdr2)",borderRadius:30,width:1120,maxWidth:"100%",padding:30,animation:"modalIn .2s ease",maxHeight:"92vh",overflow:"auto",boxShadow:"0 32px 100px rgba(15,23,42,.14)"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div>
-          <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:800,marginBottom:4}}>Contratar Produ</div>
-          <div style={{fontSize:12,color:"var(--gr2)"}}>Activación guiada de empresa, administrador y addons</div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid rgba(47,110,168,.16)",background:"rgba(47,110,168,.08)",color:"var(--cy)",fontSize:10,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Produ onboarding</div>
+          <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800,marginBottom:6,color:"#152033"}}>Activa tu empresa con una experiencia alineada a la marca</div>
+          <div style={{fontSize:13,color:"#66748d"}}>Empresa, administrador, addons y cierre comercial en un solo flujo claro.</div>
         </div>
-        <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:20}}>✕</button>
+        <button onClick={onClose} style={{background:"#fff",border:"1px solid var(--bdr2)",color:"#66748d",cursor:"pointer",fontSize:18,width:42,height:42,borderRadius:14,boxShadow:"0 12px 24px rgba(15,23,42,.08)"}}>✕</button>
       </div>
       {!solSent && <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:8,marginBottom:20}}>
         {stepMeta.map(item => {
           const active = item.id === step;
           const done = item.id < step;
           return (
-            <div key={item.id} style={{padding:"10px 12px",borderRadius:12,border:`1px solid ${active ? "var(--cy)" : "var(--bdr2)"}`,background:active ? "var(--cg)" : "var(--sur)"}}>
-              <div style={{fontSize:10,color:done ? "var(--cy)" : "var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:4}}>Paso {item.id}</div>
-              <div style={{fontSize:12,fontWeight:800,color:active ? "var(--wh)" : "var(--gr3)"}}>{item.label}</div>
+            <div key={item.id} style={{padding:"12px 14px",borderRadius:16,border:`1px solid ${active ? "rgba(47,110,168,.25)" : "var(--bdr2)"}`,background:active ? "rgba(47,110,168,.08)" : "#ffffff",boxShadow:active ? "0 14px 26px rgba(47,110,168,.08)" : "none"}}>
+              <div style={{fontSize:10,color:done || active ? "var(--cy)" : "#7b8aa3",textTransform:"uppercase",letterSpacing:1.1,marginBottom:4}}>Paso {item.id}</div>
+              <div style={{fontSize:12,fontWeight:800,color:active ? "#152033" : "#42526b"}}>{item.label}</div>
             </div>
           );
         })}
@@ -276,7 +277,7 @@ export function SelfServeAcquisitionWizard({
               ? "Tu solicitud quedó registrada para revisión. El equipo de Produ validará la empresa, los addons y el checkout antes de activar la instancia."
               : "Tu empresa quedó registrada como activación guiada. El equipo de Produ revisará los datos y te contactará para cerrar el alta."}
           </div>
-          <button onClick={onClose} style={{padding:"9px 24px",borderRadius:8,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:13,fontWeight:700}}>Cerrar</button>
+          <button onClick={onClose} style={{padding:"11px 24px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:800,boxShadow:"0 16px 30px rgba(47,110,168,.2)"}}>Cerrar</button>
         </div>
         :<div style={{display:"grid",gridTemplateColumns:"minmax(0,1.2fr) minmax(320px,.8fr)",gap:20}}>
           <div>
@@ -451,49 +452,49 @@ export function SelfServeAcquisitionWizard({
                 : <Btn onClick={saveAcquisitionDraft}>Registrar activación</Btn>}
             </div>
           </div>
-          <div style={{padding:18,borderRadius:18,border:"1px solid var(--bdr2)",background:"linear-gradient(145deg,color-mix(in srgb,var(--cy) 8%, var(--card)),var(--card))",alignSelf:"start",position:"sticky",top:0}}>
-            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>Resumen comercial</div>
-            <div style={{paddingBottom:14,borderBottom:"1px solid var(--bdr2)",marginBottom:14}}>
+          <div style={{padding:22,borderRadius:24,border:"1px solid rgba(23,58,120,.22)",background:"linear-gradient(180deg,#173a78 0%,#10204f 100%)",alignSelf:"start",position:"sticky",top:0,boxShadow:"0 24px 48px rgba(16,32,79,.18)"}}>
+            <div style={{fontSize:11,color:"rgba(239,245,255,.72)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>Resumen comercial</div>
+            <div style={{paddingBottom:14,borderBottom:"1px solid rgba(219,230,243,.16)",marginBottom:14}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:6}}>
                 <div>
-                  <div style={{fontSize:14,fontWeight:800}}>{baseProduct.label}</div>
-                  <div style={{fontSize:11,color:"var(--gr2)"}}>Incluye dashboard, calendario, clientes y proyectos</div>
+                  <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{baseProduct.label}</div>
+                  <div style={{fontSize:11,color:"rgba(239,245,255,.72)"}}>Incluye dashboard, calendario, clientes y proyectos</div>
                 </div>
-                <div style={{fontSize:14,fontWeight:800,color:"var(--cy)"}}>
+                <div style={{fontSize:14,fontWeight:800,color:"#8fbcff"}}>
                   {pricingSnapshot.base.promoMonthlyUF === 0 && pricingSnapshot.base.promoMonths > 0
                     ? `$0 por ${pricingSnapshot.base.promoMonths} meses`
                     : `${baseProduct.monthlyUF} UF`}
                 </div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {baseProduct.includes.map(item => <Badge key={item.code} label={item.label} color="gray" sm />)}
+                {baseProduct.includes.map(item => <Badge key={item.code} label={item.label} color="blue" sm />)}
               </div>
             </div>
-            <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>Addons elegidos</div>
+            <div style={{fontSize:11,color:"rgba(239,245,255,.72)",textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>Addons elegidos</div>
             <div style={{display:"grid",gap:8,marginBottom:14}}>
               {pricingSnapshot.addons.length
                 ? pricingSnapshot.addons.map(item => (
-                    <div key={item.code} style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:12}}>
+                    <div key={item.code} style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:12,color:"#eff5ff"}}>
                       <span>{item.label}</span>
                       <strong>{item.monthlyUF} UF</strong>
                     </div>
                   ))
-                : <div style={{fontSize:12,color:"var(--gr2)"}}>Todavía no agregas addons. Puedes partir solo con la base.</div>}
+                : <div style={{fontSize:12,color:"rgba(239,245,255,.72)"}}>Todavía no agregas addons. Puedes partir solo con la base.</div>}
             </div>
-            {!!recommendations.length && step === 3 && <div style={{padding:"12px 14px",borderRadius:14,border:"1px solid var(--bdr2)",background:"var(--sur)",marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:8}}>Recomendados</div>
+            {!!recommendations.length && step === 3 && <div style={{padding:"12px 14px",borderRadius:14,border:"1px solid rgba(143,188,255,.22)",background:"rgba(255,255,255,.08)",marginBottom:14}}>
+              <div style={{fontSize:11,color:"rgba(239,245,255,.72)",textTransform:"uppercase",letterSpacing:1.1,marginBottom:8}}>Recomendados</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                {recommendations.map(item => <button key={item.code} type="button" onClick={() => toggleModule(item.code)} style={{padding:"7px 10px",borderRadius:999,border:"1px solid var(--cm)",background:"var(--cg)",color:"var(--cy)",fontSize:11,fontWeight:700,cursor:"pointer"}}>{item.label}</button>)}
+                {recommendations.map(item => <button key={item.code} type="button" onClick={() => toggleModule(item.code)} style={{padding:"7px 10px",borderRadius:999,border:"1px solid rgba(143,188,255,.22)",background:"rgba(255,255,255,.08)",color:"#cfe3ff",fontSize:11,fontWeight:700,cursor:"pointer"}}>{item.label}</button>)}
               </div>
             </div>}
-            <div style={{paddingTop:14,borderTop:"1px solid var(--bdr2)",display:"grid",gap:8}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--gr2)"}}><span>Base</span><span>{pricingSnapshot.base.monthlyUF} UF</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--gr2)"}}><span>Addons</span><span>{pricingSnapshot.addonSubtotalUF} UF</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:16,fontWeight:800}}><span>Total estimado</span><span style={{color:"var(--cy)"}}>{pricingSnapshot.totalUF} {SELF_SERVE_PRICE_UNIT}</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--gr2)"}}><span>Equivalente referencial</span><span>{commercialSummary.totalClpFormatted}</span></div>
+            <div style={{paddingTop:14,borderTop:"1px solid rgba(219,230,243,.16)",display:"grid",gap:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"rgba(239,245,255,.72)"}}><span>Base</span><span>{pricingSnapshot.base.monthlyUF} UF</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"rgba(239,245,255,.72)"}}><span>Addons</span><span>{pricingSnapshot.addonSubtotalUF} UF</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:16,fontWeight:800,color:"#fff"}}><span>Total estimado</span><span style={{color:"#8fbcff"}}>{pricingSnapshot.totalUF} {SELF_SERVE_PRICE_UNIT}</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"rgba(239,245,255,.72)"}}><span>Equivalente referencial</span><span>{commercialSummary.totalClpFormatted}</span></div>
               {pricingSnapshot.base.promoMonths > 0 && (
-                <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid var(--cm)",background:"var(--cg)",fontSize:12,lineHeight:1.6,color:"var(--gr3)"}}>
-                  Pagarás <strong style={{color:"var(--wh)"}}>{commercialSummary.totalUF} {SELF_SERVE_PRICE_UNIT}</strong> desde el mes {pricingSnapshot.base.promoMonths + 1}, equivalente referencial a <strong style={{color:"var(--cy)"}}>{commercialSummary.totalClpFormatted}</strong> con UF en <strong>{commercialSummary.ufValueClp.toLocaleString("es-CL")} CLP</strong>.
+                <div style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(143,188,255,.22)",background:"rgba(255,255,255,.08)",fontSize:12,lineHeight:1.6,color:"#eff5ff"}}>
+                  Pagarás <strong style={{color:"#fff"}}>{commercialSummary.totalUF} {SELF_SERVE_PRICE_UNIT}</strong> desde el mes {pricingSnapshot.base.promoMonths + 1}, equivalente referencial a <strong style={{color:"#8fbcff"}}>{commercialSummary.totalClpFormatted}</strong> con UF en <strong>{commercialSummary.ufValueClp.toLocaleString("es-CL")} CLP</strong>.
                 </div>
               )}
             </div>

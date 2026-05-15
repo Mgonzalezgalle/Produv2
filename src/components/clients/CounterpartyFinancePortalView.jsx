@@ -208,8 +208,26 @@ function accessCodeSlots(code = "") {
 
 function PublicFinanceShell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #0f1f4a 0, #0f1f4a 112px, #eef4fc 112px, #f7faff 100%)", padding: "24px 20px 40px" }}>
-      <div style={{ maxWidth: 1320, margin: "0 auto" }}>{children}</div>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gap: 22 }}>
+        {children}
+        <PortalBrandFooter />
+      </div>
+    </div>
+  );
+}
+
+function PortalBrandFooter() {
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "18px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 13, color: "#6b7c93" }}>
+          Correo creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
+        </div>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
+        Plataforma de gestión para productoras audiovisuales.
+      </div>
     </div>
   );
 }
@@ -225,7 +243,7 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
   return (
     <div style={{ background: current.bg, border: `1px solid ${current.border}`, borderRadius: 24, padding: "18px 18px 16px", minHeight: 116 }}>
       <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: current.label, fontWeight: 800, marginBottom: 12 }}>{eyebrow}</div>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 34, fontWeight: 900, lineHeight: 1, color: current.value }}>{value}</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.05, color: current.value }}>{value}</div>
     </div>
   );
 }
@@ -233,34 +251,34 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
 function FinanceHero({ type = "client", companyName = "", counterpartyName = "", identity = "", subtitle = "", onClosePortal = null }) {
   return (
     <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 32, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
-      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "22px 28px" }}>
+      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "20px 24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 54, height: 54, borderRadius: 18, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 18 }}>
+            <div style={{ width: 50, height: 50, borderRadius: 16, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16 }}>
               {getInitials(companyName)}
             </div>
             <div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
-              <div style={{ fontSize: 14, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
+              <div style={{ fontSize: 13, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
             </div>
           </div>
           <GBtn onClick={onClosePortal}>Cerrar portal</GBtn>
         </div>
       </div>
-      <div style={{ padding: "28px 28px 24px", display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(300px,.65fr)", gap: 20 }}>
+      <div style={{ padding: "24px 24px 20px", display: "grid", gridTemplateColumns: "minmax(0,1.35fr) minmax(300px,.65fr)", gap: 18 }}>
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-          <div style={{ width: 76, height: 76, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, flexShrink: 0 }}>
+          <div style={{ width: 66, height: 66, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, flexShrink: 0 }}>
             {getInitials(counterpartyName)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 40, fontWeight: 900, lineHeight: 1.02, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
-            <div style={{ marginTop: 10, fontSize: 16, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
-            <div style={{ marginTop: 16, fontSize: 15, lineHeight: 1.7, color: "#4c5f79", maxWidth: 720 }}>{subtitle}</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, lineHeight: 1.04, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
+            <div style={{ marginTop: 8, fontSize: 14, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
+            <div style={{ marginTop: 14, fontSize: 14, lineHeight: 1.7, color: "#4c5f79", maxWidth: 720 }}>{subtitle}</div>
           </div>
         </div>
-        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 24, padding: 20 }}>
+        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 22, padding: 18 }}>
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: "#6f7f98", fontWeight: 800, marginBottom: 10 }}>Qué puedes hacer aquí</div>
-          <div style={{ display: "grid", gap: 12, fontSize: 14, color: "#465b78", lineHeight: 1.6 }}>
+          <div style={{ display: "grid", gap: 10, fontSize: 13, color: "#465b78", lineHeight: 1.6 }}>
             <div>• Revisar documentos, vencimientos y pagos asociados a tu cuenta.</div>
             <div>• Ver órdenes de compra y el estado de cada documento.</div>
             <div>• Consultar línea de crédito, saldos pendientes y documentos cerrados.</div>
@@ -274,7 +292,7 @@ function FinanceHero({ type = "client", companyName = "", counterpartyName = "",
 
 function SectionActionBar({ onCsv = null, onPdf = null, right = null }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {onCsv ? <GBtn onClick={onCsv}>Descargar CSV</GBtn> : null}
         {onPdf ? <GBtn onClick={onPdf}>Descargar PDF</GBtn> : null}
@@ -377,21 +395,21 @@ function PortalGate({ payload, onUnlock }) {
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>
             {payload?.type === "provider" ? "Portal proveedores" : "Portal cuentas por cobrar"}
           </div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 30, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
-          <div style={{ fontSize: 15, color: "#5b6b82", marginTop: 10 }}>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
+          <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 10 }}>
             Este espacio fue preparado por <b style={{ color: "#0f172a" }}>{company}</b> para revisar documentos, pagos, órdenes de compra y presupuestos relacionados.
           </div>
         </div>
         <div style={{ padding: 36, display: "grid", gap: 20 }}>
           <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 22, padding: 24 }}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Código de acceso</div>
-            <div style={{ fontSize: 14, color: "#5b6b82", lineHeight: 1.6, marginBottom: 18 }}>
+            <div style={{ fontSize: 13, color: "#5b6b82", lineHeight: 1.6, marginBottom: 18 }}>
               Ingresa el código de 6 dígitos que te compartieron para entrar a este portal financiero.
             </div>
             <div style={{ display: "grid", gap: 16 }}>
               <button type="button" onClick={() => codeInputRef.current?.focus()} style={{ display: "flex", gap: 10, flexWrap: "wrap", background: "transparent", border: "none", padding: 0, cursor: "text" }}>
                 {accessCodeSlots(code).map((digit, index) => (
-                  <div key={index} style={{ width: 54, height: 66, borderRadius: 18, border: `1px solid ${digit ? "#7cb2ea" : "#dbe7f5"}`, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#2f6ea8", boxShadow: digit ? "0 0 0 3px rgba(47,110,168,.08)" : "none" }}>
+                  <div key={index} style={{ width: 50, height: 60, borderRadius: 16, border: `1px solid ${digit ? "#7cb2ea" : "#dbe7f5"}`, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: "#2f6ea8", boxShadow: digit ? "0 0 0 3px rgba(47,110,168,.08)" : "none" }}>
                     {digit}
                   </div>
                 ))}
@@ -404,7 +422,7 @@ function PortalGate({ payload, onUnlock }) {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="Ingresa tu código"
-                style={{ width: "100%", borderRadius: 14, border: "1px solid #cfe0fb", padding: "12px 14px", fontSize: 15, color: "#0f172a", background: "#ffffff" }}
+                style={{ width: "100%", borderRadius: 14, border: "1px solid #cfe0fb", padding: "12px 14px", fontSize: 14, color: "#0f172a", background: "#ffffff" }}
               />
               {error ? <div style={{ color: "#c2410c", fontSize: 13 }}>{error}</div> : null}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -412,7 +430,6 @@ function PortalGate({ payload, onUnlock }) {
               </div>
             </div>
           </div>
-          <div style={{ textAlign: "center", fontSize: 12, color: "#7a8aa2" }}>Hecho con Produ</div>
         </div>
       </div>
     </PublicFinanceShell>
@@ -1482,9 +1499,6 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
           subtitle={subtitle}
           onClosePortal={() => { try { localStorage.removeItem(sessionKey); } catch {} window.location.reload(); }}
         />
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ fontSize: 12, color: "#7a8aa2", letterSpacing: 0.2 }}>Hecho con Produ</div>
-        </div>
         {payload.type === "provider"
           ? <ProviderFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} />
           : <ClientFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} onBudgetDecision={handleBudgetDecision} />}

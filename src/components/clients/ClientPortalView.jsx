@@ -170,8 +170,26 @@ function uniqueEmails(values = []) {
 
 function PublicPortalShell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.16), transparent 30%), radial-gradient(circle at top right, rgba(47,110,168,.08), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "40px 20px" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto" }}>{children}</div>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gap: 22 }}>
+        {children}
+        <PortalBrandFooter />
+      </div>
+    </div>
+  );
+}
+
+function PortalBrandFooter() {
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "18px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 13, color: "#6b7c93" }}>
+          Correo creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
+        </div>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
+        Plataforma de gestión para productoras audiovisuales.
+      </div>
     </div>
   );
 }

@@ -90,6 +90,18 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
   }));
   const removeContact = id => setDraft(current => ({ ...current, contactos: (current.contactos || []).filter(item => item.id !== id) }));
   const removeBank = id => setDraft(current => ({ ...current, bankAccounts: (current.bankAccounts || []).filter(item => item.id !== id) }));
+  const persistPortalDraft = async (nextDraft) => {
+    const snapshot = {
+      ...provider,
+      ...nextDraft,
+      name: nextDraft?.name || nextDraft?.razonSocial || provider?.name,
+    };
+    await onSave?.(snapshot, { keepOpen: true });
+    setDraft(current => ({
+      ...current,
+      financialPortal: normalizeProviderFinancePortal(snapshot.financialPortal, snapshot),
+    }));
+  };
   const submit = async () => {
     await onSave?.({
       ...provider,
@@ -244,7 +256,17 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 <div className="treasury-muted" style={{ fontSize: 12 }}>Este acceso externo está pensado para cuentas por pagar, pagos y órdenes de compra emitidas.</div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <GBtn sm onClick={() => setDraft(current => ({ ...current, financialPortal: { ...normalizeProviderFinancePortal(current.financialPortal, current), enabled: !normalizeProviderFinancePortal(current.financialPortal, current).enabled } }))}>
+                <GBtn sm onClick={async () => {
+                  const nextDraft = {
+                    ...draft,
+                    financialPortal: {
+                      ...normalizeProviderFinancePortal(draft.financialPortal, draft),
+                      enabled: !normalizeProviderFinancePortal(draft.financialPortal, draft).enabled,
+                    },
+                  };
+                  setDraft(nextDraft);
+                  await persistPortalDraft(nextDraft);
+                }}>
                   {normalizeProviderFinancePortal(draft.financialPortal, draft).enabled ? "Desactivar" : "Activar"}
                 </GBtn>
                 <GBtn sm onClick={() => {
@@ -279,23 +301,36 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 />
               </label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <GBtn sm onClick={() => setDraft(current => ({
-                  ...current,
-                  financialPortal: {
-                    ...normalizeProviderFinancePortal(current.financialPortal, current),
-                    accessCode: createFinancePortalAccessCode(),
-                  },
-                }))}>
+                <GBtn sm onClick={async () => {
+                  const nextDraft = {
+                    ...draft,
+                    financialPortal: {
+                      ...normalizeProviderFinancePortal(draft.financialPortal, draft),
+                      accessCode: createFinancePortalAccessCode(),
+                    },
+                  };
+                  setDraft(nextDraft);
+                  await persistPortalDraft(nextDraft);
+                }}>
                   Regenerar código
                 </GBtn>
-                <GBtn sm onClick={() => setDraft(current => ({
-                  ...current,
-                  financialPortal: {
-                    ...normalizeProviderFinancePortal(current.financialPortal, current),
-                    authorizedEmails: collectProviderFinancePortalEmails(current),
-                  },
-                }))}>
+                <GBtn sm onClick={async () => {
+                  const nextDraft = {
+                    ...draft,
+                    financialPortal: {
+                      ...normalizeProviderFinancePortal(draft.financialPortal, draft),
+                      authorizedEmails: collectProviderFinancePortalEmails(draft),
+                    },
+                  };
+                  setDraft(nextDraft);
+                  await persistPortalDraft(nextDraft);
+                }}>
                   Usar correos del proveedor
+                </GBtn>
+                <GBtn sm onClick={async () => {
+                  await persistPortalDraft(draft);
+                }}>
+                  Guardar acceso
                 </GBtn>
               </div>
             </div>

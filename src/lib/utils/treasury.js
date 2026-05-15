@@ -448,11 +448,25 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes
     .filter(item => item?.empId === empId)
     .map(item => {
       const invoice = docs.find(doc => doc.id === item.invoiceId);
+      const billingTypeCode = invoice?.documentTypeCode || invoice?.tipoDocumento || invoice?.tipoDoc;
+      const total = Number(invoice?.total || 0);
+      const pending = Math.max(0, total - Number(item.amount || 0));
+      const documentStatus = !invoice
+        ? "Documento no encontrado"
+        : pending <= 0
+          ? "Pagado"
+          : cobranzaState(invoice);
       return {
         ...item,
         amount: Number(item.amount || 0),
         targetLabel: invoice?.correlativo || invoice?.tipoDoc || item.reference || "Documento",
         counterpartyLabel: invoice ? invoiceEntityName(invoice, clientes, auspiciadores) : "—",
+        targetId: invoice?.id || "",
+        targetPdfUrl: invoice?.pdfUrl || invoice?.externalSync?.pdfUrl || "",
+        targetPdfName: invoice?.pdfName || `${invoice?.correlativo || "documento"}.pdf`,
+        targetDocumentType: invoice ? getProduBillingDocumentTypeLabel(billingTypeCode) : "Documento",
+        targetPending: invoice ? Math.max(0, total - Number(normalizePayments(receipts, empId, "invoiceId", invoice.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0))) : 0,
+        targetStatus: documentStatus,
       };
     })
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
@@ -464,11 +478,28 @@ export function buildTreasuryDisbursementLog({ disbursements = [], payables = []
     .filter(item => item?.empId === empId)
     .map(item => {
       const payable = docs.find(doc => doc.id === item.payableId);
+      const total = Number(payable?.total || 0);
+      const targetPaymentHistory = payable?.id ? normalizePayments(disbursements, empId, "payableId", payable.id) : [];
+      const targetPaid = targetPaymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const targetPending = Math.max(0, total - targetPaid);
+      const targetStatus = !payable
+        ? "Documento no encontrado"
+        : targetPending <= 0
+          ? "Pagada"
+          : targetPaid > 0
+            ? "Pago parcial"
+            : payable?.status || "Pendiente";
       return {
         ...item,
         amount: Number(item.amount || 0),
         targetLabel: payable?.folio || payable?.supplier || item.reference || "Cuenta por pagar",
         counterpartyLabel: payable?.supplier || "—",
+        targetId: payable?.id || "",
+        targetPdfUrl: payable?.pdfUrl || "",
+        targetPdfName: payable?.pdfName || `${payable?.folio || "documento"}.pdf`,
+        targetDocumentType: payable?.docType || payable?.category || "Documento",
+        targetPending,
+        targetStatus,
       };
     })
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));

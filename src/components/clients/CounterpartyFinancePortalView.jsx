@@ -18,7 +18,7 @@ import {
   summarizeStoredPayables,
   summarizeTreasuryReceivables,
 } from "../../lib/utils/treasury";
-import { Badge, Btn, Card, Empty, GBtn, TH, TD } from "../../lib/ui/components";
+import { Badge, Btn, Card, Empty, GBtn, Modal, TH, TD } from "../../lib/ui/components";
 import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
 import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
@@ -56,6 +56,21 @@ function openExternalLink(value = "") {
   const link = String(value || "").trim();
   if (!link) return;
   window.open(link, "_blank", "noopener,noreferrer");
+}
+
+function openBlobInNewTab(blob, fileName = "archivo.pdf") {
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+    anchor.download = fileName;
+    anchor.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 8000);
 }
 
 function downloadUrl(url = "", fileName = "archivo") {
@@ -96,7 +111,7 @@ async function getSimplePdfBlobRuntime() {
   return simplePdfBlobRuntimePromise;
 }
 
-async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf" } = {}) {
+async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8" } = {}) {
   const buildSimplePdfBlob = await getSimplePdfBlobRuntime();
   const lines = [
     { text: "PRODU", size: 18, bold: true, color: accent, gap: 18 },
@@ -115,13 +130,75 @@ async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent
       lines.push({ text: " ", size: 4, color: "#ffffff", gap: 6 });
     });
   }
-  const blob = buildSimplePdfBlob(lines, accent);
+  return buildSimplePdfBlob(lines, accent);
+}
+
+async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf" } = {}) {
+  const blob = await buildSectionPdfBlob({ title, subtitle, rows, accent });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+async function openSectionPdf(options = {}) {
+  const blob = await buildSectionPdfBlob(options);
+  openBlobInNewTab(blob, options.fileName || "produ_portal.pdf");
+}
+
+function resolvePortalDocumentUrl(row = {}) {
+  return String(
+    row?.pdfUrl
+    || row?.targetPdfUrl
+    || row?.externalSync?.pdfUrl
+    || row?.url
+    || "",
+  ).trim();
+}
+
+function resolvePortalDocumentName(row = {}, fallback = "documento.pdf") {
+  return String(
+    row?.pdfName
+    || row?.targetPdfName
+    || fallback,
+  ).trim() || fallback;
+}
+
+function resolveReceivableState(row = {}) {
+  if (Number(row.pending || 0) <= 0) return { label: "Pagado", color: "green" };
+  if (Number(row.paid || 0) > 0) return { label: "Pago parcial", color: row.bucket === "Vencido" ? "orange" : "cyan" };
+  if (row.bucket === "Vencido") return { label: "Vencido", color: "orange" };
+  return { label: "Pendiente de pago", color: "cyan" };
+}
+
+function resolvePayableState(row = {}) {
+  if (Number(row.pending || 0) <= 0) return { label: "Pagada", color: "green" };
+  if (Number(row.paid || 0) > 0) return { label: "Pago parcial", color: row.status === "Vencida" ? "orange" : "cyan" };
+  if (row.status === "Vencida") return { label: "Vencida", color: "orange" };
+  return { label: "Pendiente de pago", color: "cyan" };
+}
+
+function resolveBudgetPortalState(row = {}) {
+  const portalStatus = String(row?.clientPortalDecision?.status || "").toLowerCase();
+  if (portalStatus === "approved") return { label: "Aprobado por cliente", color: "green" };
+  if (portalStatus === "rejected" || portalStatus === "observed") return { label: "Observado por cliente", color: "orange" };
+  const status = String(row?.estado || "").toLowerCase();
+  if (status.includes("acept")) return { label: "Aceptado", color: "green" };
+  if (status.includes("rechaz")) return { label: "Rechazado", color: "red" };
+  return { label: "Pendiente de respuesta", color: "purple" };
+}
+
+function normalizeRecipientList(values = []) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .map(item => String(item || "").trim().toLowerCase())
+    .filter(item => item.includes("@") && !seen.has(item) && seen.add(item));
+}
+
+function pickRecordEmails(record = {}, keys = []) {
+  return normalizeRecipientList(keys.map(key => record?.[key]));
 }
 
 function accessCodeSlots(code = "") {
@@ -335,6 +412,7 @@ function PortalGate({ payload, onUnlock }) {
               </div>
             </div>
           </div>
+          <div style={{ textAlign: "center", fontSize: 12, color: "#7a8aa2" }}>Hecho con Produ</div>
         </div>
       </div>
     </PublicFinanceShell>
@@ -343,7 +421,7 @@ function PortalGate({ payload, onUnlock }) {
 
 function SectionTabs({ type, tab, setTab }) {
   const tabs = type === "provider"
-    ? [["resumen", "Resumen"], ["documentos", "Documentos"], ["ordenes", "OC emitidas"], ["pagos", "Pagos"], ["datos", "Información de pago"]]
+    ? [["resumen", "Resumen"], ["documentos", "Documentos"], ["ordenes", "OC emitidas"], ["pagos", "Pagos"], ["datos", "Cuenta"]]
     : [["resumen", "Resumen"], ["documentos", "Facturas"], ["ordenes", "OC recibidas"], ["presupuestos", "Presupuestos"], ["pagos", "Pagos"], ["datos", "Cuenta"]];
   return (
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -404,7 +482,7 @@ async function appendFinancePortalAlert(payload = null, { title = "", body = "",
   await dbSet(empresasKey, nextEmpresas);
 }
 
-function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
+function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDecision }) {
   const receivables = useMemo(
     () => buildTreasuryReceivables({
       facturas: payload.facturas,
@@ -458,6 +536,9 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   const [docSearch, setDocSearch] = useState("");
   const [docStatus, setDocStatus] = useState("all");
   const [tab, setTab] = useState("resumen");
+  const [budgetDecision, setBudgetDecision] = useState(null);
+  const [budgetDecisionNote, setBudgetDecisionNote] = useState("");
+  const [budgetDecisionSaving, setBudgetDecisionSaving] = useState(false);
 
   const visibleReceivables = useMemo(() => {
     return receivables.filter(row => {
@@ -553,6 +634,52 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       })),
     });
     await onPortalSignal?.({ eventName: "export_budgets_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó PDF de presupuestos (${budgets.length})` });
+  };
+  const previewBudgetRow = async (row = {}) => {
+    await openSectionPdf({
+      title: `${row.titulo || "Presupuesto"} · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Resumen de la propuesta visible desde el portal financiero.",
+      fileName: `${String(row.correlativo || row.titulo || "presupuesto").replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "presupuesto"}.pdf`,
+      rows: [{
+        title: row.titulo || "Presupuesto",
+        lines: [
+          `Estado: ${(resolveBudgetPortalState(row)).label}`,
+          `Total: ${fmtMoney(row.total || 0)} · Forma de pago: ${safeText(row.paymentMethod || row.formaPago, "Sin definir")}`,
+          `Observación: ${safeText(row.observacion || row.portalClientComment || row.clientPortalDecision?.note || "", "Sin observación")}`,
+        ],
+      }],
+    });
+    await onPortalSignal?.({ eventName: "preview_budget_pdf", entityType: "budget", entityId: row.id, summary: `Vista de presupuesto ${row.titulo || row.correlativo || row.id}` });
+  };
+  const downloadBudgetRow = async (row = {}) => {
+    await downloadSectionPdf({
+      title: `${row.titulo || "Presupuesto"} · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Resumen de la propuesta visible desde el portal financiero.",
+      fileName: `${String(row.correlativo || row.titulo || "presupuesto").replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "presupuesto"}.pdf`,
+      rows: [{
+        title: row.titulo || "Presupuesto",
+        lines: [
+          `Estado: ${(resolveBudgetPortalState(row)).label}`,
+          `Total: ${fmtMoney(row.total || 0)} · Forma de pago: ${safeText(row.paymentMethod || row.formaPago, "Sin definir")}`,
+          `Observación: ${safeText(row.observacion || row.portalClientComment || row.clientPortalDecision?.note || "", "Sin observación")}`,
+        ],
+      }],
+    });
+    await onPortalSignal?.({ eventName: "download_budget_pdf", entityType: "budget", entityId: row.id, summary: `Descarga de presupuesto ${row.titulo || row.correlativo || row.id}` });
+  };
+  const submitBudgetDecision = async () => {
+    if (!budgetDecision?.id || !budgetDecision?.status) return;
+    setBudgetDecisionSaving(true);
+    const ok = await onBudgetDecision?.({
+      budgetId: budgetDecision.id,
+      status: budgetDecision.status,
+      note: budgetDecisionNote,
+    });
+    setBudgetDecisionSaving(false);
+    if (ok) {
+      setBudgetDecision(null);
+      setBudgetDecisionNote("");
+    }
   };
   const exportPaymentsCsv = async () => {
     downloadCsvFile(
@@ -665,7 +792,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
                   <TD>{fmtMoney(row.total)}</TD>
                   <TD>{fmtMoney(row.pending)}</TD>
                   <TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD>
-                  <TD><Badge label={row.cobranza || row.bucket || "Pendiente"} color={Number(row.pending || 0) <= 0 ? "green" : row.bucket === "Vencido" ? "orange" : "cyan"} sm /></TD>
+                  <TD><Badge label={resolveReceivableState(row).label} color={resolveReceivableState(row).color} sm /></TD>
                   <TD>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Vista de documento ${row.correlativo || row.id}` })}>Ver</GBtn> : null}
@@ -692,8 +819,27 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
         <Card title="Presupuestos" sub="Propuestas y presupuestos relacionados a esta cuenta.">
           <SectionActionBar onCsv={exportBudgetsCsv} onPdf={exportBudgetsPdf} />
           {budgets.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Título</TH><TH>Estado</TH><TH>Total</TH><TH>Forma de pago</TH><TH>Observación</TH></tr></thead>
-            <tbody>{budgets.map(row => <tr key={row.id}><TD>{row.titulo || "Presupuesto"}</TD><TD><Badge label={row.estado || "Borrador"} color={/aceptado/i.test(String(row.estado || "")) ? "green" : /rechazado/i.test(String(row.estado || "")) ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.total || 0)}</TD><TD>{safeText(row.paymentMethod || row.formaPago)}</TD><TD>{safeText(row.observacion || row.portalClientComment || "", "Sin observación")}</TD></tr>)}</tbody>
+            <thead><tr><TH>Título</TH><TH>Estado</TH><TH>Total</TH><TH>Forma de pago</TH><TH>Observación</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{budgets.map(row => {
+              const state = resolveBudgetPortalState(row);
+              return (
+                <tr key={row.id}>
+                  <TD>{row.titulo || "Presupuesto"}</TD>
+                  <TD><Badge label={state.label} color={state.color} sm /></TD>
+                  <TD>{fmtMoney(row.total || 0)}</TD>
+                  <TD>{safeText(row.paymentMethod || row.formaPago)}</TD>
+                  <TD>{safeText(row.observacion || row.portalClientComment || row.clientPortalDecision?.note || "", "Sin observación")}</TD>
+                  <TD>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                      <GBtn onClick={() => void previewBudgetRow(row)}>Ver</GBtn>
+                      <GBtn onClick={() => void downloadBudgetRow(row)}>Descargar</GBtn>
+                      <Btn onClick={() => { setBudgetDecision({ id: row.id, status: "approved", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Aprobar</Btn>
+                      <GBtn onClick={() => { setBudgetDecision({ id: row.id, status: "observed", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Observar</GBtn>
+                    </div>
+                  </TD>
+                </tr>
+              );
+            })}</tbody>
           </table></div> : <Empty text="Sin presupuestos visibles" sub="Cuando existan presupuestos asociados a este cliente, aparecerán aquí." />}
         </Card>
       ) : null}
@@ -701,8 +847,8 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
         <Card title="Pagos registrados" sub="Aquí puedes revisar los pagos ya asociados a tus documentos.">
           <SectionActionBar onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
           {receiptLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH></tr></thead>
-            <tbody>{receiptLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD></tr>)}</tbody>
+            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Estado documento</TH><TH>Saldo documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{receiptLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.targetPending || 0)}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_receipt_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "invoice", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin pagos registrados" sub="Los pagos conciliados aparecerán aquí." />}
         </Card>
       ) : null}
@@ -733,6 +879,33 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
           </Card>
         </div>
       ) : null}
+      <Modal
+        open={!!budgetDecision}
+        onClose={() => { if (budgetDecisionSaving) return; setBudgetDecision(null); setBudgetDecisionNote(""); }}
+        title={budgetDecision?.status === "approved" ? "Aprobar presupuesto" : "Observar presupuesto"}
+        sub={budgetDecision?.status === "approved" ? "Confirma esta propuesta comercial y, si quieres, deja una nota breve para el equipo." : "Explica qué necesitas ajustar antes de seguir con este presupuesto."}
+      >
+        <div style={{ display:"grid", gap:14 }}>
+          <div style={{ padding:16, borderRadius:16, border:"1px solid #dbe6f3", background:"#f8fbff", color:"#53657e", lineHeight:1.6 }}>
+            {budgetDecision?.status === "approved"
+              ? "La aprobación quedará registrada de inmediato en Produ para que el equipo continúe con el siguiente paso comercial."
+              : "La observación quedará registrada dentro de Produ para que el equipo revise el presupuesto y vuelva contigo con una nueva versión."}
+          </div>
+          <div>
+            <div style={{ fontSize:12, letterSpacing:1.1, textTransform:"uppercase", fontWeight:800, color:"#6b7c93", marginBottom:8 }}>Comentario</div>
+            <textarea
+              value={budgetDecisionNote}
+              onChange={event => setBudgetDecisionNote(event.target.value)}
+              placeholder={budgetDecision?.status === "approved" ? "Ej: Podemos avanzar con esta propuesta." : "Ej: Ajustar plazo, forma de pago o alcance."}
+              style={{ width:"100%", minHeight:140, borderRadius:16, border:"1px solid #d7e4f5", background:"#ffffff", padding:"14px 16px", fontSize:14, color:"#0f172a", resize:"vertical" }}
+            />
+          </div>
+          <div style={{ display:"flex", justifyContent:"flex-end", gap:10, flexWrap:"wrap" }}>
+            <GBtn onClick={() => { if (budgetDecisionSaving) return; setBudgetDecision(null); setBudgetDecisionNote(""); }}>Cancelar</GBtn>
+            <Btn onClick={() => { void submitBudgetDecision(); }} disabled={budgetDecisionSaving}>{budgetDecisionSaving ? "Guardando..." : budgetDecision?.status === "approved" ? "Aprobar presupuesto" : "Guardar observación"}</Btn>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
@@ -908,7 +1081,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
           </div>
           {visiblePayables.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><TH>Número</TH><TH>Tipo</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Pagos</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{visiblePayables.map(row => <tr key={row.id}><TD>{row.folio || "—"}</TD><TD>{row.docType || "Documento"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtDate(row.dueDate)}</TD><TD>{fmtMoney(row.total)}</TD><TD>{fmtMoney(row.pending)}</TD><TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD><TD><Badge label={row.status || "Pendiente"} color={row.pending <= 0 ? "green" : row.status === "Vencida" ? "orange" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_payable", url: row.pdfUrl, fileName: row.pdfName || `${row.folio || "documento"}.pdf`, entityType: "payable", entityId: row.id, summary: `Vista de documento ${row.folio || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_payable", url: row.pdfUrl, fileName: row.pdfName || `${row.folio || "documento"}.pdf`, entityType: "payable", entityId: row.id, summary: `Descarga de documento ${row.folio || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+            <tbody>{visiblePayables.map(row => { const state = resolvePayableState(row); return <tr key={row.id}><TD>{row.folio || "—"}</TD><TD>{row.docType || "Documento"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtDate(row.dueDate)}</TD><TD>{fmtMoney(row.total)}</TD><TD>{fmtMoney(row.pending)}</TD><TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD><TD><Badge label={state.label} color={state.color} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Vista de documento ${row.folio || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_payable", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.folio || "documento"}.pdf`), entityType: "payable", entityId: row.id, summary: `Descarga de documento ${row.folio || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>; })}</tbody>
           </table></div> : <Empty text="Sin documentos para este filtro" sub="Ajusta la búsqueda o vuelve a revisar más tarde." />}
         </Card>
       ) : null}
@@ -917,7 +1090,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
           <SectionActionBar onCsv={exportIssuedOrdersCsv} onPdf={exportIssuedOrdersPdf} />
           {issuedOrders.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Ítems</TH><TH>Aprobación</TH><TH>Acciones</TH></tr></thead>
-            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_issued_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "issued_order", entityId: row.id, summary: `Vista de OC emitida ${row.number || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_issued_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "issued_order", entityId: row.id, summary: `Descarga de OC emitida ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
+            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Vista de OC emitida ${row.number || row.id}` })}>Ver</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_issued_order", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row, `${row.number || "orden_compra"}.pdf`), entityType: "issued_order", entityId: row.id, summary: `Descarga de OC emitida ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin órdenes emitidas" sub="Las órdenes emitidas desde Produ aparecerán aquí." />}
         </Card>
       ) : null}
@@ -925,14 +1098,14 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
         <Card title="Pagos registrados" sub="Pagos ya aplicados sobre documentos de este proveedor.">
           <SectionActionBar onCsv={exportDisbursementsCsv} onPdf={exportDisbursementsPdf} />
           {disbursementLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH></tr></thead>
-            <tbody>{disbursementLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD></tr>)}</tbody>
+            <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Estado documento</TH><TH>Saldo documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{disbursementLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD><Badge label={safeText(row.targetStatus, "Documento")} color={String(row.targetStatus || "").toLowerCase().includes("pag") ? "green" : String(row.targetStatus || "").toLowerCase().includes("venc") ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.targetPending || 0)}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "preview_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Vista de documento ${row.targetLabel || row.targetId}` })}>Ver doc.</GBtn> : null}{resolvePortalDocumentUrl(row) ? <GBtn onClick={() => onPortalAction?.({ type: "download_disbursement_target", url: resolvePortalDocumentUrl(row), fileName: resolvePortalDocumentName(row), entityType: "payable", entityId: row.targetId, summary: `Descarga de documento ${row.targetLabel || row.targetId}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin pagos registrados" sub="Los pagos realizados se verán aquí." />}
         </Card>
       ) : null}
       {tab === "datos" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          <Card title="Datos del proveedor" sub="Información general asociada a este proveedor dentro de Produ.">
+          <Card title="Datos de la cuenta" sub="Información general asociada a este proveedor dentro de Produ.">
             <div style={{ display: "grid", gap: 12, fontSize: 14, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Proveedor:</b> {safeText(payload.provider?.name || payload.provider?.razonSocial)}</div>
               <div><b style={{ color: "#0f172a" }}>RUT:</b> {formatIdentity(payload.provider?.rut)}</div>
@@ -979,6 +1152,76 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
     () => descriptor?.slug ? buildFinancePortalSessionKey(descriptor?.type, descriptor?.slug) : "",
     [descriptor?.slug, descriptor?.type],
   );
+  const companyName = payload?.empresa?.nombre || payload?.empresa?.nom || "Produ";
+
+  const resolveBudgetRecipients = (budgetId = "") => {
+    const budget = (Array.isArray(payload?.presupuestos) ? payload.presupuestos : []).find(item => item.id === budgetId);
+    return normalizeRecipientList([
+      payload?.empresa?.ema,
+      ...(budget ? pickRecordEmails(budget, [
+        "ownerEmail",
+        "responsableEmail",
+        "commercialOwnerEmail",
+        "accountManagerEmail",
+        "createdByEmail",
+        "updatedByEmail",
+        "userEmail",
+      ]) : []),
+    ]);
+  };
+
+  const resolveInvoiceRecipients = (invoiceId = "") => {
+    const invoice = (Array.isArray(payload?.facturas) ? payload.facturas : []).find(item => item.id === invoiceId);
+    return normalizeRecipientList([
+      payload?.empresa?.ema,
+      ...(invoice ? pickRecordEmails(invoice, [
+        "ownerEmail",
+        "responsableEmail",
+        "billingOwnerEmail",
+        "collectorEmail",
+        "createdByEmail",
+        "updatedByEmail",
+      ]) : []),
+    ]);
+  };
+
+  const resolveClientOrderRecipients = (orderId = "") => {
+    const order = (Array.isArray(payload?.purchaseOrders) ? payload.purchaseOrders : []).find(item => item.id === orderId);
+    const linkedInvoices = (Array.isArray(order?.linkedInvoiceIds) ? order.linkedInvoiceIds : [])
+      .map(invoiceId => (Array.isArray(payload?.facturas) ? payload.facturas : []).find(item => item.id === invoiceId))
+      .filter(Boolean);
+    return normalizeRecipientList([
+      payload?.empresa?.ema,
+      ...linkedInvoices.flatMap(invoice => pickRecordEmails(invoice, [
+        "ownerEmail",
+        "responsableEmail",
+        "billingOwnerEmail",
+        "collectorEmail",
+        "createdByEmail",
+      ])),
+    ]);
+  };
+
+  const resolveProviderRecipients = (entityType = "", entityId = "") => {
+    if (entityType === "issued_order") {
+      const order = (Array.isArray(payload?.issuedOrders) ? payload.issuedOrders : []).find(item => item.id === entityId);
+      return normalizeRecipientList([
+        payload?.empresa?.ema,
+        ...(order ? pickRecordEmails(order, ["requesterEmail", "approvedByEmail", "ownerEmail", "updatedByEmail"]) : []),
+      ]);
+    }
+    return normalizeRecipientList([payload?.empresa?.ema]);
+  };
+
+  const resolveActionRecipients = ({ entityType = "", entityId = "" } = {}) => {
+    if (payload?.type === "client") {
+      if (entityType === "budget") return resolveBudgetRecipients(entityId);
+      if (entityType === "invoice") return resolveInvoiceRecipients(entityId);
+      if (entityType === "purchase_order") return resolveClientOrderRecipients(entityId);
+      return normalizeRecipientList([payload?.empresa?.ema]);
+    }
+    return resolveProviderRecipients(entityType, entityId);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -1055,6 +1298,7 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
     notifySeverity = "info",
     notifyHeadline = "",
     email = false,
+    recipients = [],
   } = {}) => {
     if (!payload?.empresa?.id || !eventName) return;
     const actor = buildPortalActor(payload);
@@ -1092,18 +1336,27 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
         action: eventName,
       });
     }
-    if (email && platformApi?.notifications?.sendTransactionalEmail && payload?.empresa?.ema) {
+    const emailRecipients = normalizeRecipientList(Array.isArray(recipients) ? recipients : []);
+    if (email && platformApi?.notifications?.sendTransactionalEmail && emailRecipients.length) {
       try {
         await platformApi.notifications.sendTransactionalEmail({
           tenantId: payload.empresa.id,
-          to: [payload.empresa.ema],
+          to: emailRecipients,
           templateKey: "client_portal_signal",
           variables: {
-            companyName: payload.empresa?.nombre || payload.empresa?.nom || "Produ",
+            companyName,
             clientName: payload.type === "provider" ? payload.provider?.name || "Proveedor" : payload.client?.nom || "Cliente",
             actionLabel: notifyHeadline || eventName,
-            detail: signalPayload?.summary || "",
+            detail: `${signalPayload?.summary || ""}\n\nHecho con Produ`.trim(),
           },
+          text: [
+            `${companyName}`,
+            notifyHeadline || eventName,
+            signalPayload?.summary || "",
+            "",
+            "Hecho con Produ",
+          ].join("\n").trim(),
+          html: `<div style="font-family:Inter,Arial,sans-serif"><p><strong>${companyName}</strong></p><p>${notifyHeadline || eventName}</p><p>${String(signalPayload?.summary || "").replace(/\n/g, "<br />")}</p><p style="color:#64748b;font-size:12px;margin-top:24px">Hecho con Produ</p></div>`,
         });
       } catch (error) {
         console.error("[finance-portal] No pudimos enviar correo interno", error);
@@ -1136,6 +1389,7 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
       signalPayload: { fileName, urlType: link.startsWith("data:") ? "embedded" : "external", summary },
       notify,
       email,
+      recipients: resolveActionRecipients({ entityType, entityId }),
       notifyHeadline: summary,
       notifySeverity: eventName.includes("payment") ? "urgente" : "info",
     });
@@ -1156,8 +1410,45 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
       signalPayload: { summary },
       notify,
       email,
+      recipients: resolveActionRecipients({ entityType, entityId }),
       notifyHeadline: summary,
     });
+  };
+
+  const handleBudgetDecision = async ({ budgetId = "", status = "", note = "" } = {}) => {
+    if (!payload?.empresa?.id || !budgetId || payload?.type !== "client") return false;
+    const now = new Date().toISOString();
+    const nextBudgets = (Array.isArray(payload.presupuestos) ? payload.presupuestos : []).map(item => item.id === budgetId ? {
+      ...item,
+      estado: status === "approved" ? "Aceptado" : "Observado",
+      clientPortalDecision: {
+        status,
+        note: String(note || "").trim(),
+        decidedAt: now,
+        source: "finance_portal",
+      },
+      portalClientComment: String(note || "").trim() || item.portalClientComment || "",
+    } : item);
+    await dbSet(`produ:${payload.empresa.id}:presupuestos`, nextBudgets);
+    setPayload(current => current ? { ...current, presupuestos: nextBudgets } : current);
+    const summary = status === "approved"
+      ? `${payload.client?.nom || "Cliente"} aprobó un presupuesto desde el portal financiero.`
+      : `${payload.client?.nom || "Cliente"} dejó observaciones sobre un presupuesto desde el portal financiero.`;
+    await logPortalAction({
+      eventName: status === "approved" ? "client_finance_budget_approved" : "client_finance_budget_observed",
+      entityType: "budget",
+      entityId: budgetId,
+      signalPayload: {
+        summary: note ? `${summary}\n\nComentario:\n${note}` : summary,
+        decision: status,
+      },
+      notify: true,
+      email: true,
+      recipients: resolveBudgetRecipients(budgetId),
+      notifyHeadline: status === "approved" ? "Presupuesto aprobado desde portal financiero" : "Presupuesto observado desde portal financiero",
+      notifySeverity: "urgente",
+    });
+    return true;
   };
 
   if (loading) {
@@ -1191,9 +1482,12 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
           subtitle={subtitle}
           onClosePortal={() => { try { localStorage.removeItem(sessionKey); } catch {} window.location.reload(); }}
         />
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{ fontSize: 12, color: "#7a8aa2", letterSpacing: 0.2 }}>Hecho con Produ</div>
+        </div>
         {payload.type === "provider"
           ? <ProviderFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} />
-          : <ClientFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} />}
+          : <ClientFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} onBudgetDecision={handleBudgetDecision} />}
       </div>
     </PublicFinanceShell>
   );

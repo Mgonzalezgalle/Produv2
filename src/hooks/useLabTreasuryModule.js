@@ -111,6 +111,38 @@ function sanitizeTreasuryIssuedOrder(next = {}, empId = "") {
   };
 }
 
+function sanitizeTreasuryProvider(next = {}, empId = "") {
+  return {
+    id: String(next?.id || "").trim(),
+    empId: String(next?.empId || empId || "").trim(),
+    name: String(next?.name || next?.razonSocial || "").trim(),
+    razonSocial: String(next?.razonSocial || next?.name || "").trim(),
+    rut: String(next?.rut || "").trim(),
+    direccion: String(next?.direccion || "").trim(),
+    tipoProveedor: String(next?.tipoProveedor || "").trim(),
+    creditLimit: Number(next?.creditLimit || 0) || 0,
+    financialPortal: next?.financialPortal && typeof next.financialPortal === "object"
+      ? { ...next.financialPortal }
+      : null,
+    contactos: Array.isArray(next?.contactos) ? next.contactos.filter(Boolean).map(item => ({
+      id: String(item?.id || "").trim(),
+      nombre: String(item?.nombre || "").trim(),
+      cargo: String(item?.cargo || "").trim(),
+      email: String(item?.email || "").trim(),
+      telefono: String(item?.telefono || "").trim(),
+    })) : [],
+    bankAccounts: Array.isArray(next?.bankAccounts) ? next.bankAccounts.filter(Boolean).map(item => ({
+      id: String(item?.id || "").trim(),
+      banco: String(item?.banco || "").trim(),
+      titular: String(item?.titular || "").trim(),
+      rut: String(item?.rut || "").trim(),
+      tipoCuenta: String(item?.tipoCuenta || "").trim(),
+      numeroCuenta: String(item?.numeroCuenta || "").trim(),
+      emailPago: String(item?.emailPago || "").trim(),
+    })) : [],
+  };
+}
+
 export function useLabTreasuryModule({
   empresa,
   clientes,
@@ -685,10 +717,10 @@ export function useLabTreasuryModule({
     return true;
   };
 
-  const saveProvider = async next => {
+  const saveProvider = async (next, options = {}) => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = withEmp(next);
+    const safeNext = sanitizeTreasuryProvider(withEmp(next), empId);
     const exists = treasuryProviders.some(item => item.id === safeNext.id);
     const updated = exists
       ? treasuryProviders.map(item => item.id === safeNext.id ? safeNext : item)
@@ -708,8 +740,10 @@ export function useLabTreasuryModule({
       },
       platformServices,
     });
-    setProviderOpen(false);
-    setProviderDraft(null);
+    if (!options?.keepOpen) {
+      setProviderOpen(false);
+      setProviderDraft(null);
+    }
     return true;
   };
 

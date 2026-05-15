@@ -191,14 +191,31 @@ export function createFoundationFinancialRegistryCoordinator({
     let records = [];
     await Promise.resolve(setRecords((current = []) => {
       const baseRecords = Array.isArray(current) ? current : [];
-      if (Array.isArray(remoteRecords) && remoteRecords.length) {
+      const remoteLooksComplete = Array.isArray(remoteRecords)
+        && Number(remoteResult?.recordCount ?? remoteRecords.length) === remoteRecords.length
+        && remoteRecords.length >= baseRecords.length;
+      if (remoteLooksComplete) {
         records = remoteRecords;
         return remoteRecords;
       }
       const exists = baseRecords.some(item => String(item?.id || "").trim() === safeRecordId);
-      records = exists
-        ? baseRecords.map(item => String(item?.id || "").trim() === safeRecordId ? { ...item, ...safeRecord } : item)
-        : [...baseRecords, safeRecord];
+      const mergedRecords = new Map(baseRecords.map(item => [String(item?.id || "").trim(), item]));
+      if (Array.isArray(remoteRecords)) {
+        remoteRecords.forEach((item) => {
+          const remoteId = String(item?.id || "").trim();
+          if (!remoteId) return;
+          mergedRecords.set(remoteId, { ...(mergedRecords.get(remoteId) || {}), ...item });
+        });
+      }
+      if (exists || mergedRecords.has(safeRecordId)) {
+        mergedRecords.set(safeRecordId, {
+          ...(mergedRecords.get(safeRecordId) || {}),
+          ...safeRecord,
+        });
+      } else {
+        mergedRecords.set(safeRecordId, safeRecord);
+      }
+      records = Array.from(mergedRecords.values());
       return records;
     }));
     if (audit?.action) {
@@ -265,7 +282,11 @@ export function createFoundationFinancialRegistryCoordinator({
     let records = [];
     await Promise.resolve(setRecords((current = []) => {
       const baseRecords = Array.isArray(current) ? current : [];
-      if (Array.isArray(remoteRecords)) {
+      const expectedCount = Math.max(0, baseRecords.length - 1);
+      const remoteLooksComplete = Array.isArray(remoteRecords)
+        && Number(remoteResult?.recordCount ?? remoteRecords.length) === remoteRecords.length
+        && remoteRecords.length >= expectedCount;
+      if (remoteLooksComplete) {
         records = remoteRecords;
         return remoteRecords;
       }

@@ -173,6 +173,95 @@ export function recoverTreasuryDisbursementsFromProviders({ providers = [], empI
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 }
 
+export function recoverTreasuryPayables({ payables = [], providers = [], disbursements = [], empId = "" } = {}) {
+  const basePayables = (Array.isArray(payables) ? payables : [])
+    .filter(item => item?.empId === empId && item?.id)
+    .map(item => ({ ...item }));
+
+  const merged = new Map();
+  basePayables.forEach((item) => {
+    merged.set(String(item.id || "").trim(), item);
+  });
+
+  const providerList = Array.isArray(providers) ? providers : [];
+  providerList
+    .filter(provider => provider?.empId === empId)
+    .forEach((provider) => {
+      (Array.isArray(provider?.payables) ? provider.payables : []).forEach((payable) => {
+        const safeId = String(payable?.id || "").trim();
+        if (!safeId) return;
+        merged.set(safeId, {
+          ...payable,
+          empId,
+          supplier: String(payable?.supplier || provider?.name || provider?.razonSocial || "").trim(),
+        });
+      });
+    });
+
+  const portalEnabledProviders = providerList.filter(provider => (
+    provider?.empId === empId
+    && provider?.financialPortal?.enabled
+  ));
+  const fallbackPortalProvider = portalEnabledProviders.length === 1 ? portalEnabledProviders[0] : null;
+
+  const disbursementGroups = new Map();
+  (Array.isArray(disbursements) ? disbursements : [])
+    .filter(item => item?.empId === empId && item?.payableId)
+    .forEach((item) => {
+      const safePayableId = String(item.payableId || "").trim();
+      if (!safePayableId) return;
+      if (!disbursementGroups.has(safePayableId)) {
+        disbursementGroups.set(safePayableId, []);
+      }
+      disbursementGroups.get(safePayableId).push(item);
+    });
+
+  disbursementGroups.forEach((payments, payableId) => {
+    if (merged.has(payableId)) return;
+    const orderedPayments = [...payments].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+    const firstPayment = orderedPayments[0] || {};
+    const lastPayment = orderedPayments[orderedPayments.length - 1] || firstPayment;
+    const labeledPayment = orderedPayments.find(item => String(item?.targetLabel || item?.folio || "").trim()) || firstPayment;
+    const inferredLabel = String(
+      labeledPayment?.targetLabel
+      || labeledPayment?.folio
+      || firstPayment?.reference
+      || payableId.slice(-6)
+    ).trim();
+    const inferredSupplier = String(
+      firstPayment?.counterpartyLabel
+      || fallbackPortalProvider?.name
+      || fallbackPortalProvider?.razonSocial
+      || "Proveedor recuperado"
+    ).trim();
+    const totalFromPayments = orderedPayments.reduce((sum, item) => sum + Number(item?.amount || 0), 0);
+    const totalFromHints = Math.max(
+      ...orderedPayments.map(item => Number(item?.maxAmount || 0)),
+      totalFromPayments,
+    );
+
+    merged.set(payableId, {
+      id: payableId,
+      empId,
+      supplier: inferredSupplier,
+      docType: "Pagos sin Factura",
+      folio: inferredLabel,
+      category: "Proveedor",
+      issueDate: String(firstPayment?.issueDate || firstPayment?.date || "").trim(),
+      dueDate: String(firstPayment?.dueDate || lastPayment?.date || firstPayment?.date || "").trim(),
+      status: "Pagada",
+      total: totalFromHints,
+      pdfName: "",
+      pdfUrl: "",
+      notes: String(firstPayment?.notes || "").trim() || "Documento recuperado desde el historial de pagos.",
+    });
+  });
+
+  return Array.from(merged.values())
+    .filter(item => item?.empId === empId && item?.id && item?.supplier)
+    .sort((a, b) => String(a.dueDate || "9999-99-99").localeCompare(String(b.dueDate || "9999-99-99")));
+}
+
 function receivableBucket(doc = {}) {
   const dueDate = doc.fechaVencimiento || "";
   if (!dueDate) return "Sin vencimiento";

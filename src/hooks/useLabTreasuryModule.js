@@ -15,6 +15,7 @@ import {
   summarizeStoredPayables,
   summarizeTreasuryReceivables,
   recoverTreasuryDisbursementsFromProviders,
+  recoverTreasuryPayables,
 } from "../lib/utils/treasury";
 
 function mergeById(items = [], nextItems = []) {
@@ -174,6 +175,15 @@ export function useLabTreasuryModule({
   const effectiveTreasuryDisbursements = Array.isArray(treasuryDisbursements) && treasuryDisbursements.length
     ? treasuryDisbursements
     : treasuryDisbursementsRecovered;
+  const treasuryPayablesRecovered = useMemo(
+    () => recoverTreasuryPayables({
+      payables: treasuryPayables,
+      providers: treasuryProviders,
+      disbursements: effectiveTreasuryDisbursements,
+      empId,
+    }),
+    [treasuryPayables, treasuryProviders, effectiveTreasuryDisbursements, empId],
+  );
 
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState("");
@@ -284,6 +294,49 @@ export function useLabTreasuryModule({
     if (!treasuryDisbursementsRecovered.length) return;
     Promise.resolve(setTreasuryDisbursements?.(treasuryDisbursementsRecovered)).catch(() => {});
   }, [setTreasuryDisbursements, treasuryDisbursements, treasuryDisbursementsRecovered]);
+
+  useEffect(() => {
+    const currentIds = new Set((Array.isArray(treasuryPayables) ? treasuryPayables : []).map(item => String(item?.id || "").trim()).filter(Boolean));
+    const recoveredIds = new Set((Array.isArray(treasuryPayablesRecovered) ? treasuryPayablesRecovered : []).map(item => String(item?.id || "").trim()).filter(Boolean));
+    const missingIds = Array.from(recoveredIds).filter(id => !currentIds.has(id));
+    if (!missingIds.length) return;
+    Promise.resolve(setTreasuryPayables?.(treasuryPayablesRecovered))
+      .then(async () => {
+        await foundationFinancialRegistry.syncSnapshot({
+          registryName: "payables",
+          records: treasuryPayablesRecovered.map(item => sanitizeTreasuryPayable(item, empId)),
+          metadata: {
+            reason: "payables_recovered_from_treasury_history",
+            recoveredCount: missingIds.length,
+            actorUserId: currentUser?.id || "",
+            actorUserEmail: currentUser?.email || "",
+          },
+          degradedMessage: "No pudimos rehidratar payables recuperados en foundation.",
+        });
+        await appendOperationalAuditEntry({
+          empId,
+          area: "tesoreria",
+          action: "payables_recovered",
+          entityType: "treasury_payable",
+          entityId: "",
+          actor: currentUser,
+          payload: {
+            recoveredCount: missingIds.length,
+            recoveredIds: missingIds,
+          },
+          platformServices,
+        });
+      })
+      .catch(() => {});
+  }, [
+    currentUser,
+    empId,
+    foundationFinancialRegistry,
+    platformServices,
+    setTreasuryPayables,
+    treasuryPayables,
+    treasuryPayablesRecovered,
+  ]);
 
   useEffect(() => {
     payablesRemoteHydratedRef.current = "";

@@ -19,6 +19,8 @@ import {
   summarizeTreasuryReceivables,
 } from "../../lib/utils/treasury";
 import { Badge, Btn, Card, Empty, GBtn, TH, TD } from "../../lib/ui/components";
+import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
+import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
 function fmtMoney(value = 0) {
   return "$" + Number(value || 0).toLocaleString("es-CL");
@@ -54,6 +56,72 @@ function openExternalLink(value = "") {
   const link = String(value || "").trim();
   if (!link) return;
   window.open(link, "_blank", "noopener,noreferrer");
+}
+
+function downloadUrl(url = "", fileName = "archivo") {
+  const link = String(url || "").trim();
+  if (!link) return;
+  const anchor = document.createElement("a");
+  anchor.href = link;
+  anchor.download = fileName || true;
+  anchor.target = "_blank";
+  anchor.rel = "noreferrer";
+  anchor.click();
+}
+
+function escapeCsvCell(value = "") {
+  const text = String(value ?? "");
+  if (/[",\n;]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function downloadCsvFile(headers = [], rows = [], fileName = "produ_export.csv") {
+  const csv = [headers, ...(Array.isArray(rows) ? rows : [])]
+    .map(row => (Array.isArray(row) ? row : []).map(cell => escapeCsvCell(cell)).join(","))
+    .join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+let simplePdfBlobRuntimePromise = null;
+async function getSimplePdfBlobRuntime() {
+  if (!simplePdfBlobRuntimePromise) {
+    simplePdfBlobRuntimePromise = import("../../lib/utils/pdf").then(module => module.buildSimplePdfBlob);
+  }
+  return simplePdfBlobRuntimePromise;
+}
+
+async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf" } = {}) {
+  const buildSimplePdfBlob = await getSimplePdfBlobRuntime();
+  const lines = [
+    { text: "PRODU", size: 18, bold: true, color: accent, gap: 18 },
+    { text: title, size: 16, bold: true, color: "#0f172a", gap: 12 },
+    { text: subtitle || "Resumen exportado desde portal financiero.", size: 11, color: "#64748b", gap: 18 },
+    { text: `Generado: ${new Date().toLocaleDateString("es-CL")}`, size: 10, color: "#94a3b8", gap: 18 },
+  ];
+  if (!rows.length) {
+    lines.push({ text: "No hay registros para exportar.", size: 12, color: "#475569", gap: 16 });
+  } else {
+    rows.forEach((row, index) => {
+      lines.push({ text: `${index + 1}. ${row.title || "Registro"}`, size: 11, bold: true, color: "#0f172a", gap: 14 });
+      (Array.isArray(row.lines) ? row.lines : []).forEach(item => {
+        lines.push({ text: item, size: 10, color: "#475569", gap: 12 });
+      });
+      lines.push({ text: " ", size: 4, color: "#ffffff", gap: 6 });
+    });
+  }
+  const blob = buildSimplePdfBlob(lines, accent);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
 function accessCodeSlots(code = "") {
@@ -123,6 +191,18 @@ function FinanceHero({ type = "client", companyName = "", counterpartyName = "",
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionActionBar({ onCsv = null, onPdf = null, right = null }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {onCsv ? <GBtn onClick={onCsv}>Descargar CSV</GBtn> : null}
+        {onPdf ? <GBtn onClick={onPdf}>Descargar PDF</GBtn> : null}
+      </div>
+      {right ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{right}</div> : null}
     </div>
   );
 }
@@ -290,7 +370,41 @@ function SectionTabs({ type, tab, setTab }) {
   );
 }
 
-function ClientFinanceBody({ payload }) {
+function buildPortalActor(payload = null) {
+  const type = payload?.type === "provider" ? "supplier_finance_portal" : "client_finance_portal";
+  const name = payload?.type === "provider" ? payload?.provider?.name : payload?.client?.nom;
+  const authorizedEmail = Array.isArray(payload?.portal?.authorizedEmails) ? payload.portal.authorizedEmails[0] || "" : "";
+  return {
+    id: payload?.portal?.slug || "",
+    name: safeText(name, "Portal financiero"),
+    email: String(authorizedEmail || "").trim().toLowerCase(),
+    role: type,
+  };
+}
+
+async function appendFinancePortalAlert(payload = null, { title = "", body = "", severity = "info", action = "" } = {}) {
+  if (!payload?.empresa?.id) return;
+  const empresasKey = "produ:empresas";
+  const currentEmpresas = await dbGet(empresasKey);
+  const portalAlert = {
+    id: `fportal_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    tipo: severity,
+    area: "finanzas",
+    icon: severity === "urgente" ? "💳" : "📄",
+    titulo: title,
+    sub: action,
+    body,
+    createdAt: new Date().toISOString(),
+    source: "finance_portal",
+    counterpartyId: payload?.type === "provider" ? payload?.provider?.id : payload?.client?.id,
+  };
+  const nextEmpresas = (Array.isArray(currentEmpresas) ? currentEmpresas : []).map(item => item.id === payload.empresa.id
+    ? { ...item, portalAlerts: [portalAlert, ...(Array.isArray(item.portalAlerts) ? item.portalAlerts : [])].slice(0, 50) }
+    : item);
+  await dbSet(empresasKey, nextEmpresas);
+}
+
+function ClientFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   const receivables = useMemo(
     () => buildTreasuryReceivables({
       facturas: payload.facturas,
@@ -360,6 +474,143 @@ function ClientFinanceBody({ payload }) {
     });
   }, [receivables, docSearch, docStatus]);
 
+  const exportReceivablesCsv = async () => {
+    downloadCsvFile(
+      ["Numero", "Tipo", "Emision", "Vencimiento", "Monto", "Saldo", "Estado", "Pagos asociados"],
+      visibleReceivables.map(row => [
+      row.correlativo || "—",
+      row.tipoDoc || "Documento",
+      row.fechaEmision || "",
+      row.fechaVencimiento || "",
+      Number(row.total || 0),
+      Number(row.pending || 0),
+      row.cobranza || row.bucket || "Pendiente",
+      `${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} pago(s) / ${fmtMoney(row.paid || 0)}`,
+      ]),
+      `portal_cliente_documentos_${payload.client?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_receivables_csv", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó CSV de documentos (${visibleReceivables.length})` });
+  };
+  const exportReceivablesPdf = async () => {
+    await downloadSectionPdf({
+      title: `Documentos · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Resumen de documentos visibles en el portal financiero.",
+      fileName: `portal_cliente_documentos_${payload.client?.id || "cuenta"}.pdf`,
+      rows: visibleReceivables.map(row => ({
+        title: `${row.correlativo || "Documento"} · ${row.tipoDoc || "Documento"}`,
+        lines: [
+          `Emisión: ${fmtDate(row.fechaEmision)} · Vencimiento: ${fmtDate(row.fechaVencimiento)}`,
+          `Monto: ${fmtMoney(row.total)} · Saldo: ${fmtMoney(row.pending)} · Estado: ${row.cobranza || row.bucket || "Pendiente"}`,
+          `Pagos asociados: ${(row.paymentHistory || []).length} · Pagado: ${fmtMoney(row.paid || 0)}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_receivables_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó PDF de documentos (${visibleReceivables.length})` });
+  };
+  const exportPurchaseOrdersCsv = async () => {
+    downloadCsvFile(
+    ["Numero", "Emision", "Monto", "Facturacion", "Saldo OC"],
+    purchaseOrders.map(row => [row.number || "—", row.issueDate || "", Number(row.amount || 0), row.billingStatus || "Pendiente", Number(row.pendingAmount || 0)]),
+    `portal_cliente_oc_${payload.client?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_purchase_orders_csv", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó CSV de OC (${purchaseOrders.length})` });
+  };
+  const exportPurchaseOrdersPdf = async () => {
+    await downloadSectionPdf({
+      title: `OC recibidas · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Ordenes de compra recibidas visibles en el portal financiero.",
+      fileName: `portal_cliente_oc_${payload.client?.id || "cuenta"}.pdf`,
+      rows: purchaseOrders.map(row => ({
+        title: row.number || "OC",
+        lines: [
+          `Emisión: ${fmtDate(row.issueDate)} · Monto: ${fmtMoney(row.amount)}`,
+          `Estado facturación: ${row.billingStatus || "Pendiente"} · Saldo OC: ${fmtMoney(row.pendingAmount || 0)}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_purchase_orders_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó PDF de OC (${purchaseOrders.length})` });
+  };
+  const exportBudgetsCsv = async () => {
+    downloadCsvFile(
+    ["Titulo", "Estado", "Total", "Forma de pago", "Observacion"],
+    budgets.map(row => [row.titulo || "Presupuesto", row.estado || "Borrador", Number(row.total || 0), row.paymentMethod || row.formaPago || "", row.observacion || row.portalClientComment || ""]),
+    `portal_cliente_presupuestos_${payload.client?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_budgets_csv", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó CSV de presupuestos (${budgets.length})` });
+  };
+  const exportBudgetsPdf = async () => {
+    await downloadSectionPdf({
+      title: `Presupuestos · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Propuestas visibles en el portal financiero.",
+      fileName: `portal_cliente_presupuestos_${payload.client?.id || "cuenta"}.pdf`,
+      rows: budgets.map(row => ({
+        title: row.titulo || "Presupuesto",
+        lines: [
+          `Estado: ${row.estado || "Borrador"} · Total: ${fmtMoney(row.total || 0)}`,
+          `Forma de pago: ${safeText(row.paymentMethod || row.formaPago, "Sin definir")}`,
+          `Observación: ${safeText(row.observacion || row.portalClientComment || "", "Sin observación")}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_budgets_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó PDF de presupuestos (${budgets.length})` });
+  };
+  const exportPaymentsCsv = async () => {
+    downloadCsvFile(
+    ["Fecha", "Documento", "Metodo", "Referencia", "Monto"],
+    receiptLog.map(row => [row.date || "", row.targetLabel || "—", row.method || "", row.reference || "", Number(row.amount || 0)]),
+    `portal_cliente_pagos_${payload.client?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_receipts_csv", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó CSV de pagos (${receiptLog.length})` });
+  };
+  const exportPaymentsPdf = async () => {
+    await downloadSectionPdf({
+      title: `Pagos · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Pagos asociados a documentos visibles en el portal financiero.",
+      fileName: `portal_cliente_pagos_${payload.client?.id || "cuenta"}.pdf`,
+      rows: receiptLog.map(row => ({
+        title: row.targetLabel || "Pago",
+        lines: [
+          `Fecha: ${fmtDate(row.date)} · Método: ${safeText(row.method)}`,
+          `Referencia: ${safeText(row.reference)} · Monto: ${fmtMoney(row.amount || 0)}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_receipts_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: `Exportó PDF de pagos (${receiptLog.length})` });
+  };
+  const exportAccountCsv = async () => {
+    downloadCsvFile(
+    ["Cliente", "RUT", "Limite de credito", "Cupo disponible", "Presupuestos pendientes"],
+    [[payload.client?.nom || "Cliente", payload.client?.rut || "", Number(payload.client?.creditLimit || 0), portfolio?.availableCredit == null ? "" : Number(portfolio.availableCredit || 0), pendingBudgets.length]],
+    `portal_cliente_cuenta_${payload.client?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_account_csv", entityType: "client_finance_portal", entityId: payload.client?.id, summary: "Exportó CSV de cuenta" });
+  };
+  const exportAccountPdf = async () => {
+    await downloadSectionPdf({
+      title: `Cuenta · ${payload.client?.nom || "Cliente"}`,
+      subtitle: "Información general y contactos visibles en el portal financiero.",
+      fileName: `portal_cliente_cuenta_${payload.client?.id || "cuenta"}.pdf`,
+      rows: [
+        {
+          title: payload.client?.nom || "Cliente",
+          lines: [
+            `RUT: ${formatIdentity(payload.client?.rut)}`,
+            `Límite de crédito: ${payload.client?.creditLimit ? fmtMoney(payload.client.creditLimit) : "No definido"} · Cupo disponible: ${portfolio?.availableCredit == null ? "—" : fmtMoney(portfolio.availableCredit)}`,
+            `Presupuestos pendientes: ${pendingBudgets.length}`,
+          ],
+        },
+        ...clientContacts.map(contact => ({
+          title: safeText(contact.nom || contact.nombre, "Contacto"),
+          lines: [
+            `Cargo: ${safeText(contact.car || contact.cargo, "Sin cargo")}`,
+            `Correo: ${safeText(contact.ema || contact.email, "Sin correo")}`,
+          ],
+        })),
+      ],
+    });
+    await onPortalSignal?.({ eventName: "export_account_pdf", entityType: "client_finance_portal", entityId: payload.client?.id, summary: "Exportó PDF de cuenta" });
+  };
+
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
@@ -391,6 +642,7 @@ function ClientFinanceBody({ payload }) {
       ) : null}
       {tab === "documentos" ? (
         <Card title="Facturas y documentos" sub="Revisa tus documentos, filtra por estado y paga en línea cuando el documento ya tenga un link activo en Produ.">
+          <SectionActionBar onCsv={exportReceivablesCsv} onPdf={exportReceivablesPdf} />
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
             <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por número, tipo o estado" style={{ minWidth: 220, flex: "1 1 260px", borderRadius: 14, border: "1px solid #d7e4f5", background: "#f9fbff", padding: "12px 14px", fontSize: 14 }} />
             <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={{ minWidth: 180, borderRadius: 14, border: "1px solid #d7e4f5", background: "#ffffff", padding: "12px 14px", fontSize: 14 }}>
@@ -401,7 +653,7 @@ function ClientFinanceBody({ payload }) {
             </select>
           </div>
           {visibleReceivables.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Tipo de documento</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
+            <thead><tr><TH>Número</TH><TH>Tipo de documento</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Pagos</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
             <tbody>{visibleReceivables.map(row => {
               const paymentLink = String(row?.mercadoPago?.initPoint || "").trim();
               return (
@@ -412,10 +664,13 @@ function ClientFinanceBody({ payload }) {
                   <TD>{fmtDate(row.fechaVencimiento)}</TD>
                   <TD>{fmtMoney(row.total)}</TD>
                   <TD>{fmtMoney(row.pending)}</TD>
+                  <TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD>
                   <TD><Badge label={row.cobranza || row.bucket || "Pendiente"} color={Number(row.pending || 0) <= 0 ? "green" : row.bucket === "Vencido" ? "orange" : "cyan"} sm /></TD>
                   <TD>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {paymentLink ? <Btn onClick={() => openExternalLink(paymentLink)}>Pagar ahora</Btn> : <GBtn disabled>Sin link de pago</GBtn>}
+                      {row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Vista de documento ${row.correlativo || row.id}` })}>Ver</GBtn> : null}
+                      {row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_document", url: row.pdfUrl, fileName: row.pdfName, entityType: "invoice", entityId: row.id, summary: `Descarga de documento ${row.correlativo || row.id}`, mode: "download" })}>Descargar</GBtn> : null}
+                      {paymentLink ? <Btn onClick={() => onPortalAction?.({ type: "open_payment_link", url: paymentLink, entityType: "invoice", entityId: row.id, summary: `Intento de pago para ${row.correlativo || row.id}`, notify: true, email: true })}>Pagar ahora</Btn> : <GBtn disabled>Sin link de pago</GBtn>}
                     </div>
                   </TD>
                 </tr>
@@ -426,14 +681,16 @@ function ClientFinanceBody({ payload }) {
       ) : null}
       {tab === "ordenes" ? (
         <Card title="Órdenes de compra recibidas" sub="Aquí puedes revisar las OC recibidas y su avance dentro de Produ.">
+          <SectionActionBar onCsv={exportPurchaseOrdersCsv} onPdf={exportPurchaseOrdersPdf} />
           {purchaseOrders.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Facturación</TH><TH>Saldo OC</TH></tr></thead>
-            <tbody>{purchaseOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><Badge label={row.billingStatus || "Pendiente"} color={row.pendingAmount <= 0 ? "green" : "cyan"} sm /></TD><TD>{fmtMoney(row.pendingAmount)}</TD></tr>)}</tbody>
+            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Facturación</TH><TH>Saldo OC</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{purchaseOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD><Badge label={row.billingStatus || "Pendiente"} color={row.pendingAmount <= 0 ? "green" : "cyan"} sm /></TD><TD>{fmtMoney(row.pendingAmount)}</TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Vista de OC ${row.number || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_purchase_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "purchase_order", entityId: row.id, summary: `Descarga de OC ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin órdenes de compra registradas" sub="Cuando se carguen OC para este cliente, aparecerán aquí." />}
         </Card>
       ) : null}
       {tab === "presupuestos" ? (
         <Card title="Presupuestos" sub="Propuestas y presupuestos relacionados a esta cuenta.">
+          <SectionActionBar onCsv={exportBudgetsCsv} onPdf={exportBudgetsPdf} />
           {budgets.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><TH>Título</TH><TH>Estado</TH><TH>Total</TH><TH>Forma de pago</TH><TH>Observación</TH></tr></thead>
             <tbody>{budgets.map(row => <tr key={row.id}><TD>{row.titulo || "Presupuesto"}</TD><TD><Badge label={row.estado || "Borrador"} color={/aceptado/i.test(String(row.estado || "")) ? "green" : /rechazado/i.test(String(row.estado || "")) ? "orange" : "cyan"} sm /></TD><TD>{fmtMoney(row.total || 0)}</TD><TD>{safeText(row.paymentMethod || row.formaPago)}</TD><TD>{safeText(row.observacion || row.portalClientComment || "", "Sin observación")}</TD></tr>)}</tbody>
@@ -442,6 +699,7 @@ function ClientFinanceBody({ payload }) {
       ) : null}
       {tab === "pagos" ? (
         <Card title="Pagos registrados" sub="Aquí puedes revisar los pagos ya asociados a tus documentos.">
+          <SectionActionBar onCsv={exportPaymentsCsv} onPdf={exportPaymentsPdf} />
           {receiptLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH></tr></thead>
             <tbody>{receiptLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD></tr>)}</tbody>
@@ -451,6 +709,7 @@ function ClientFinanceBody({ payload }) {
       {tab === "datos" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
           <Card title="Datos de la cuenta" sub="Información general asociada a este cliente dentro de Produ.">
+            <SectionActionBar onCsv={exportAccountCsv} onPdf={exportAccountPdf} />
             <div style={{ display: "grid", gap: 12, fontSize: 14, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Cliente:</b> {safeText(payload.client?.nom)}</div>
               <div><b style={{ color: "#0f172a" }}>RUT:</b> {formatIdentity(payload.client?.rut)}</div>
@@ -478,7 +737,7 @@ function ClientFinanceBody({ payload }) {
   );
 }
 
-function ProviderFinanceBody({ payload }) {
+function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   const payables = useMemo(
     () => buildTreasuryPayables({
       payables: payload.payables,
@@ -527,6 +786,86 @@ function ProviderFinanceBody({ payload }) {
     });
   }, [payables, docSearch, docStatus]);
 
+  const exportPayablesCsv = async () => {
+    downloadCsvFile(
+      ["Numero", "Tipo", "Emision", "Vencimiento", "Monto", "Saldo", "Estado", "Pagos asociados"],
+      visiblePayables.map(row => [
+      row.folio || "—",
+      row.docType || "Documento",
+      row.issueDate || "",
+      row.dueDate || "",
+      Number(row.total || 0),
+      Number(row.pending || 0),
+      row.status || "Pendiente",
+      `${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} pago(s) / ${fmtMoney(row.paid || 0)}`,
+      ]),
+      `portal_proveedor_documentos_${payload.provider?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_payables_csv", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó CSV de documentos (${visiblePayables.length})` });
+  };
+  const exportPayablesPdf = async () => {
+    await downloadSectionPdf({
+      title: `Documentos · ${payload.provider?.name || "Proveedor"}`,
+      subtitle: "Documentos por pagar visibles en el portal financiero.",
+      fileName: `portal_proveedor_documentos_${payload.provider?.id || "cuenta"}.pdf`,
+      rows: visiblePayables.map(row => ({
+        title: `${row.folio || "Documento"} · ${row.docType || "Documento"}`,
+        lines: [
+          `Emisión: ${fmtDate(row.issueDate)} · Vencimiento: ${fmtDate(row.dueDate)}`,
+          `Monto: ${fmtMoney(row.total)} · Saldo: ${fmtMoney(row.pending)} · Estado: ${row.status || "Pendiente"}`,
+          `Pagos asociados: ${(row.paymentHistory || []).length} · Pagado: ${fmtMoney(row.paid || 0)}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_payables_pdf", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó PDF de documentos (${visiblePayables.length})` });
+  };
+  const exportIssuedOrdersCsv = async () => {
+    downloadCsvFile(
+      ["Numero", "Emision", "Monto", "Items", "Aprobacion"],
+      issuedOrders.map(row => [row.number || "—", row.issueDate || "", Number(row.amount || 0), Array.isArray(row.items) ? row.items.length : 0, row.approvalStatus || "Pendiente"]),
+      `portal_proveedor_oc_${payload.provider?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_issued_orders_csv", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó CSV de OC (${issuedOrders.length})` });
+  };
+  const exportIssuedOrdersPdf = async () => {
+    await downloadSectionPdf({
+      title: `OC emitidas · ${payload.provider?.name || "Proveedor"}`,
+      subtitle: "Órdenes emitidas visibles en el portal financiero.",
+      fileName: `portal_proveedor_oc_${payload.provider?.id || "cuenta"}.pdf`,
+      rows: issuedOrders.map(row => ({
+        title: row.number || "OC",
+        lines: [
+          `Emisión: ${fmtDate(row.issueDate)} · Monto: ${fmtMoney(row.amount)}`,
+          `Ítems: ${Array.isArray(row.items) ? row.items.length : 0} · Aprobación: ${safeText(row.approvalStatus, "Pendiente")}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_issued_orders_pdf", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó PDF de OC (${issuedOrders.length})` });
+  };
+  const exportDisbursementsCsv = async () => {
+    downloadCsvFile(
+      ["Fecha", "Documento", "Metodo", "Referencia", "Monto"],
+      disbursementLog.map(row => [row.date || "", row.targetLabel || "—", row.method || "", row.reference || "", Number(row.amount || 0)]),
+      `portal_proveedor_pagos_${payload.provider?.id || "cuenta"}.csv`,
+    );
+    await onPortalSignal?.({ eventName: "export_disbursements_csv", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó CSV de pagos (${disbursementLog.length})` });
+  };
+  const exportDisbursementsPdf = async () => {
+    await downloadSectionPdf({
+      title: `Pagos · ${payload.provider?.name || "Proveedor"}`,
+      subtitle: "Pagos registrados visibles en el portal financiero.",
+      fileName: `portal_proveedor_pagos_${payload.provider?.id || "cuenta"}.pdf`,
+      rows: disbursementLog.map(row => ({
+        title: row.targetLabel || "Pago",
+        lines: [
+          `Fecha: ${fmtDate(row.date)} · Método: ${safeText(row.method)}`,
+          `Referencia: ${safeText(row.reference)} · Monto: ${fmtMoney(row.amount || 0)}`,
+        ],
+      })),
+    });
+    await onPortalSignal?.({ eventName: "export_disbursements_pdf", entityType: "provider_finance_portal", entityId: payload.provider?.id, summary: `Exportó PDF de pagos (${disbursementLog.length})` });
+  };
+
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
@@ -557,6 +896,7 @@ function ProviderFinanceBody({ payload }) {
       ) : null}
       {tab === "documentos" ? (
         <Card title="Documentos por pagar" sub="Revisa folios, vencimientos y saldo de cada documento asociado a este proveedor.">
+          <SectionActionBar onCsv={exportPayablesCsv} onPdf={exportPayablesPdf} />
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
             <input value={docSearch} onChange={event => setDocSearch(event.target.value)} placeholder="Buscar por folio, tipo o estado" style={{ minWidth: 220, flex: "1 1 260px", borderRadius: 14, border: "1px solid #d7e4f5", background: "#f9fbff", padding: "12px 14px", fontSize: 14 }} />
             <select value={docStatus} onChange={event => setDocStatus(event.target.value)} style={{ minWidth: 180, borderRadius: 14, border: "1px solid #d7e4f5", background: "#ffffff", padding: "12px 14px", fontSize: 14 }}>
@@ -567,21 +907,23 @@ function ProviderFinanceBody({ payload }) {
             </select>
           </div>
           {visiblePayables.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Tipo</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Estado</TH></tr></thead>
-            <tbody>{visiblePayables.map(row => <tr key={row.id}><TD>{row.folio || "—"}</TD><TD>{row.docType || "Documento"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtDate(row.dueDate)}</TD><TD>{fmtMoney(row.total)}</TD><TD>{fmtMoney(row.pending)}</TD><TD><Badge label={row.status || "Pendiente"} color={row.pending <= 0 ? "green" : row.status === "Vencida" ? "orange" : "cyan"} sm /></TD></tr>)}</tbody>
+            <thead><tr><TH>Número</TH><TH>Tipo</TH><TH>Emisión</TH><TH>Vencimiento</TH><TH>Monto</TH><TH>Saldo</TH><TH>Pagos</TH><TH>Estado</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{visiblePayables.map(row => <tr key={row.id}><TD>{row.folio || "—"}</TD><TD>{row.docType || "Documento"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtDate(row.dueDate)}</TD><TD>{fmtMoney(row.total)}</TD><TD>{fmtMoney(row.pending)}</TD><TD>{`${Array.isArray(row.paymentHistory) ? row.paymentHistory.length : 0} · ${fmtMoney(row.paid || 0)}`}</TD><TD><Badge label={row.status || "Pendiente"} color={row.pending <= 0 ? "green" : row.status === "Vencida" ? "orange" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_payable", url: row.pdfUrl, fileName: row.pdfName || `${row.folio || "documento"}.pdf`, entityType: "payable", entityId: row.id, summary: `Vista de documento ${row.folio || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_payable", url: row.pdfUrl, fileName: row.pdfName || `${row.folio || "documento"}.pdf`, entityType: "payable", entityId: row.id, summary: `Descarga de documento ${row.folio || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin documentos para este filtro" sub="Ajusta la búsqueda o vuelve a revisar más tarde." />}
         </Card>
       ) : null}
       {tab === "ordenes" ? (
         <Card title="Órdenes de compra emitidas" sub="Órdenes emitidas desde Produ para este proveedor.">
+          <SectionActionBar onCsv={exportIssuedOrdersCsv} onPdf={exportIssuedOrdersPdf} />
           {issuedOrders.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Ítems</TH><TH>Aprobación</TH></tr></thead>
-            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD></tr>)}</tbody>
+            <thead><tr><TH>Número</TH><TH>Emisión</TH><TH>Monto</TH><TH>Ítems</TH><TH>Aprobación</TH><TH>Acciones</TH></tr></thead>
+            <tbody>{issuedOrders.map(row => <tr key={row.id}><TD>{row.number || "—"}</TD><TD>{fmtDate(row.issueDate)}</TD><TD>{fmtMoney(row.amount)}</TD><TD>{Array.isArray(row.items) ? row.items.length : 0}</TD><TD><Badge label={safeText(row.approvalStatus, "Pendiente")} color={/aprob/i.test(String(row.approvalStatus || "")) ? "green" : "cyan"} sm /></TD><TD><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "preview_issued_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "issued_order", entityId: row.id, summary: `Vista de OC emitida ${row.number || row.id}` })}>Ver</GBtn> : null}{row.pdfUrl ? <GBtn onClick={() => onPortalAction?.({ type: "download_issued_order", url: row.pdfUrl, fileName: row.pdfName || `${row.number || "orden_compra"}.pdf`, entityType: "issued_order", entityId: row.id, summary: `Descarga de OC emitida ${row.number || row.id}`, mode: "download" })}>Descargar</GBtn> : null}</div></TD></tr>)}</tbody>
           </table></div> : <Empty text="Sin órdenes emitidas" sub="Las órdenes emitidas desde Produ aparecerán aquí." />}
         </Card>
       ) : null}
       {tab === "pagos" ? (
         <Card title="Pagos registrados" sub="Pagos ya aplicados sobre documentos de este proveedor.">
+          <SectionActionBar onCsv={exportDisbursementsCsv} onPdf={exportDisbursementsPdf} />
           {disbursementLog.length ? <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr><TH>Fecha</TH><TH>Documento</TH><TH>Método</TH><TH>Referencia</TH><TH>Monto</TH></tr></thead>
             <tbody>{disbursementLog.map(row => <tr key={row.id}><TD>{fmtDate(row.date)}</TD><TD>{row.targetLabel || "—"}</TD><TD>{safeText(row.method)}</TD><TD>{safeText(row.reference)}</TD><TD>{fmtMoney(row.amount)}</TD></tr>)}</tbody>
@@ -628,7 +970,7 @@ function ProviderFinanceBody({ payload }) {
   );
 }
 
-export function CounterpartyFinancePortalView({ empresas = [], descriptor = null }) {
+export function CounterpartyFinancePortalView({ empresas = [], descriptor = null, platformServices = null, platformApi = null }) {
   const [loading, setLoading] = useState(true);
   const [unlocked, setUnlocked] = useState(false);
   const [payload, setPayload] = useState(null);
@@ -704,6 +1046,120 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
     setPayload(current => current ? { ...current, treasuryProviders: nextProviders, provider: nextProviders.find(item => item.id === current.provider?.id), portal: { ...current.portal, lastAccessAt: now, updatedAt: now } } : current);
   };
 
+  const logPortalAction = async ({
+    eventName = "",
+    entityType = "",
+    entityId = "",
+    signalPayload = {},
+    notify = false,
+    notifySeverity = "info",
+    notifyHeadline = "",
+    email = false,
+  } = {}) => {
+    if (!payload?.empresa?.id || !eventName) return;
+    const actor = buildPortalActor(payload);
+    await appendWorkflowEventEntry({
+      empId: payload.empresa.id,
+      stream: "finance_portal",
+      eventName,
+      entityType,
+      entityId,
+      actor,
+      payload: {
+        counterpartyType: payload.type,
+        counterpartyId: payload.type === "provider" ? payload.provider?.id || "" : payload.client?.id || "",
+        counterpartyName: payload.type === "provider" ? payload.provider?.name || "" : payload.client?.nom || "",
+        portalSlug: payload.portal?.slug || "",
+        ...((signalPayload && typeof signalPayload === "object") ? signalPayload : {}),
+      },
+      platformServices,
+    });
+    await appendOperationalAuditEntry({
+      empId: payload.empresa.id,
+      area: "portal_financiero",
+      action: eventName,
+      entityType,
+      entityId,
+      actor,
+      payload: signalPayload,
+      platformServices,
+    });
+    if (notify) {
+      await appendFinancePortalAlert(payload, {
+        title: notifyHeadline || `Portal financiero · ${payload.type === "provider" ? payload.provider?.name : payload.client?.nom}`,
+        body: `${notifyHeadline || eventName}${signalPayload?.summary ? `\n\n${signalPayload.summary}` : ""}`,
+        severity: notifySeverity,
+        action: eventName,
+      });
+    }
+    if (email && platformApi?.notifications?.sendTransactionalEmail && payload?.empresa?.ema) {
+      try {
+        await platformApi.notifications.sendTransactionalEmail({
+          tenantId: payload.empresa.id,
+          to: [payload.empresa.ema],
+          templateKey: "client_portal_signal",
+          variables: {
+            companyName: payload.empresa?.nombre || payload.empresa?.nom || "Produ",
+            clientName: payload.type === "provider" ? payload.provider?.name || "Proveedor" : payload.client?.nom || "Cliente",
+            actionLabel: notifyHeadline || eventName,
+            detail: signalPayload?.summary || "",
+          },
+        });
+      } catch (error) {
+        console.error("[finance-portal] No pudimos enviar correo interno", error);
+      }
+    }
+  };
+
+  const handleExternalAction = async ({
+    url = "",
+    fileName = "",
+    eventName = "",
+    entityType = "",
+    entityId = "",
+    summary = "",
+    mode = "open",
+    notify = false,
+    email = false,
+  } = {}) => {
+    const link = String(url || "").trim();
+    if (!link) return;
+    if (mode === "download") {
+      downloadUrl(link, fileName || "documento");
+    } else {
+      openExternalLink(link);
+    }
+    await logPortalAction({
+      eventName,
+      entityType,
+      entityId,
+      signalPayload: { fileName, urlType: link.startsWith("data:") ? "embedded" : "external", summary },
+      notify,
+      email,
+      notifyHeadline: summary,
+      notifySeverity: eventName.includes("payment") ? "urgente" : "info",
+    });
+  };
+
+  const handlePortalSignal = async ({
+    eventName = "",
+    entityType = "",
+    entityId = "",
+    summary = "",
+    notify = false,
+    email = false,
+  } = {}) => {
+    await logPortalAction({
+      eventName,
+      entityType,
+      entityId,
+      signalPayload: { summary },
+      notify,
+      email,
+      notifyHeadline: summary,
+    });
+  };
+
   if (loading) {
     return <PublicFinanceShell><Card title="Cargando portal financiero" sub="Estamos preparando la información más reciente desde Produ." /></PublicFinanceShell>;
   }
@@ -735,7 +1191,9 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
           subtitle={subtitle}
           onClosePortal={() => { try { localStorage.removeItem(sessionKey); } catch {} window.location.reload(); }}
         />
-        {payload.type === "provider" ? <ProviderFinanceBody payload={payload} /> : <ClientFinanceBody payload={payload} />}
+        {payload.type === "provider"
+          ? <ProviderFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} />
+          : <ClientFinanceBody payload={payload} onPortalAction={handleExternalAction} onPortalSignal={handlePortalSignal} />}
       </div>
     </PublicFinanceShell>
   );

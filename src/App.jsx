@@ -1519,7 +1519,7 @@ export default function App(){
   if(publicFinancePortalDescriptor) return <>
     <StyleTag css={APP_SHELL_CSS}/>
     <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>
-      <CounterpartyFinancePortalView empresas={empresas} descriptor={publicFinancePortalDescriptor} />
+      <CounterpartyFinancePortalView empresas={empresas} descriptor={publicFinancePortalDescriptor} platformServices={platformServices} platformApi={platformApi} />
     </Suspense>
   </>;
   if(publicClientPortalSlug) return <>

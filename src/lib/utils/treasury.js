@@ -237,6 +237,8 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         paymentHistory,
         externalSync: doc.externalSync || null,
         mercadoPago: doc.mercadoPago || null,
+        pdfUrl: doc.pdfUrl || doc.externalSync?.pdfUrl || "",
+        pdfName: doc.pdfName || `${doc.correlativo || "documento"}.pdf`,
       };
     })
     .sort((a, b) => {

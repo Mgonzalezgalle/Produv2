@@ -347,15 +347,15 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     onLogin(updatedUser, buildSecondFactorSessionMeta());
   };
 
-  const GRID="linear-gradient(rgba(47,110,168,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(47,110,168,.09) 1px,transparent 1px)";
+  const GRID="linear-gradient(rgba(26,26,46,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(26,26,46,.08) 1px,transparent 1px)";
   return <><div className="login-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",inset:0,backgroundImage:GRID,backgroundSize:"44px 44px",opacity:.55}}/>
-    <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 18% 18%, rgba(79,135,215,.22) 0%, transparent 36%),radial-gradient(circle at 82% 14%, rgba(47,110,168,.16) 0%, transparent 34%),linear-gradient(180deg,#fbfdff 0%,#f4f8fd 56%,#eef4fb 100%)"}}/>
+    <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 18% 18%, rgba(26,26,46,.12) 0%, transparent 36%),radial-gradient(circle at 82% 14%, rgba(26,26,46,.08) 0%, transparent 34%),linear-gradient(180deg,#fbfdff 0%,#f4f8fd 56%,#eef4fb 100%)"}}/>
     <div className="login-card" style={{position:"relative",width:"min(1040px,100%)",display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:18}}>
       <div className="login-promo" style={{background:"linear-gradient(180deg,#ffffff 0%,#f7fbff 100%)",border:"1px solid var(--bdr2)",borderRadius:28,padding:34,boxShadow:"0 28px 80px rgba(15,23,42,.10)",display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:540}}>
         <div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 13px",borderRadius:999,border:"1px solid rgba(47,110,168,.16)",background:"rgba(47,110,168,.08)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:22}}>Contratación guiada</div>
-          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:44,lineHeight:1.02,fontWeight:800,maxWidth:470,marginBottom:14,color:"#152033"}}>La misma claridad de la web, ahora desde tu primer ingreso.</div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 13px",borderRadius:999,border:"1px solid rgba(26,26,46,.12)",background:"rgba(26,26,46,.05)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:22}}>Contratación guiada</div>
+          <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:44,lineHeight:1.02,fontWeight:800,maxWidth:470,marginBottom:14,color:"#152033"}}>Sé parte de Produ, inicia tu experiencia desde hoy.</div>
           <div className="login-promo-copy" style={{fontSize:15,color:"#66748d",lineHeight:1.8,maxWidth:500,marginBottom:18}}>Activa tu empresa, define al primer administrador y arma la base operativa de Produ con un flujo simple, claro y mucho más cercano a la experiencia comercial de la marca.</div>
           <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {[["Base","Clientes, proyectos y calendario"],["Operación","Producción, contenido y seguimiento"],["Comercial","Presupuestos, contratos y documentos"]].map(([title,sub])=><div key={title} style={{padding:"15px 15px",borderRadius:18,background:"#f8fbff",border:"1px solid #dbe6f3"}}><div style={{fontSize:12,fontWeight:800,color:"#152033",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"#66748d",lineHeight:1.55}}>{sub}</div></div>)}
@@ -370,7 +370,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
               <div>• Activación guiada y supervisada por el equipo de Produ</div>
             </div>
           </div>
-          <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{padding:"15px 18px",borderRadius:16,border:"1px solid rgba(47,110,168,.16)",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:selfServeLoading?"wait":"pointer",fontSize:14,fontWeight:800,boxShadow:"0 18px 36px rgba(47,110,168,.24)",opacity:selfServeLoading?0.8:1}}>{selfServeLoading?"Cargando...":"Quiero activar Produ"}</button>
+          <button type="button" onClick={() => { void handleOpenSelfServe(); }} style={{padding:"15px 18px",borderRadius:16,border:"1px solid rgba(26,26,46,.12)",background:"#1a1a2e",color:"#fff",cursor:selfServeLoading?"wait":"pointer",fontSize:14,fontWeight:800,boxShadow:"0 18px 36px rgba(26,26,46,.22)",opacity:selfServeLoading?0.8:1}}>{selfServeLoading?"Cargando...":"Quiero activar Produ"}</button>
         </div>
       </div>
       <div className="login-form" style={{background:"#ffffff",border:"1px solid var(--bdr2)",borderRadius:28,padding:40,boxShadow:"0 28px 80px rgba(15,23,42,.12)"}}>
@@ -477,8 +477,8 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
         </div>
       </>}
       {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:12,padding:"10px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
-      {!forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(47,110,168,.22)"}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
-      {forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(47,110,168,.22)"}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
+      {!forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
+      {forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
       {pending2FA
         ? <div style={{textAlign:"center"}}>
             {pending2FA.mode === "verify" && (

@@ -250,7 +250,7 @@ export function SelfServeAcquisitionWizard({
     <div style={{background:"linear-gradient(180deg,#ffffff 0%,#f8fbff 100%)",border:"1px solid var(--bdr2)",borderRadius:30,width:1120,maxWidth:"100%",padding:30,animation:"modalIn .2s ease",maxHeight:"92vh",overflow:"auto",boxShadow:"0 32px 100px rgba(15,23,42,.14)"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid rgba(47,110,168,.16)",background:"rgba(47,110,168,.08)",color:"var(--cy)",fontSize:10,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Produ onboarding</div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid rgba(26,26,46,.12)",background:"rgba(26,26,46,.05)",color:"var(--cy)",fontSize:10,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Produ onboarding</div>
           <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:800,marginBottom:6,color:"#152033"}}>Activa tu empresa con una experiencia alineada a la marca</div>
           <div style={{fontSize:13,color:"#66748d"}}>Empresa, administrador, addons y cierre comercial en un solo flujo claro.</div>
         </div>
@@ -277,7 +277,7 @@ export function SelfServeAcquisitionWizard({
               ? "Tu solicitud quedó registrada para revisión. El equipo de Produ validará la empresa, los addons y el checkout antes de activar la instancia."
               : "Tu empresa quedó registrada como activación guiada. El equipo de Produ revisará los datos y te contactará para cerrar el alta."}
           </div>
-          <button onClick={onClose} style={{padding:"11px 24px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#2f6ea8 0%,#4f87d7 100%)",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:800,boxShadow:"0 16px 30px rgba(47,110,168,.2)"}}>Cerrar</button>
+          <button onClick={onClose} style={{padding:"11px 24px",borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:800,boxShadow:"0 16px 30px rgba(26,26,46,.2)"}}>Cerrar</button>
         </div>
         :<div style={{display:"grid",gridTemplateColumns:"minmax(0,1.2fr) minmax(320px,.8fr)",gap:20}}>
           <div>

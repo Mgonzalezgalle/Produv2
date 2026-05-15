@@ -533,33 +533,32 @@ export function ViewCliDet({
         </Card>
       </div>
       <Card
-        title="Portal cliente"
-        sub="Preparamos el acceso externo de este cliente para seguimiento, aprobaciones y revisión de contenidos o producciones."
+        title="Portal de contenido"
+        sub="Acceso externo para revisión de contenidos, producciones y respuestas del cliente."
         action={canManageClients ? { label: clientPortal.enabled ? "Desactivar portal" : "Activar portal", fn: togglePortal } : null}
         style={{ marginBottom: 20 }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: clientPortal.enabled ? "#00e08a" : "var(--wh)" }}>
-              {clientPortal.enabled ? "Portal activo" : "Portal inactivo"}
+            <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: clientPortal.enabled ? "#00e08a" : "var(--wh)" }}>
+              {clientPortal.enabled ? "Activo" : "Inactivo"}
             </div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--cy)" }}>{clientPortal.authorizedEmails.length}</div>
+            <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--cy)" }}>{clientPortal.authorizedEmails.length}</div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
-            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Actividad reciente</div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--wh)" }}>{portalHistory.length}</div>
+            <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Respuestas</div>
+            <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--wh)" }}>{portalHistory.length}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
               <Badge label={clientPortal.enabled ? "Portal activo" : "Portal inactivo"} color={clientPortal.enabled ? "green" : "gray"} />
               <Badge label="Acceso por código" color="cyan" />
-              {clientPortal.authorizedEmails.length ? <Badge label={`${clientPortal.authorizedEmails.length} contacto(s) autorizado(s)`} color="purple" /> : <Badge label="Sin correos autorizados" color="yellow" />}
             </div>
             <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{portalUrl}</span>} />
             <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{clientPortal.accessCode}</span>} />
@@ -575,11 +574,10 @@ export function ViewCliDet({
             </div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá este cliente</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá</div>
             <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
               <div>• Resumen con pendientes, aprobaciones y documentos por revisar.</div>
               <div>• Contenidos para aprobar, observar o complementar con brief.</div>
-              <div>• Presupuestos listos para aceptar o devolver con comentarios.</div>
               <div>• Producciones y avances visibles para el cliente.</div>
             </div>
             <Sep />
@@ -599,28 +597,27 @@ export function ViewCliDet({
         action={canManageClients ? { label: financePortal.enabled ? "Desactivar portal" : "Activar portal", fn: toggleFinancePortal } : null}
         style={{ marginBottom: 20 }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: financePortal.enabled ? "#00e08a" : "var(--wh)" }}>
-              {financePortal.enabled ? "Portal financiero activo" : "Portal financiero inactivo"}
+            <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: financePortal.enabled ? "#00e08a" : "var(--wh)" }}>
+              {financePortal.enabled ? "Activo" : "Inactivo"}
             </div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: "var(--cy)" }}>{financePortal.authorizedEmails.length}</div>
+            <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--cy)" }}>{financePortal.authorizedEmails.length}</div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Último acceso</div>
             <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{financePortal.lastAccessAt ? fmtPortalTimestamp(financePortal.lastAccessAt) : "Sin ingresos"}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
               <Badge label={financePortal.enabled ? "Portal activo" : "Portal inactivo"} color={financePortal.enabled ? "green" : "gray"} />
               <Badge label="Cuentas por cobrar" color="cyan" />
-              <Badge label="Acceso por código" color="purple" />
             </div>
             <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{financePortalUrl}</span>} />
             <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{financePortal.accessCode}</span>} />
@@ -635,7 +632,7 @@ export function ViewCliDet({
             </div>
           </div>
           <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá este cliente</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá</div>
             <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
               <div>• Documentos por cobrar y su estado de pago.</div>
               <div>• Pagos ya registrados sobre su cuenta.</div>

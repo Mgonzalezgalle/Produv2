@@ -278,7 +278,7 @@ export function TreasuryReceivablesSection({
           searchPlaceholder="Buscar pago, cliente o método..."
           filters={[
             <FilterSel key="receipt-client" value={receiptClientFilter} onChange={setReceiptClientFilter} options={receiptClientOptions} placeholder="Todos los clientes" />,
-            <FilterSel key="receipt-period" value={receiptPeriodFilter} onChange={setReceiptPeriodFilter} options={receiptPeriodOptions} placeholder="Todos los períodos" />,
+            <FilterSel key="receipt-period" value={receiptPeriodFilter} onChange={setReceiptPeriodFilter} options={receiptPeriodOptions} placeholder="Todos los meses" />,
           ]}
           selectedCount={receiptTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null}
@@ -485,7 +485,7 @@ export function TreasuryPayablesSection({
           searchPlaceholder="Buscar pago, proveedor o método..."
           filters={[
             <FilterSel key="disbursement-supplier" value={disbursementSupplierFilter} onChange={setDisbursementSupplierFilter} options={disbursementSupplierOptions} placeholder="Todos los proveedores" />,
-            <FilterSel key="disbursement-period" value={disbursementPeriodFilter} onChange={setDisbursementPeriodFilter} options={disbursementPeriodOptions} placeholder="Todos los períodos" />,
+            <FilterSel key="disbursement-period" value={disbursementPeriodFilter} onChange={setDisbursementPeriodFilter} options={disbursementPeriodOptions} placeholder="Todos los meses" />,
           ]}
           selectedCount={disbursementTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await deleteMany(disbursementTable.selectedIds, deleteDisbursement); disbursementTable.clearSelection(); } : null}

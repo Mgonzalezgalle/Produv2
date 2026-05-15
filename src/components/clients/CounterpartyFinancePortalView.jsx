@@ -18,7 +18,7 @@ import {
   summarizeStoredPayables,
   summarizeTreasuryReceivables,
 } from "../../lib/utils/treasury";
-import { Badge, Btn, Card, Empty, GBtn, Modal, TH, TD } from "../../lib/ui/components";
+import { Badge, Btn, GBtn, Modal } from "../../lib/ui/components";
 import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
 import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
@@ -206,6 +206,20 @@ function accessCodeSlots(code = "") {
   return Array.from({ length: 6 }, (_, index) => clean[index] || "");
 }
 
+function useViewportFlags() {
+  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return {
+    width,
+    isMobile: width <= 760,
+    isTablet: width <= 1080,
+  };
+}
+
 function PublicFinanceShell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
@@ -232,6 +246,48 @@ function PortalBrandFooter() {
   );
 }
 
+function PortalSectionCard({ title = "", sub = "", children, actions = null, columns = 1, mobile = false }) {
+  return (
+    <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 24, padding: mobile ? "18px 16px" : "20px 20px 18px", boxShadow: "0 18px 44px rgba(15,23,42,.06)" }}>
+      {(title || sub || actions) ? (
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e6eef8" }}>
+          <div>
+            {!!title && <div style={{ fontFamily: "var(--fh)", fontSize: 15, fontWeight: 900, color: "#0f172a", lineHeight: 1.15 }}>{title}</div>}
+            {!!sub && <div style={{ marginTop: 7, fontSize: 12.5, color: "#64748b", lineHeight: 1.6 }}>{sub}</div>}
+          </div>
+          {actions}
+        </div>
+      ) : null}
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: columns > 1 && !mobile ? `repeat(${columns}, minmax(0, 1fr))` : "1fr" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function PortalEmptyState({ text = "", sub = "" }) {
+  return (
+    <div style={{ textAlign: "center", padding: "34px 18px", color: "#64748b", background: "#f8fbff", border: "1px dashed #d9e5f6", borderRadius: 18 }}>
+      <div style={{ fontSize: 26, marginBottom: 10, opacity: 0.32 }}>◻</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{text}</div>
+      {sub ? <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 8, lineHeight: 1.55 }}>{sub}</div> : null}
+    </div>
+  );
+}
+
+function PortalTH({ children, style = {} }) {
+  return <th style={{ textAlign: "left", padding: "11px 12px", fontSize: 9.5, letterSpacing: 1.5, textTransform: "uppercase", color: "#7b8ca5", borderBottom: "1px solid #dbe6f3", fontWeight: 800, whiteSpace: "nowrap", background: "#f7fbff", ...style }}>{children}</th>;
+}
+
+function PortalTD({ children, style = {} }) {
+  return <td style={{ padding: "11px 12px", fontSize: 12, color: "#40556f", borderBottom: "1px solid #e8eef8", verticalAlign: "middle", lineHeight: 1.45, ...style }}>{children}</td>;
+}
+
+const Card = PortalSectionCard;
+const TH = PortalTH;
+const TD = PortalTD;
+const Empty = PortalEmptyState;
+
 function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
   const palette = {
     blue: { bg: "#eef5ff", border: "#d6e7ff", label: "#4b6590", value: "#2f6ea8" },
@@ -249,6 +305,7 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
 }
 
 function FinanceHero({ type = "client", companyName = "", counterpartyName = "", identity = "", subtitle = "", onClosePortal = null }) {
+  const { isMobile, isTablet } = useViewportFlags();
   return (
     <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 28, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
       <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "16px 20px" }}>
@@ -265,7 +322,7 @@ function FinanceHero({ type = "client", companyName = "", counterpartyName = "",
           <GBtn onClick={onClosePortal} s={{ borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 700, borderColor: "rgba(255,255,255,.42)", color: "#ffffff", background: "rgba(255,255,255,.08)" }}>Cerrar portal</GBtn>
         </div>
       </div>
-      <div style={{ padding: "20px 20px 18px", display: "grid", gridTemplateColumns: "minmax(0,1.45fr) minmax(280px,.55fr)", gap: 16 }}>
+      <div style={{ padding: isMobile ? "16px 16px 14px" : "20px 20px 18px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "minmax(0,1.45fr) minmax(280px,.55fr)", gap: 16 }}>
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
           <div style={{ width: 58, height: 58, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, fontWeight: 900, flexShrink: 0 }}>
             {getInitials(counterpartyName)}
@@ -437,11 +494,12 @@ function PortalGate({ payload, onUnlock }) {
 }
 
 function SectionTabs({ type, tab, setTab }) {
+  const { isMobile } = useViewportFlags();
   const tabs = type === "provider"
     ? [["resumen", "Resumen"], ["documentos", "Documentos"], ["ordenes", "OC emitidas"], ["pagos", "Pagos"], ["datos", "Cuenta"]]
     : [["resumen", "Resumen"], ["documentos", "Facturas"], ["ordenes", "OC recibidas"], ["presupuestos", "Presupuestos"], ["pagos", "Pagos"], ["datos", "Cuenta"]];
   return (
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", paddingBottom: isMobile ? 4 : 0 }}>
       {tabs.map(([key, label]) => (
         <button
           key={key}
@@ -456,6 +514,8 @@ function SectionTabs({ type, tab, setTab }) {
             fontSize: 12,
             fontWeight: 800,
             cursor: "pointer",
+            whiteSpace: "nowrap",
+            flex: isMobile ? "0 0 auto" : "0 0 auto",
           }}
         >
           {label}
@@ -553,6 +613,7 @@ async function appendFinancePortalAlert(payload = null, { title = "", body = "",
 }
 
 function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDecision }) {
+  const { isMobile, isTablet } = useViewportFlags();
   const receivables = useMemo(
     () => buildTreasuryReceivables({
       facturas: payload.facturas,
@@ -810,7 +871,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: 12 }}>
         <PortalMetricCard eyebrow="Total por pagar" value={fmtMoney(receivableSummary.pending)} tone="blue" />
         <PortalMetricCard eyebrow="A tiempo" value={fmtMoney(onTimePending)} tone="green" />
         <PortalMetricCard eyebrow="Vencido" value={fmtMoney(overduePending)} tone="red" />
@@ -818,7 +879,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       </div>
       <SectionTabs type="client" tab={tab} setTab={setTab} />
       {tab === "resumen" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1.2fr .8fr", gap: 16 }}>
           <Card title="Resumen financiero" sub="Aquí puedes revisar el estado actual de tus documentos, pagos y compromisos abiertos.">
             <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Total por pagar:</b> {fmtMoney(receivableSummary.pending)}</div>
@@ -923,7 +984,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
         </Card>
       ) : null}
       {tab === "datos" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 1fr", gap: 16 }}>
           <Card title="Datos de la cuenta" sub="Información general asociada a este cliente dentro de Produ.">
             <SectionActionBar onCsv={exportAccountCsv} onPdf={exportAccountPdf} />
             <div style={{ display: "grid", gap: 12, fontSize: 14, color: "#53657e" }}>
@@ -981,6 +1042,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
 }
 
 function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
+  const { isMobile, isTablet } = useViewportFlags();
   const payables = useMemo(
     () => buildTreasuryPayables({
       payables: payload.payables,
@@ -1111,7 +1173,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: 12 }}>
         <PortalMetricCard eyebrow="Total por pagar" value={fmtMoney(payablesSummary.pending)} tone="blue" />
         <PortalMetricCard eyebrow="A tiempo" value={fmtMoney(Math.max(0, Number(payablesSummary.pending || 0) - Number(payablesSummary.overdue || 0)))} tone="green" />
         <PortalMetricCard eyebrow="Vencido" value={fmtMoney(payablesSummary.overdue)} tone="red" />
@@ -1119,7 +1181,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       </div>
       <SectionTabs type="provider" tab={tab} setTab={setTab} />
       {tab === "resumen" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1.2fr .8fr", gap: 16 }}>
           <Card title="Resumen financiero" sub="Una vista simple del estado documental y de pagos de este proveedor.">
             <div style={{ display: "grid", gap: 9, fontSize: 13, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Documentos abiertos:</b> {payablesSummary.docs}</div>
@@ -1174,7 +1236,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
         </Card>
       ) : null}
       {tab === "datos" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 1fr", gap: 16 }}>
           <Card title="Datos de la cuenta" sub="Información general asociada a este proveedor dentro de Produ.">
             <div style={{ display: "grid", gap: 12, fontSize: 14, color: "#53657e" }}>
               <div><b style={{ color: "#0f172a" }}>Proveedor:</b> {safeText(payload.provider?.name || payload.provider?.razonSocial)}</div>

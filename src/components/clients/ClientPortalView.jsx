@@ -168,6 +168,19 @@ function uniqueEmails(values = []) {
   return Array.from(new Set((Array.isArray(values) ? values : []).map(value => normalizeEmailValue(value)).filter(Boolean)));
 }
 
+function useViewportFlags() {
+  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return {
+    isMobile: width <= 760,
+    isTablet: width <= 1080,
+  };
+}
+
 function PublicPortalShell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
@@ -235,6 +248,7 @@ class PortalSectionBoundary extends Component {
 }
 
 function PortalGate({ empresa, client, portal, onUnlock }) {
+  const { isMobile } = useViewportFlags();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const codeInputRef = useRef(null);
@@ -251,7 +265,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
     <PublicPortalShell>
       <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #dbe6f3", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
         <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eef8", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
-          <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>Portal cliente</div>
+          <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>Portal de contenido</div>
           <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{client?.nom || "Cliente"}</div>
           <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 10 }}>
             Estás entrando al espacio compartido por <b style={{ color: "#0f172a" }}>{empresa?.nombre || empresa?.nom || "Produ"}</b> para revisar avances, documentos y pendientes.
@@ -261,7 +275,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
           <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 22, padding: 24 }}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Código de acceso</div>
             <div style={{ fontSize: 14, color: "#5b6b82", lineHeight: 1.6, marginBottom: 18 }}>
-              Ingresa el código de 6 dígitos que te compartieron para entrar al portal de este cliente.
+              Ingresa el código de 6 dígitos que te compartieron para entrar al portal de contenido de este cliente.
             </div>
             <div style={{ display: "grid", gap: 16 }}>
               <button
@@ -273,8 +287,8 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                   <div
                     key={index}
                     style={{
-                      width: 54,
-                      height: 66,
+                      width: isMobile ? 48 : 54,
+                      height: isMobile ? 58 : 66,
                       borderRadius: 18,
                       border: `1px solid ${error ? "#ff5566" : digit ? "#2f6ea8" : "#dbe7f5"}`,
                       background: "#ffffff",
@@ -283,7 +297,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                       justifyContent: "center",
                       boxShadow: digit ? "0 14px 30px rgba(47,110,168,.12)" : "none",
                       fontFamily: "var(--fm)",
-                      fontSize: 24,
+                      fontSize: isMobile ? 22 : 24,
                       fontWeight: 700,
                       color: "#0f172a",
                     }}
@@ -303,7 +317,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
                 inputMode="numeric"
                 aria-label="Código de acceso"
                 style={{
-                  width: 220,
+                  width: isMobile ? "100%" : 220,
                   padding: "12px 14px",
                   borderRadius: 14,
                   border: `1px solid ${error ? "#ff5566" : "#dbe7f5"}`,
@@ -329,6 +343,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
 }
 
 export function ClientPortalView({ empresas = [], slug = "", platformServices = null, platformApi = null }) {
+  const { isMobile, isTablet } = useViewportFlags();
   const [loading, setLoading] = useState(true);
   const [payload, setPayload] = useState(null);
   const [authorized, setAuthorized] = useState(false);
@@ -856,10 +871,10 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 28, boxShadow: "0 28px 80px rgba(15,23,42,.10)", overflow: "hidden" }}>
           <div style={{ padding: "30px 30px 24px", borderBottom: "1px solid #e8eef8", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
             <div>
-              <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800, color: "#2f6ea8", marginBottom: 10 }}>Portal cliente</div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: 28, fontWeight: 900, color: "#0f172a" }}>{payload.client.nom}</div>
+              <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800, color: "#2f6ea8", marginBottom: 10 }}>Portal de contenido</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: isMobile ? 24 : 28, fontWeight: 900, color: "#0f172a" }}>{payload.client.nom}</div>
               <div style={{ marginTop: 8, fontSize: 14, color: "#5b6b82" }}>{headerMeta}</div>
-              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
+              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))", gap: 10 }}>
                 <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 16, padding: "12px 14px" }}>
                   <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Contenidos por revisar</div>
                   <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
@@ -874,7 +889,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                 </div>
               </div>
             </div>
-            <div style={{ display: "grid", gap: 10, minWidth: 280, flex: "0 0 320px" }}>
+            <div style={{ display: "grid", gap: 10, minWidth: isTablet ? 0 : 280, flex: isTablet ? "1 1 100%" : "0 0 320px" }}>
               <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(15,23,42,.05)" }}>
                 <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
                 <div style={{ display: "grid", gap: 8, fontSize: 13, color: "#334155" }}>
@@ -897,7 +912,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           </div>
 
           <div style={{ padding: "0 24px 24px" }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 16 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", paddingTop: 16, paddingBottom: isMobile ? 4 : 0 }}>
               {tabs.map(([id, label, accent]) => (
                 <button
                   key={id}
@@ -912,6 +927,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                     fontWeight: 700,
                     cursor: "pointer",
                     boxShadow: tab === id ? "0 12px 30px rgba(15,23,42,.10)" : "none",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {label}
@@ -923,13 +939,13 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
         {tab === "resumen" ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: 14 }}>
               <Stat label="Producciones activas" value={(summary?.activeProductions.length || 0) + (summary?.activePrograms.length || 0)} accent="#4f7cff" vc="#4f7cff" />
               <Stat label="Campañas de contenido" value={summary?.activeContent.length || 0} accent="#a855f7" vc="#a855f7" />
               <Stat label="Piezas visibles" value={summary?.totalContentPieces || 0} accent="#00b894" vc="#00b894" />
               <Stat label="Monto pendiente" value={fmtMoney(summary?.pendingAmount || 0)} accent="#ff8844" vc="#ff8844" />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1.1fr .9fr", gap: 18 }}>
               <Card title="Lo que requiere atención hoy" sub="Una vista rápida para entrar a lo importante sin perder tiempo.">
                 <div style={{ display: "grid", gap: 10 }}>
                   <div>• {summary?.pendingApprovals.length || 0} campaña(s) de contenido todavía esperan revisión.</div>
@@ -962,7 +978,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
 
                 {Array.isArray(summary?.activeContent) && summary.activeContent.length ? (
                   <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: 12 }}>
                       {[
                         ["Pendientes", contentWorkspace.reviewQueue.length, "#2f6ea8"],
                         ["Aprobadas", contentWorkspace.approved.length, "#00b894"],
@@ -976,7 +992,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                       ))}
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "end" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 320px", gap: 16, alignItems: "end" }}>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         {[
                           ["all", "Todo"],
@@ -1029,7 +1045,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                           const approvalLabel = safeText(piece.approval, "Pendiente");
                           return (
                             <div key={piece.id} style={{ padding: 18, borderRadius: 22, background: "#ffffff", border: "1px solid #dbe7f5", boxShadow: "0 14px 28px rgba(15,23,42,.05)" }}>
-                              <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 18, alignItems: "start" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1.15fr .85fr", gap: 18, alignItems: "start" }}>
                                 <div style={{ display: "grid", gap: 12 }}>
                                   <div>
                                     <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{safeText(piece.nom, "Pieza")}</div>
@@ -1038,7 +1054,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                                     </div>
                                   </div>
 
-                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))", gap: 10 }}>
                                     <div style={{ borderRadius: 14, background: "#f7faff", border: "1px solid #dbe7f5", padding: "10px 12px" }}>
                                       <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Estado</div>
                                       <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>{safeText(piece.est, "En revisión")}</div>

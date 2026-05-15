@@ -185,10 +185,22 @@ export function createFoundationFinancialRegistryCoordinator({
       });
     }
     const remoteResult = await platformServices.upsertFinancialRegistryRecord(safeEmpId, registryName, safeRecord, metadata);
-    const records = Array.isArray(remoteResult?.records)
+    const remoteRecords = Array.isArray(remoteResult?.records)
       ? remoteResult.records.map(item => sanitizeRecord(item, safeEmpId))
-      : [safeRecord];
-    await Promise.resolve(setRecords(records));
+      : null;
+    let records = [];
+    await Promise.resolve(setRecords((current = []) => {
+      const baseRecords = Array.isArray(current) ? current : [];
+      if (Array.isArray(remoteRecords) && remoteRecords.length) {
+        records = remoteRecords;
+        return remoteRecords;
+      }
+      const exists = baseRecords.some(item => String(item?.id || "").trim() === safeRecordId);
+      records = exists
+        ? baseRecords.map(item => String(item?.id || "").trim() === safeRecordId ? { ...item, ...safeRecord } : item)
+        : [...baseRecords, safeRecord];
+      return records;
+    }));
     if (audit?.action) {
       await appendOperationalAuditEntry({
         empId: safeEmpId,
@@ -247,10 +259,19 @@ export function createFoundationFinancialRegistryCoordinator({
       });
     }
     const remoteResult = await platformServices.deleteFinancialRegistryRecord(safeEmpId, registryName, safeRecordId, metadata);
-    const records = Array.isArray(remoteResult?.records)
+    const remoteRecords = Array.isArray(remoteResult?.records)
       ? remoteResult.records.map(item => sanitizeRecord(item, safeEmpId))
-      : [];
-    await Promise.resolve(setRecords(records));
+      : null;
+    let records = [];
+    await Promise.resolve(setRecords((current = []) => {
+      const baseRecords = Array.isArray(current) ? current : [];
+      if (Array.isArray(remoteRecords)) {
+        records = remoteRecords;
+        return remoteRecords;
+      }
+      records = baseRecords.filter(item => String(item?.id || "").trim() !== safeRecordId);
+      return records;
+    }));
     if (audit?.action) {
       await appendOperationalAuditEntry({
         empId: safeEmpId,

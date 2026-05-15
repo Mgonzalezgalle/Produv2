@@ -15,7 +15,7 @@ function sumItems(items = [], resolver = item => item) {
 }
 
 function sectionCardStyle() {
-  return { padding: "14px 16px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "var(--sur)" };
+  return { padding: "14px 16px", borderRadius: 18, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)", boxShadow: "0 12px 28px rgba(15,23,42,.05)" };
 }
 
 function statusTone(type = "") {
@@ -36,7 +36,7 @@ function renderActionCard(action) {
     <button
       key={action.label}
       onClick={action.fn}
-      style={{ textAlign: "left", padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", cursor: "pointer" }}
+      style={{ textAlign: "left", padding: "13px 14px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)", cursor: "pointer", boxShadow: "0 12px 28px rgba(15,23,42,.05)" }}
     >
       <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{action.label}</div>
       <div style={{ fontSize: 11, color: "var(--gr2)" }}>{action.sub}</div>
@@ -311,10 +311,10 @@ export function ViewDashboard({
 
   return (
     <div style={{ width: "100%", minWidth: 0 }}>
-      <div style={{ padding: "18px 20px", border: "1px solid var(--bdr2)", borderRadius: 20, background: "linear-gradient(180deg,var(--cg),transparent 68%)", marginBottom: 18 }}>
+      <div style={{ padding: "20px 22px", border: "1px solid var(--bdr2)", borderRadius: 24, background: "linear-gradient(180deg,rgba(43,109,246,.08) 0%,#ffffff 46%,#f8fbff 100%)", marginBottom: 18, boxShadow: "0 22px 44px rgba(15,23,42,.07)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
           <div style={{ minWidth: 0, flex: "1 1 420px" }}>
-            <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>Panel operativo</div>
+            <div style={{ fontSize: 10, color: "var(--cy2)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, fontWeight: 800 }}>Panel operativo</div>
             <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, color: "var(--wh)", marginBottom: 6 }}>Hola, {user?.name}</div>
             <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, maxWidth: 780 }}>
               Este panel resume lo que más conviene revisar en {empresa?.nombre}: salud operativa, presión comercial, ejecución activa y alertas concretas para el día.

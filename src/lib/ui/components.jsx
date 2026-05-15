@@ -287,7 +287,7 @@ export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false, se
         e.stopPropagation();
         onClose?.();
       }}
-      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr3)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+      style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
     >
       Cancelar
     </button>
@@ -299,7 +299,7 @@ export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false, se
         onSecondaryAction?.();
       }}
       disabled={secondaryDisabled}
-      style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--cy)", background: "transparent", color: secondaryDisabled ? "var(--gr2)" : "var(--cy)", cursor: secondaryDisabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: secondaryDisabled ? 0.7 : 1 }}
+      style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--cy2)", background: "#ffffff", color: secondaryDisabled ? "var(--gr2)" : "var(--cy2)", cursor: secondaryDisabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: secondaryDisabled ? 0.7 : 1 }}
     >
       {secondaryActionLabel}
     </button>}
@@ -311,21 +311,21 @@ export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false, se
         onSave?.();
       }}
       disabled={disabled}
-      style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: disabled ? "var(--bdr2)" : "var(--cy)", color: disabled ? "var(--gr2)" : "var(--bg)", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: disabled ? 0.7 : 1 }}
+      style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: disabled ? "var(--bdr2)" : "var(--cy)", color: disabled ? "var(--gr2)" : "#ffffff", cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, opacity: disabled ? 0.7 : 1, boxShadow: disabled ? "none" : "0 12px 24px rgba(26,26,46,.12)" }}
     >
       {label}
     </button>
   </div>
 );
 
-export const Btn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: sm ? "6px 12px" : "9px 18px", borderRadius: 6, border: "none", background: "var(--cy)", color: "var(--bg)", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 700, whiteSpace: "nowrap", ...s }}>{children}</button>;
-export const GBtn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ padding: sm ? "5px 11px" : "7px 14px", borderRadius: 6, border: "1px solid var(--bdr2)", background: "transparent", color: "var(--gr3)", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 600, ...s }}>{children}</button>;
+export const Btn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: sm ? "7px 13px" : "10px 18px", borderRadius: 12, border: "none", background: "var(--cy)", color: "#ffffff", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 12px 24px rgba(26,26,46,.12)", ...s }}>{children}</button>;
+export const GBtn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ padding: sm ? "6px 12px" : "8px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 600, ...s }}>{children}</button>;
 export const DBtn = ({ onClick, children, sm }) => <button onClick={onClick} style={{ padding: sm ? "4px 9px" : "7px 12px", borderRadius: 6, border: "1px solid #ff556625", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: sm ? 10 : 12, fontWeight: 600 }}>{children}</button>;
 export const XBtn = ({ onClick }) => <button onClick={onClick} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #ff556625", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 10, fontWeight: 600 }}>✕</button>;
 
 export function Stat({ label, value, sub, accent = "var(--cy)", vc }) {
   return (
-    <div style={{ background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 16, padding: "18px 20px", position: "relative", overflow: "hidden", boxShadow: "0 14px 34px rgba(0,0,0,.08)" }}>
+    <div style={{ background: "linear-gradient(180deg,#ffffff,var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 20, padding: "18px 20px", position: "relative", overflow: "hidden", boxShadow: "0 18px 40px rgba(15,23,42,.08)" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: accent }} />
       <div style={{ fontSize: 10, letterSpacing: 1.6, textTransform: "uppercase", color: "var(--gr2)", marginBottom: 10, fontWeight: 700 }}>{label}</div>
       <div style={{ fontFamily: "var(--fm)", fontSize: 24, fontWeight: 700, color: vc || "var(--wh)", lineHeight: 1 }}>{value}</div>
@@ -335,7 +335,7 @@ export function Stat({ label, value, sub, accent = "var(--cy)", vc }) {
 }
 
 export const TH = ({ children, onClick, active = false, dir = "", style, title }) => (
-  <th onClick={onClick} title={title} style={{ textAlign: "left", padding: "13px 14px", fontSize: 10, letterSpacing: 1.7, textTransform: "uppercase", color: active ? "var(--cy)" : "var(--gr2)", borderBottom: "1px solid var(--bdr)", fontWeight: 700, whiteSpace: "nowrap", background: "linear-gradient(180deg,var(--card2),rgba(255,255,255,.01))", cursor: onClick ? "pointer" : "default", userSelect: "none", ...style }}>
+  <th onClick={onClick} title={title} style={{ textAlign: "left", padding: "14px 14px", fontSize: 10, letterSpacing: 1.7, textTransform: "uppercase", color: active ? "var(--cy2)" : "var(--gr2)", borderBottom: "1px solid var(--bdr)", fontWeight: 700, whiteSpace: "nowrap", background: "linear-gradient(180deg,#f8fbff,rgba(255,255,255,.98))", cursor: onClick ? "pointer" : "default", userSelect: "none", ...style }}>
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <span>{children}</span>
       {active && <span style={{ fontSize: 10, lineHeight: 1 }}>{dir === "desc" ? "↓" : "↑"}</span>}
@@ -343,18 +343,18 @@ export const TH = ({ children, onClick, active = false, dir = "", style, title }
   </th>
 );
 
-export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding: "13px 14px", fontSize: 12.5, color: bold ? "var(--wh)" : "var(--gr3)", borderBottom: "1px solid var(--bdr)", fontFamily: mono ? "var(--fm)" : "inherit", fontWeight: bold ? 600 : 400, verticalAlign: "middle", lineHeight: 1.5, ...style }}>{children}</td>;
+export const TD = ({ children, bold, mono, style = {} }) => <td style={{ padding: "12px 14px", fontSize: 12.5, color: bold ? "var(--wh)" : "var(--gr3)", borderBottom: "1px solid var(--bdr)", fontFamily: mono ? "var(--fm)" : "inherit", fontWeight: bold ? 600 : 400, verticalAlign: "middle", lineHeight: 1.5, background: "#ffffff", ...style }}>{children}</td>;
 
 export function Card({ title, sub, action, children, style = {} }) {
   return (
-    <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, display: "block", background: "linear-gradient(180deg,var(--card),var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 18, padding: 20, boxShadow: "0 14px 34px rgba(0,0,0,.08)", ...style }}>
+    <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, display: "block", background: "linear-gradient(180deg,#ffffff,var(--card2))", border: "1px solid var(--bdr2)", borderRadius: 22, padding: 20, boxShadow: "0 18px 40px rgba(15,23,42,.08)", ...style }}>
       {title && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: "1px solid var(--bdr)" }}>
           <div>
             <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)" }}>{title}</div>
             {sub && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4, lineHeight: 1.5 }}>{sub}</div>}
           </div>
-          {action && <button onClick={action.fn} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--gr3)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{action.label}</button>}
+          {action && <button onClick={action.fn} style={{ padding: "7px 12px", borderRadius: 10, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>{action.label}</button>}
         </div>
       )}
       {children}

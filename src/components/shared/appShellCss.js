@@ -2,7 +2,7 @@ export const APP_SHELL_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
   --bg:#f4f8fd;--sur:#ffffff;--card:#ffffff;--card2:#f7fbff;
-  --bdr:#dbe6f3;--bdr2:#cfdceb;--cy:#1a1a2e;--cy2:#2b2b48;
+  --bdr:#dbe6f3;--bdr2:#cfdceb;--cy:#1a1a2e;--cy2:#2b6df6;
   --cg:#1a1a2e12;--cm:#1a1a2e32;--wh:#152033;
   --gr:#7b8aa3;--gr2:#66748d;--gr3:#42526b;
   --red:#ff5566;--grn:#00e08a;--yel:#ffcc44;--org:#ff8844;--pur:#a855f7;
@@ -20,30 +20,30 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:#f7fbff!impo
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
-body.light .sidebar-inner{background:var(--sidebar-bg)!important}
-body.light aside{background:var(--sidebar-bg)!important;border-right:none!important}
+body.light .sidebar-inner{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important}
+body.light aside{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important;border-right:none!important}
 body.light aside *{border-color:#ffffff14!important}
 body.light aside .nav-label{color:#e2e8f0!important}
-body.light .card-wrap,.card{border-radius:12px}
-body.light .card-wrap{box-shadow:0 1px 4px rgba(0,0,0,.07),0 2px 12px rgba(0,0,0,.04)!important;border:none!important}
+body.light .card-wrap,.card{border-radius:18px}
+body.light .card-wrap{box-shadow:0 18px 40px rgba(15,23,42,.08)!important;border:1px solid #dbe6f3!important}
 body.light main{background:#f4f8fd}
-body.light .stat-card{box-shadow:0 2px 8px rgba(0,0,0,.07);border:none}
+body.light .stat-card{box-shadow:0 18px 40px rgba(15,23,42,.08);border:1px solid #dbe6f3}
 body.light input,body.light select,body.light textarea{background:#ffffff;border-color:#cbd5e1;color:#0f172a}
-body.light input:focus,body.light select:focus,body.light textarea:focus{border-color:#1a1a2e;box-shadow:0 0 0 3px rgba(26,26,46,.12)}
+body.light input:focus,body.light select:focus,body.light textarea:focus{border-color:#2b6df6;box-shadow:0 0 0 3px rgba(43,109,246,.14)}
 body.light button[class*="btn"]{transition:all .15s}
 .va{animation:fadeUp .2s ease;width:100%;min-width:0}
 .va>div{width:100%;min-width:0}
-body.light{--bg:#f4f8fd;--sur:#ffffff;--card:#ffffff;--card2:#f7fbff;--bdr:#dbe6f3;--bdr2:#cfdceb;--wh:#152033;--gr:#7b8aa3;--gr2:#66748d;--gr3:#42526b;--sidebar:#10204f;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#1a1a2e}
-body.light .sidebar-wrap{background:var(--sidebar-bg)!important}
+body.light{--bg:#f4f8fd;--sur:#ffffff;--card:#ffffff;--card2:#f7fbff;--bdr:#dbe6f3;--bdr2:#cfdceb;--wh:#152033;--gr:#7b8aa3;--gr2:#66748d;--gr3:#42526b;--sidebar:#1a1a2e;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#2b6df6}
+body.light .sidebar-wrap{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important}
 body.light .sidebar-wrap *{border-color:#ffffff15!important}
-body.light aside{background:var(--sidebar-bg)!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
+body.light aside{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
 body.light aside .nav-group-label{color:#94a3b8!important}
 body.light aside,body.light aside button,body.light aside div,body.light aside span,body.light aside small{color:#e5edf7!important}
 body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}
 body.light aside [style*="color:var(--gr3)"]{color:#e5edf7!important}
 body.light aside [style*="color:var(--wh)"]{color:#ffffff!important}
-body.light aside .active-nav{background:#ffffff18!important;color:#ffffff!important}
-body.light .topbar{background:#ffffff;border-bottom:1px solid #dbe6f3;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+body.light aside .active-nav{background:#2b6df6!important;color:#ffffff!important;box-shadow:0 10px 22px rgba(43,109,246,.22)}
+body.light .topbar{background:rgba(255,255,255,.88);border-bottom:1px solid #dbe6f3;box-shadow:0 8px 30px rgba(15,23,42,.05);backdrop-filter:blur(10px)}
 @media(max-width:1024px){
   html{font-size:13px}
   [style*="repeat(4,1fr)"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}

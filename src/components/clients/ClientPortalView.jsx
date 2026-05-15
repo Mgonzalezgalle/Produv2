@@ -195,8 +195,8 @@ function PublicPortalShell({ children }) {
 function PortalBrandFooter() {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "16px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
-        <div style={{ fontSize: 13, color: "#6b7c93", textAlign: "center" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "15px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 12.5, color: "#6b7c93", textAlign: "center" }}>
           Portal creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
         </div>
       </div>
@@ -617,7 +617,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       tipo: action?.includes("changes") || action?.includes("rejected") ? "urgente" : "info",
       area: "clientes",
       icon: "🗨️",
-      titulo: `Portal cliente · ${payload.client.nom}`,
+      titulo: `Portal de contenido · ${payload.client.nom}`,
       sub: headline,
       body: `${headline}${text ? `\n\n${text}` : ""}`,
       createdAt: now,
@@ -871,28 +871,28 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 28, boxShadow: "0 28px 80px rgba(15,23,42,.10)", overflow: "hidden" }}>
           <div style={{ padding: "30px 30px 24px", borderBottom: "1px solid #e8eef8", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
             <div>
-              <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800, color: "#2f6ea8", marginBottom: 10 }}>Portal de contenido</div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: isMobile ? 24 : 28, fontWeight: 900, color: "#0f172a" }}>{payload.client.nom}</div>
-              <div style={{ marginTop: 8, fontSize: 14, color: "#5b6b82" }}>{headerMeta}</div>
+              <div style={{ fontSize: 11, letterSpacing: 1.15, textTransform: "uppercase", fontWeight: 800, color: "#2f6ea8", marginBottom: 9 }}>Portal de contenido</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: isMobile ? 22 : 24, fontWeight: 900, color: "#0f172a" }}>{payload.client.nom}</div>
+              <div style={{ marginTop: 7, fontSize: 12.5, color: "#5b6b82" }}>{headerMeta}</div>
               <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))", gap: 10 }}>
                 <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 16, padding: "12px 14px" }}>
                   <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Contenidos por revisar</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#2f6ea8", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 19, fontWeight: 700, color: "#2f6ea8", marginTop: 6 }}>{summary?.pendingApprovals.length || 0}</div>
                 </div>
                 <div style={{ background: "#faf7ff", border: "1px solid #eadcff", borderRadius: 16, padding: "12px 14px" }}>
                   <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Campañas activas</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#8e5cf6", marginTop: 6 }}>{summary?.activeContent.length || 0}</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 19, fontWeight: 700, color: "#8e5cf6", marginTop: 6 }}>{summary?.activeContent.length || 0}</div>
                 </div>
                 <div style={{ background: "#fff8f4", border: "1px solid #ffe0cf", borderRadius: 16, padding: "12px 14px" }}>
                   <div style={{ fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>Piezas visibles</div>
-                  <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#e1712f", marginTop: 6 }}>{summary?.totalContentPieces || 0}</div>
+                  <div style={{ fontFamily: "var(--fm)", fontSize: 19, fontWeight: 700, color: "#e1712f", marginTop: 6 }}>{summary?.totalContentPieces || 0}</div>
                 </div>
               </div>
             </div>
             <div style={{ display: "grid", gap: 10, minWidth: isTablet ? 0 : 280, flex: isTablet ? "1 1 100%" : "0 0 320px" }}>
               <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(15,23,42,.05)" }}>
-                <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
-                <div style={{ display: "grid", gap: 8, fontSize: 13, color: "#334155" }}>
+                <div style={{ fontSize: 10, letterSpacing: 1.25, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
+                <div style={{ display: "grid", gap: 8, fontSize: 12.5, color: "#334155" }}>
                   <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div>
                   <div>• {summary?.activeContent.length || 0} campaña(s) siguen activas en este espacio.</div>
                   <div>• {summary?.activeProductions.length || 0} producción(es) están visibles desde tu portal.</div>
@@ -920,11 +920,12 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   onClick={() => setTab(id)}
                   style={{
                     borderRadius: 999,
-                    padding: "10px 16px",
+                    padding: "9px 14px",
                     border: `1px solid ${tab === id ? accent : "#dbe7f5"}`,
                     background: tab === id ? accent : "#ffffff",
                     color: tab === id ? "#ffffff" : "#475569",
                     fontWeight: 700,
+                    fontSize: 11.5,
                     cursor: "pointer",
                     boxShadow: tab === id ? "0 12px 30px rgba(15,23,42,.10)" : "none",
                     whiteSpace: "nowrap",
@@ -970,8 +971,8 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
             <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 28, padding: 24, boxShadow: "0 20px 50px rgba(15,23,42,.06)" }}>
               <div style={{ display: "grid", gap: 18 }}>
                 <div>
-                  <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 900, color: "#0f172a" }}>Contenidos</div>
-                  <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 8, lineHeight: 1.7 }}>
+                  <div style={{ fontFamily: "var(--fh)", fontSize: 20, fontWeight: 900, color: "#0f172a" }}>Contenidos</div>
+                  <div style={{ fontSize: 12.5, color: "#5b6b82", marginTop: 8, lineHeight: 1.65 }}>
                     Aquí puedes revisar piezas, abrir su previsualización y responder con aprobación, comentario, brief adicional o solicitud de corrección.
                   </div>
                 </div>
@@ -985,9 +986,9 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                         ["Con cambios", contentWorkspace.observed.length, "#ff8844"],
                         ["Piezas visibles", visibleContentPieces.length, "#8b5cf6"],
                       ].map(([label, value, color]) => (
-                        <div key={label} style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#f8fbff", padding: "14px 16px" }}>
-                          <div style={{ fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>{label}</div>
-                          <div style={{ fontFamily: "var(--fm)", fontSize: 28, fontWeight: 800, color, marginTop: 8 }}>{value}</div>
+                        <div key={label} style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#f8fbff", padding: "12px 14px" }}>
+                          <div style={{ fontSize: 10, letterSpacing: 1.05, textTransform: "uppercase", color: "#6b7c93", fontWeight: 700 }}>{label}</div>
+                          <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 800, color, marginTop: 7 }}>{value}</div>
                         </div>
                       ))}
                     </div>

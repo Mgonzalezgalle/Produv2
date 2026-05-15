@@ -293,6 +293,18 @@ export function ViewCliDet({
   const financePortalUrl = buildFinancePortalUrl(financePortal, "client", typeof window !== "undefined" ? window.location.origin : "");
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const portalHistory = Array.isArray(c.portalActivity) ? [...c.portalActivity].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
+  const internalPortalStatStyle = {
+    background: "#f8fbff",
+    border: "1px solid #dbe7f5",
+    borderRadius: 14,
+    padding: 12,
+  };
+  const internalPortalAsideStyle = {
+    background: "#f8fbff",
+    border: "1px solid #dbe7f5",
+    borderRadius: 14,
+    padding: 14,
+  };
   const updateClientPortal = async updater => {
     const nextClients = (clientes || []).map(item => {
       if (item.id !== c.id) return item;
@@ -585,23 +597,23 @@ export function ViewCliDet({
         action={canManageClients ? { label: clientPortal.enabled ? "Desactivar portal" : "Activar portal", fn: togglePortal } : null}
         style={{ marginBottom: 20 }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
             <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: clientPortal.enabled ? "#00e08a" : "var(--wh)" }}>
               {clientPortal.enabled ? "Activo" : "Inactivo"}
             </div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
             <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--cy)" }}>{clientPortal.authorizedEmails.length}</div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Respuestas</div>
             <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--wh)" }}>{portalHistory.length}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 14 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
               <Badge label={clientPortal.enabled ? "Portal activo" : "Portal inactivo"} color={clientPortal.enabled ? "green" : "gray"} />
@@ -621,7 +633,7 @@ export function ViewCliDet({
               <GBtn onClick={editPortalEmails}>Editar correos autorizados</GBtn>
             </div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
+          <div style={internalPortalAsideStyle}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá</div>
             <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
               <div>• Resumen con pendientes, aprobaciones y documentos por revisar.</div>
@@ -645,23 +657,23 @@ export function ViewCliDet({
         action={canManageClients ? { label: financePortal.enabled ? "Desactivar portal" : "Activar portal", fn: toggleFinancePortal } : null}
         style={{ marginBottom: 20 }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Estado del acceso</div>
             <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: financePortal.enabled ? "#00e08a" : "var(--wh)" }}>
               {financePortal.enabled ? "Activo" : "Inactivo"}
             </div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Correos autorizados</div>
             <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "var(--cy)" }}>{financePortal.authorizedEmails.length}</div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 14 }}>
+          <div style={internalPortalStatStyle}>
             <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800 }}>Último acceso</div>
             <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: "var(--wh)" }}>{financePortal.lastAccessAt ? fmtPortalTimestamp(financePortal.lastAccessAt) : "Sin ingresos"}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 14 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
               <Badge label={financePortal.enabled ? "Portal activo" : "Portal inactivo"} color={financePortal.enabled ? "green" : "gray"} />
@@ -680,7 +692,7 @@ export function ViewCliDet({
               <GBtn onClick={editFinancePortalEmails}>Editar correos autorizados</GBtn>
             </div>
           </div>
-          <div style={{ background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 16 }}>
+          <div style={internalPortalAsideStyle}>
             <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá</div>
             <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
               <div>• Documentos por cobrar y su estado de pago.</div>

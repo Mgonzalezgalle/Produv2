@@ -222,7 +222,7 @@ function useViewportFlags() {
 
 function PublicFinanceShell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "24px 16px 30px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gap: 22 }}>
         {children}
         <PortalBrandFooter />
@@ -234,8 +234,8 @@ function PublicFinanceShell({ children }) {
 function PortalBrandFooter() {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "16px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
-        <div style={{ fontSize: 13, color: "#6b7c93", textAlign: "center" }}>
+      <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "15px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
+        <div style={{ fontSize: 12.5, color: "#6b7c93", textAlign: "center" }}>
           Portal creado con <span style={{ color: "#ff5566" }}>♥</span> por <span style={{ color: "#1f4ed8", fontWeight: 800 }}>Produ.</span>
         </div>
       </div>
@@ -248,12 +248,12 @@ function PortalBrandFooter() {
 
 function PortalSectionCard({ title = "", sub = "", children, actions = null, columns = 1, mobile = false }) {
   return (
-    <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 24, padding: mobile ? "18px 16px" : "20px 20px 18px", boxShadow: "0 18px 44px rgba(15,23,42,.06)" }}>
+    <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 24, padding: mobile ? "16px 14px" : "18px 18px 16px", boxShadow: "0 18px 44px rgba(15,23,42,.06)" }}>
       {(title || sub || actions) ? (
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #e6eef8" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid #e6eef8" }}>
           <div>
-            {!!title && <div style={{ fontFamily: "var(--fh)", fontSize: 15, fontWeight: 900, color: "#0f172a", lineHeight: 1.15 }}>{title}</div>}
-            {!!sub && <div style={{ marginTop: 7, fontSize: 12.5, color: "#64748b", lineHeight: 1.6 }}>{sub}</div>}
+            {!!title && <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 900, color: "#0f172a", lineHeight: 1.15 }}>{title}</div>}
+            {!!sub && <div style={{ marginTop: 6, fontSize: 12, color: "#64748b", lineHeight: 1.55 }}>{sub}</div>}
           </div>
           {actions}
         </div>
@@ -267,20 +267,20 @@ function PortalSectionCard({ title = "", sub = "", children, actions = null, col
 
 function PortalEmptyState({ text = "", sub = "" }) {
   return (
-    <div style={{ textAlign: "center", padding: "34px 18px", color: "#64748b", background: "#f8fbff", border: "1px dashed #d9e5f6", borderRadius: 18 }}>
-      <div style={{ fontSize: 26, marginBottom: 10, opacity: 0.32 }}>◻</div>
-      <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{text}</div>
-      {sub ? <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 8, lineHeight: 1.55 }}>{sub}</div> : null}
+    <div style={{ textAlign: "center", padding: "28px 16px", color: "#64748b", background: "#f8fbff", border: "1px dashed #d9e5f6", borderRadius: 18 }}>
+      <div style={{ fontSize: 20, marginBottom: 8, opacity: 0.32 }}>◻</div>
+      <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0f172a" }}>{text}</div>
+      {sub ? <div style={{ fontSize: 12, color: "#64748b", marginTop: 7, lineHeight: 1.55 }}>{sub}</div> : null}
     </div>
   );
 }
 
 function PortalTH({ children, style = {} }) {
-  return <th style={{ textAlign: "left", padding: "11px 12px", fontSize: 9.5, letterSpacing: 1.5, textTransform: "uppercase", color: "#7b8ca5", borderBottom: "1px solid #dbe6f3", fontWeight: 800, whiteSpace: "nowrap", background: "#f7fbff", ...style }}>{children}</th>;
+  return <th style={{ textAlign: "left", padding: "10px 11px", fontSize: 9, letterSpacing: 1.4, textTransform: "uppercase", color: "#7b8ca5", borderBottom: "1px solid #dbe6f3", fontWeight: 800, whiteSpace: "nowrap", background: "#f7fbff", ...style }}>{children}</th>;
 }
 
 function PortalTD({ children, style = {} }) {
-  return <td style={{ padding: "11px 12px", fontSize: 12, color: "#40556f", borderBottom: "1px solid #e8eef8", verticalAlign: "middle", lineHeight: 1.45, ...style }}>{children}</td>;
+  return <td style={{ padding: "10px 11px", fontSize: 11.5, color: "#40556f", borderBottom: "1px solid #e8eef8", verticalAlign: "middle", lineHeight: 1.45, ...style }}>{children}</td>;
 }
 
 const Card = PortalSectionCard;
@@ -297,9 +297,9 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
   };
   const current = palette[tone] || palette.blue;
   return (
-    <div style={{ background: current.bg, border: `1px solid ${current.border}`, borderRadius: 22, padding: "15px 16px 14px", minHeight: 96 }}>
-      <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: current.label, fontWeight: 800, marginBottom: 10 }}>{eyebrow}</div>
-      <div style={{ fontFamily: "var(--fh)", fontSize: 23, fontWeight: 900, lineHeight: 1.05, color: current.value }}>{value}</div>
+    <div style={{ background: current.bg, border: `1px solid ${current.border}`, borderRadius: 20, padding: "13px 14px 12px", minHeight: 86 }}>
+      <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: current.label, fontWeight: 800, marginBottom: 8 }}>{eyebrow}</div>
+      <div style={{ fontFamily: "var(--fh)", fontSize: 20, fontWeight: 900, lineHeight: 1.05, color: current.value }}>{value}</div>
     </div>
   );
 }
@@ -308,34 +308,34 @@ function FinanceHero({ type = "client", companyName = "", counterpartyName = "",
   const { isMobile, isTablet } = useViewportFlags();
   return (
     <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 28, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
-      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "16px 20px" }}>
+      <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "14px 18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 13, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13 }}>
               {getInitials(companyName)}
             </div>
             <div>
-              <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
-              <div style={{ fontSize: 12, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
+              <div style={{ fontFamily: "var(--fh)", fontSize: 19, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
+              <div style={{ fontSize: 11.5, opacity: 0.88 }}>{type === "provider" ? "Portal Proveedor" : "Portal Cliente"}</div>
             </div>
           </div>
-          <GBtn onClick={onClosePortal} s={{ borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 700, borderColor: "rgba(255,255,255,.42)", color: "#ffffff", background: "rgba(255,255,255,.08)" }}>Cerrar portal</GBtn>
+          <GBtn onClick={onClosePortal} s={{ borderRadius: 999, padding: "7px 13px", fontSize: 11.5, fontWeight: 700, borderColor: "rgba(255,255,255,.42)", color: "#ffffff", background: "rgba(255,255,255,.08)" }}>Cerrar portal</GBtn>
         </div>
       </div>
-      <div style={{ padding: isMobile ? "16px 16px 14px" : "20px 20px 18px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "minmax(0,1.45fr) minmax(280px,.55fr)", gap: 16 }}>
+      <div style={{ padding: isMobile ? "14px 14px 12px" : "18px 18px 16px", display: "grid", gridTemplateColumns: isTablet ? "1fr" : "minmax(0,1.45fr) minmax(280px,.55fr)", gap: 14 }}>
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-          <div style={{ width: 58, height: 58, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, fontWeight: 900, flexShrink: 0 }}>
+          <div style={{ width: isMobile ? 50 : 54, height: isMobile ? 50 : 54, borderRadius: 999, background: "#0f1f4a", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 18 : 19, fontWeight: 900, flexShrink: 0 }}>
             {getInitials(counterpartyName)}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 26, fontWeight: 900, lineHeight: 1.04, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
-            <div style={{ marginTop: 6, fontSize: 13, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
-            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.65, color: "#4c5f79", maxWidth: 680 }}>{subtitle}</div>
+            <div style={{ fontFamily: "var(--fh)", fontSize: isMobile ? 22 : 24, fontWeight: 900, lineHeight: 1.04, color: "#0f172a" }}>{counterpartyName || "Contraparte"}</div>
+            <div style={{ marginTop: 5, fontSize: 12.5, color: "#61728b" }}>{identity} · Atiende {companyName || "Produ"}</div>
+            <div style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.62, color: "#4c5f79", maxWidth: 680 }}>{subtitle}</div>
           </div>
         </div>
-        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 20, padding: 16 }}>
-          <div style={{ fontSize: 11, letterSpacing: 1.3, textTransform: "uppercase", color: "#6f7f98", fontWeight: 800, marginBottom: 8 }}>Qué puedes hacer aquí</div>
-          <div style={{ display: "grid", gap: 8, fontSize: 12.5, color: "#465b78", lineHeight: 1.55 }}>
+        <div style={{ background: "#f6f9fe", border: "1px solid #d9e5f6", borderRadius: 18, padding: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: "#6f7f98", fontWeight: 800, marginBottom: 7 }}>Qué puedes hacer aquí</div>
+          <div style={{ display: "grid", gap: 7, fontSize: 12, color: "#465b78", lineHeight: 1.52 }}>
             <div>• Revisar documentos, vencimientos y pagos asociados a tu cuenta.</div>
             <div>• Ver órdenes de compra y el estado de cada documento.</div>
             <div>• Consultar línea de crédito, saldos pendientes y documentos cerrados.</div>
@@ -349,10 +349,10 @@ function FinanceHero({ type = "client", companyName = "", counterpartyName = "",
 
 function SectionActionBar({ onCsv = null, onPdf = null, right = null }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {onCsv ? <GBtn onClick={onCsv} s={{ borderRadius: 999, padding: "8px 13px", fontSize: 12, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar CSV</GBtn> : null}
-        {onPdf ? <GBtn onClick={onPdf} s={{ borderRadius: 999, padding: "8px 13px", fontSize: 12, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar PDF</GBtn> : null}
+        {onCsv ? <GBtn onClick={onCsv} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar CSV</GBtn> : null}
+        {onPdf ? <GBtn onClick={onPdf} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar PDF</GBtn> : null}
       </div>
       {right ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{right}</div> : null}
     </div>
@@ -450,23 +450,23 @@ function PortalGate({ payload, onUnlock }) {
       <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #dbe6f3", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
         <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eef8", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>
-            {payload?.type === "provider" ? "Portal proveedores" : "Portal cuentas por cobrar"}
+            {payload?.type === "provider" ? "Portal Proveedor" : "Portal Cliente"}
           </div>
-          <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 900, color: "#0f172a", lineHeight: 1.1 }}>{label || "Portal financiero"}</div>
           <div style={{ fontSize: 14, color: "#5b6b82", marginTop: 10 }}>
             Este espacio fue preparado por <b style={{ color: "#0f172a" }}>{company}</b> para revisar documentos, pagos, órdenes de compra y presupuestos relacionados.
           </div>
         </div>
         <div style={{ padding: 36, display: "grid", gap: 20 }}>
           <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 22, padding: 24 }}>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Código de acceso</div>
-            <div style={{ fontSize: 13, color: "#5b6b82", lineHeight: 1.6, marginBottom: 18 }}>
+            <div style={{ fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Código de acceso</div>
+            <div style={{ fontSize: 12.5, color: "#5b6b82", lineHeight: 1.6, marginBottom: 18 }}>
               Ingresa el código de 6 dígitos que te compartieron para entrar a este portal financiero.
             </div>
             <div style={{ display: "grid", gap: 16 }}>
               <button type="button" onClick={() => codeInputRef.current?.focus()} style={{ display: "flex", gap: 10, flexWrap: "wrap", background: "transparent", border: "none", padding: 0, cursor: "text" }}>
                 {accessCodeSlots(code).map((digit, index) => (
-                  <div key={index} style={{ width: 50, height: 60, borderRadius: 16, border: `1px solid ${digit ? "#7cb2ea" : "#dbe7f5"}`, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: "#2f6ea8", boxShadow: digit ? "0 0 0 3px rgba(47,110,168,.08)" : "none" }}>
+                  <div key={index} style={{ width: 48, height: 58, borderRadius: 16, border: `1px solid ${digit ? "#7cb2ea" : "#dbe7f5"}`, background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#2f6ea8", boxShadow: digit ? "0 0 0 3px rgba(47,110,168,.08)" : "none" }}>
                     {digit}
                   </div>
                 ))}
@@ -479,7 +479,7 @@ function PortalGate({ payload, onUnlock }) {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="Ingresa tu código"
-                style={{ width: "100%", borderRadius: 14, border: "1px solid #cfe0fb", padding: "12px 14px", fontSize: 14, color: "#0f172a", background: "#ffffff" }}
+                style={{ width: "100%", borderRadius: 14, border: "1px solid #cfe0fb", padding: "11px 13px", fontSize: 13.5, color: "#0f172a", background: "#ffffff" }}
               />
               {error ? <div style={{ color: "#c2410c", fontSize: 13 }}>{error}</div> : null}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -510,8 +510,8 @@ function SectionTabs({ type, tab, setTab }) {
             border: `1px solid ${tab === key ? "#7cb2ea" : "#dbe7f5"}`,
             background: tab === key ? "#2f6ea8" : "#ffffff",
             color: tab === key ? "#ffffff" : "#35506d",
-            padding: "10px 15px",
-            fontSize: 12,
+            padding: "9px 14px",
+            fontSize: 11.5,
             fontWeight: 800,
             cursor: "pointer",
             whiteSpace: "nowrap",
@@ -530,8 +530,8 @@ const portalFieldStyle = {
   borderRadius: 12,
   border: "1px solid #d7e4f5",
   background: "#ffffff",
-  padding: "10px 12px",
-  fontSize: 13,
+  padding: "9px 12px",
+  fontSize: 12.5,
   color: "#35506d",
 };
 
@@ -540,30 +540,32 @@ const portalTableWrapStyle = {
   border: "1px solid #dbe6f3",
   borderRadius: 18,
   background: "#fbfdff",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.8)",
 };
 
 const portalTableStyle = {
   width: "100%",
+  minWidth: 860,
   borderCollapse: "separate",
   borderSpacing: 0,
 };
 
 const portalThStyle = {
-  padding: "11px 12px",
-  fontSize: 9.5,
+  padding: "10px 11px",
+  fontSize: 9,
   letterSpacing: 1.5,
 };
 
 const portalTdStyle = {
-  padding: "11px 12px",
-  fontSize: 12,
+  padding: "10px 11px",
+  fontSize: 11.5,
   lineHeight: 1.4,
 };
 
 const portalSecondaryBtnStyle = {
   borderRadius: 999,
-  padding: "7px 12px",
-  fontSize: 11.5,
+  padding: "6px 11px",
+  fontSize: 11,
   fontWeight: 700,
   borderColor: "#d7e4f5",
   color: "#35506d",
@@ -572,8 +574,8 @@ const portalSecondaryBtnStyle = {
 
 const portalPrimaryBtnStyle = {
   borderRadius: 999,
-  padding: "8px 13px",
-  fontSize: 11.5,
+  padding: "7px 12px",
+  fontSize: 11,
   fontWeight: 800,
   boxShadow: "0 10px 24px rgba(47,110,168,.16)",
 };

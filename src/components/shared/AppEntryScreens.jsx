@@ -3,7 +3,7 @@ import { LoadingScreen } from "./ShellLayout";
 import { StyleTag } from "./AppCore";
 
 export function AppBootScreen({ css }) {
-  return <div style={{ background: "#080809", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#00d4e8", fontFamily: "monospace" }}>
+  return <div style={{ background: "linear-gradient(180deg,#fbfdff 0%,#f4f8fd 58%,#eef4fb 100%)", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a1a2e", fontFamily: "monospace" }}>
     <StyleTag css={css} />
     Iniciando Produ...
   </div>;

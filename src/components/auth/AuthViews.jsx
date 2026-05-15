@@ -518,22 +518,25 @@ export function EmpresaSelector({ empresas, onSelect, onSelectSuperAdmin, BrandL
   const [q,setQ]=useState("");
   const fd=(empresas||[]).filter(e=>e.nombre.toLowerCase().includes(q.toLowerCase()));
   return <div className="company-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{marginBottom:6}}>
-      <BrandLockup size="md" align="center" subtitleColor="rgba(255,255,255,.82)" />
+    <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 16% 16%, rgba(26,26,46,.12) 0%, transparent 34%),radial-gradient(circle at 82% 14%, rgba(26,26,46,.08) 0%, transparent 30%),linear-gradient(180deg,#fbfdff 0%,#f4f8fd 56%,#eef4fb 100%)",pointerEvents:"none"}} />
+    <div style={{position:"relative",marginBottom:8}}>
+      <BrandLockup size="md" align="center" subtitleColor="#66748d" />
     </div>
-    <div style={{fontSize:12,color:"var(--gr2)",letterSpacing:1,textTransform:"uppercase",marginBottom:28,textAlign:"center"}}>Super Admin · Seleccionar empresa</div>
-    <div className="company-card" style={{width:"min(460px,100%)"}}>
+    <div style={{position:"relative",display:"inline-flex",alignItems:"center",gap:8,padding:"6px 12px",borderRadius:999,border:"1px solid rgba(26,26,46,.12)",background:"rgba(26,26,46,.05)",color:"var(--cy)",fontSize:11,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:14}}>Acceso Produ</div>
+    <div style={{position:"relative",fontSize:30,fontFamily:"var(--fh)",fontWeight:800,color:"#152033",lineHeight:1.08,textAlign:"center",maxWidth:540,marginBottom:10}}>Elige la empresa con la que quieres continuar.</div>
+    <div style={{position:"relative",fontSize:13,color:"#66748d",marginBottom:28,textAlign:"center",maxWidth:520,lineHeight:1.7}}>Mantén una entrada clara, ordenada y coherente con la identidad de Produ antes de entrar a operar.</div>
+    <div className="company-card" style={{position:"relative",width:"min(520px,100%)",background:"#fff",border:"1px solid var(--bdr2)",borderRadius:28,padding:22,boxShadow:"0 28px 80px rgba(15,23,42,.12)"}}>
       <SearchBar value={q} onChange={setQ} placeholder="Buscar empresa..."/>
       <div style={{marginTop:12}}>
         {fd.map(emp=>(
-          <div key={emp.id} onClick={()=>onSelect(emp)} style={{display:"flex",alignItems:"center",gap:14,background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:10,padding:"14px 18px",marginBottom:8,cursor:"pointer",transition:".15s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="var(--cy)"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--bdr)"}>
+          <div key={emp.id} onClick={()=>onSelect(emp)} style={{display:"flex",alignItems:"center",gap:14,background:"#fbfdff",border:"1px solid var(--bdr)",borderRadius:18,padding:"14px 18px",marginBottom:10,cursor:"pointer",transition:".15s",boxShadow:"0 8px 20px rgba(15,23,42,.04)"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--cy)";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--bdr)";e.currentTarget.style.transform="translateY(0)";}}>
             <div style={{width:46,height:46,borderRadius:10,background:emp.color+"30",border:`2px solid ${emp.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--fh)",fontSize:17,fontWeight:800,color:emp.color,flexShrink:0,overflow:"hidden"}}>
               {emp.logo ? <img src={emp.logo} style={{width:46,height:46,objectFit:"contain",borderRadius:8}} alt={emp.nombre}/> : ini(emp.nombre)}
             </div>
             <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14}}>{emp.nombre}</div>
-              <div style={{fontSize:11,color:"var(--gr2)"}}>{emp.rut}</div>
-              <div style={{fontSize:10,color:"var(--gr)",marginTop:3}}>Addons: {emp.addons?.join(", ")||"ninguno"}</div>
+              <div style={{fontWeight:800,fontSize:14,color:"#152033"}}>{emp.nombre}</div>
+              <div style={{fontSize:11,color:"#66748d"}}>{emp.rut}</div>
+              <div style={{fontSize:10,color:"#7b8aa3",marginTop:3}}>Addons: {emp.addons?.join(", ")||"ninguno"}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:5,alignItems:"flex-end"}}>
               <Badge label={emp.active?"Activa":"Inactiva"} color={emp.active?"green":"red"} sm/>
@@ -542,8 +545,8 @@ export function EmpresaSelector({ empresas, onSelect, onSelectSuperAdmin, BrandL
           </div>
         ))}
       </div>
-      <div style={{marginTop:12,padding:"12px 16px",background:"var(--card)",border:"1px solid var(--bdr)",borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:12,color:"var(--gr2)"}}>Panel de control global</span>
+      <div style={{marginTop:12,padding:"14px 16px",background:"#f8fbff",border:"1px solid var(--bdr)",borderRadius:18,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:12,color:"#66748d"}}>Panel de control global</span>
         <Btn onClick={()=>onSelectSuperAdmin ? onSelectSuperAdmin() : onSelect("__super__")} sm>⚙ Panel SuperAdmin</Btn>
       </div>
     </div>

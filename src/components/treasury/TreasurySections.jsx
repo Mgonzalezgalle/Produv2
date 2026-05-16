@@ -384,7 +384,7 @@ export function TreasuryPayablesSection({
               searchPlaceholder="Buscar proveedor o documento..."
               filters={[
                 <FilterSel key="payable-supplier" value={payableSupplierFilter} onChange={setPayableSupplierFilter} options={payableSupplierOptions} placeholder="Todos los proveedores" />,
-                <FilterSel key="payable-period" value={payablePeriodFilter} onChange={setPayablePeriodFilter} options={payablePeriodOptions} placeholder="Todos los períodos" />,
+                <FilterSel key="payable-period" value={payablePeriodFilter} onChange={setPayablePeriodFilter} options={payablePeriodOptions} placeholder="Mes del documento" />,
               ]}
               statusValue={payableTable.status}
               onStatusChange={payableTable.setStatus}

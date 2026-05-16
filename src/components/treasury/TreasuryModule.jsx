@@ -532,13 +532,13 @@ export function TreasuryModule(props) {
         secondaryBadge: { label: `${receivableSummary.overdueDocs} docs vencidos`, color: receivableSummary.overdueDocs ? "yellow" : "green" },
         tertiaryBadge: { label: `${receiptsSummary.docs} pagos recibidos`, color: "gray" },
         metrics: [
-          { label: "Cartera total", value: fmtM(receivableSummary.total), tone: "var(--cy)", hint: "Lectura consolidada de cuentas por cobrar." },
+          { label: "Cartera total", value: fmtM(receivableSummary.total), tone: "var(--cy2)", hint: "Lectura consolidada de cuentas por cobrar." },
           { label: "Pendiente", value: fmtM(receivableSummary.pending), tone: "#ffcc44", hint: "Monto abierto aún no conciliado." },
           { label: "Vencido", value: fmtM(receivableSummary.overdue), tone: "var(--red)", hint: `${receivableSummary.overdueDocs} documento(s) con atraso.` },
           { label: "Pagos recibidos", value: fmtM(receiptsSummary.total), tone: "#00e08a", hint: `${receiptsSummary.docs} registro(s) conciliados manualmente.` },
         ],
         kpis: [
-          { color: "var(--cy)", label: "Cartera total", value: fmtM(receivableSummary.total), scope: "CxC" },
+          { color: "var(--cy2)", label: "Cartera total", value: fmtM(receivableSummary.total), scope: "CxC" },
           { color: "#ffcc44", label: "Pendiente", value: fmtM(receivableSummary.pending), scope: "CxC" },
           { color: "var(--red)", label: "Vencido", value: fmtM(receivableSummary.overdue), sub: `${receivableSummary.overdueDocs} docs con atraso`, scope: "CxC" },
           { color: "#00e08a", label: "Pagos recibidos", value: fmtM(receiptsSummary.total), sub: `${receiptsSummary.docs} conciliación(es)`, scope: "CxC" },

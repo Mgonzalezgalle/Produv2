@@ -11,7 +11,7 @@ export function TreasuryStyles() {
     <style>{`
       .treasury-shell{color:var(--wh)}
       .treasury-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:14px;margin-bottom:22px}
-      .treasury-kpi{position:relative;border-radius:14px;border:1px solid var(--bdr);background:linear-gradient(180deg,var(--card),var(--card2));box-shadow:0 10px 30px rgba(0,0,0,.12);padding:18px 18px 16px;overflow:hidden}
+      .treasury-kpi{position:relative;border-radius:18px;border:1px solid var(--bdr);background:linear-gradient(180deg,#ffffff,var(--card2));box-shadow:0 16px 32px rgba(15,23,42,.08);padding:18px 18px 16px;overflow:hidden}
       .treasury-kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--kpi-color,var(--cy))}
       .treasury-kpi-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
       .treasury-kpi-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.5px;font-size:10px;font-weight:700}
@@ -20,12 +20,12 @@ export function TreasuryStyles() {
       .treasury-kpi-sub{margin-top:10px;color:var(--gr3);font-size:11px}
       .treasury-tabs,.treasury-subtabs,.treasury-modal-tabs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
       .treasury-tabs{margin-bottom:18px}
-      .treasury-tab,.treasury-subtab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--gr2);border-radius:999px;font-family:var(--fb);font-weight:700;cursor:pointer;transition:.15s ease;box-shadow:0 8px 24px rgba(0,0,0,.1)}
+      .treasury-tab,.treasury-subtab{border:1px solid var(--bdr2);background:#ffffff;color:var(--gr2);border-radius:999px;font-family:var(--fb);font-weight:700;cursor:pointer;transition:.15s ease;box-shadow:0 8px 20px rgba(15,23,42,.05)}
       .treasury-tab{padding:14px 22px 13px;font-size:14px}
       .treasury-subtab{padding:11px 16px;font-size:13px}
-      .treasury-tab:hover,.treasury-subtab:hover{color:var(--wh);border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
-      .treasury-tab.active,.treasury-subtab.active{color:var(--cy);background:rgba(0,212,232,.08);border-color:rgba(0,212,232,.35);box-shadow:0 0 0 1px rgba(0,212,232,.12) inset}
-      .treasury-section{border:1px solid var(--bdr);border-radius:16px;background:linear-gradient(180deg,var(--card),var(--card2));box-shadow:0 10px 30px rgba(0,0,0,.12);padding:18px;margin-bottom:18px}
+      .treasury-tab:hover,.treasury-subtab:hover{color:var(--gr3);border-color:var(--bdr2);transform:translateY(-1px)}
+      .treasury-tab.active,.treasury-subtab.active{color:#ffffff;background:linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%));border-color:rgba(43,109,246,.28);box-shadow:0 12px 24px rgba(43,109,246,.18)}
+      .treasury-section{border:1px solid var(--bdr);border-radius:20px;background:linear-gradient(180deg,#ffffff,var(--card2));box-shadow:0 16px 32px rgba(15,23,42,.08);padding:18px;margin-bottom:18px}
       .treasury-section.emphasis{border-left:3px solid var(--cy)}
       .treasury-section.with-top-border{border-top:1px solid var(--bdr2)}
       .treasury-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
@@ -33,10 +33,10 @@ export function TreasuryStyles() {
       .treasury-section-sub{color:var(--gr2);font-size:12px;line-height:1.6;margin-top:3px}
       .treasury-table-wrap{overflow-x:auto}
       .treasury-table{width:100%;border-collapse:separate;border-spacing:0}
-      .treasury-table thead th{text-align:left;padding:11px 12px;background:linear-gradient(180deg,var(--card2),transparent);text-transform:uppercase;font-size:10px;letter-spacing:1.7px;color:var(--gr2);border-bottom:1px solid var(--bdr);white-space:nowrap}
+      .treasury-table thead th{text-align:left;padding:13px 12px;background:linear-gradient(180deg,#f8fbff,rgba(255,255,255,.98));text-transform:uppercase;font-size:10px;letter-spacing:1.7px;color:var(--gr2);border-bottom:1px solid var(--bdr);white-space:nowrap}
       .treasury-table tbody tr{transition:background .15s ease}
       .treasury-table tbody tr:hover{background:var(--sur)}
-      .treasury-table tbody td{padding:13px 12px;border-bottom:1px solid var(--bdr);color:var(--wh);font-size:13px;vertical-align:top}
+      .treasury-table tbody td{padding:12px 12px;border-bottom:1px solid var(--bdr);color:var(--wh);font-size:13px;vertical-align:top;background:#ffffff}
       .treasury-table tbody tr:last-child td{border-bottom:0}
       .treasury-mono{font-family:var(--fm)}
       .treasury-muted{color:var(--gr3)}
@@ -56,19 +56,19 @@ export function TreasuryStyles() {
       .treasury-progress{height:8px;border-radius:999px;background:var(--bdr2);overflow:hidden}
       .treasury-progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cy),#35e7f7)}
       .treasury-compact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;margin-bottom:16px}
-      .treasury-mini-kpi{position:relative;border-radius:14px;border:1px solid var(--bdr);background:linear-gradient(180deg,var(--card),var(--card2));padding:15px 16px 14px;overflow:hidden}
+      .treasury-mini-kpi{position:relative;border-radius:16px;border:1px solid var(--bdr);background:linear-gradient(180deg,#ffffff,var(--card2));padding:15px 16px 14px;overflow:hidden}
       .treasury-mini-kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--mini-color,var(--cy))}
       .treasury-mini-kpi .label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.4px;font-size:10px;font-weight:700;margin-bottom:10px}
       .treasury-mini-kpi .value{font-family:var(--fm);font-size:22px;color:var(--wh)}
       .treasury-provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
-      .treasury-provider-card{border:1px solid var(--bdr);border-radius:14px;background:linear-gradient(180deg,var(--card),var(--card2));padding:20px;cursor:pointer;transition:.15s ease}
-      .treasury-provider-card:hover{transform:translateY(-2px);border-color:rgba(0,212,232,.22)}
-      .treasury-avatar{width:46px;height:46px;border-radius:12px;background:rgba(0,212,232,.08);border:1px solid rgba(0,212,232,.2);display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:15px;font-weight:800;color:var(--cy);flex-shrink:0}
+      .treasury-provider-card{border:1px solid var(--bdr);border-radius:16px;background:linear-gradient(180deg,#ffffff,var(--card2));padding:20px;cursor:pointer;transition:.15s ease;box-shadow:0 12px 28px rgba(15,23,42,.06)}
+      .treasury-provider-card:hover{transform:translateY(-2px);border-color:rgba(43,109,246,.22)}
+      .treasury-avatar{width:46px;height:46px;border-radius:12px;background:rgba(43,109,246,.08);border:1px solid rgba(43,109,246,.2);display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:15px;font-weight:800;color:var(--cy2);flex-shrink:0}
       .treasury-provider-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px;margin-top:12px}
       .treasury-provider-meta .meta-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.2px;font-size:10px;margin-bottom:6px}
       .treasury-provider-meta .meta-value{color:var(--wh);font-family:var(--fm);font-size:13px}
       .treasury-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-      .treasury-list{border:1px solid var(--bdr);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,var(--card),var(--card2))}
+      .treasury-list{border:1px solid var(--bdr);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#ffffff,var(--card2))}
       .treasury-list-row{display:grid;grid-template-columns:minmax(220px,1.4fr) repeat(4,minmax(0,1fr)) auto;gap:14px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--bdr);transition:.15s ease;cursor:pointer}
       .treasury-list-row:hover{background:var(--sur)}
       .treasury-list-row:last-child{border-bottom:0}
@@ -87,7 +87,7 @@ export function TreasuryStyles() {
       body.light .treasury-provider-card,
       body.light .treasury-mini-kpi,
       body.light .treasury-list{
-        box-shadow:0 10px 24px rgba(148,163,184,.12);
+        box-shadow:0 12px 28px rgba(148,163,184,.12);
       }
       body.light .treasury-tab,
       body.light .treasury-subtab{

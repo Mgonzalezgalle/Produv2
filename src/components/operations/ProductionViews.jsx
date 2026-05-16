@@ -50,7 +50,7 @@ function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, i
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
     <Card title={`Crew Asignado (${asig.length})`}>
       {asig.length ? asig.map(m => <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--bdr)" }}>
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--bg)", flexShrink: 0 }}>{ini(m.nom)}</div>
+        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--cy),var(--cy2))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#ffffff", flexShrink: 0 }}>{ini(m.nom)}</div>
         <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 600 }}>{m.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{m.rol}{m.tarifa && m.tipo !== "interno" ? ` · ${fmtM(Number(String(m.tarifa).replace(/[^0-9]/g, "")))}` : ""}</div></div>
         {canEdit && onHonorario && m.tipo !== "interno" && m.tarifa && <button onClick={() => onHonorario(m)} title="Registrar honorario" style={{ background: "#4ade8018", border: "1px solid #4ade8040", borderRadius: 6, color: "#4ade80", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 8px", whiteSpace: "nowrap" }}>💰</button>}
         {canEdit && <XBtn onClick={() => onRem(m.id)} />}
@@ -109,7 +109,7 @@ export function ViewPros({
       <FilterSel value={sortMode} onChange={v => { setSortMode(v); setPg(1); }} options={[{ value: "recent", label: "Más reciente" }, { value: "oldest", label: "Más antiguo" }, { value: "az", label: "A-Z" }, { value: "za", label: "Z-A" }]} placeholder="Ordenar" />
       <ViewModeToggle value={vista} onChange={setVista} />
     </div>
-    {!!selectedIds.length && vista === "list" && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)" }}>
+    {!!selectedIds.length && vista === "list" && <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 14, background: "linear-gradient(180deg,#ffffff,#f7fbff)", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{selectedIds.length} seleccionado{selectedIds.length === 1 ? "" : "s"}</div>
       <FSl value={bulkEstado} onChange={e => setBulkEstado(e.target.value)} style={{ maxWidth: 200 }}>
         <option value="">Cambiar estado...</option>
@@ -129,7 +129,7 @@ export function ViewPros({
         {fd.slice((pg - 1) * PP, pg * PP).map(p => {
           const c = (clientes || []).find(x => x.id === p.cliId);
           const b = bal(p.id);
-          return <div key={p.id} onClick={() => navTo("pro-det", p.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, cursor: "pointer", transition: ".15s", display: "flex", flexDirection: "column", gap: 10 }}>
+          return <div key={p.id} onClick={() => navTo("pro-det", p.id)} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 18, cursor: "pointer", transition: ".15s", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,.06)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{p.nom}</div>
@@ -147,7 +147,7 @@ export function ViewPros({
             </div>
             <div style={{ fontSize: 11, color: "var(--gr2)", display: "flex", justifyContent: "space-between", marginTop: "auto" }}>
               <span>{p.fin ? `Entrega ${fmtD(p.fin)}` : "Sin entrega"}</span>
-              <span style={{ color: "var(--cy)", fontWeight: 700 }}>Ver →</span>
+              <span style={{ color: "var(--cy2)", fontWeight: 700 }}>Ver →</span>
             </div>
           </div>;
         })}
@@ -220,7 +220,7 @@ export function ViewProDet(props) {
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
-      <Stat label="Crew" value={pCrew.length} sub="asignados" accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Crew" value={pCrew.length} sub="asignados" accent="var(--cy2)" vc="var(--cy2)" />
     </div>
     <Tabs tabs={["Comentarios", "Ingresos", "Gastos", "Crew", "Fechas", "Contratos", ...(tasksEnabled ? ["Tareas"] : [])]} active={tab} onChange={setTab} />
     {(tab === 1 || tab === 2) && <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
@@ -315,14 +315,14 @@ export function ViewPgs({
         const pub = eps.filter(e => e.estado === "Publicado").length;
         const aus = (auspiciadores || []).filter(a => (a.pids || []).includes(pg_.id)).length;
         const b = bal(pg_.id);
-        return <div key={pg_.id} onClick={() => navTo("pg-det", pg_.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 10, padding: 20, cursor: "pointer", position: "relative", overflow: "hidden", transition: ".15s" }}>
+        return <div key={pg_.id} onClick={() => navTo("pg-det", pg_.id)} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 20, cursor: "pointer", position: "relative", overflow: "hidden", transition: ".15s", boxShadow: "0 12px 28px rgba(15,23,42,.06)" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,var(--cy),var(--cy2))" }} />
-          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--cy)", marginBottom: 8, fontWeight: 600 }}>{pg_.tip}</div>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--cy2)", marginBottom: 8, fontWeight: 700 }}>{pg_.tip}</div>
           <div style={{ fontFamily: "var(--fh)", fontSize: 18, fontWeight: 800, marginBottom: 5, lineHeight: 1.2 }}>{pg_.nom}</div>
           <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>{pg_.can || "Sin canal"} · {pg_.fre || ""}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}><Badge label={pg_.est} />{pg_.totalEp && <Badge label={`${pg_.totalEp} ep.`} color="gray" />}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
-            {[["Total", eps.length, "var(--wh)"], ["Pub.", pub, "#00e08a"], ["Aus.", aus, "var(--cy)"]].map(([l, v, c]) => <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{v}</div><div style={{ fontSize: 9, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{l}</div></div>)}
+            {[["Total", eps.length, "var(--wh)"], ["Pub.", pub, "#00e08a"], ["Aus.", aus, "var(--cy2)"]].map(([l, v, c]) => <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: "var(--fm)", fontSize: 18, fontWeight: 700, color: c }}>{v}</div><div style={{ fontSize: 9, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{l}</div></div>)}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 10 }}>
             <span style={{ color: "var(--gr2)" }}>Balance</span>
@@ -432,14 +432,14 @@ export function ViewContenidos({
       <GBtn sm onClick={() => setSelectedIds([])}>Limpiar selección</GBtn>
     </div>}
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
-      <Stat label="Planificadas" value={totalPlanned} accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Planificadas" value={totalPlanned} accent="var(--cy2)" vc="var(--cy2)" />
       <Stat label="Creadas" value={totalCreated} accent="#7c5cff" vc="#7c5cff" />
       <Stat label="Programadas" value={totalScheduled} accent="#38bdf8" vc="#38bdf8" />
       <Stat label="Publicadas" value={totalPublished} accent="#00e08a" vc="#00e08a" />
     </div>
     {vista === "cards" ? <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
-        {fd.slice((pg - 1) * PP, pg * PP).map(pz => { const c = (clientes || []).find(x => x.id === pz.cliId); const b = bal(pz.id); return <div key={pz.id} onClick={() => navTo("contenido-det", pz.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
+        {fd.slice((pg - 1) * PP, pg * PP).map(pz => { const c = (clientes || []).find(x => x.id === pz.cliId); const b = bal(pz.id); return <div key={pz.id} onClick={() => navTo("contenido-det", pz.id)} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{pz.nom}</div>
@@ -592,7 +592,7 @@ export function ViewContenidoDet(props) {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
       <Stat label="Ingresos" value={fmtM(b.i)} sub={`${mv.filter(m => m.tipo === "ingreso").length} reg.`} accent="#00e08a" vc="#00e08a" />
       <Stat label="Gastos" value={fmtM(b.g)} sub={`${mv.filter(m => m.tipo === "gasto").length} reg.`} accent="#ff5566" vc="#ff5566" />
-      <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Piezas" value={countCampaignPieces(pz)} sub={`${piezasPub} publicadas`} accent="var(--cy2)" vc="var(--cy2)" />
       <Stat label="Balance" value={fmtM(b.b)} accent={b.b >= 0 ? "#00e08a" : "#ff5566"} vc={b.b >= 0 ? "#00e08a" : "#ff5566"} />
     </div>
     <Tabs tabs={["Comentarios", "Piezas", "Editorial", "Ingresos", "Gastos", "Crew", "Fechas", "Info", ...(tasksEnabled ? ["Tareas"] : [])]} active={tab} onChange={setTab} />
@@ -603,10 +603,10 @@ export function ViewContenidoDet(props) {
     {tab === 0 && <ComentariosBlock items={pz.comentarios || []} onSave={async comentarios => { if (!canManageContent) return; await setPiezas((piezas || []).map(x => x.id === id ? { ...x, comentarios } : x)); }} onCreateTask={tasksEnabled ? async comment => { if (!canManageContent) return; const task = normalizeTaskAssignees({ id: uid(), empId, cr: today(), titulo: comment.text?.split("\n")[0]?.slice(0, 80) || `Seguimiento ${pz.nom}`, desc: comment.text || "", estado: "Pendiente", prioridad: "Media", fechaLimite: "", refTipo: "pz", refId: id, assignedIds: getAssignedIds(comment), asignadoA: getAssignedIds(comment)[0] || "" }); await setTareas([...(Array.isArray(tareas) ? tareas.filter(t => t && typeof t === "object") : []), task]); ntf && ntf("Comentario guardado y tarea creada ✓"); } : null} crewOptions={pCrew} canEdit={canManageContent} title="Comentarios de la Campaña" empresa={empresa} currentUser={user} />}
     {tab === 1 && <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 14 }}>
-        <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Publicadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#00e08a" }}>{piezasPub}</div></div>
-        <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Programadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--cy)" }}>{piezasProgramadas}</div></div>
-        <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
-        <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Aprobadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#7cffa6" }}>{piezasAprobadas}</div></div>
+        <div style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 16, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Publicadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#00e08a" }}>{piezasPub}</div></div>
+        <div style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 16, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Programadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "var(--cy2)" }}>{piezasProgramadas}</div></div>
+        <div style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 16, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>En revisión</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#ffcc44" }}>{piezasRevision}</div></div>
+        <div style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 16, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}><div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>Aprobadas</div><div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 700, color: "#7cffa6" }}>{piezasAprobadas}</div></div>
       </div>
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={piezaQ} onChange={v => setPiezaQ(v)} placeholder="Buscar pieza..." />
@@ -621,7 +621,7 @@ export function ViewContenidoDet(props) {
           <tbody>
             {piezasMesOrden.flatMap(mes => [
               <tr key={`month-${mes}`}>
-                <td colSpan={9} style={{ padding: "12px 14px", background: "color-mix(in srgb, var(--card) 76%, var(--cy) 24%)", borderTop: "1px solid var(--bdr)", borderBottom: "1px solid var(--bdr)" }}>
+                <td colSpan={9} style={{ padding: "12px 14px", background: "color-mix(in srgb, #ffffff 82%, var(--cy2) 18%)", borderTop: "1px solid var(--bdr)", borderBottom: "1px solid var(--bdr)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: "var(--gr4)", textTransform: "uppercase", letterSpacing: 1 }}>{mes}</div>
                     <div style={{ fontSize: 11, color: "var(--gr2)" }}>{piezasAgrupadasPorMes[mes].length} {piezasAgrupadasPorMes[mes].length === 1 ? "pieza" : "piezas"}</div>
@@ -630,7 +630,7 @@ export function ViewContenidoDet(props) {
               </tr>,
               ...piezasAgrupadasPorMes[mes].map(pc => <tr key={pc.id} onClick={() => navTo("pieza-det", pc.id)} style={{ cursor: "pointer" }}>
                 <TD bold>
-                  <div style={{ color: "var(--cy)" }}>{pc.nom}</div>
+                  <div style={{ color: "var(--cy2)" }}>{pc.nom}</div>
                   <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 4 }}>{pc.objetivo || pc.plataforma || "—"}</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
                     {pieceCommentsCount(pc) ? <Badge label={`${pieceCommentsCount(pc)} comentario${pieceCommentsCount(pc) === 1 ? "" : "s"}`} color="gray" sm /> : null}
@@ -638,7 +638,7 @@ export function ViewContenidoDet(props) {
                     {pieceHasClientFeedback(pc) ? <Badge label="Nuevo feedback cliente" color="orange" sm /> : null}
                   </div>
                   {pc.clientPortalDecision?.status ? <div style={{ fontSize: 10, color: "var(--org)", marginTop: 6, lineHeight: 1.5 }}>{portalDecisionSummary(pc.clientPortalDecision) || "Hay feedback del cliente en esta pieza."}</div> : null}
-                  {pieceLatestClientFeedback(pc)?.text ? <div style={{ fontSize: 10, color: "var(--cy)", marginTop: 6, lineHeight: 1.5 }}>Cliente: {String(pieceLatestClientFeedback(pc).text).slice(0, 110)}</div> : null}
+                  {pieceLatestClientFeedback(pc)?.text ? <div style={{ fontSize: 10, color: "var(--cy2)", marginTop: 6, lineHeight: 1.5 }}>Cliente: {String(pieceLatestClientFeedback(pc).text).slice(0, 110)}</div> : null}
                   {pieceLatestComment(pc)?.text ? <div style={{ fontSize: 10, color: "var(--gr2)", marginTop: 6, lineHeight: 1.5 }}>Último comentario: {String(pieceLatestComment(pc).text).slice(0, 110)}</div> : null}
                 </TD>
                 <TD><Badge label={pc.formato || "Pieza"} color="gray" sm /></TD>

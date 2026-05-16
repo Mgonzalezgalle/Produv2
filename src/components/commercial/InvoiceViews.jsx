@@ -548,7 +548,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <SearchBar value={poQuery} onChange={setPoQuery} placeholder="Buscar OC o cliente..." />
         <FilterSel value={poStatus} onChange={setPoStatus} options={["Pendiente","Aceptada","Rechazada","Parcial","Conciliada"]} placeholder="Todos los estados OC" />
-        {canEdit && <button onClick={()=>{setPoDraft(null);setPoOpen(true);}} style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--cy)",background:"var(--cy)",color:"#051018",fontWeight:800,cursor:"pointer"}}>+ Nueva OC</button>}
+        {canEdit && <button onClick={()=>{setPoDraft(null);setPoOpen(true);}} style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--cy)",background:"var(--cy)",color:"#ffffff",fontWeight:800,cursor:"pointer",boxShadow:"0 12px 24px rgba(26,26,46,.12)"}}>+ Nueva OC</button>}
       </div>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>

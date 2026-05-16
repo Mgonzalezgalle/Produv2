@@ -130,7 +130,7 @@ export function AppTopbarActions({
                 background: "var(--cy)",
                 fontSize: 9,
                 fontWeight: 700,
-                color: "var(--bg)",
+                color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

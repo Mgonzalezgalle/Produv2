@@ -1,7 +1,7 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 
 const BP = {
-  blue: ["#2f6ea818", "#2f6ea8", "#2f6ea835"],
+  blue: ["#2b6df618", "#2b6df6", "#2b6df635"],
   cyan: ["var(--cg)", "var(--cy)", "var(--cm)"],
   green: ["#00e08a18", "#00e08a", "#00e08a35"],
   red: ["#ff556618", "#ff5566", "#ff556635"],
@@ -91,9 +91,9 @@ export function Paginator({ page, total, perPage, onChange }) {
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    border: `1px solid ${on ? "var(--cy)" : "var(--bdr2)"}`,
-    background: on ? "var(--cy)" : "transparent",
-    color: on ? "var(--bg)" : "var(--gr2)",
+    border: `1px solid ${on ? "var(--cy2)" : "var(--bdr2)"}`,
+    background: on ? "var(--cy2)" : "transparent",
+    color: on ? "#ffffff" : "var(--gr2)",
     fontFamily: "var(--fm)",
   });
   return (
@@ -367,7 +367,7 @@ export function ModuleHeader({ module, title, description, actions, style = {} }
     <div style={{ width: "100%", minWidth: 0, marginBottom: 22, ...style }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
-          {module ? <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 8 }}>{module}</div> : null}
+          {module ? <div style={{ fontSize: 10, color: "var(--cy2)", textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 8, fontWeight: 800 }}>{module}</div> : null}
           <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 800, color: "var(--wh)", lineHeight: 1.05 }}>
             {title}
           </div>
@@ -389,7 +389,7 @@ export const Empty = ({ text, sub }) => (
 );
 
 export const Sep = () => <hr style={{ border: "none", borderTop: "1px solid var(--bdr)", margin: "16px 0" }} />;
-export const Tabs = ({ tabs, active, onChange }) => <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>{tabs.map((t, i) => <div key={t} onClick={() => onChange(i)} style={{ padding: "10px 16px", minHeight: 42, display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${active === i ? "var(--cm)" : "var(--bdr2)"}`, borderRadius: 999, background: active === i ? "linear-gradient(180deg,var(--cg),transparent)" : "linear-gradient(180deg,var(--card),var(--card2))", color: active === i ? "var(--cy)" : "var(--gr2)", whiteSpace: "nowrap", boxShadow: active === i ? "inset 0 0 0 1px var(--cg)" : "0 6px 18px rgba(0,0,0,.04)" }}>{t}</div>)}</div>;
+export const Tabs = ({ tabs, active, onChange }) => <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>{tabs.map((t, i) => <div key={t} onClick={() => onChange(i)} style={{ padding: "10px 16px", minHeight: 42, display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${active === i ? "rgba(43,109,246,.26)" : "var(--bdr2)"}`, borderRadius: 999, background: active === i ? "linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%))" : "linear-gradient(180deg,var(--card),var(--card2))", color: active === i ? "#ffffff" : "var(--gr2)", whiteSpace: "nowrap", boxShadow: active === i ? "0 12px 24px rgba(43,109,246,.18)" : "0 6px 18px rgba(0,0,0,.04)" }}>{t}</div>)}</div>;
 export const KV = ({ label, value }) => <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 12, color: "var(--gr2)" }}>{label}</span><span style={{ fontSize: 13, textAlign: "right", maxWidth: "60%", color: "var(--wh)", fontWeight: 600 }}>{value}</span></div>;
 
 export function SearchBar({ value, onChange, placeholder }) {
@@ -414,7 +414,7 @@ export function FilterSel({ value, onChange, options, placeholder, onPointerDown
 export function ViewModeToggle({ value, onChange }) {
   return (
     <div style={{ display: "flex", gap: 4, background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 10, padding: 3, boxShadow: "0 6px 18px rgba(0,0,0,.04)" }}>
-      {[["cards", "⊟", "Cards"], ["list", "☰", "Lista"]].map(([v, icon, label]) => <button key={v} onClick={() => onChange(v)} title={label} style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: value === v ? "var(--cy)" : "transparent", color: value === v ? "var(--bg)" : "var(--gr2)", cursor: "pointer", fontSize: 13, fontWeight: 700, minWidth: 36 }}>{icon}</button>)}
+      {[["cards", "⊟", "Cards"], ["list", "☰", "Lista"]].map(([v, icon, label]) => <button key={v} onClick={() => onChange(v)} title={label} style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: value === v ? "var(--cy2)" : "transparent", color: value === v ? "#ffffff" : "var(--gr2)", cursor: "pointer", fontSize: 13, fontWeight: 700, minWidth: 36 }}>{icon}</button>)}
     </div>
   );
 }
@@ -430,7 +430,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = "Sele
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = v => onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v]);
-  return <div ref={ref} style={{ position: "relative" }}><div onClick={() => setOpen(!open)} style={{ minHeight: 40, padding: "7px 12px", background: "var(--sur)", border: `1px solid ${open ? "var(--cy)" : "var(--bdr2)"}`, borderRadius: 6, cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>{!value.length ? <span style={{ color: "var(--gr)", fontSize: 12 }}>{placeholder}</span> : value.map(v => { const l = options.find(o => o.value === v)?.label || v; return <span key={v} style={{ background: "var(--cm)", color: "var(--cy)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>{l}<span onClick={e => { e.stopPropagation(); toggle(v); }} style={{ cursor: "pointer", opacity: 0.7 }}>×</span></span>; })}</div>{open && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--card2)", border: "1px solid var(--bdr2)", borderRadius: 6, zIndex: 600, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px #0007" }}>{options.map(o => <div key={o.value} onClick={() => toggle(o.value)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer", fontSize: 12.5, color: value.includes(o.value) ? "var(--cy)" : "var(--gr3)", background: value.includes(o.value) ? "var(--cg)" : "transparent" }}><div style={{ width: 14, height: 14, border: `1px solid ${value.includes(o.value) ? "var(--cy)" : "var(--bdr2)"}`, borderRadius: 3, background: value.includes(o.value) ? "var(--cy)" : "var(--sur)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "var(--bg)" }}>{value.includes(o.value) ? "✓" : ""}</div>{o.label}</div>)}{!options.length && <div style={{ padding: 12, color: "var(--gr)", fontSize: 12, textAlign: "center" }}>Sin opciones</div>}</div>}</div>;
+  return <div ref={ref} style={{ position: "relative" }}><div onClick={() => setOpen(!open)} style={{ minHeight: 40, padding: "7px 12px", background: "var(--sur)", border: `1px solid ${open ? "var(--cy2)" : "var(--bdr2)"}`, borderRadius: 6, cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>{!value.length ? <span style={{ color: "var(--gr)", fontSize: 12 }}>{placeholder}</span> : value.map(v => { const l = options.find(o => o.value === v)?.label || v; return <span key={v} style={{ background: "rgba(43,109,246,.12)", color: "var(--cy2)", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>{l}<span onClick={e => { e.stopPropagation(); toggle(v); }} style={{ cursor: "pointer", opacity: 0.7 }}>×</span></span>; })}</div>{open && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--card2)", border: "1px solid var(--bdr2)", borderRadius: 6, zIndex: 600, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px #0007" }}>{options.map(o => <div key={o.value} onClick={() => toggle(o.value)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer", fontSize: 12.5, color: value.includes(o.value) ? "var(--cy2)" : "var(--gr3)", background: value.includes(o.value) ? "rgba(43,109,246,.08)" : "transparent" }}><div style={{ width: 14, height: 14, border: `1px solid ${value.includes(o.value) ? "var(--cy2)" : "var(--bdr2)"}`, borderRadius: 3, background: value.includes(o.value) ? "var(--cy2)" : "var(--sur)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#ffffff" }}>{value.includes(o.value) ? "✓" : ""}</div>{o.label}</div>)}{!options.length && <div style={{ padding: 12, color: "var(--gr)", fontSize: 12, textAlign: "center" }}>Sin opciones</div>}</div>}</div>;
 }
 
-export const DetHeader = ({ title, tag, badges = [], meta = [], actions, des }) => <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}><div>{tag && <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "var(--cy)", fontWeight: 700, marginBottom: 6 }}>{tag}</div>}<div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800 }}>{title}</div><div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>{badges.map((b, i) => <span key={i}>{b}</span>)}{meta.filter(Boolean).map((m, i) => <span key={i}>{m}</span>)}</div>{des && <div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 8, maxWidth: 580 }}>{des}</div>}</div>{actions && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div>}</div>;
+export const DetHeader = ({ title, tag, badges = [], meta = [], actions, des }) => <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}><div>{tag && <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "var(--cy2)", fontWeight: 800, marginBottom: 6 }}>{tag}</div>}<div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800 }}>{title}</div><div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>{badges.map((b, i) => <span key={i}>{b}</span>)}{meta.filter(Boolean).map((m, i) => <span key={i}>{m}</span>)}</div>{des && <div style={{ fontSize: 12, color: "var(--gr2)", marginTop: 8, maxWidth: 580 }}>{des}</div>}</div>{actions && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{actions}</div>}</div>;

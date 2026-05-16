@@ -644,7 +644,7 @@ export function ThemeSettingsPanel({ lt, setLt, themePresets, onSaveTheme, ntf }
     </FG>
     <div style={{fontSize:11,color:"var(--gr2)",marginBottom:14}}>Los presets son fijos para mantener consistencia visual. Si más adelante quieres, podemos sumar nuevos estilos sin reabrir el selector libre de colores.</div>
     <div style={{display:"flex",gap:8}}>
-      <button onClick={e=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:6,border:"none",background:"var(--cy)",color:"var(--bg)",cursor:"pointer",fontSize:12,fontWeight:700}}>✓ Aplicar</button>
+      <button onClick={e=>{e.stopPropagation();e.preventDefault();onSaveTheme(lt);ntf("Tema aplicado ✓");}} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"var(--cy)",color:"#ffffff",cursor:"pointer",fontSize:12,fontWeight:700,boxShadow:"0 12px 24px rgba(26,26,46,.12)"}}>✓ Aplicar</button>
       <button onClick={e=>{e.stopPropagation();const dt={...themePresets.clasico.dark,preset:"clasico",mode:"dark"};setLt(dt);onSaveTheme(dt);ntf("Produ Clásico Dark");}} style={{padding:"9px 14px",borderRadius:6,border:"1px solid var(--bdr2)",background:"transparent",color:"var(--gr3)",cursor:"pointer",fontSize:12,fontWeight:600}}>Reset clásico</button>
     </div>
   </div>;

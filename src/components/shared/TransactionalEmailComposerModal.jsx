@@ -132,10 +132,11 @@ export function TransactionalEmailComposerModal({
             borderRadius: 10,
             border: "1px solid var(--cy)",
             background: "var(--cy)",
-            color: "#051018",
+            color: "#ffffff",
             fontWeight: 800,
             cursor: sending ? "default" : "pointer",
             opacity: sending ? 0.7 : 1,
+            boxShadow: "0 12px 24px rgba(26,26,46,.12)",
           }}
         >
           {sending ? "Enviando..." : "Enviar correo"}

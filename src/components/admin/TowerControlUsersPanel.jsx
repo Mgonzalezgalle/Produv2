@@ -31,7 +31,7 @@ export function SystemUsersPanel({
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 12 }}>
       Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde Torre de Control.
     </div>
-    <div style={{ background: "var(--card2)", border: "1px solid var(--bdr2)", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr2)", borderRadius: 16, padding: 16, marginBottom: 16, boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
       <div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"center", marginBottom: 12, flexWrap:"wrap" }}>
         <div>
           <div style={{ fontFamily: "var(--fh)", fontSize: 13, fontWeight: 700, marginBottom:4 }}>{sysUid ? "Editar usuario sistema" : "Crear usuario sistema"}</div>
@@ -80,7 +80,7 @@ export function SystemUsersPanel({
     {filteredUsers.map(u => {
       const empresa = (empresas || []).find(e => e.id === u.empId);
       const roleCfg = getRoleConfig(u.role, empresa);
-      return <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--sur)", border: "1px solid var(--bdr)", borderRadius: 10, marginBottom: 8 }}>
+      return <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 12, marginBottom: 8, boxShadow: "0 8px 18px rgba(15,23,42,.04)" }}>
         <div style={{ width: 30, height: 30, background: "linear-gradient(135deg,var(--cy),var(--cy2))", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--bg)", flexShrink: 0 }}>{ini(u.name)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600 }}>{u.name}</div>

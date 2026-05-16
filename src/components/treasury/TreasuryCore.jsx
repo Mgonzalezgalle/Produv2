@@ -20,11 +20,11 @@ export function TreasuryStyles() {
       .treasury-kpi-sub{margin-top:10px;color:var(--gr3);font-size:11px}
       .treasury-tabs,.treasury-subtabs,.treasury-modal-tabs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
       .treasury-tabs{margin-bottom:18px}
-      .treasury-tab,.treasury-subtab{border:1px solid var(--bdr2);background:#ffffff;color:var(--gr2);border-radius:999px;font-family:var(--fb);font-weight:700;cursor:pointer;transition:.15s ease;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+      .treasury-tab,.treasury-subtab{appearance:none;border:1px solid var(--bdr2);background:#ffffff;color:var(--gr2);border-radius:999px;font-family:var(--fb);font-weight:700;cursor:pointer;transition:.15s ease;box-shadow:0 8px 20px rgba(15,23,42,.05)}
       .treasury-tab{padding:14px 22px 13px;font-size:14px}
       .treasury-subtab{padding:11px 16px;font-size:13px}
       .treasury-tab:hover,.treasury-subtab:hover{color:var(--gr3);border-color:var(--bdr2);transform:translateY(-1px)}
-      .treasury-tab.active,.treasury-subtab.active{color:#ffffff;background:linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%));border-color:rgba(43,109,246,.28);box-shadow:0 12px 24px rgba(43,109,246,.18)}
+      .treasury-tab.active,.treasury-subtab.active{color:#ffffff!important;background:linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%))!important;border-color:rgba(43,109,246,.28)!important;box-shadow:0 12px 24px rgba(43,109,246,.18)!important}
       .treasury-section{border:1px solid var(--bdr);border-radius:20px;background:linear-gradient(180deg,#ffffff,var(--card2));box-shadow:0 16px 32px rgba(15,23,42,.08);padding:18px;margin-bottom:18px}
       .treasury-section.emphasis{border-left:3px solid var(--cy)}
       .treasury-section.with-top-border{border-top:1px solid var(--bdr2)}
@@ -93,6 +93,12 @@ export function TreasuryStyles() {
       body.light .treasury-subtab{
         background:#ffffff;
         border-color:#d7dee8;
+        color:var(--gr2);
+      }
+      body.light .treasury-tab.active,
+      body.light .treasury-subtab.active{
+        color:#ffffff!important;
+        background:linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%))!important;
       }
       body.light .treasury-section,
       body.light .treasury-provider-card,

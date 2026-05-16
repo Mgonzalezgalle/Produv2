@@ -80,11 +80,11 @@ export function WizardAdminPanel({ dbGet, dbSet }) {
           <FI value="Usado para mostrar equivalentes en CLP dentro del wizard" disabled />
         </FG>
       </R2>
-      <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", marginBottom: 14 }}>
+      <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)", marginBottom: 14, boxShadow: "0 8px 18px rgba(15,23,42,.04)" }}>
         <div style={{ fontSize: 11, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.1, marginBottom: 10 }}>Catálogo de addons</div>
         <div style={{ display: "grid", gap: 10 }}>
           {addonCatalog.map((addon) => (
-            <div key={addon.code} style={{ padding: "12px 12px 10px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--card)" }}>
+            <div key={addon.code} style={{ padding: "12px 12px 10px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 140px", gap: 12, alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800 }}>{addon.label}</div>

@@ -373,11 +373,6 @@ export function TreasuryPayablesSection({
         </div>
         {payablesTab === "documentos" ? (
           <>
-            <div className="treasury-compact-grid">
-              <MiniKpiCard color="#a78bfa" label="Documentos" value={payablesSummary.docs} />
-              <MiniKpiCard color="#ffcc44" label="Pendiente" value={fmtM(payablesSummary.pending)} />
-              <MiniKpiCard color="var(--red)" label="Vencido" value={fmtM(payablesSummary.overdue)} />
-            </div>
             <TableToolbar
               searchValue={payableTable.query}
               onSearchChange={payableTable.setQuery}
@@ -442,10 +437,6 @@ export function TreasuryPayablesSection({
       </SectionCard>
 
       <SectionCard title="Órdenes de Compra Emitidas" subtitle="Trazabilidad de OC emitidas a proveedores" action={canManageTreasury ? <GBtn onClick={openIssuedOrderCreate}>+ Nueva OC emitida</GBtn> : null} withTopBorder>
-        <div className="treasury-compact-grid" style={{ gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
-          <MiniKpiCard color="var(--cy)" label="OC emitidas" value={issuedOrderSummary.docs} />
-          <MiniKpiCard color="#00e08a" label="Monto emitido" value={fmtM(issuedOrderSummary.total)} />
-        </div>
         <TableToolbar
           searchValue={issuedTable.query}
           onSearchChange={issuedTable.setQuery}

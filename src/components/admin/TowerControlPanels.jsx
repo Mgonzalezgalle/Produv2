@@ -95,7 +95,7 @@ export function EmpresasAdminPanel({
   ];
   return <div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
-      {statCards.map(card => <div key={card.label} style={{ background: "linear-gradient(180deg,var(--sur),rgba(255,255,255,.015))", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px" }}>
+      {statCards.map(card => <div key={card.label} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
           <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{card.label}</div>
           <span style={{width:7,height:7,borderRadius:999,background:card.accent,opacity:.9}} />

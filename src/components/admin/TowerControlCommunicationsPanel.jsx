@@ -28,7 +28,7 @@ export function ComunicacionesAdminPanel({
 
   return <div>
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 14 }}>Mensajes visibles para todos los usuarios del tenant y banner global de avisos importantes.</div>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16, padding: 12, borderRadius: 14, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
       <FilterSel value={commEmpId} onChange={v => {
         setCommEmpId(v);
         const emp = (empresas || []).find(e => e.id === v) || (empresas || [])[0] || null;
@@ -41,7 +41,7 @@ export function ComunicacionesAdminPanel({
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 8 }}>Mensajes preset</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {SYSTEM_MESSAGE_PRESETS.map(preset => <button key={preset.id} onClick={() => applySystemPreset(preset)} style={{ padding: "8px 10px", borderRadius: 999, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--gr3)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            {SYSTEM_MESSAGE_PRESETS.map(preset => <button key={preset.id} onClick={() => applySystemPreset(preset)} style={{ padding: "8px 10px", borderRadius: 999, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", fontSize: 11, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 18px rgba(15,23,42,.04)" }}>
               {preset.label}
             </button>)}
           </div>

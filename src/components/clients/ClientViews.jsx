@@ -144,8 +144,8 @@ export function ViewClientes({
               let tg = 0;
               (producciones || []).filter(p => p.cliId === c.id).forEach(p => { const b = bal(p.id); ti += b.i; tg += b.g; });
               return (
-                <div key={c.id} onClick={() => navTo("cli-det", c.id)} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 10, padding: 20, cursor: "pointer", transition: ".15s" }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseLeave={e => { e.currentTarget.style.transform = ""; }}>
-                  <div style={{ width: 44, height: 44, background: "var(--cg)", border: "1px solid var(--cm)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: "var(--cy)", marginBottom: 14 }}>{ini(c.nom)}</div>
+                <div key={c.id} onClick={() => navTo("cli-det", c.id)} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 20, cursor: "pointer", transition: ".15s", boxShadow: "0 12px 28px rgba(15,23,42,.06)" }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseLeave={e => { e.currentTarget.style.transform = ""; }}>
+                  <div style={{ width: 44, height: 44, background: "rgba(43,109,246,.08)", border: "1px solid rgba(43,109,246,.18)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: "var(--cy2)", marginBottom: 14 }}>{ini(c.nom)}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{c.nom}</div>
                     <Badge sm label={bsaleClientReady(c) ? "Facturable" : "No facturable"} color={bsaleClientReady(c) ? "green" : "yellow"} />
@@ -154,7 +154,7 @@ export function ViewClientes({
                   <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 5 }}>Cupo: {Number(c.creditLimit || 0) > 0 ? fmtM(c.creditLimit) : "No definido"}</div>
                   {(c.contactos || []).slice(0, 2).map(co => <div key={co.id} style={{ fontSize: 11, color: "var(--gr2)", marginTop: 5 }}>👤 {co.nom}{co.car ? ` · ${co.car}` : ""}</div>)}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--bdr)" }}>
-                    <span style={{ fontSize: 11, color: "var(--cy)" }}>{pr} prod.</span>
+                    <span style={{ fontSize: 11, color: "var(--cy2)", fontWeight: 700 }}>{pr} prod.</span>
                     <span style={{ fontSize: 11, color: ti - tg >= 0 ? "#00e08a" : "#ff5566", fontFamily: "var(--fm)" }}>{fmtM(ti - tg)}</span>
                   </div>
                 </div>
@@ -294,16 +294,18 @@ export function ViewCliDet({
   const emailHistory = Array.isArray(c.emailHistory) ? [...c.emailHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const portalHistory = Array.isArray(c.portalActivity) ? [...c.portalActivity].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))) : [];
   const internalPortalStatStyle = {
-    background: "#f8fbff",
+    background: "linear-gradient(180deg,#ffffff,#f8fbff)",
     border: "1px solid #dbe7f5",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 12,
+    boxShadow: "0 10px 24px rgba(15,23,42,.05)",
   };
   const internalPortalAsideStyle = {
-    background: "#f8fbff",
+    background: "linear-gradient(180deg,#ffffff,#f8fbff)",
     border: "1px solid #dbe7f5",
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
+    boxShadow: "0 10px 24px rgba(15,23,42,.05)",
   };
   const updateClientPortal = async updater => {
     const nextClients = (clientes || []).map(item => {

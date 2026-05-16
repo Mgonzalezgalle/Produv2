@@ -67,9 +67,9 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)} title={n.label}
-              style={{ display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:12,cursor:"pointer",background:active?"linear-gradient(180deg,var(--cg),transparent)":"transparent",border:active?"1px solid var(--cm)":"1px solid transparent",boxShadow:active?"inset 0 0 0 1px var(--cg)":"none",margin:"0 auto 4px",transition:".1s",position:"relative" }}>
+              style={{ display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:12,cursor:"pointer",background:active?"linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%))":"transparent",border:active?"1px solid rgba(43,109,246,.28)":"1px solid transparent",boxShadow:active?"0 10px 22px rgba(43,109,246,.2)":"none",margin:"0 auto 4px",transition:".1s",position:"relative" }}>
               <span style={{ fontSize:18,filter:active?"drop-shadow(0 0 8px var(--cm))":"none" }}>{n.icon}</span>
-              {n.cnt>0&&<span style={{position:"absolute",top:3,right:3,minWidth:16,height:16,borderRadius:20,background:active?"var(--cy)":"var(--bdr2)",color:active?"var(--bg)":"var(--gr3)",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",fontFamily:"var(--fm)"}}>{n.cnt>9?"9+":n.cnt}</span>}
+              {n.cnt>0&&<span style={{position:"absolute",top:3,right:3,minWidth:16,height:16,borderRadius:20,background:active?"#ffffff":"rgba(255,255,255,.12)",color:active?"var(--cy2)":"#e5edf7",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",fontFamily:"var(--fm)"}}>{n.cnt>9?"9+":n.cnt}</span>}
             </div>;
           })}
         </div>;
@@ -92,10 +92,10 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)}
-              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"var(--cy)":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cg),transparent)":"transparent",border:`1px solid ${active?"var(--cm)":"transparent"}`,borderRadius:10,transition:".1s",marginBottom:4 }}>
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"#ffffff":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cy2),color-mix(in srgb,var(--cy2) 84%, #ffffff 16%))":"transparent",border:`1px solid ${active?"rgba(43,109,246,.28)":"transparent"}`,borderRadius:12,transition:".1s",marginBottom:4,boxShadow:active?"0 10px 22px rgba(43,109,246,.18)":"none" }}>
               <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center",filter:active?"drop-shadow(0 0 8px var(--cm))":"none" }}>{n.icon}</span>
               <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
-              {n.cnt !== undefined && <span style={{ background:active?"var(--cm)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"var(--cy)":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
+              {n.cnt !== undefined && <span style={{ background:active?"rgba(255,255,255,.18)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"#ffffff":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
             </div>;
           })}
         </div>}
@@ -112,7 +112,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
   const base=view==="contenido-det"?"contenidos":view.split("-")[0];
   const NAV=buildSidebarNavigation({empresa,counts,includeTreasury});
   const SW=collapsed?64:240;
-  return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:isMobile && !mobileOpen ? "none" : "flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden"}}>
+  return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:isMobile && !mobileOpen ? "none" : "flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden",boxShadow:"2px 0 24px rgba(15,23,42,.24)"}}>
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -120,8 +120,8 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
         </div>
         <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>{isMobile?"✕":"‹"}</button>
       </>:
-        <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
-          <svg viewBox="0 0 24 24" fill="var(--bg)" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
+      <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
         </div>}
     </div>
     {!collapsed&&empresa&&<div style={{padding:"10px 12px",borderBottom:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
@@ -141,11 +141,11 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
     {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
       {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",background:sbPanel,color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
-        <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy2)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
         <span style={{fontSize:9,color:sbMuted}}>Sincronizado · Supabase</span>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:sbPanel,border:"1px solid rgba(255,255,255,.08)"}}>
-        <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"var(--bg)",flexShrink:0}}>{ini(user?.name||"")}</div>
+        <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#ffffff",flexShrink:0}}>{ini(user?.name||"")}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={getRoleConfig(user?.role, empresa).label} color={getRoleConfig(user?.role, empresa).badge} sm/></div>
         <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:14,padding:2}}>⏏</button>
       </div>

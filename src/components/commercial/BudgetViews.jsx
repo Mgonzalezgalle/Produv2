@@ -130,9 +130,9 @@ export function BudgetListSection({
   };
   return <div>
     <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_STAT_GRID,gap:14,marginBottom:20}}>
-      <Stat label="Total" value={fd.length} accent="var(--cy)" vc="var(--cy)"/>
+      <Stat label="Total" value={fd.length} accent="var(--cy2)" vc="var(--cy2)"/>
       <Stat label="Aceptados" value={acceptedCount} accent="#00e08a" vc="#00e08a"/>
-      <Stat label="Monto Total" value={fmtM(total)} sub="todos" accent="var(--cy)"/>
+      <Stat label="Monto Total" value={fmtM(total)} sub="todos" accent="var(--cy2)" vc="var(--cy2)"/>
       <Stat label="Monto Aceptado" value={fmtM(aceptados)} sub="aceptados" accent="#00e08a" vc="#00e08a"/>
     </div>
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
@@ -141,7 +141,7 @@ export function BudgetListSection({
       <FilterSel value={sortMode} onChange={v=>{setSortMode(v);setPg(1);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z"},{value:"za",label:"Z-A"}]} placeholder="Ordenar"/>
       {canEdit&&<Btn onClick={()=>openM("pres",{})}>+ Nuevo Presupuesto</Btn>}
     </div>
-    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:14,background:"linear-gradient(180deg,#ffffff,#f7fbff)",boxShadow:"0 10px 24px rgba(15,23,42,.05)"}}>
       <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionado{selectedIds.length===1?"":"s"}</div>
       <FSl value={bulkEstado} onChange={e=>setBulkEstado(e.target.value)} style={{maxWidth:200}}>
         <option value="">Cambiar estado...</option>
@@ -164,7 +164,7 @@ export function BudgetListSection({
               <TD style={{fontSize:11}}>{budgetRefLabel(p,producciones,programas,piezas)}</TD>
               <TD><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}><Badge label={p.estado||"Borrador"}/>{clientPortalBadge(p.clientPortalDecision)}</div></TD>
               <TD mono style={{fontSize:11}}>{(p.items||[]).length}{p.recurring && <div style={{fontSize:10,color:"#00e08a",marginTop:4}}>{p.recMonths || 1} mes(es)</div>}</TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>
+              <TD style={{color:"var(--cy2)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>
                 {fmtMoney(p.total||0,budgetSummaryCurrency(p))}
                 {budgetUsesFx(p) && <div style={{fontSize:10,color:"var(--gr2)",marginTop:4}}>{fmtMoney(p.totalOrigen || 0,p.moneda||"CLP")} origen</div>}
               </TD>
@@ -507,7 +507,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       actions={canDo && canDo("contratos") ? <Btn onClick={() => openM("ct", {})}>+ Nuevo Contrato</Btn> : null}
     />
     <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
-      <Stat label="Total Contratos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Total Contratos" value={fd.length} accent="var(--cy2)" vc="var(--cy2)" />
       <Stat label="Vigentes" value={vigentes} accent="#00e08a" vc="#00e08a" />
       <Stat label="Por vencer" value={porVencer} accent="#ffcc44" vc="#ffcc44" />
       <Stat label="Vencidos" value={vencidos} accent="#ff5566" vc="#ff5566" />
@@ -548,7 +548,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
         {fd.slice((pg - 1) * PP, pg * PP).map(ct => {
           const c = (clientes || []).find(x => x.id === ct.cliId);
           const vinculos = [(ct.pids || []).length && `${(ct.pids || []).length} vínculo${(ct.pids || []).length === 1 ? "" : "s"}`, ct.presupuestoId && `${(presupuestos || []).filter(p => p.id === ct.presupuestoId).length} presupuesto`, (ct.facturaIds || []).length && `${(ct.facturaIds || []).length} factura${(ct.facturaIds || []).length === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
-          return <div key={ct.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+          return <div key={ct.id} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 18, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,.06)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{ct.nom}</div>
@@ -562,7 +562,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
             </div>
             <div style={{ fontSize: 11, color: "var(--gr2)" }}>{vinculos || "Sin vínculos"}</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bdr)" }}>
-                <span style={{ fontFamily: "var(--fm)", fontSize: 12, color: "var(--cy)" }}>{ct.mon ? fmtM(ct.mon) : "—"}</span>
+                <span style={{ fontFamily: "var(--fm)", fontSize: 12, color: "var(--cy2)" }}>{ct.mon ? fmtM(ct.mon) : "—"}</span>
               <div style={{ display: "flex", gap: 4 }}>
                 <GBtn sm onClick={() => openContractEmailComposer(ct)}>✉</GBtn>
                 {canDo && canDo("contratos") && <><GBtn sm onClick={() => openM("ct", ct)}>✏</GBtn><XBtn onClick={() => cDel(contratos, setContratos, ct.id, null, "Contrato eliminado")} /></>}

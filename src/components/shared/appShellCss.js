@@ -20,8 +20,8 @@ tbody tr{cursor:pointer;transition:.1s}tbody tr:hover td{background:#f7fbff!impo
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{to{transform:rotate(360deg)}}
-body.light .sidebar-inner{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important}
-body.light aside{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important;border-right:none!important}
+body.light .sidebar-inner{background:#1a1a2e!important}
+body.light aside{background:#1a1a2e!important;border-right:none!important}
 body.light aside *{border-color:#ffffff14!important}
 body.light aside .nav-label{color:#e2e8f0!important}
 body.light .card-wrap,.card{border-radius:18px}
@@ -34,9 +34,9 @@ body.light button[class*="btn"]{transition:all .15s}
 .va{animation:fadeUp .2s ease;width:100%;min-width:0}
 .va>div{width:100%;min-width:0}
 body.light{--bg:#f4f8fd;--sur:#ffffff;--card:#ffffff;--card2:#f7fbff;--bdr:#dbe6f3;--bdr2:#cfdceb;--wh:#152033;--gr:#7b8aa3;--gr2:#66748d;--gr3:#42526b;--sidebar:#1a1a2e;--sidebar-text:#cbd5e1;--sidebar-active:#ffffff;--sidebar-active-bg:#2b6df6}
-body.light .sidebar-wrap{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important}
+body.light .sidebar-wrap{background:#1a1a2e!important}
 body.light .sidebar-wrap *{border-color:#ffffff15!important}
-body.light aside{background:linear-gradient(180deg,#1a1a2e 0%,#23233c 100%)!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
+body.light aside{background:#1a1a2e!important;border-right:none!important;box-shadow:2px 0 24px rgba(15,23,42,.24)}
 body.light aside .nav-group-label{color:#94a3b8!important}
 body.light aside,body.light aside button,body.light aside div,body.light aside span,body.light aside small{color:#e5edf7!important}
 body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}

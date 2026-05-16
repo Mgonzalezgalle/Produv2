@@ -139,12 +139,12 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
       <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} empresa={empresa} flatSidebar={true}/>
     </nav>
     {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
-      {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",background:sbPanel,color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s"}}><span>⚙</span>Panel Admin</div>}
+      {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.04)",color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy2)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
         <span style={{fontSize:9,color:sbMuted}}>Sincronizado · Supabase</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:sbPanel,border:"1px solid rgba(255,255,255,.08)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>
         <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#ffffff",flexShrink:0}}>{ini(user?.name||"")}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={getRoleConfig(user?.role, empresa).label} color={getRoleConfig(user?.role, empresa).badge} sm/></div>
         <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:14,padding:2}}>⏏</button>

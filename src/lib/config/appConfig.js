@@ -29,8 +29,8 @@ export const THEME_PRESETS = {
   brand: {
     label: "Produ Web",
     description: "La identidad editorial y comercial de Produ llevada al SaaS.",
-    dark: { mode: "dark", bg: "#0d1730", surface: "#13203a", card: "#172742", border: "#263957", accent: "#1a1a2e", accent2: "#2b6df6", white: "#f7fbff", gray: "#9fb0c8", sidebarBg: "#10204f", sidebarPanel: "#173a78", sidebarText: "#edf5ff", sidebarMuted: "#b9c9df" },
-    light: { mode: "light", bg: "#f4f8fd", surface: "#ffffff", card: "#ffffff", border: "#dbe6f3", accent: "#1a1a2e", accent2: "#2b6df6", white: "#152033", gray: "#66748d", sidebarBg: "#10204f", sidebarPanel: "#173a78", sidebarText: "#edf5ff", sidebarMuted: "#c5d2e6" },
+    dark: { mode: "dark", bg: "#0d1730", surface: "#13203a", card: "#172742", border: "#263957", accent: "#1a1a2e", accent2: "#2b6df6", white: "#f7fbff", gray: "#9fb0c8", sidebarBg: "#1a1a2e", sidebarPanel: "#1a1a2e", sidebarText: "#edf5ff", sidebarMuted: "#b9c9df" },
+    light: { mode: "light", bg: "#f4f8fd", surface: "#ffffff", card: "#ffffff", border: "#dbe6f3", accent: "#1a1a2e", accent2: "#2b6df6", white: "#152033", gray: "#66748d", sidebarBg: "#1a1a2e", sidebarPanel: "#1a1a2e", sidebarText: "#edf5ff", sidebarMuted: "#c5d2e6" },
   },
   clasico: {
     label: "Produ Clásico",

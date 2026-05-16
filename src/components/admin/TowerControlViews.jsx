@@ -8,19 +8,19 @@ const RESPONSIVE_TOWER_HERO_GRID = "repeat(auto-fit,minmax(min(100%,320px),1fr))
 const RESPONSIVE_TOWER_SUMMARY_GRID = "repeat(auto-fit,minmax(min(100%,160px),1fr))";
 
 const SUPER_ADMIN_LIGHT_VARS = {
-  "--bg": "#eef3f9",
+  "--bg": "#f4f8fd",
   "--card": "#ffffff",
-  "--card2": "#f6f9fc",
+  "--card2": "#f7fbff",
   "--sur": "#ffffff",
-  "--bdr": "#d8e2ee",
-  "--bdr2": "#dfe7f2",
-  "--wh": "#202c44",
-  "--gr": "#90a0b5",
-  "--gr2": "#708096",
-  "--gr3": "#41526c",
-  "--cg": "rgba(47,111,179,.08)",
-  "--cy": "#2f6fb3",
-  "--cy2": "#7fb1de",
+  "--bdr": "#dbe6f3",
+  "--bdr2": "#cfdceb",
+  "--wh": "#152033",
+  "--gr": "#7b8aa3",
+  "--gr2": "#66748d",
+  "--gr3": "#42526b",
+  "--cg": "rgba(26,26,46,.08)",
+  "--cy": "#1a1a2e",
+  "--cy2": "#2b6df6",
 };
 const SUPER_ADMIN_DARK_VARS = {
   "--bg": "#0b1220",
@@ -143,17 +143,17 @@ export function SuperAdminPanel({
   });
 
   const activeTabMeta = SUPER_TAB_META[activeSuperTab] || {};
-  const [controlTheme] = useState("dark");
+  const [controlTheme] = useState("light");
   const isLightMode = controlTheme === "light";
   const controlThemeVars = isLightMode ? SUPER_ADMIN_LIGHT_VARS : SUPER_ADMIN_DARK_VARS;
   const summaryCards = [
-    { label: "Tenants", value: totalEmp, accent: "var(--cy)", tone: "rgba(34,211,238,.16)" },
+    { label: "Tenants", value: totalEmp, accent: "var(--cy2)", tone: "rgba(43,109,246,.14)" },
     { label: "Activos", value: activeEmp, accent: "#4ade80", tone: "rgba(74,222,128,.14)" },
     { label: "MRR Neto", value: fmtMoney(netMRR,"UF"), accent: "#a855f7", tone: "rgba(168,85,247,.14)" },
   ];
 
   return <div style={controlThemeVars}>
-    <div style={{padding:"18px 18px 16px",border:"1px solid var(--bdr2)",borderRadius:22,background:isLightMode?"linear-gradient(180deg,rgba(47,111,179,.08),rgba(47,111,179,.02) 42%, transparent 100%)":"linear-gradient(180deg,rgba(56,189,248,.10),rgba(56,189,248,.03) 42%, transparent 100%)",marginBottom:16,boxShadow:isLightMode?"0 18px 40px rgba(41,63,97,.08)":"0 18px 40px rgba(0,0,0,.22)"}}>
+    <div style={{padding:"18px 18px 16px",border:"1px solid var(--bdr2)",borderRadius:22,background:isLightMode?"linear-gradient(180deg,rgba(43,109,246,.08),rgba(43,109,246,.02) 42%, transparent 100%)":"linear-gradient(180deg,rgba(56,189,248,.10),rgba(56,189,248,.03) 42%, transparent 100%)",marginBottom:16,boxShadow:isLightMode?"0 18px 40px rgba(15,23,42,.08)":"0 18px 40px rgba(0,0,0,.22)"}}>
       <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_HERO_GRID,gap:16,alignItems:"stretch",marginBottom:14}}>
         <div style={{padding:"4px 2px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:10}}>
@@ -169,7 +169,7 @@ export function SuperAdminPanel({
           {lastGovernanceSync && <div style={{marginTop:10}}><GovernanceSyncStatus sync={lastGovernanceSync} /></div>}
         </div>
         <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_SUMMARY_GRID,gap:10,alignContent:"start"}}>
-          {summaryCards.map(card=><div key={card.label} style={{padding:"12px 12px 13px",borderRadius:16,border:"1px solid var(--bdr2)",background:"linear-gradient(180deg,var(--sur),rgba(255,255,255,.015))"}}>
+          {summaryCards.map(card=><div key={card.label} style={{padding:"12px 12px 13px",borderRadius:16,border:"1px solid var(--bdr2)",background:"linear-gradient(180deg,#ffffff,#f7fbff)"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <span style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>{card.label}</span>
               <span style={{width:8,height:8,borderRadius:999,background:card.accent,boxShadow:`0 0 0 5px ${card.tone}`}} />
@@ -178,7 +178,7 @@ export function SuperAdminPanel({
           </div>)}
         </div>
       </div>
-      <div style={{padding:10,borderRadius:18,border:"1px solid var(--bdr2)",background:isLightMode?"rgba(255,255,255,.74)":"rgba(9,12,18,.72)",boxShadow:isLightMode?"inset 0 1px 0 rgba(255,255,255,.75)":"inset 0 1px 0 rgba(255,255,255,.03)"}}>
+      <div style={{padding:10,borderRadius:18,border:"1px solid var(--bdr2)",background:isLightMode?"rgba(255,255,255,.88)":"rgba(9,12,18,.72)",boxShadow:isLightMode?"0 12px 28px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.85)":"inset 0 1px 0 rgba(255,255,255,.03)"}}>
         <Tabs tabs={SUPER_TABS} active={tab} onChange={setTab}/>
       </div>
     </div>

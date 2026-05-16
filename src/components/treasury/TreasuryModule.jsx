@@ -573,11 +573,6 @@ export function TreasuryModule(props) {
               title="Tesorería"
               description="Controla cartera, deuda, cobranza operativa, conciliación documental y pagos realizados desde una misma superficie financiera."
             />
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              <Badge label={treasuryHero.badge.label} color={treasuryHero.badge.color} sm />
-              <Badge label={treasuryHero.secondaryBadge.label} color={treasuryHero.secondaryBadge.color} sm />
-              <Badge label={treasuryHero.tertiaryBadge.label} color={treasuryHero.tertiaryBadge.color} sm />
-            </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             {treasuryHero.metrics.map(metric => (

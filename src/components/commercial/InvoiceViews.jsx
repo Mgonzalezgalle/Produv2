@@ -430,17 +430,20 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
 
   return <div>
     <div style={{padding:"22px 22px 18px",border:"1px solid var(--bdr2)",borderRadius:24,background:"linear-gradient(180deg,#f7fbff 0%, #eef4fb 100%)",marginBottom:18,boxShadow:"0 14px 30px rgba(148,163,184,.18)"}}>
-      <div style={{display:"grid",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1.45fr) minmax(280px,.95fr)",gap:16,alignItems:"stretch"}}>
+        <div style={{display:"grid",gap:12}}>
           <ModuleHeader
             module="Facturación"
             title="Facturación"
             description="Emite documentos, administra recurrencias y sostiene el frente documental de la operación. La cobranza operativa vive en Tesorería dentro de Cuentas por Cobrar."
           />
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <Badge label={`${emitidas} emitidas`} color="cyan" sm />
-            <Badge label={`${recurrentes} recurrentes`} color="purple" sm />
-            <Badge label={vencidas ? `${vencidas} atrasadas` : "Sin atrasos críticos"} color={vencidas ? "yellow" : "green"} sm />
-          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <BillingSurfaceMetric label="Documentos emitidos" value={fd.length} tone="var(--cy)" hint="Base documental visible en este módulo." />
+          <BillingSurfaceMetric label="Monto emitido" value={fmtM(emittedAmount)} tone="#00e08a" hint="Volumen documental emitido desde Facturación." />
+          <BillingSurfaceMetric label="OC recibidas" value={purchaseOrderSummary.docs} tone="#ffcc44" hint={`${fmtM(purchaseOrderSummary.total)} comprometidos por clientes.`} />
+          <BillingSurfaceMetric label="Recurrencias" value={recurringSeriesCount} tone="#ff5566" hint={`${vencidas} serie(s) con atraso y ${recurrentes} documento(s) recurrentes emitidos.`} />
+        </div>
       </div>
     </div>
     <Tabs tabs={["Emisión","Órdenes de Compra Recibidas","Recurrencias"]} active={Math.min(tab,2)} onChange={(idx)=>{setTab(idx);setPg(1);}}/>

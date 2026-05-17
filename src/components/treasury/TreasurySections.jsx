@@ -363,6 +363,7 @@ export function TreasuryPayablesSection({
   setPayablePeriodFilter,
   setPayableSupplierFilter,
   setPayablesTab,
+  isMobile = false,
 }) {
   return (
     <>
@@ -432,6 +433,7 @@ export function TreasuryPayablesSection({
             toggleSelected={providerTable.toggleSelected}
             toggleAll={providerTable.toggleAll}
             pageIds={providerTable.pageIds}
+            isMobile={isMobile}
           />
         )}
       </SectionCard>

@@ -69,7 +69,7 @@ function CrewTab({ crew, empId, asignados, onAdd, onRem, onHonorario, canEdit, i
 
 export function ViewPros({
   empresa, clientes, producciones, movimientos, navTo, openM, canDo, listas, setProducciones,
-  useBal, fmtM, fmtD,
+  useBal, fmtM, fmtD, isMobile = false,
 }) {
   const empId = empresa?.id;
   const canManageProjects = !!(canDo && canDo("producciones"));
@@ -81,7 +81,7 @@ export function ViewPros({
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-  const [vista, setVista] = useState("list");
+  const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
   const [pg, setPg] = useState(1);
   const PP = 10;
   const fd = (producciones || []).filter(p => p.empId === empId).filter(p => {
@@ -259,7 +259,7 @@ export function ViewProDet(props) {
 
 export function ViewPgs({
   empresa, programas, episodios, auspiciadores, movimientos, navTo, openM, canDo, listas, setProgramas,
-  useBal, fmtM,
+  useBal, fmtM, isMobile = false,
 }) {
   const empId = empresa?.id;
   const canManagePrograms = !!(canDo && canDo("programas"));
@@ -270,7 +270,7 @@ export function ViewPgs({
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-  const [vista, setVista] = useState("cards");
+  const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
   const [pg, setPg] = useState(1);
   const PP = 9;
   const fd = (programas || []).filter(x => x.empId === empId).filter(p => (p.nom.toLowerCase().includes(q.toLowerCase()) || p.tip.toLowerCase().includes(q.toLowerCase())) && (!fe || p.est === fe)).sort((a, b) => {
@@ -1139,7 +1139,7 @@ export function ViewPgDet(props) {
 }
 
 export function ViewAus(props) {
-  const { empresa, auspiciadores, programas, openM, canDo, cDel, setAuspiciadores, listas, fmtM, fmtD, AusCard } = props;
+  const { empresa, auspiciadores, programas, openM, canDo, cDel, setAuspiciadores, listas, fmtM, fmtD, AusCard, isMobile = false } = props;
   const empId = empresa?.id;
   const canManageSponsors = !!(canDo && canDo("auspiciadores"));
   const [q, setQ] = useState("");
@@ -1149,7 +1149,7 @@ export function ViewAus(props) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-  const [vista, setVista] = useState("cards");
+  const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
   const [pg, setPg] = useState(1);
   const [detailId, setDetailId] = useState("");
   const PP = 9;

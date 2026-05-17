@@ -692,6 +692,7 @@ export function TreasuryModule(props) {
             setPayablePeriodFilter={setPayablePeriodFilter}
             setPayableSupplierFilter={setPayableSupplierFilter}
             setPayablesTab={setPayablesTab}
+            isMobile={props.isMobile}
           />
           <TreasuryPayableModal open={payableOpen} data={payableDraft} providers={providers} listas={props.listas} onClose={closePayable} onSave={savePayable} />
           <TreasuryIssuedOrderModal open={issuedOpen} data={issuedDraft} providers={providers} empresa={props.empresa} user={props.user} producciones={props.producciones} programas={props.programas} piezas={props.piezas} onClose={closeIssuedOrder} onSave={saveIssuedOrder} />

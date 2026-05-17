@@ -20,8 +20,9 @@ export function ProvidersPanel({
   toggleSelected,
   toggleAll,
   pageIds = [],
+  isMobile = false,
 }) {
-  const [vista, setVista] = useState("cards");
+  const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
   if (!(Array.isArray(providers) ? providers : []).length) {
     return (
       <>

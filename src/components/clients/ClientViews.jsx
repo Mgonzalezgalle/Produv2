@@ -91,13 +91,14 @@ export function ViewClientes({
   useBal,
   ini,
   fmtM,
+  isMobile = false,
 }) {
   const empId = empresa?.id;
   const bal = useBal(movimientos, empId);
   const [q, setQ] = useState("");
   const [fi, setFi] = useState("");
   const [sortMode, setSortMode] = useState("az");
-  const [vista, setVista] = useState("cards");
+  const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
   const [pg, setPg] = useState(1);
   const PP = 9;
   const fd = (clientes || [])

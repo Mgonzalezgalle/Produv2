@@ -57,7 +57,7 @@ export function SolicitudesPanel({ onAceptar, onRechazar, empresas, dbGet, fmtD,
       {pendientes.length} solicitud{pendientes.length !== 1 ? "es" : ""} pendiente{pendientes.length !== 1 ? "s" : ""}
     </div>
     {pendientes.map(sol => (
-      <div key={sol.id} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: 16, marginBottom: 12, boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
+      <div key={sol.id} style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: 16, marginBottom: 12, boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{sol.nom}</div>

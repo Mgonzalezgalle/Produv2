@@ -22,21 +22,7 @@ const SUPER_ADMIN_LIGHT_VARS = {
   "--cy": "#1a1a2e",
   "--cy2": "#2b6df6",
 };
-const SUPER_ADMIN_DARK_VARS = {
-  "--bg": "#0b1220",
-  "--card": "#131b2a",
-  "--card2": "#111827",
-  "--sur": "#0f1724",
-  "--bdr": "#213045",
-  "--bdr2": "#28384d",
-  "--wh": "#f3f7ff",
-  "--gr": "#6f7e96",
-  "--gr2": "#93a0b5",
-  "--gr3": "#ced7e5",
-  "--cg": "rgba(56,189,248,.10)",
-  "--cy": "#5ab4ff",
-  "--cy2": "#93c5fd",
-};
+const SUPER_ADMIN_DARK_VARS = SUPER_ADMIN_LIGHT_VARS;
 export function SuperAdminPanel({
   controlProps,
   actorUser,
@@ -147,13 +133,13 @@ export function SuperAdminPanel({
   const isLightMode = controlTheme === "light";
   const controlThemeVars = isLightMode ? SUPER_ADMIN_LIGHT_VARS : SUPER_ADMIN_DARK_VARS;
   const summaryCards = [
-    { label: "Tenants", value: totalEmp, accent: "var(--cy2)", tone: "rgba(43,109,246,.14)" },
-    { label: "Activos", value: activeEmp, accent: "#4ade80", tone: "rgba(74,222,128,.14)" },
-    { label: "MRR Neto", value: fmtMoney(netMRR,"UF"), accent: "#a855f7", tone: "rgba(168,85,247,.14)" },
+    { label: "Tenants", value: totalEmp, accent: "var(--cy2)", tone: "rgba(43,109,246,.12)" },
+    { label: "Activos", value: activeEmp, accent: "#22c55e", tone: "rgba(34,197,94,.12)" },
+    { label: "MRR Neto", value: fmtMoney(netMRR,"UF"), accent: "var(--cy)", tone: "rgba(26,26,46,.10)" },
   ];
 
   return <div style={controlThemeVars}>
-    <div style={{padding:"18px 18px 16px",border:"1px solid var(--bdr2)",borderRadius:22,background:isLightMode?"linear-gradient(180deg,rgba(43,109,246,.08),rgba(43,109,246,.02) 42%, transparent 100%)":"linear-gradient(180deg,rgba(56,189,248,.10),rgba(56,189,248,.03) 42%, transparent 100%)",marginBottom:16,boxShadow:isLightMode?"0 18px 40px rgba(15,23,42,.08)":"0 18px 40px rgba(0,0,0,.22)"}}>
+    <div style={{padding:"18px 18px 16px",border:"1px solid var(--bdr2)",borderRadius:22,background:"linear-gradient(180deg,rgba(43,109,246,.08),rgba(255,255,255,.96) 52%, rgba(247,251,255,.9) 100%)",marginBottom:16,boxShadow:"0 18px 40px rgba(15,23,42,.08)"}}>
       <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_HERO_GRID,gap:16,alignItems:"stretch",marginBottom:14}}>
         <div style={{padding:"4px 2px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:10}}>
@@ -169,16 +155,16 @@ export function SuperAdminPanel({
           {lastGovernanceSync && <div style={{marginTop:10}}><GovernanceSyncStatus sync={lastGovernanceSync} /></div>}
         </div>
         <div style={{display:"grid",gridTemplateColumns:RESPONSIVE_TOWER_SUMMARY_GRID,gap:10,alignContent:"start"}}>
-          {summaryCards.map(card=><div key={card.label} style={{padding:"12px 12px 13px",borderRadius:16,border:"1px solid var(--bdr2)",background:"linear-gradient(180deg,#ffffff,#f7fbff)"}}>
+          {summaryCards.map(card=><div key={card.label} style={{padding:"12px 12px 13px",borderRadius:16,border:"1px solid var(--bdr2)",background:"var(--sur)",boxShadow:"0 10px 24px rgba(15,23,42,.04)"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <span style={{fontSize:10,color:"var(--gr2)",textTransform:"uppercase",letterSpacing:1}}>{card.label}</span>
               <span style={{width:8,height:8,borderRadius:999,background:card.accent,boxShadow:`0 0 0 5px ${card.tone}`}} />
             </div>
-            <div style={{fontFamily:"var(--fm)",fontSize:card.label==="MRR Neto"?18:22,fontWeight:800,color:card.accent,lineHeight:1.1}}>{card.value}</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:card.label==="MRR Neto"?18:22,fontWeight:800,color:card.accent,lineHeight:1.1}}>{card.value}</div>
           </div>)}
         </div>
       </div>
-      <div style={{padding:10,borderRadius:18,border:"1px solid var(--bdr2)",background:isLightMode?"rgba(255,255,255,.88)":"rgba(9,12,18,.72)",boxShadow:isLightMode?"0 12px 28px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.85)":"inset 0 1px 0 rgba(255,255,255,.03)"}}>
+      <div style={{padding:10,borderRadius:18,border:"1px solid var(--bdr2)",background:"rgba(255,255,255,.88)",boxShadow:"0 12px 28px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.85)"}}>
         <Tabs tabs={SUPER_TABS} active={tab} onChange={setTab}/>
       </div>
     </div>

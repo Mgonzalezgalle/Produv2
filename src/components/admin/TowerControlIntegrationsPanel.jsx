@@ -99,7 +99,7 @@ export function IntegracionesAdminPanel({
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 14 }}>
       Aquí la Torre de Control gobierna módulos e integraciones por tenant. El tenant luego solo opera lo ya provisionado, para no mezclar producto, negocio y configuración local.
     </div>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16, padding: 12, borderRadius: 14, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16, padding: 12, borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", boxShadow: "0 10px 24px rgba(15,23,42,.04)" }}>
       <FilterSel value={integrationEmpId} onChange={setIntegrationEmpId} options={(empresas || []).map(e => ({ value: e.id, label: e.nombre }))} placeholder="Selecciona una empresa" />
     </div>
     {selectedIntegrationEmp ? <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,320px),1fr))", gap: 16 }}>

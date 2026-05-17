@@ -28,7 +28,7 @@ export function ComunicacionesAdminPanel({
 
   return <div>
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 14 }}>Mensajes visibles para todos los usuarios del tenant y banner global de avisos importantes.</div>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16, padding: 12, borderRadius: 14, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 16, padding: 12, borderRadius: 14, border: "1px solid var(--bdr2)", background: "var(--sur)", boxShadow: "0 10px 24px rgba(15,23,42,.04)" }}>
       <FilterSel value={commEmpId} onChange={v => {
         setCommEmpId(v);
         const emp = (empresas || []).find(e => e.id === v) || (empresas || [])[0] || null;

@@ -95,15 +95,15 @@ export function EmpresasAdminPanel({
   ];
   return <div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
-      {statCards.map(card => <div key={card.label} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
+      {statCards.map(card => <div key={card.label} style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 14, padding: "12px 14px", boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
           <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1 }}>{card.label}</div>
           <span style={{width:7,height:7,borderRadius:999,background:card.accent,opacity:.9}} />
         </div>
-        <div style={{ fontFamily: "var(--fm)", fontSize: 22, fontWeight: 800, color: card.accent }}>{card.value}</div>
+        <div style={{ fontFamily: "var(--fh)", fontSize: 22, fontWeight: 800, color: card.accent }}>{card.value}</div>
       </div>)}
     </div>
-    <div style={{ background:"var(--card2)", border:"1px solid var(--bdr2)", borderRadius:16, padding:"12px 12px 10px", marginBottom:14 }}>
+    <div style={{ background:"var(--sur)", border:"1px solid var(--bdr2)", borderRadius:16, padding:"12px 12px 10px", marginBottom:14, boxShadow:"0 10px 24px rgba(15,23,42,.04)" }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={q} onChange={setQ} placeholder="Buscar tenant por nombre o RUT..." />
         <FilterSel value={stateF} onChange={setStateF} options={["Activa", "Inactiva"]} placeholder="Todos los estados" />
@@ -115,7 +115,7 @@ export function EmpresasAdminPanel({
         const visibleAddons = (emp.addons || []).slice(0, 3);
         const extraAddons = Math.max(0, (emp.addons || []).length - visibleAddons.length);
         const tenantHealth = healthByTenant[emp.id] || buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {});
-        return <div key={emp.id} style={{ background:"var(--card)", border:"1px solid var(--bdr)", borderRadius:14, padding:20, display:"grid", gap:12 }}>
+        return <div key={emp.id} style={{ background:"var(--sur)", border:"1px solid var(--bdr)", borderRadius:14, padding:20, display:"grid", gap:12, boxShadow:"0 12px 28px rgba(15,23,42,.04)" }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: `${emp.color}24`, border: `1px solid ${emp.color}80`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: emp.color, overflow: "hidden" }}>
             {emp.logo ? <img src={emp.logo} style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 10 }} alt={emp.nombre} /> : ini(emp.nombre)}
           </div>

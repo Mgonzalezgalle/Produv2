@@ -42,7 +42,7 @@ body.light aside,body.light aside button,body.light aside div,body.light aside s
 body.light aside [style*="color:var(--gr2)"]{color:#a9b8cb!important}
 body.light aside [style*="color:var(--gr3)"]{color:#e5edf7!important}
 body.light aside [style*="color:var(--wh)"]{color:#ffffff!important}
-body.light aside .active-nav{background:#2b6df6!important;color:#ffffff!important;box-shadow:0 10px 22px rgba(43,109,246,.22)}
+body.light aside .active-nav{background:rgba(255,255,255,.08)!important;color:#ffffff!important;box-shadow:none!important}
 body.light .topbar{background:rgba(255,255,255,.88);border-bottom:1px solid #dbe6f3;box-shadow:0 8px 30px rgba(15,23,42,.05);backdrop-filter:blur(10px)}
 @media(max-width:1024px){
   html{font-size:13px}

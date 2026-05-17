@@ -85,10 +85,10 @@ export function ProvidersPanel({
             {pageRows.map(provider => (
               <div key={provider.id} className="treasury-list-row" onClick={() => onOpen(provider)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}><input type="checkbox" checked={selectedIds.includes(provider.id)} onChange={e => { e.stopPropagation(); toggleSelected(provider.id); }} onClick={e => e.stopPropagation()} /><div className="treasury-avatar">{getInitials(provider.name)}</div><div><div style={{ fontWeight: 700 }}>{provider.name}</div><div className="treasury-muted" style={{ fontSize: 11 }}>Flujo de pagos y documentos</div></div></div>
-                <div className="treasury-mono">{provider.payables.length}</div>
-                <div className="treasury-mono">{provider.issuedOrders.length}</div>
-                <div className="treasury-mono">{fmtM(provider.totalDebt)}</div>
-                <div className={`treasury-mono ${pendingTone(provider.pending, provider.pending > 0 ? "pending" : "paid")}`}>{fmtM(provider.pending)}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{provider.payables.length}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{provider.issuedOrders.length}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{fmtM(provider.totalDebt)}</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }} className={pendingTone(provider.pending, provider.pending > 0 ? "pending" : "paid")}>{fmtM(provider.pending)}</div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}><GBtn sm onClick={() => onOpen(provider)}>Ver →</GBtn></div>
               </div>
             ))}

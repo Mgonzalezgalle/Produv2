@@ -18,7 +18,7 @@ export function BrandLockup({
     icon:48, iconRadius:12, iconGlyph:22, gap:14, title:32, subtitle:11.8, subtitleOffset:4, subtitleWeight:500,
   };
   return <div style={{display:"flex",alignItems:"center",justifyContent:align==="center"?"center":"flex-start",gap:presets.gap}}>
-    <div style={{width:presets.icon,height:presets.icon,borderRadius:presets.iconRadius,background:"linear-gradient(180deg,var(--cy) 0%, var(--cy2) 100%)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:glow?"0 0 24px var(--cm)":"none",flexShrink:0}}>
+    <div style={{width:presets.icon,height:presets.icon,borderRadius:presets.iconRadius,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:glow?"0 0 0 1px rgba(255,255,255,.08) inset":"none",flexShrink:0}}>
       <svg viewBox="0 0 24 24" fill="var(--bg)" width={presets.iconGlyph} height={presets.iconGlyph}><polygon points="5,3 20,12 5,21"/></svg>
     </div>
     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"center",width:"fit-content",textAlign:"left"}}>
@@ -67,8 +67,8 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)} title={n.label}
-              style={{ display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:12,cursor:"pointer",background:active?"linear-gradient(180deg,var(--cy2),color-mix(in srgb,var(--cy2) 86%, #ffffff 14%))":"transparent",border:active?"1px solid rgba(43,109,246,.28)":"1px solid transparent",boxShadow:active?"0 10px 22px rgba(43,109,246,.2)":"none",margin:"0 auto 4px",transition:".1s",position:"relative" }}>
-              <span style={{ fontSize:18,filter:active?"drop-shadow(0 0 8px var(--cm))":"none" }}>{n.icon}</span>
+              style={{ display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:12,cursor:"pointer",background:active?"rgba(255,255,255,.10)":"transparent",border:active?"1px solid rgba(255,255,255,.14)":"1px solid transparent",boxShadow:"none",margin:"0 auto 4px",transition:".1s",position:"relative" }}>
+              <span style={{ fontSize:18 }}>{n.icon}</span>
               {n.cnt>0&&<span style={{position:"absolute",top:3,right:3,minWidth:16,height:16,borderRadius:20,background:active?"#ffffff":"rgba(255,255,255,.12)",color:active?"var(--cy2)":"#e5edf7",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",fontFamily:"var(--fm)"}}>{n.cnt>9?"9+":n.cnt}</span>}
             </div>;
           })}
@@ -92,10 +92,10 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
           {items.map(n => {
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)}
-              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"#ffffff":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"linear-gradient(90deg,var(--cy2),color-mix(in srgb,var(--cy2) 84%, #ffffff 16%))":"transparent",border:`1px solid ${active?"rgba(43,109,246,.28)":"transparent"}`,borderRadius:12,transition:".1s",marginBottom:4,boxShadow:active?"0 10px 22px rgba(43,109,246,.18)":"none" }}>
-              <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center",filter:active?"drop-shadow(0 0 8px var(--cm))":"none" }}>{n.icon}</span>
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"#ffffff":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"rgba(255,255,255,.10)":"transparent",border:`1px solid ${active?"rgba(255,255,255,.14)":"transparent"}`,borderRadius:12,transition:".1s",marginBottom:4,boxShadow:"none" }}>
+              <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>
               <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
-              {n.cnt !== undefined && <span style={{ background:active?"rgba(255,255,255,.18)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"#ffffff":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
+              {n.cnt !== undefined && <span style={{ background:active?"rgba(255,255,255,.12)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"#ffffff":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fm)",fontWeight:600 }}>{n.cnt}</span>}
             </div>;
           })}
         </div>}
@@ -120,7 +120,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
         </div>
         <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>{isMobile?"✕":"‹"}</button>
       </>:
-      <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"0 0 14px var(--cm)"}}>
+      <div onClick={onToggle} style={{width:34,height:34,borderRadius:8,background:"var(--cy)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",cursor:"pointer",boxShadow:"none",border:"1px solid rgba(255,255,255,.10)"}}>
           <svg viewBox="0 0 24 24" fill="#ffffff" width="16" height="16"><polygon points="5,3 20,12 5,21"/></svg>
         </div>}
     </div>
@@ -139,13 +139,13 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
       <NavGroups NAV={NAV} base={base} collapsed={collapsed} onNav={onNav} user={user} empresa={empresa} flatSidebar={true}/>
     </nav>
     {!collapsed&&<div style={{padding:"10px 8px 12px",borderTop:"1px solid rgba(255,255,255,.08)",background:"transparent"}}>
-      {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.04)",color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}><span>⚙</span>Panel Admin</div>}
+      {canManageAdminPanel(user)&&<div onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.10)",background:"rgba(255,255,255,.04)",color:sbText,fontSize:12,fontWeight:700,marginBottom:8,transition:".1s",boxShadow:"none"}}><span>⚙</span>Panel Admin</div>}
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"2px 8px",marginBottom:8}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"var(--cy2)",flexShrink:0,animation:syncPulse?"pulse 1s infinite":undefined}}/>
         <span style={{fontSize:9,color:sbMuted}}>Sincronizado · Supabase</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",boxShadow:"inset 0 1px 0 rgba(255,255,255,.03)"}}>
-        <div style={{width:26,height:26,background:"linear-gradient(135deg,var(--cy),var(--cy2))",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#ffffff",flexShrink:0}}>{ini(user?.name||"")}</div>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.10)",boxShadow:"none"}}>
+        <div style={{width:26,height:26,background:"rgba(255,255,255,.08)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#ffffff",flexShrink:0,border:"1px solid rgba(255,255,255,.08)"}}>{ini(user?.name||"")}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user?.name}</div><Badge label={getRoleConfig(user?.role, empresa).label} color={getRoleConfig(user?.role, empresa).badge} sm/></div>
         <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:14,padding:2}}>⏏</button>
       </div>

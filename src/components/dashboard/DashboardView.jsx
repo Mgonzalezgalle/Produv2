@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Card, Empty, Stat } from "../../lib/ui/components";
+import { Badge, Card, Empty } from "../../lib/ui/components";
 import { cobranzaState, contractVisualState, fmtD, hasAddon, invoiceEntityName, today } from "../../lib/utils/helpers";
 import { getProduBillingFinancialMultiplier, requiresProduCollectionTracking } from "../../lib/integrations/billingDomain";
 
@@ -171,21 +171,6 @@ export function ViewDashboard({
     },
   ];
 
-  const kpis = [
-    { label: "Clientes activos", value: clis.length, sub: "base comercial vigente", accent: "var(--cy)", vc: "var(--cy)" },
-    { label: "Proyectos activos", value: activeProjects.length, sub: `${pros.length} proyectos en total`, accent: "#60a5fa", vc: "#60a5fa" },
-    { label: "Producciones activas", value: activePrograms.length, sub: `${pendingEpisodes.length} episodios pendientes`, accent: "#00e08a", vc: "#00e08a" },
-    canSocial
-      ? { label: "Campañas activas", value: activeCampaigns.length, sub: `${campaigns.length} piezas registradas`, accent: "#a78bfa", vc: "#a78bfa" }
-      : { label: "Episodios publicados", value: publishedEpisodes.length, sub: `${eps.length} episodios totales`, accent: "#a78bfa", vc: "#a78bfa" },
-    canBudgets
-      ? { label: "Aceptación comercial", value: `${acceptanceRate}%`, sub: `${acceptedBudgets.length} de ${pres.length} presupuestos`, accent: acceptanceRate >= 50 ? "#00e08a" : "#ffcc44", vc: acceptanceRate >= 50 ? "#00e08a" : "#ffcc44" }
-      : { label: "Ingresos", value: fmtM(ti), sub: `${ingresos.length} movimientos`, accent: "#00e08a", vc: "#00e08a" },
-    canInvoices
-      ? { label: "Cobranza vencida", value: overdueFacts.length, sub: overdueFacts.length ? `${fmtM(overdueAmount)} pendiente` : "sin documentos críticos", accent: overdueFacts.length ? "#ff5566" : "#00e08a", vc: overdueFacts.length ? "#ff5566" : "#00e08a" }
-      : { label: "Gastos", value: fmtM(tg), sub: `${gastos.length} movimientos`, accent: "#ff5566", vc: "#ff5566" },
-  ];
-
   const priorityQueue = [
     ...overdueFacts.slice(0, 3).map(doc => ({
       id: `overdue-${doc.id}`,
@@ -310,10 +295,6 @@ export function ViewDashboard({
             ))}
           </div>
         </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 18 }}>
-        {kpis.map(stat => <Stat key={stat.label} {...stat} />)}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(320px,1.1fr) minmax(320px,.9fr)", gap: 16, marginBottom: 16 }}>

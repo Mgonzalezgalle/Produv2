@@ -444,7 +444,18 @@ export function useLabTreasuryModule({
   const savePayable = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = sanitizeTreasuryPayable(withEmp(next), empId);
+    const currentRecord = treasuryPayables.find(item => item.id === next?.id)
+      || treasuryPayablesRecovered.find(item => item.id === next?.id)
+      || null;
+    const mergedNext = currentRecord
+      ? {
+          ...currentRecord,
+          ...next,
+          pdfName: String(next?.pdfName || currentRecord?.pdfName || "").trim(),
+          pdfUrl: String(next?.pdfUrl || currentRecord?.pdfUrl || "").trim(),
+        }
+      : next;
+    const safeNext = sanitizeTreasuryPayable(withEmp(mergedNext), empId);
     const exists = treasuryPayables.some(item => item.id === safeNext.id);
     await foundationFinancialRegistry.upsertRecord({
       registryName: "payables",

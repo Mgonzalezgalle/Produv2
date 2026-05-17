@@ -41,6 +41,48 @@ function safeText(value = "", fallback = "—") {
   return normalized || fallback;
 }
 
+function normalizeMatchKey(value = "") {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function matchesClientAccount(row = {}, client = {}) {
+  const rowKeys = [
+    row?.entidadId,
+    row?.clientId,
+    row?.entityId,
+    row?.counterpartyId,
+    row?.entidad,
+    row?.clientName,
+    row?.counterpartyLabel,
+    row?.rut,
+  ].map(normalizeMatchKey).filter(Boolean);
+  const clientKeys = [
+    client?.id,
+    client?.nom,
+    client?.razonSocial,
+    client?.rut,
+  ].map(normalizeMatchKey).filter(Boolean);
+  return rowKeys.some(key => clientKeys.includes(key));
+}
+
+function matchesProviderAccount(row = {}, provider = {}) {
+  const rowKeys = [
+    row?.providerId,
+    row?.supplier,
+    row?.counterpartyLabel,
+    row?.name,
+    row?.razonSocial,
+    row?.rut,
+  ].map(normalizeMatchKey).filter(Boolean);
+  const providerKeys = [
+    provider?.id,
+    provider?.name,
+    provider?.razonSocial,
+    provider?.rut,
+  ].map(normalizeMatchKey).filter(Boolean);
+  return rowKeys.some(key => providerKeys.includes(key));
+}
+
 function getInitials(value = "") {
   const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "PR";
@@ -623,7 +665,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       auspiciadores: payload.auspiciadores,
       receipts: payload.receipts,
       empId: payload.empresa?.id,
-    }).filter(row => row.entidadId === payload.client?.id),
+    }).filter(row => matchesClientAccount(row, payload.client)),
     [payload],
   );
   const purchaseOrders = useMemo(
@@ -633,7 +675,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       clientes: payload.clientes,
       receipts: payload.receipts,
       empId: payload.empresa?.id,
-    }).filter(row => row.clientId === payload.client?.id),
+    }).filter(row => matchesClientAccount(row, payload.client)),
     [payload],
   );
   const portfolio = useMemo(
@@ -647,11 +689,11 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
       clientes: payload.clientes,
       auspiciadores: payload.auspiciadores,
       empId: payload.empresa?.id,
-    }).filter(row => row.counterpartyLabel === (payload.client?.nom || "")),
+    }).filter(row => matchesClientAccount(row, payload.client)),
     [payload],
   );
   const budgets = useMemo(
-    () => (Array.isArray(payload.presupuestos) ? payload.presupuestos : []).filter(item => item?.cliId === payload.client?.id),
+    () => (Array.isArray(payload.presupuestos) ? payload.presupuestos : []).filter(item => matchesClientAccount(item, payload.client)),
     [payload],
   );
   const receivableSummary = useMemo(() => summarizeTreasuryReceivables(receivables), [receivables]);
@@ -1050,14 +1092,14 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       payables: payload.payables,
       disbursements: payload.disbursements,
       empId: payload.empresa?.id,
-    }).filter(row => row.supplier === payload.provider?.name),
+    }).filter(row => matchesProviderAccount(row, payload.provider)),
     [payload],
   );
   const issuedOrders = useMemo(
     () => buildTreasuryIssuedOrders({
       orders: payload.issuedOrders,
       empId: payload.empresa?.id,
-    }).filter(row => row.supplier === payload.provider?.name),
+    }).filter(row => matchesProviderAccount(row, payload.provider)),
     [payload],
   );
   const disbursementLog = useMemo(
@@ -1065,7 +1107,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
       disbursements: payload.disbursements,
       payables: payload.payables,
       empId: payload.empresa?.id,
-    }).filter(row => row.counterpartyLabel === payload.provider?.name),
+    }).filter(row => matchesProviderAccount(row, payload.provider)),
     [payload],
   );
   const payablesSummary = useMemo(() => summarizeStoredPayables(payables), [payables]);

@@ -289,6 +289,16 @@ export function useLabSuperAdminModule({
         targetEmail: payload.email,
       },
     });
+    const shouldSendAccessEmail = Boolean(payload.email && sysUf.password?.trim());
+    if (shouldSendAccessEmail) {
+      const tenant = (empresas || []).find(emp => emp.id === payload.empId) || null;
+      await sendAccessEmail({
+        tenant,
+        user: payload,
+        password: sysUf.password.trim(),
+        mode: existing ? "access_updated" : "tenant_activated",
+      });
+    }
     setSysUid(null);
     setSysUf({ active: true, role: "admin", empId: "", password: "" });
   };

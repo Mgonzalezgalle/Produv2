@@ -232,6 +232,11 @@ function resolveBudgetPortalState(row = {}) {
   return { label: "Pendiente de respuesta", color: "purple" };
 }
 
+function budgetDecisionLocked(row = {}) {
+  const status = String(row?.estado || "").toLowerCase();
+  return status.includes("acept");
+}
+
 function normalizeRecipientList(values = []) {
   const seen = new Set();
   return (Array.isArray(values) ? values : [])
@@ -997,6 +1002,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
             <thead><tr><TH>Título</TH><TH>Estado</TH><TH>Total</TH><TH>Forma de pago</TH><TH>Observación</TH><TH>Acciones</TH></tr></thead>
             <tbody>{budgets.map(row => {
               const state = resolveBudgetPortalState(row);
+              const decisionLocked = budgetDecisionLocked(row);
               return (
                 <tr key={row.id}>
                   <TD>{row.titulo || "Presupuesto"}</TD>
@@ -1008,8 +1014,8 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                       <GBtn s={portalSecondaryBtnStyle} onClick={() => void previewBudgetRow(row)}>Ver</GBtn>
                       <GBtn s={portalSecondaryBtnStyle} onClick={() => void downloadBudgetRow(row)}>Descargar</GBtn>
-                      <Btn s={portalPrimaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "approved", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Aprobar</Btn>
-                      <GBtn s={portalSecondaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "observed", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Observar</GBtn>
+                      {!decisionLocked ? <Btn s={portalPrimaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "approved", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Aprobar</Btn> : null}
+                      {!decisionLocked ? <GBtn s={portalSecondaryBtnStyle} onClick={() => { setBudgetDecision({ id: row.id, status: "observed", title: row.titulo || "Presupuesto" }); setBudgetDecisionNote(row.clientPortalDecision?.note || ""); }}>Observar</GBtn> : null}
                     </div>
                   </TD>
                 </tr>

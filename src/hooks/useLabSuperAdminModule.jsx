@@ -520,13 +520,50 @@ export function useLabSuperAdminModule({
     "Solicitudes": { eyebrow: "Pipeline", desc: "Aprueba accesos, solicitudes y referidos desde una sola bandeja de control." },
   };
   const activeSuperTab = SUPER_TABS[tab];
+  const brandThemeLight = { preset: "brand", mode: "light" };
 
   const saveEmp = () => {
     if (!canWriteGlobal()) return false;
     if (!ef.nombre?.trim()) return;
     const id = eid || `emp_${uid().slice(1, 7)}`;
     const prev = empresas.find(e => e.id === eid) || {};
-    const obj = { id, tenantCode: prev.tenantCode || nextTenantCode(empresas), nombre: ef.nombre, rut: ef.rut || "", dir: ef.dir || "", tel: ef.tel || "", ema: ef.ema || "", logo: ef.logo || prev.logo || "", color: ef.color || "#00d4e8", addons: ef.addons || [], active: ef.active !== false, plan: ef.plan || "starter", theme: ef.theme || prev.theme || null, googleCalendarEnabled: prev.googleCalendarEnabled === true, freshdeskEnabled: prev.freshdeskEnabled === true, migratedTasksAddon: prev.migratedTasksAddon ?? true, supportChatEnabled: prev.supportChatEnabled === true, systemMessages: prev.systemMessages || [], systemBanner: prev.systemBanner || { active: false, tone: "info", text: "" }, billingCurrency: prev.billingCurrency || "UF", billingMonthly: Number(prev.billingMonthly || 0), billingDiscountPct: companyBillingDiscountPct(prev), billingDiscountNote: prev.billingDiscountNote || "", billingStatus: prev.billingStatus || "Pendiente", billingDueDay: Number(prev.billingDueDay || 0), billingLastPaidAt: prev.billingLastPaidAt || "", referralDiscountMonthsPending: companyReferralDiscountMonthsPending(prev), referralDiscountHistory: companyReferralDiscountHistory(prev), contractOwner: prev.contractOwner || "", clientPortalUrl: prev.clientPortalUrl || "", paymentDetails: prev.paymentDetails || null, bankInfo: prev.bankInfo || "", cr: eid ? (empresas.find(e => e.id === eid)?.cr || today()) : today() };
+    const selectedAddons = Array.isArray(ef.addons) ? [...new Set(ef.addons)] : [];
+    const obj = {
+      id,
+      tenantCode: prev.tenantCode || nextTenantCode(empresas),
+      nombre: ef.nombre,
+      rut: ef.rut || "",
+      dir: ef.dir || "",
+      tel: ef.tel || "",
+      ema: ef.ema || "",
+      logo: ef.logo || prev.logo || "",
+      color: ef.color || prev.color || "#1a1a2e",
+      addons: selectedAddons,
+      active: ef.active !== false,
+      plan: ef.plan || "starter",
+      theme: ef.theme || prev.theme || brandThemeLight,
+      googleCalendarEnabled: prev.googleCalendarEnabled === true,
+      freshdeskEnabled: prev.freshdeskEnabled === true,
+      migratedTasksAddon: false,
+      migratedCrmAddon: false,
+      supportChatEnabled: prev.supportChatEnabled === true,
+      systemMessages: prev.systemMessages || [],
+      systemBanner: prev.systemBanner || { active: false, tone: "info", text: "" },
+      billingCurrency: prev.billingCurrency || "UF",
+      billingMonthly: Number(prev.billingMonthly || 0),
+      billingDiscountPct: companyBillingDiscountPct(prev),
+      billingDiscountNote: prev.billingDiscountNote || "",
+      billingStatus: prev.billingStatus || "Pendiente",
+      billingDueDay: Number(prev.billingDueDay || 0),
+      billingLastPaidAt: prev.billingLastPaidAt || "",
+      referralDiscountMonthsPending: companyReferralDiscountMonthsPending(prev),
+      referralDiscountHistory: companyReferralDiscountHistory(prev),
+      contractOwner: prev.contractOwner || "",
+      clientPortalUrl: prev.clientPortalUrl || "",
+      paymentDetails: prev.paymentDetails || null,
+      bankInfo: prev.bankInfo || "",
+      cr: eid ? (empresas.find(e => e.id === eid)?.cr || today()) : today(),
+    };
     const nextEmpresas = eid ? empresas.map(e => e.id === eid ? obj : e) : [...empresas, obj];
     guardedOnSave("empresas", nextEmpresas);
     runGovernanceAction({
@@ -800,7 +837,7 @@ export function useLabSuperAdminModule({
               tel: sol.tel || sol.companyDraft?.tel || "",
               ema: sol.ema || sol.companyDraft?.ema || "",
               logo: sol.companyDraft?.logo || "",
-              color: sol.companyDraft?.color || "#00d4e8",
+              color: sol.companyDraft?.color || "#1a1a2e",
               addons: sol.companyDraft?.addons || [],
               active: false,
               pendingActivation: true,
@@ -813,7 +850,9 @@ export function useLabSuperAdminModule({
               referred: !!sol.referred,
               plan: sol.companyDraft?.plan || "starter",
               googleCalendarEnabled: false,
-              migratedTasksAddon: true,
+              migratedTasksAddon: false,
+              migratedCrmAddon: false,
+              theme: sol.companyDraft?.theme || brandThemeLight,
               systemMessages: sol.companyDraft?.systemMessages || [],
               systemBanner: sol.companyDraft?.systemBanner || { active: false, tone: "info", text: "" },
               billingCurrency: sol.companyDraft?.billingCurrency || "UF",

@@ -447,16 +447,6 @@ export default function App(){
     try{
       const flag = localStorage.getItem("produ_crm_default_on_v1");
       if(flag) return;
-      const next = normalizeEmpresasModel((empresas||[]).map(emp=>{
-        const addons = Array.isArray(emp?.addons) ? emp.addons : [];
-        return addons.includes("crm") ? emp : { ...emp, addons:[...addons,"crm"], migratedCrmAddon:true };
-      }));
-      if(JSON.stringify(next)===JSON.stringify(empresas)){
-        localStorage.setItem("produ_crm_default_on_v1","1");
-        return;
-      }
-      setEmpresasRaw(next);
-      dbSet("produ:empresas",next);
       localStorage.setItem("produ_crm_default_on_v1","1");
     }catch{
       // Avoid retry loops within the same session if storage is unavailable.

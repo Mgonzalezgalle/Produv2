@@ -685,13 +685,17 @@ export function normalizeEmpresasTenantCodes(empresas = []) {
 function normalizeEmpresasAddons(empresas = []) {
   return (Array.isArray(empresas) ? empresas : []).map(emp => {
     const addons = Array.isArray(emp?.addons) ? emp.addons : [];
-    const withTasks = addons.includes("tareas") ? addons : [...addons, "tareas"];
-    const withCrm = withTasks.includes("crm") ? withTasks : [...withTasks, "crm"];
+    const withTasks = emp?.migratedTasksAddon === true && !addons.includes("tareas")
+      ? [...addons, "tareas"]
+      : addons;
+    const withCrm = emp?.migratedCrmAddon === true && !withTasks.includes("crm")
+      ? [...withTasks, "crm"]
+      : withTasks;
     return {
       ...emp,
       addons: withCrm,
-      migratedTasksAddon: true,
-      migratedCrmAddon: true,
+      migratedTasksAddon: emp?.migratedTasksAddon === true,
+      migratedCrmAddon: emp?.migratedCrmAddon === true,
     };
   });
 }

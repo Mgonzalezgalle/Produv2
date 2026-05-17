@@ -148,31 +148,57 @@ function downloadCsvFile(headers = [], rows = [], fileName = "produ_export.csv")
 let simplePdfBlobRuntimePromise = null;
 async function getSimplePdfBlobRuntime() {
   if (!simplePdfBlobRuntimePromise) {
-    simplePdfBlobRuntimePromise = import("../../lib/utils/pdf").then(module => module.buildSimplePdfBlob);
+    simplePdfBlobRuntimePromise = import("../../lib/utils/pdf").then(module => module.buildModernPdf);
   }
   return simplePdfBlobRuntimePromise;
 }
 
-async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8" } = {}) {
-  const buildSimplePdfBlob = await getSimplePdfBlobRuntime();
-  const lines = [
-    { text: "PRODU", size: 18, bold: true, color: accent, gap: 18 },
-    { text: title, size: 16, bold: true, color: "#0f172a", gap: 12 },
-    { text: subtitle || "Resumen exportado desde portal financiero.", size: 11, color: "#64748b", gap: 18 },
-    { text: `Generado: ${new Date().toLocaleDateString("es-CL")}`, size: 10, color: "#94a3b8", gap: 18 },
-  ];
-  if (!rows.length) {
-    lines.push({ text: "No hay registros para exportar.", size: 12, color: "#475569", gap: 16 });
-  } else {
-    rows.forEach((row, index) => {
-      lines.push({ text: `${index + 1}. ${row.title || "Registro"}`, size: 11, bold: true, color: "#0f172a", gap: 14 });
-      (Array.isArray(row.lines) ? row.lines : []).forEach(item => {
-        lines.push({ text: item, size: 10, color: "#475569", gap: 12 });
-      });
-      lines.push({ text: " ", size: 4, color: "#ffffff", gap: 6 });
-    });
+function chunkRows(rows = [], size = 7) {
+  const safe = Array.isArray(rows) ? rows : [];
+  const chunks = [];
+  for (let index = 0; index < safe.length; index += size) {
+    chunks.push(safe.slice(index, index + size));
   }
-  return buildSimplePdfBlob(lines, accent);
+  return chunks;
+}
+
+async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", companyName = "Produ", companyEmail = "", companyPhone = "", counterpartName = "Portal financiero", counterpartLines = [], fileName = "produ_portal.pdf" } = {}) {
+  const buildModernPdf = await getSimplePdfBlobRuntime();
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const bodySections = safeRows.length
+    ? chunkRows(safeRows, 7).map((group, index) => ({
+        title: safeRows.length > 7 ? `Detalle ${index + 1}` : "Detalle exportado",
+        rows: group.map(row => ({
+          label: row.title || "Registro",
+          value: (Array.isArray(row.lines) ? row.lines : []).filter(Boolean).join(" · ") || "Sin detalle",
+        })),
+      }))
+    : [{
+        title: "Detalle exportado",
+        text: "No hay registros para exportar.",
+      }];
+
+  return buildModernPdf({
+    fileName,
+    title,
+    accent,
+    empresa: {
+      nombre: companyName,
+      ema: companyEmail,
+      tel: companyPhone,
+    },
+    counterpartTitle: "Cuenta asociada",
+    counterpartName,
+    counterpartLines,
+    metaLines: [
+      subtitle || "Resumen exportado desde portal financiero.",
+      `Registros: ${safeRows.length}`,
+      `Generado: ${new Date().toLocaleDateString("es-CL")}`,
+    ],
+    bodySections,
+    footerPrimary: "Portal creado con ♥ por Produ.",
+    footerSecondary: "Plataforma de gestión para productoras audiovisuales.",
+  });
 }
 
 async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf" } = {}) {

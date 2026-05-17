@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { contractsForReference } from "../lib/utils/helpers";
+import { contractsForReference, sponsorLinkedClientId } from "../lib/utils/helpers";
 import {
   getDefaultProduBillingReferenceReason,
   requiresProduBillingReferences,
@@ -148,9 +148,21 @@ export function useLabInvoiceForm({
     () => (auspiciadores || []).filter((a) => ["Auspiciador Principal", "Auspiciador Secundario"].includes(a.tip)),
     [auspiciadores],
   );
+  const selectedSponsor = useMemo(
+    () => (auspiciadores || []).find(item => item.id === f.entidadId) || null,
+    [auspiciadores, f.entidadId],
+  );
+  const sponsorClientId = useMemo(
+    () => sponsorLinkedClientId(selectedSponsor),
+    [selectedSponsor],
+  );
+  const sponsorClient = useMemo(
+    () => (clientes || []).find(item => item.id === sponsorClientId) || null,
+    [clientes, sponsorClientId],
+  );
   const contratosEntidad = useMemo(
-    () => contractsForReference(contratos || [], f.entidadId, f.tipoRef, f.proId),
-    [contratos, f.entidadId, f.proId, f.tipoRef],
+    () => contractsForReference(contratos || [], f.tipo === "auspiciador" ? sponsorClientId : f.entidadId, f.tipoRef, f.proId),
+    [contratos, f.entidadId, f.proId, f.tipo, f.tipoRef, sponsorClientId],
   );
 
   const buildPayload = (cobranzaState) => ({
@@ -210,6 +222,8 @@ export function useLabInvoiceForm({
     relatedExternalReturnId: requiresProduBillingReferences(
       f.recurring ? "invoice" : (f.documentTypeCode || f.tipoDocumento || f.tipoDoc || "factura_afecta"),
     ) ? (f.relatedExternalReturnId || "") : "",
+    billingClientId: f.tipo === "auspiciador" ? sponsorClientId : String(f.entidadId || "").trim(),
+    sponsorName: f.tipo === "auspiciador" ? String(selectedSponsor?.nom || "") : "",
     items: (f.items || []).map((item) => ({
       ...item,
       qty: Number(item.qty || 0),
@@ -240,5 +254,8 @@ export function useLabInvoiceForm({
     ausValidos,
     contratosEntidad,
     buildPayload,
+    selectedSponsor,
+    sponsorClient,
+    sponsorClientId,
   };
 }

@@ -1,4 +1,4 @@
-import { cobranzaState, invoiceEntityName, today } from "./helpers";
+import { cobranzaState, invoiceEntityName, invoiceRelatedClientId, invoiceSponsorName, today } from "./helpers";
 import {
   buildProduBillingReferenceSummary,
   getProduBillingDocumentTypeLabel,
@@ -334,15 +334,18 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
       const pending = (baseTotal - paidBase) * multiplier;
       const cobranza = multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? "Pagado" : state);
       const entityName = invoiceEntityName(doc, clientes, auspiciadores);
+      const relatedClientId = invoiceRelatedClientId(doc, auspiciadores);
+      const sponsorName = invoiceSponsorName(doc, auspiciadores);
       const referenceSummary = buildProduBillingReferenceSummary(doc);
       const bucket = multiplier < 0 ? "Ajuste" : (pending <= 0 ? "Pagado" : (state === "Pagado" ? "Pagado" : receivableBucket(doc)));
       return {
         id: doc.id,
         correlativo: doc.correlativo || doc.tipoDoc || "Sin correlativo",
         tipoDoc: getProduBillingDocumentTypeLabel(billingTypeCode),
-        entidadId: doc.entidadId || "",
-        entidadTipo: doc.tipo || "cliente",
+        entidadId: relatedClientId || doc.entidadId || "",
+        entidadTipo: "cliente",
         entidad: entityName,
+        sponsorName,
         total,
         pending,
         paid,
@@ -579,6 +582,8 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes
     .filter(item => item?.empId === empId)
     .map(item => {
       const invoice = docs.find(doc => doc.id === item.invoiceId);
+      const relatedClientId = invoice ? invoiceRelatedClientId(invoice, auspiciadores) : "";
+      const relatedClient = (Array.isArray(clientes) ? clientes : []).find(client => client.id === relatedClientId);
       const billingTypeCode = invoice?.documentTypeCode || invoice?.tipoDocumento || invoice?.tipoDoc;
       const total = Number(invoice?.total || 0);
       const pending = Math.max(0, total - Number(item.amount || 0));
@@ -592,8 +597,8 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes
         amount: Number(item.amount || 0),
         targetLabel: invoice?.correlativo || invoice?.tipoDoc || item.reference || "Documento",
         counterpartyLabel: invoice ? invoiceEntityName(invoice, clientes, auspiciadores) : "—",
-        counterpartyId: invoice?.entidadId || "",
-        counterpartyRut: invoice?.rut || "",
+        counterpartyId: invoice ? invoiceRelatedClientId(invoice, auspiciadores) : "",
+        counterpartyRut: relatedClient?.rut || invoice?.rut || "",
         targetId: invoice?.id || "",
         targetPdfUrl: invoice?.pdfUrl || invoice?.externalSync?.pdfUrl || "",
         targetPdfName: invoice?.pdfName || `${invoice?.correlativo || "documento"}.pdf`,

@@ -115,7 +115,7 @@ export function MiniCal({ refId, eventos, onAdd, onDel, onEdit, canEdit, titulo,
   </Card>;
 }
 
-export function AusCard({ a, pgs, onEdit, onDel, ini, fmtM, fmtD }) {
+export function AusCard({ a, pgs, linkedClientName = "", onEdit, onDel, ini, fmtM, fmtD }) {
   return <div style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 10, padding: 16 }}>
     <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
       <div style={{ width: 38, height: 38, borderRadius: 8, background: "var(--bdr)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{ini(a.nom)}</div>
@@ -123,6 +123,7 @@ export function AusCard({ a, pgs, onEdit, onDel, ini, fmtM, fmtD }) {
       {onEdit && <GBtn sm onClick={e => { e.stopPropagation(); onEdit(); }}>✏</GBtn>}
       {onDel && <XBtn onClick={e => { e.stopPropagation(); onDel(); }} />}
     </div>
+    {linkedClientName && <div style={{ marginBottom: 8, fontSize: 11, color: "var(--gr2)" }}>Cliente vinculado: <span style={{ color: "var(--tx)", fontWeight: 600 }}>{linkedClientName}</span></div>}
     {(pgs || []).length > 0 && <div style={{ marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 4 }}>{pgs.map(p => <Badge key={p.id} label={p.nom} color="cyan" sm />)}</div>}
     {a.con && <div style={{ fontSize: 11, color: "var(--gr3)" }}>{a.con}{a.ema ? " · " + a.ema : ""}</div>}
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>

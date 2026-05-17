@@ -75,7 +75,11 @@ export function InvoiceIssuanceSection({
         <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Total</TH><TH>Origen</TH><TH>Fechas</TH><TH style={{textAlign:"right",minWidth:170}}>Acciones</TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
-            const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
+            const sponsorRecord=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):null;
+            const ent=f.tipo==="auspiciador"
+              ? (clientes||[]).find(x=>x.id===(f.billingClientId||sponsorRecord?.clientId||sponsorRecord?.cliId||sponsorRecord?.linkedClientId)) || sponsorRecord
+              : (clientes||[]).find(x=>x.id===f.entidadId);
+            const sponsorLabel = f.tipo === "auspiciador" ? (f.sponsorName || sponsorRecord?.nom || "—") : "";
             const ref=f.tipoRef==="produccion"
               ? (producciones||[]).find(x=>x.id===f.proId)
               : (f.tipoRef==="contenido" ? (piezas||[]).find(x=>x.id===f.proId) : (programas||[]).find(x=>x.id===f.proId));
@@ -108,7 +112,8 @@ export function InvoiceIssuanceSection({
               <TD style={{paddingTop:14,paddingBottom:14}}>
                 <div style={{display:"grid",gap:4,minWidth:140}}>
                   <div style={{fontSize:14,fontWeight:700,lineHeight:1.25}}>{invoiceEntityName(f, clientes, auspiciadores)}</div>
-                  <div style={{fontSize:10,color:"var(--gr2)",fontWeight:600,letterSpacing:".04em",textTransform:"uppercase"}}>{f.tipo==="auspiciador"?"Auspiciador":"Cliente"}</div>
+                  <div style={{fontSize:10,color:"var(--gr2)",fontWeight:600,letterSpacing:".04em",textTransform:"uppercase"}}>{f.tipo==="auspiciador"?"Cliente facturable":"Cliente"}</div>
+                  {f.tipo==="auspiciador" && <div style={{fontSize:10,color:"var(--cy2)",fontWeight:600}}>Auspicio: {sponsorLabel}</div>}
                 </div>
               </TD>
               <TD style={{fontSize:11,color:"var(--gr3)",lineHeight:1.4,minWidth:128}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
@@ -184,14 +189,27 @@ export function InvoiceCollectionSection({
         <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
         <tbody>
           {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
-            const ent=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):(clientes||[]).find(x=>x.id===f.entidadId);
+            const sponsorRecord=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):null;
+            const ent=f.tipo==="auspiciador"
+              ? (clientes||[]).find(x=>x.id===(f.billingClientId||sponsorRecord?.clientId||sponsorRecord?.cliId||sponsorRecord?.linkedClientId)) || sponsorRecord
+              : (clientes||[]).find(x=>x.id===f.entidadId);
             const cobro=cobranzaState(f);
-            const entityDocs=invoices.filter(doc=>doc.tipo===f.tipo && doc.entidadId===f.entidadId);
+            const entityDocs=invoices.filter(doc=>{
+              if (f.tipo === "auspiciador") {
+                return (doc.billingClientId || doc.entidadId) === (f.billingClientId || f.entidadId);
+              }
+              return doc.tipo===f.tipo && doc.entidadId===f.entidadId;
+            });
             const canTrackCollection = requiresProduCollectionTracking(resolveProduBillingDocumentType(f.documentTypeCode || f.tipoDocumento || f.tipoDoc || "factura_afecta")?.code);
             return <tr key={f.id}>
               <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)} disabled={!canTrackCollection} title={canTrackCollection ? "Seleccionar documento" : "Este documento no participa en cobranza masiva"}/></TD>
               <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?"Recurrente":"Único"}</div></TD>
-              <TD>{ent?.nom||"—"}</TD>
+              <TD>
+                <div style={{display:"grid",gap:4}}>
+                  <span>{invoiceEntityName(f, clientes, auspiciadores)}</span>
+                  {f.tipo==="auspiciador" && <span style={{fontSize:10,color:"var(--cy2)",fontWeight:600}}>Auspicio: {f.sponsorName || ent?.nom || "—"}</span>}
+                </div>
+              </TD>
               <TD style={{fontSize:11,color:cobro==="Retrasado de pago"?"#ff5566":"var(--gr2)"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"Sin vencimiento"}</TD>
               <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
               <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>

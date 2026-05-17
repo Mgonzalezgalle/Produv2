@@ -86,6 +86,7 @@ export function OperationsModalRouter({
     <MAus
       open={mOpen==="aus"}
       data={mData}
+      clientes={clientes}
       programas={programas}
       listas={listas}
       onClose={closeM}

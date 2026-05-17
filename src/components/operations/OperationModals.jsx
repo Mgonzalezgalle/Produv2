@@ -230,18 +230,24 @@ export function MEp({ open, data, programas, listas, onClose, onSave }) {
   </Modal>;
 }
 
-export function MAus({ open, data, programas, listas, onClose, onSave }) {
+export function MAus({ open, data, clientes, programas, listas, onClose, onSave }) {
   const [f, setF] = useState({});
-  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", tip: "Auspiciador Principal", con: "", ema: "", tel: "", pids: data?.pids || [], mon: "", vig: "", est: "Activo", frecPago: "Mensual", not: "" }); }, [data, open]);
+  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", tip: "Auspiciador Principal", con: "", ema: "", tel: "", clientId: data?.clientId || data?.cliId || "", pids: data?.pids || [], mon: "", vig: "", est: "Activo", frecPago: "Mensual", not: "" }); }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
   return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Auspiciador" : "Nuevo Auspiciador"} sub="Marca o colaborador">
     <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Banco Estado"/></FG><FG label="Tipo"><FSl value={f.tip || ""} onChange={e => u("tip", e.target.value)}>{(listas?.tiposAus || DEFAULT_LISTAS.tiposAus).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
+    <FG label="Cliente relacionado *">
+      <FSl value={f.clientId || f.cliId || ""} onChange={e => { u("clientId", e.target.value); u("cliId", e.target.value); }}>
+        <option value="">— Seleccionar cliente —</option>
+        {(clientes || []).map((client) => <option key={client.id} value={client.id}>{client.nom}</option>)}
+      </FSl>
+    </FG>
     <R2><FG label="Contacto"><FI value={f.con || ""} onChange={e => u("con", e.target.value)} placeholder="María González"/></FG><FG label="Email"><FI value={f.ema || ""} onChange={e => u("ema", e.target.value)} placeholder="mg@empresa.cl"/></FG></R2>
     <R2><FG label="Monto (CLP)"><FI type="number" value={f.mon || ""} onChange={e => u("mon", e.target.value)} placeholder="0"/></FG><FG label="Frecuencia de Pago"><FSl value={f.frecPago || "Mensual"} onChange={e => u("frecPago", e.target.value)}>{(listas?.frecPagoAus || DEFAULT_LISTAS.frecPagoAus).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
     <FG label="Producciones Asociadas"><MultiSelect options={(programas || []).map(p => ({ value: p.id, label: p.nom }))} value={f.pids || []} onChange={v => u("pids", v)} placeholder="Seleccionar producciones..."/></FG>
     <R2><FG label="Vigencia"><FI type="date" value={f.vig || ""} onChange={e => u("vig", e.target.value)} /></FG><FG label="Estado"><FSl value={f.est || ""} onChange={e => u("est", e.target.value)}>{(listas?.estadosAus || DEFAULT_LISTAS.estadosAus).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
     <FG label="Notas"><FTA value={f.not || ""} onChange={e => u("not", e.target.value)} placeholder="Menciones, logo en créditos..."/></FG>
-    <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
+    <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim() || !(f.clientId || f.cliId)) return; onSave(f); }} />
   </Modal>;
 }
 

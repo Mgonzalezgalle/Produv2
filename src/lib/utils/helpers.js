@@ -281,8 +281,49 @@ export function budgetRefLabel(item = {}, producciones = [], programas = [], pie
   return found ? `📽 ${found.nom}` : "Proyecto eliminado";
 }
 
+export function sponsorLinkedClientId(sponsor = {}) {
+  return String(
+    sponsor?.clientId
+    || sponsor?.cliId
+    || sponsor?.linkedClientId
+    || "",
+  ).trim();
+}
+
+export function invoiceSponsorRecord(fact = {}, auspiciadores = []) {
+  if (fact.tipo !== "auspiciador") return null;
+  return (auspiciadores || []).find(x => x.id === fact.entidadId) || null;
+}
+
+export function invoiceSponsorName(fact = {}, auspiciadores = []) {
+  if (fact.tipo !== "auspiciador") return "";
+  const sponsor = invoiceSponsorRecord(fact, auspiciadores);
+  return String(
+    fact?.sponsorName
+    || sponsor?.nom
+    || "",
+  ).trim();
+}
+
+export function invoiceRelatedClientId(fact = {}, auspiciadores = []) {
+  if (fact.tipo !== "auspiciador") return String(fact?.entidadId || "").trim();
+  const sponsor = invoiceSponsorRecord(fact, auspiciadores);
+  return String(
+    fact?.billingClientId
+    || sponsorLinkedClientId(sponsor)
+    || fact?.entidadId
+    || "",
+  ).trim();
+}
+
 export function invoiceEntityName(fact = {}, clientes = [], auspiciadores = []) {
-  if (fact.tipo === "auspiciador") return (auspiciadores || []).find(x => x.id === fact.entidadId)?.nom || "—";
+  if (fact.tipo === "auspiciador") {
+    const clientId = invoiceRelatedClientId(fact, auspiciadores);
+    const linkedClient = (clientes || []).find(x => x.id === clientId);
+    if (linkedClient?.nom) return linkedClient.nom;
+    const sponsor = invoiceSponsorRecord(fact, auspiciadores);
+    return sponsor?.nom || "—";
+  }
   return (clientes || []).find(x => x.id === fact.entidadId)?.nom || "—";
 }
 

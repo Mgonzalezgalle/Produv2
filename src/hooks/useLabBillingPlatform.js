@@ -38,6 +38,7 @@ import {
 import { buildBsaleInvoiceSyncDraft, mapProduInvoiceToBsale } from "../lib/integrations/bsaleBillingMapper";
 import { loadBsaleEmissionSessions, saveBsaleEmissionSessions } from "../lib/lab/bsaleMockApi";
 import { getUserFacingErrorMessage, notifyUserFacingError } from "../lib/ui/userFacingErrors";
+import { sponsorLinkedClientId } from "../lib/utils/helpers";
 
 export function useLabBillingPlatform({
   curEmp,
@@ -121,8 +122,14 @@ export function useLabBillingPlatform({
       return false;
     }
 
-    const cliente = factura?.tipo === "auspiciador"
+    const sponsor = factura?.tipo === "auspiciador"
       ? (auspiciadores || []).find(item => item.id === factura.entidadId)
+      : null;
+    const linkedClient = factura?.tipo === "auspiciador"
+      ? (clientes || []).find(item => item.id === (factura?.billingClientId || sponsorLinkedClientId(sponsor)))
+      : null;
+    const cliente = factura?.tipo === "auspiciador"
+      ? (linkedClient || sponsor)
       : (clientes || []).find(item => item.id === factura.entidadId);
     const entityName = String(
       cliente?.nom

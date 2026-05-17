@@ -1139,7 +1139,7 @@ export function ViewPgDet(props) {
 }
 
 export function ViewAus(props) {
-  const { empresa, auspiciadores, programas, openM, canDo, cDel, setAuspiciadores, listas, fmtM, fmtD, AusCard, isMobile = false } = props;
+  const { empresa, clientes, auspiciadores, programas, openM, canDo, cDel, setAuspiciadores, listas, fmtM, fmtD, AusCard, isMobile = false } = props;
   const empId = empresa?.id;
   const canManageSponsors = !!(canDo && canDo("auspiciadores"));
   const [q, setQ] = useState("");
@@ -1153,7 +1153,14 @@ export function ViewAus(props) {
   const [pg, setPg] = useState(1);
   const [detailId, setDetailId] = useState("");
   const PP = 9;
-  const fd = (auspiciadores || []).filter(x => x.empId === empId).filter(a => (a.nom.toLowerCase().includes(q.toLowerCase()) || (a.con || "").toLowerCase().includes(q.toLowerCase())) && (!ft || a.tip === ft) && (!fp || (a.pids || []).includes(fp))).sort((a, b) => {
+  const fd = (auspiciadores || []).filter(x => x.empId === empId).filter(a => {
+    const linkedClient = (clientes || []).find(client => client.id === (a.clientId || a.cliId || a.linkedClientId));
+    return (
+      a.nom.toLowerCase().includes(q.toLowerCase())
+      || (a.con || "").toLowerCase().includes(q.toLowerCase())
+      || (linkedClient?.nom || "").toLowerCase().includes(q.toLowerCase())
+    ) && (!ft || a.tip === ft) && (!fp || (a.pids || []).includes(fp));
+  }).sort((a, b) => {
     if (sortMode === "az") return String(a.nom || "").localeCompare(String(b.nom || ""));
     if (sortMode === "za") return String(b.nom || "").localeCompare(String(a.nom || ""));
     if (sortMode === "amount-desc") return Number(b.mon || 0) - Number(a.mon || 0);
@@ -1197,15 +1204,17 @@ export function ViewAus(props) {
     {vista === "cards" ? <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 12 }}>
       {fd.slice((pg - 1) * PP, pg * PP).map(a => {
         const pgs = (a.pids || []).map(pid => (programas || []).find(x => x.id === pid)).filter(Boolean);
-        return <div key={a.id} onClick={() => setDetailId(a.id)} style={{ cursor: "pointer" }}><AusCard a={a} pgs={pgs} onEdit={canManageSponsors ? () => openM("aus", a) : null} onDel={canManageSponsors ? () => cDel(auspiciadores, setAuspiciadores, a.id, null, "Auspiciador eliminado") : null} /></div>;
+        const linkedClient = (clientes || []).find(client => client.id === (a.clientId || a.cliId || a.linkedClientId));
+        return <div key={a.id} onClick={() => setDetailId(a.id)} style={{ cursor: "pointer" }}><AusCard a={a} pgs={pgs} linkedClientName={linkedClient?.nom || ""} onEdit={canManageSponsors ? () => openM("aus", a) : null} onDel={canManageSponsors ? () => cDel(auspiciadores, setAuspiciadores, a.id, null, "Auspiciador eliminado") : null} /></div>;
       })}
     </div> : <Card>
       <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); toggleAll(e.target.checked); }} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Auspiciador</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH></TH></tr></thead>
+        <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); toggleAll(e.target.checked); }} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Auspiciador</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Producciones</TH><TH>Contacto</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH></TH></tr></thead>
         <tbody>
-          {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pgs = (a.pids || []).map(pid => (programas || []).find(x => x.id === pid)?.nom).filter(Boolean); return <tr key={a.id} onClick={e => { if (e.target.closest("input,button,select,label,a")) return; setDetailId(a.id); }} style={{ cursor: "pointer" }}>
+          {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pgs = (a.pids || []).map(pid => (programas || []).find(x => x.id === pid)?.nom).filter(Boolean); const linkedClient = (clientes || []).find(client => client.id === (a.clientId || a.cliId || a.linkedClientId)); return <tr key={a.id} onClick={e => { if (e.target.closest("input,button,select,label,a")) return; setDetailId(a.id); }} style={{ cursor: "pointer" }}>
             <TD onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(a.id)} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onMouseUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); toggleSelected(a.id); }} /></TD>
             <TD bold style={{ color: "var(--cy)" }}>{a.nom}</TD>
+            <TD style={{ fontSize: 11 }}>{linkedClient?.nom || "Sin cliente vinculado"}</TD>
             <TD><Badge label={a.tip} sm /></TD>
             <TD style={{ fontSize: 11 }}>{pgs.join(", ") || "—"}</TD>
             <TD style={{ fontSize: 11 }}>{[a.con, a.ema].filter(Boolean).join(" · ") || "—"}</TD>
@@ -1213,7 +1222,7 @@ export function ViewAus(props) {
             <TD style={{ fontSize: 11 }}>{a.vig ? fmtD(a.vig) : "—"}</TD>
             <TD onClick={e => e.stopPropagation()}><div style={{ display: "flex", gap: 4 }}><GBtn sm onClick={() => setDetailId(a.id)}>Ver</GBtn>{canManageSponsors && <><GBtn sm onClick={e => { e.stopPropagation(); openM("aus", a); }}>✏</GBtn><XBtn onClick={e => { e.stopPropagation(); cDel(auspiciadores, setAuspiciadores, a.id, null, "Auspiciador eliminado"); }} /></>}</div></TD>
           </tr>; })}
-          {!fd.length && <tr><td colSpan={8}><Empty text="Sin auspiciadores" /></td></tr>}
+          {!fd.length && <tr><td colSpan={9}><Empty text="Sin auspiciadores" /></td></tr>}
         </tbody>
       </table></div>
     </Card>}
@@ -1225,6 +1234,7 @@ export function ViewAus(props) {
           <Card title="Información general">
             <KV label="Tipo" value={<Badge label={detail.tip || "—"} sm />} />
             <KV label="Estado" value={<Badge label={detail.est || "Activo"} color={(detail.est || "Activo") === "Activo" ? "green" : "gray"} sm />} />
+            <KV label="Cliente vinculado" value={(clientes || []).find(client => client.id === (detail.clientId || detail.cliId || detail.linkedClientId))?.nom || "Sin cliente vinculado"} />
             <KV label="Monto" value={detail.mon ? fmtM(detail.mon) : "—"} />
             <KV label="Frecuencia de pago" value={detail.frecPago || "—"} />
             <KV label="Vigencia" value={detail.vig ? fmtD(detail.vig) : "—"} />

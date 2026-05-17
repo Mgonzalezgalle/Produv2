@@ -74,6 +74,7 @@ export function MFact({
     ausValidos,
     contratosEntidad,
     buildPayload,
+    sponsorClient,
   } = useLabInvoiceForm({
     open,
     data,
@@ -99,6 +100,13 @@ export function MFact({
       ...VALIDATION_COPY.entity,
       detail: `Selecciona el ${f.tipo === "auspiciador" ? "auspiciador" : "cliente"} antes de guardar este documento.`,
     }
+    : (f.tipo === "auspiciador" && !sponsorClient)
+      ? {
+        key: "entity",
+        ...VALIDATION_COPY.entity,
+        detail: "Este auspiciador no tiene un cliente vinculado. Relaciónalo en el módulo de Auspiciadores antes de facturar.",
+        inline: "Falta vincular este auspiciador a un cliente.",
+      }
     : mn <= 0
       ? { key: "amount", ...VALIDATION_COPY.amount }
       : ((requiresReference || !!f.referenceCodeSii) && !effectiveReferenceValue)
@@ -112,7 +120,7 @@ export function MFact({
   const billingTypeOptions = getProduBillingDocumentTypeOptions();
   const referenceCodeOptions = getProduBillingReferenceCodeOptions();
   const relatedPurchaseOrderOptions = (purchaseOrders || []).filter((item) => (
-    item?.clientId === f.entidadId || !f.entidadId
+    item?.clientId === (f.tipo === "auspiciador" ? sponsorClient?.id : f.entidadId) || !f.entidadId
   ));
   const relatedDocumentOptions = ((facturas || []).filter(item =>
     item?.id !== data?.id &&
@@ -182,6 +190,11 @@ export function MFact({
       </FSl>
       <ValidationHint>{hasEntityError ? validationIssue.inline : ""}</ValidationHint>
     </FG>
+    {f.tipo === "auspiciador" && (
+      <FG label="Cliente facturable">
+        <FI value={sponsorClient?.nom || "Vincula este auspiciador a un cliente para facturar correctamente"} readOnly style={{ background: "var(--surface-muted)", color: sponsorClient?.nom ? "var(--tx)" : "var(--gr2)" }} />
+      </FG>
+    )}
     <R2>
       <FG label="Proyecto / Producción / Campaña">
         <FSl value={f.proId||""} onChange={(e)=>u("proId",e.target.value)}>

@@ -485,11 +485,24 @@ export function fileToDataUrl(file) {
   });
 }
 
+export const MAX_EMBEDDED_PREVIEW_DATA_URL_LENGTH = 900000;
+const MAX_EMBEDDED_PDF_BYTES = 1.5 * 1024 * 1024;
+
+function dataUrlTooLarge(dataUrl = "", maxLength = MAX_EMBEDDED_PREVIEW_DATA_URL_LENGTH) {
+  return String(dataUrl || "").length > maxLength;
+}
+
 export async function commentAttachmentFromFile(file) {
   if (!file) return null;
   const fileType = String(file.type || "");
   if (fileType === "application/pdf" || String(file.name || "").toLowerCase().endsWith(".pdf")) {
+    if (Number(file.size || 0) > MAX_EMBEDDED_PDF_BYTES) {
+      throw new Error("El PDF es demasiado pesado para usarlo como preview. Usa uno de hasta 1.5 MB.");
+    }
     const dataUrl = await fileToDataUrl(file);
+    if (dataUrlTooLarge(dataUrl)) {
+      throw new Error("El PDF es demasiado grande para guardarlo dentro de la pieza.");
+    }
     return {
       id: uid(),
       type: "pdf",
@@ -505,20 +518,31 @@ export async function commentAttachmentFromFile(file) {
     node.onerror = reject;
     node.src = dataUrl;
   });
-  const maxSide = 1600;
-  const scale = Math.min(1, maxSide / Math.max(img.width || maxSide, img.height || maxSide));
-  if (scale === 1 && file.size <= 900000) {
-    return { id: uid(), type: "image", src: dataUrl, name: file.name || "imagen" };
-  }
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round((img.width || maxSide) * scale));
-  canvas.height = Math.max(1, Math.round((img.height || maxSide) * scale));
   const ctx = canvas.getContext("2d");
-  ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  let longestSide = 1400;
+  let quality = 0.82;
+  let attempts = 0;
+  let output = dataUrl;
+  while (attempts < 5) {
+    const scale = Math.min(1, longestSide / Math.max(img.width || longestSide, img.height || longestSide));
+    canvas.width = Math.max(1, Math.round((img.width || longestSide) * scale));
+    canvas.height = Math.max(1, Math.round((img.height || longestSide) * scale));
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+    output = canvas.toDataURL("image/jpeg", quality);
+    if (!dataUrlTooLarge(output)) break;
+    longestSide = Math.max(720, Math.round(longestSide * 0.82));
+    quality = Math.max(0.5, quality - 0.08);
+    attempts += 1;
+  }
+  if (dataUrlTooLarge(output)) {
+    throw new Error("La imagen sigue siendo demasiado pesada para guardarla como preview. Intenta con una más liviana.");
+  }
   return {
     id: uid(),
     type: "image",
-    src: canvas.toDataURL("image/jpeg", 0.84),
+    src: output,
     name: file.name || "imagen",
   };
 }

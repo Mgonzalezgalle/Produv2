@@ -169,8 +169,8 @@ export function MPiezaContenido({ open, data, listas, crewOptions, onClose, onSa
         previewAssetName: attachment?.name || file.name || (isPdf ? "preview.pdf" : "preview"),
         previewAssetType: attachment?.type || (isPdf ? "pdf" : "image"),
       }));
-    } catch {
-      setFileError("No pudimos leer el archivo. Intenta nuevamente.");
+    } catch (error) {
+      setFileError(error?.message || "No pudimos leer el archivo. Intenta nuevamente.");
     } finally {
       event.target.value = "";
     }

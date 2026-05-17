@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { crmActivityEntry } from "../lib/utils/crm";
+import { MAX_EMBEDDED_PREVIEW_DATA_URL_LENGTH } from "../lib/utils/helpers";
 import { addRecurrenceToDateKey, normalizeTaskRecurrence } from "../lib/utils/tasks";
 
 export function useLabModalActions({
@@ -45,6 +46,10 @@ export function useLabModalActions({
     if (!empId || !canManageContent) return false;
     const campId = mData?.campId;
     if (!campId) return false;
+    if (String(d?.previewAssetUrl || "").length > MAX_EMBEDDED_PREVIEW_DATA_URL_LENGTH) {
+      ntf("El archivo de preview es demasiado pesado. Usa una imagen o PDF más liviano.", "warn");
+      return false;
+    }
     const next = (piezas || []).map((c) => (
       c.id !== campId
         ? c

@@ -113,10 +113,36 @@ export function countPendingTreasury(facturas = [], empId = "") {
     .length;
 }
 
-function normalizePayments(payments = [], empId = "", targetKey = "", targetId = "") {
+function normalizeDocMatchKey(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function paymentMatchesDocument(item = {}, targetKey = "", targetId = "", matchValues = []) {
+  if (item?.[targetKey] === targetId) return true;
+  const paymentKeys = [
+    item?.reference,
+    item?.targetLabel,
+    item?.folio,
+    item?.documentNumber,
+    item?.documentFolio,
+    item?.externalSync?.documentNumber,
+  ]
+    .map(normalizeDocMatchKey)
+    .filter(Boolean);
+  const docKeys = (Array.isArray(matchValues) ? matchValues : [])
+    .map(normalizeDocMatchKey)
+    .filter(Boolean);
+  if (!paymentKeys.length || !docKeys.length) return false;
+  return paymentKeys.some(key => docKeys.includes(key));
+}
+
+function normalizePayments(payments = [], empId = "", targetKey = "", targetId = "", matchValues = []) {
   const seen = new Set();
   return (Array.isArray(payments) ? payments : [])
-    .filter(item => item?.empId === empId && item?.[targetKey] === targetId)
+    .filter(item => item?.empId === empId && paymentMatchesDocument(item, targetKey, targetId, matchValues))
     .map(item => ({
       ...item,
       amount: Number(item.amount || 0),
@@ -294,7 +320,14 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
       const total = baseTotal * multiplier;
       const state = cobranzaState(doc);
       const allowsManualReceipts = multiplier > 0 && requiresProduCollectionTracking(billingTypeCode);
-      const paymentHistory = allowsManualReceipts ? normalizePayments(receipts, empId, "invoiceId", doc.id) : [];
+      const paymentHistory = allowsManualReceipts
+        ? normalizePayments(receipts, empId, "invoiceId", doc.id, [
+          doc.correlativo,
+          doc.numero,
+          doc.folio,
+          doc.externalSync?.number,
+        ])
+        : [];
       const manualPaid = paymentHistory.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const paidBase = state === "Pagado" ? baseTotal : Math.min(baseTotal, manualPaid);
       const paid = paidBase * multiplier;
@@ -412,7 +445,11 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
     .filter(item => item?.empId === empId)
     .map(item => {
       const total = Number(item.total || 0);
-      const paymentHistory = normalizePayments(disbursements, empId, "payableId", item.id);
+      const paymentHistory = normalizePayments(disbursements, empId, "payableId", item.id, [
+        item.folio,
+        item.number,
+        item.documentNumber,
+      ]);
       const paid = paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const pending = Math.max(0, total - paid);
       const dueDate = item.dueDate || "";
@@ -450,7 +487,12 @@ export function buildTreasuryPurchaseOrders({ orders = [], facturas = [], client
       const linkedInvoiceIds = Array.isArray(item.linkedInvoiceIds) ? item.linkedInvoiceIds : [];
       const linkedInvoices = invoices.filter(doc => linkedInvoiceIds.includes(doc.id));
       const linkedInvoicesDetailed = linkedInvoices.map(doc => {
-        const paymentHistory = normalizePayments(receipts, empId, "invoiceId", doc.id);
+        const paymentHistory = normalizePayments(receipts, empId, "invoiceId", doc.id, [
+          doc.correlativo,
+          doc.numero,
+          doc.folio,
+          doc.externalSync?.number,
+        ]);
         const paid = paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
         const total = Number(doc.total || 0);
         const pending = Math.max(0, total - paid);
@@ -554,7 +596,12 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes
         targetPdfUrl: invoice?.pdfUrl || invoice?.externalSync?.pdfUrl || "",
         targetPdfName: invoice?.pdfName || `${invoice?.correlativo || "documento"}.pdf`,
         targetDocumentType: invoice ? getProduBillingDocumentTypeLabel(billingTypeCode) : "Documento",
-        targetPending: invoice ? Math.max(0, total - Number(normalizePayments(receipts, empId, "invoiceId", invoice.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0))) : 0,
+        targetPending: invoice ? Math.max(0, total - Number(normalizePayments(receipts, empId, "invoiceId", invoice.id, [
+          invoice.correlativo,
+          invoice.numero,
+          invoice.folio,
+          invoice.externalSync?.number,
+        ]).reduce((sum, payment) => sum + Number(payment.amount || 0), 0))) : 0,
         targetStatus: documentStatus,
       };
     })
@@ -568,7 +615,11 @@ export function buildTreasuryDisbursementLog({ disbursements = [], payables = []
     .map(item => {
       const payable = docs.find(doc => doc.id === item.payableId);
       const total = Number(payable?.total || 0);
-      const targetPaymentHistory = payable?.id ? normalizePayments(disbursements, empId, "payableId", payable.id) : [];
+      const targetPaymentHistory = payable?.id ? normalizePayments(disbursements, empId, "payableId", payable.id, [
+        payable.folio,
+        payable.number,
+        payable.documentNumber,
+      ]) : [];
       const targetPaid = targetPaymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const targetPending = Math.max(0, total - targetPaid);
       const targetStatus = !payable

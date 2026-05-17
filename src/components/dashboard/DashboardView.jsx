@@ -31,19 +31,6 @@ function amountToCollect(doc = {}) {
   return Math.max(0, base * multiplier);
 }
 
-function renderActionCard(action) {
-  return (
-    <button
-      key={action.label}
-      onClick={action.fn}
-      style={{ textAlign: "left", padding: "13px 14px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,#ffffff,#f8fbff)", cursor: "pointer", boxShadow: "0 12px 28px rgba(15,23,42,.05)" }}
-    >
-      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>{action.label}</div>
-      <div style={{ fontSize: 11, color: "var(--gr2)" }}>{action.sub}</div>
-    </button>
-  );
-}
-
 function renderQueueItem(item, navTo) {
   const tone = statusTone(item.tone);
   const clickable = Array.isArray(item.target);
@@ -199,15 +186,6 @@ export function ViewDashboard({
       : { label: "Gastos", value: fmtM(tg), sub: `${gastos.length} movimientos`, accent: "#ff5566", vc: "#ff5566" },
   ];
 
-  const actionCards = [
-    { show: true, label: "Clientes", sub: `${clis.length} activos`, fn: () => navTo("clientes") },
-    { show: true, label: "Proyectos", sub: `${activeProjects.length} en marcha`, fn: () => navTo("producciones") },
-    { show: true, label: "Producciones", sub: `${activePrograms.length} activas`, fn: () => navTo("programas") },
-    { show: canSocial, label: "Contenidos", sub: `${activeCampaigns.length} campañas activas`, fn: () => navTo("contenidos") },
-    { show: canBudgets, label: "Presupuestos", sub: `${acceptedBudgets.length} aceptados`, fn: () => navTo("presupuestos") },
-    { show: canInvoices, label: "Facturación", sub: `${overdueFacts.length} vencidos`, fn: () => navTo("facturacion") },
-  ].filter(item => item.show);
-
   const priorityQueue = [
     ...overdueFacts.slice(0, 3).map(doc => ({
       id: `overdue-${doc.id}`,
@@ -331,9 +309,6 @@ export function ViewDashboard({
               </div>
             ))}
           </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
-          {actionCards.map(renderActionCard)}
         </div>
       </div>
 

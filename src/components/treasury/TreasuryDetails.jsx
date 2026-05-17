@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { DBtn, GBtn, Paginator, SearchBar, ViewModeToggle } from "../../lib/ui/components";
+import { Card, DBtn, GBtn, Paginator, SearchBar, TH, TD, ViewModeToggle } from "../../lib/ui/components";
 import { fmtM } from "../../lib/utils/helpers";
 import { EmptyInsideCard, getInitials, pendingTone, StatusBadge } from "./TreasuryShared";
 
@@ -78,21 +78,57 @@ export function ProvidersPanel({
         </>
       ) : (
         <>
-          <div className="treasury-list">
-            <div className="treasury-list-row treasury-list-head">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}><input type="checkbox" checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))} onChange={e => toggleAll(e.target.checked)} />Proveedor</div><div>Documentos</div><div>OC emitidas</div><div>Cartera Proveedor</div><div>Pendiente</div><div></div>
+          <Card>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <TH>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id))}
+                          onChange={e => toggleAll(e.target.checked)}
+                        />
+                        Proveedor
+                      </div>
+                    </TH>
+                    <TH>Documentos</TH>
+                    <TH>OC emitidas</TH>
+                    <TH>Cartera proveedor</TH>
+                    <TH>Pendiente</TH>
+                    <TH></TH>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map(provider => (
+                    <tr key={provider.id} onClick={() => onOpen(provider)}>
+                      <TD>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(provider.id)}
+                            onChange={e => { e.stopPropagation(); toggleSelected(provider.id); }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                          <div className="treasury-avatar">{getInitials(provider.name)}</div>
+                          <div>
+                            <div style={{ fontWeight: 700 }}>{provider.name}</div>
+                            <div className="treasury-muted" style={{ fontSize: 11 }}>Flujo de pagos y documentos</div>
+                          </div>
+                        </div>
+                      </TD>
+                      <TD>{provider.payables.length}</TD>
+                      <TD>{provider.issuedOrders.length}</TD>
+                      <TD mono>{fmtM(provider.totalDebt)}</TD>
+                      <TD style={{ color: provider.pending > 0 ? "#ffcc44" : "#00e08a", fontFamily: "var(--fm)", fontSize: 12 }}>{fmtM(provider.pending)}</TD>
+                      <TD><GBtn sm onClick={e => { e.stopPropagation(); onOpen(provider); }}>Ver →</GBtn></TD>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {pageRows.map(provider => (
-              <div key={provider.id} className="treasury-list-row" onClick={() => onOpen(provider)}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><input type="checkbox" checked={selectedIds.includes(provider.id)} onChange={e => { e.stopPropagation(); toggleSelected(provider.id); }} onClick={e => e.stopPropagation()} /><div className="treasury-avatar">{getInitials(provider.name)}</div><div><div style={{ fontWeight: 700 }}>{provider.name}</div><div className="treasury-muted" style={{ fontSize: 11 }}>Flujo de pagos y documentos</div></div></div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{provider.payables.length}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{provider.issuedOrders.length}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--wh)" }}>{fmtM(provider.totalDebt)}</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }} className={pendingTone(provider.pending, provider.pending > 0 ? "pending" : "paid")}>{fmtM(provider.pending)}</div>
-                <div style={{ display: "flex", justifyContent: "flex-end" }}><GBtn sm onClick={() => onOpen(provider)}>Ver →</GBtn></div>
-              </div>
-            ))}
-          </div>
+          </Card>
           <Paginator page={page} total={totalRows} perPage={pageSize} onChange={setPage} />
         </>
       )}

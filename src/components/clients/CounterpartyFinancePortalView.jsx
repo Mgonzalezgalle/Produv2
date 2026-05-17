@@ -48,10 +48,15 @@ function normalizeMatchKey(value = "") {
 function matchesClientAccount(row = {}, client = {}) {
   const rowKeys = [
     row?.entidadId,
+    row?.cliId,
     row?.clientId,
+    row?.billingClientId,
     row?.entityId,
     row?.counterpartyId,
+    row?.cliente,
     row?.entidad,
+    row?.nom,
+    row?.razonSocial,
     row?.clientName,
     row?.counterpartyLabel,
     row?.rut,
@@ -123,7 +128,9 @@ function downloadUrl(url = "", fileName = "archivo") {
   anchor.download = fileName || true;
   anchor.target = "_blank";
   anchor.rel = "noreferrer";
+  document.body.appendChild(anchor);
   anchor.click();
+  anchor.remove();
 }
 
 function escapeCsvCell(value = "") {
@@ -162,7 +169,7 @@ function chunkRows(rows = [], size = 7) {
   return chunks;
 }
 
-async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", companyName = "Produ", companyEmail = "", companyPhone = "", counterpartName = "Portal financiero", counterpartLines = [], fileName = "produ_portal.pdf" } = {}) {
+async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [], fileName = "produ_portal.pdf" } = {}) {
   const buildModernPdf = await getSimplePdfBlobRuntime();
   const safeRows = Array.isArray(rows) ? rows : [];
   const bodySections = safeRows.length
@@ -186,6 +193,7 @@ async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accen
       nombre: companyName,
       ema: companyEmail,
       tel: companyPhone,
+      logo: companyLogo,
     },
     counterpartTitle: "Cuenta asociada",
     counterpartName,
@@ -201,13 +209,15 @@ async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accen
   });
 }
 
-async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf" } = {}) {
-  const blob = await buildSectionPdfBlob({ title, subtitle, rows, accent });
+async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [] } = {}) {
+  const blob = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, counterpartName, counterpartLines });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  document.body.appendChild(anchor);
   anchor.click();
+  anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
@@ -377,15 +387,18 @@ function PortalMetricCard({ eyebrow = "", value = "—", tone = "blue" }) {
   );
 }
 
-function FinanceHero({ type = "client", companyName = "", counterpartyName = "", identity = "", subtitle = "", onClosePortal = null }) {
+function FinanceHero({ type = "client", companyName = "", companyLogo = "", counterpartyName = "", identity = "", subtitle = "", onClosePortal = null }) {
   const { isMobile, isTablet } = useViewportFlags();
+  const hasCompanyLogo = String(companyLogo || "").trim().length > 0;
   return (
     <div style={{ background: "#ffffff", border: "1px solid #d8e4f4", borderRadius: 28, overflow: "hidden", boxShadow: "0 24px 80px rgba(15,23,42,.10)" }}>
       <div style={{ background: "linear-gradient(135deg, #10204f 0%, #173a78 56%, #2f6ea8 100%)", color: "#ffffff", padding: "14px 18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 40, height: 40, borderRadius: 13, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.22)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13 }}>
-              {getInitials(companyName)}
+              {hasCompanyLogo
+                ? <img src={companyLogo} alt={companyName || "Logo empresa"} style={{ width: "80%", height: "80%", objectFit: "contain" }} />
+                : getInitials(companyName)}
             </div>
             <div>
               <div style={{ fontFamily: "var(--fh)", fontSize: 19, fontWeight: 900, lineHeight: 1.05 }}>{companyName || "Produ"}</div>
@@ -689,6 +702,14 @@ async function appendFinancePortalAlert(payload = null, { title = "", body = "",
 
 function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDecision }) {
   const { isMobile, isTablet } = useViewportFlags();
+  const portalPdfBase = useMemo(() => ({
+    companyName: payload?.empresa?.nombre || payload?.empresa?.nom || "Produ",
+    companyEmail: payload?.empresa?.ema || payload?.empresa?.email || "",
+    companyPhone: payload?.empresa?.tel || "",
+    companyLogo: payload?.empresa?.logo || "",
+    counterpartName: payload?.client?.nom || "Cliente",
+    counterpartLines: [payload?.client?.rut ? `RUT: ${payload.client.rut}` : ""].filter(Boolean),
+  }), [payload]);
   const receivables = useMemo(
     () => buildTreasuryReceivables({
       facturas: payload.facturas,
@@ -780,6 +801,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const exportReceivablesPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Documentos · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Resumen de documentos visibles en el portal financiero.",
       fileName: `portal_cliente_documentos_${payload.client?.id || "cuenta"}.pdf`,
@@ -804,6 +826,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const exportPurchaseOrdersPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `OC recibidas · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Ordenes de compra recibidas visibles en el portal financiero.",
       fileName: `portal_cliente_oc_${payload.client?.id || "cuenta"}.pdf`,
@@ -827,6 +850,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const exportBudgetsPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Presupuestos · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Propuestas visibles en el portal financiero.",
       fileName: `portal_cliente_presupuestos_${payload.client?.id || "cuenta"}.pdf`,
@@ -843,6 +867,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const previewBudgetRow = async (row = {}) => {
     await openSectionPdf({
+      ...portalPdfBase,
       title: `${row.titulo || "Presupuesto"} · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Resumen de la propuesta visible desde el portal financiero.",
       fileName: `${String(row.correlativo || row.titulo || "presupuesto").replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "presupuesto"}.pdf`,
@@ -859,6 +884,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const downloadBudgetRow = async (row = {}) => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `${row.titulo || "Presupuesto"} · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Resumen de la propuesta visible desde el portal financiero.",
       fileName: `${String(row.correlativo || row.titulo || "presupuesto").replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "presupuesto"}.pdf`,
@@ -897,6 +923,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const exportPaymentsPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Pagos · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Pagos asociados a documentos visibles en el portal financiero.",
       fileName: `portal_cliente_pagos_${payload.client?.id || "cuenta"}.pdf`,
@@ -920,6 +947,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
   };
   const exportAccountPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Cuenta · ${payload.client?.nom || "Cliente"}`,
       subtitle: "Información general y contactos visibles en el portal financiero.",
       fileName: `portal_cliente_cuenta_${payload.client?.id || "cuenta"}.pdf`,
@@ -1119,6 +1147,14 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
 
 function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   const { isMobile, isTablet } = useViewportFlags();
+  const portalPdfBase = useMemo(() => ({
+    companyName: payload?.empresa?.nombre || payload?.empresa?.nom || "Produ",
+    companyEmail: payload?.empresa?.ema || payload?.empresa?.email || "",
+    companyPhone: payload?.empresa?.tel || "",
+    companyLogo: payload?.empresa?.logo || "",
+    counterpartName: payload?.provider?.name || payload?.provider?.razonSocial || "Proveedor",
+    counterpartLines: [payload?.provider?.rut ? `RUT: ${payload.provider.rut}` : ""].filter(Boolean),
+  }), [payload]);
   const payables = useMemo(
     () => buildTreasuryPayables({
       payables: payload.payables,
@@ -1186,6 +1222,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   };
   const exportPayablesPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Documentos · ${payload.provider?.name || "Proveedor"}`,
       subtitle: "Documentos por pagar visibles en el portal financiero.",
       fileName: `portal_proveedor_documentos_${payload.provider?.id || "cuenta"}.pdf`,
@@ -1210,6 +1247,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   };
   const exportIssuedOrdersPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `OC emitidas · ${payload.provider?.name || "Proveedor"}`,
       subtitle: "Órdenes emitidas visibles en el portal financiero.",
       fileName: `portal_proveedor_oc_${payload.provider?.id || "cuenta"}.pdf`,
@@ -1233,6 +1271,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
   };
   const exportDisbursementsPdf = async () => {
     await downloadSectionPdf({
+      ...portalPdfBase,
       title: `Pagos · ${payload.provider?.name || "Proveedor"}`,
       subtitle: "Pagos registrados visibles en el portal financiero.",
       fileName: `portal_proveedor_pagos_${payload.provider?.id || "cuenta"}.pdf`,
@@ -1685,6 +1724,7 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
         <FinanceHero
           type={payload.type}
           companyName={payload.empresa?.nombre || payload.empresa?.nom || "Produ"}
+          companyLogo={payload.empresa?.logo || ""}
           counterpartyName={title}
           identity={identity}
           subtitle={subtitle}

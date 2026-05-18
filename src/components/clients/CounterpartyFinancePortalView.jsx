@@ -120,6 +120,37 @@ function openBlobInNewTab(blob, fileName = "archivo.pdf") {
   setTimeout(() => URL.revokeObjectURL(url), 8000);
 }
 
+function ensureBlobFile(payload, fallbackName = "archivo.pdf") {
+  if (!payload) return null;
+  if (payload instanceof Blob) return payload;
+  try {
+    const bytes = payload?.bytes || payload?.arrayBuffer?.();
+    if (!bytes) return null;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function triggerBlobDownload(blob, fileName = "archivo.pdf") {
+  if (!blob) return false;
+  try {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.rel = "noreferrer";
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function downloadUrl(url = "", fileName = "archivo") {
   const link = String(url || "").trim();
   if (!link) return;
@@ -211,19 +242,17 @@ async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accen
 
 async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [] } = {}) {
   const blob = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, counterpartName, counterpartLines });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1200);
+  const downloaded = triggerBlobDownload(blob, fileName);
+  if (!downloaded) openBlobInNewTab(blob, fileName);
 }
 
 async function openSectionPdf(options = {}) {
   const blob = await buildSectionPdfBlob(options);
-  openBlobInNewTab(blob, options.fileName || "produ_portal.pdf");
+  try {
+    openBlobInNewTab(blob, options.fileName || "produ_portal.pdf");
+  } catch {
+    triggerBlobDownload(blob, options.fileName || "produ_portal.pdf");
+  }
 }
 
 function resolvePortalDocumentUrl(row = {}) {
@@ -437,8 +466,8 @@ function SectionActionBar({ onCsv = null, onPdf = null, right = null }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {onCsv ? <GBtn onClick={onCsv} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar CSV</GBtn> : null}
-        {onPdf ? <GBtn onClick={onPdf} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar PDF</GBtn> : null}
+        {onCsv ? <GBtn onClick={() => { void onCsv(); }} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar CSV</GBtn> : null}
+        {onPdf ? <GBtn onClick={() => { void onPdf(); }} s={{ borderRadius: 999, padding: "7px 12px", fontSize: 11.5, fontWeight: 700, borderColor: "#d7e4f5", color: "#35506d", background: "#ffffff" }}>Descargar PDF</GBtn> : null}
       </div>
       {right ? <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{right}</div> : null}
     </div>

@@ -20,6 +20,44 @@ function safeText(value = "") {
   return String(value || "").trim();
 }
 
+function buildTenantAccessEmailPayload({
+  tenant = null,
+  user = null,
+  password = "",
+  mode = "access_updated",
+} = {}) {
+  const safeName = user?.name || user?.email || "equipo";
+  const tenantName = tenant?.nombre || tenant?.nom || "Produ";
+  const intro = mode === "tenant_activated"
+    ? `Tu acceso a ${tenantName} ya fue activado en Produ.`
+    : "Actualizamos tu acceso en Produ.";
+  const text = [
+    `Hola ${safeName},`,
+    "",
+    intro,
+    "",
+    `Email: ${user?.email || ""}`,
+    `Contraseña temporal: ${password || ""}`,
+    "",
+    "Te recomendamos cambiarla al ingresar.",
+  ].join("\n").trim();
+  return {
+    tenantId: tenant?.id || user?.empId || "",
+    templateKey: mode,
+    subject: mode === "tenant_activated" ? `Acceso activado en ${tenantName}` : `Acceso actualizado en ${tenantName}`,
+    to: user?.email ? [user.email] : [],
+    text,
+    html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
+    entityType: "user_access",
+    entityId: user?.id || "",
+    metadata: {
+      tenantName,
+      userName: user?.name || "",
+      mode,
+    },
+  };
+}
+
 function unauthorizedResult() {
   return false;
 }
@@ -534,6 +572,20 @@ export function useLabAdminPanelModule({
     return false;
   };
 
+  const sendAccessEmail = async ({ tenant = null, user = null, password = "", mode = "access_updated" } = {}) => {
+    if (!user?.email || !password || !platformServices?.sendTransactionalEmail) return { ok: false, source: "degraded" };
+    try {
+      return await platformServices.sendTransactionalEmail(buildTenantAccessEmailPayload({
+        tenant,
+        user,
+        password,
+        mode,
+      }));
+    } catch {
+      return { ok: false, source: "degraded" };
+    }
+  };
+
   const resetAccess = async target => {
     if (!canManageAdmin || !target?.id) return unauthorizedResult();
     if (!enforceAdminSection("Usuarios", "No tienes permisos para resetear accesos de usuarios.")) return unauthorizedResult();
@@ -545,6 +597,12 @@ export function useLabAdminPanelModule({
       nextUsers = (users || []).map(u => u.id === target.id ? { ...u, passwordHash: "", password: temp } : u);
       await saveUsers(nextUsers);
     }
+    await sendAccessEmail({
+      tenant: empresa,
+      user: { ...target, empId: empresa?.id || target?.empId || "" },
+      password: temp,
+      mode: "access_updated",
+    });
     await appendTenantUserAudit("tenant_user_access_reset", target.id, {
       targetEmail: target.email || "",
     });
@@ -579,6 +637,7 @@ export function useLabAdminPanelModule({
       isCrew: uf.isCrew === true,
       crewRole: uf.isCrew === true ? (uf.crewRole || "Crew interno") : "",
     };
+    const shouldSendAccessEmail = Boolean(String(uf.password || "").trim());
     const nextUsers = uid2 ? (users || []).map(u => u.id === uid2 ? obj : u) : [...(users || []), obj];
     if (platformServices?.updateTenantUser && platformServices?.createTenantUser) {
       if (uid2) {
@@ -597,6 +656,14 @@ export function useLabAdminPanelModule({
       }
     } else {
       await saveUsers(nextUsers);
+    }
+    if (shouldSendAccessEmail) {
+      await sendAccessEmail({
+        tenant: empresa,
+        user: obj,
+        password: String(uf.password || "").trim(),
+        mode: uid2 ? "access_updated" : "tenant_activated",
+      });
     }
     await syncTenantUserGovernance(nextUsers, uid2 ? "tenant_user_updated" : "tenant_user_created", {
       targetUserId: obj.id,

@@ -297,6 +297,21 @@ export const TRANSACTIONAL_EMAIL_TEMPLATE_DEFINITIONS = [
       "Quedamos atentos.",
     ].join("\n"),
   },
+  {
+    key: "tenant_activated",
+    label: "Acceso activado",
+    description: "Correo de bienvenida o primer acceso para un usuario nuevo.",
+    defaultSubject: "Tu acceso a Produ ya está activo",
+    defaultBody: [
+      "Hola {{contactName}},",
+      "",
+      "Tu acceso en Produ ya fue activado.",
+      "",
+      "{{accessInstructions}}",
+      "",
+      "Quedamos atentos.",
+    ].join("\n"),
+  },
 ];
 
 export function getTransactionalEmailTemplateDefinitions() {

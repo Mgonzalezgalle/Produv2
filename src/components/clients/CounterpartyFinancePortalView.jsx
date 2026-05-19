@@ -120,18 +120,6 @@ function openBlobInNewTab(blob, fileName = "archivo.pdf") {
   setTimeout(() => URL.revokeObjectURL(url), 8000);
 }
 
-function ensureBlobFile(payload, fallbackName = "archivo.pdf") {
-  if (!payload) return null;
-  if (payload instanceof Blob) return payload;
-  try {
-    const bytes = payload?.bytes || payload?.arrayBuffer?.();
-    if (!bytes) return null;
-  } catch {
-    return null;
-  }
-  return null;
-}
-
 function triggerBlobDownload(blob, fileName = "archivo.pdf") {
   if (!blob) return false;
   try {
@@ -149,6 +137,19 @@ function triggerBlobDownload(blob, fileName = "archivo.pdf") {
   } catch {
     return false;
   }
+}
+
+async function coercePdfBlob(payload) {
+  if (!payload) throw new Error("No se pudo preparar el archivo PDF.");
+  if (payload instanceof Blob) {
+    const bytes = await payload.arrayBuffer();
+    return new Blob([bytes], { type: payload.type || "application/pdf" });
+  }
+  if (payload?.arrayBuffer) {
+    const bytes = await payload.arrayBuffer();
+    return new Blob([bytes], { type: "application/pdf" });
+  }
+  throw new Error("El exportador PDF devolvió un formato no compatible.");
 }
 
 function downloadUrl(url = "", fileName = "archivo") {
@@ -241,13 +242,16 @@ async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accen
 }
 
 async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [] } = {}) {
-  const blob = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, counterpartName, counterpartLines });
+  const built = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, counterpartName, counterpartLines });
+  const blob = await coercePdfBlob(built);
   const downloaded = triggerBlobDownload(blob, fileName);
   if (!downloaded) openBlobInNewTab(blob, fileName);
+  return true;
 }
 
 async function openSectionPdf(options = {}) {
-  const blob = await buildSectionPdfBlob(options);
+  const built = await buildSectionPdfBlob(options);
+  const blob = await coercePdfBlob(built);
   try {
     openBlobInNewTab(blob, options.fileName || "produ_portal.pdf");
   } catch {

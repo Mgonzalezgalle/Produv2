@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
-import { completeLocalPasswordReset } from "../../lib/auth/localAuthProvider";
+import { completeLocalPasswordReset, requestLocalPasswordReset } from "../../lib/auth/localAuthProvider";
 import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
 import QRCode from "qrcode";
 import {
@@ -72,7 +72,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const [setupOtpUrl, setSetupOtpUrl] = useState("");
   const [setupQr, setSetupQr] = useState("");
   const [acceptedRecovery, setAcceptedRecovery] = useState(false);
-  const isLocalAuth = authGateway?.strategy !== "supabase";
   const platformApi = dbHelpers?.platformApi || null;
 
   const resetTwoFactorFlow = () => {
@@ -191,16 +190,20 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setErr("");
     setResetInfo("");
     setResetRevealCode("");
-    const { ok, message, revealedCode, updatedUser } = await (
-      platformApi?.auth?.requestPasswordReset
-        ? platformApi.auth.requestPasswordReset({ email: forgotEmail })
-        : authGateway.requestPasswordReset({ users, email: forgotEmail })
-    );
+    const localReset = await requestLocalPasswordReset({ users, email: forgotEmail });
+    const remoteReset = localReset.ok
+      ? null
+      : await (
+        platformApi?.auth?.requestPasswordReset
+          ? platformApi.auth.requestPasswordReset({ email: forgotEmail })
+          : authGateway.requestPasswordReset({ users, email: forgotEmail })
+      );
+    const { ok, message, revealedCode, updatedUser } = localReset.ok ? localReset : (remoteReset || {});
     let deliveryMessage = "";
     if (updatedUser) {
       await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
-    if (isLocalAuth && revealedCode && platformApi?.notifications?.sendTransactionalEmail) {
+    if (revealedCode && platformApi?.notifications?.sendTransactionalEmail) {
       try {
         const delivery = await platformApi.notifications.sendTransactionalEmail({
           templateKey: "password_reset",
@@ -212,6 +215,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
           entityId: forgotEmail,
           metadata: {
             authMode: authGateway?.strategy || "local",
+            flow: "code_reset",
           },
         });
         if (delivery?.ok) {
@@ -229,10 +233,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   };
 
   const submitPasswordReset = async () => {
-    if (!isLocalAuth) {
-      setResetInfo("Si el correo existe en Auth, enviamos instrucciones externas de recuperación.");
-      return;
-    }
     if (!forgotEmail || !resetCode || !newPass) {
       setErr("Completa correo, código y nueva contraseña.");
       return;

@@ -732,6 +732,10 @@ export function TransactionalEmailTemplatesPanel({
       contactName: "Usuario Produ",
       accessInstructions: "Tu acceso fue actualizado. Revisa tus nuevas credenciales.",
     },
+    tenant_activated: {
+      contactName: "Usuario Produ",
+      accessInstructions: "Tu acceso ya está activo. Revisa tus credenciales para ingresar a Produ.",
+    },
   }), [empresa?.nombre, empresa?.nom]);
 
   React.useEffect(() => {

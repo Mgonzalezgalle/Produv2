@@ -39,6 +39,11 @@ function resolveTenantSubject(payload: Payload) {
   return `Notificación de ${resolveTenantCompanyName(payload)}`;
 }
 
+function resolveEmailSubject(payload: Payload) {
+  const explicit = String(payload.subject || "").trim();
+  return explicit || resolveTenantSubject(payload);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -126,7 +131,7 @@ Deno.serve(async (req) => {
 
   const resend = new Resend(apiKey);
   const renderedTemplate = renderTransactionalEmailTemplate({
-    subject: resolveTenantSubject(payload),
+    subject: resolveEmailSubject(payload),
     html: payload.html,
     text: payload.text,
     templateKey: payload.templateKey,
@@ -140,7 +145,7 @@ Deno.serve(async (req) => {
       cc: cc.map((item) => item.email!),
       bcc: bcc.map((item) => item.email!),
       replyTo: payload.replyTo || defaultReplyTo || undefined,
-      subject: resolveTenantSubject(payload),
+      subject: resolveEmailSubject(payload),
       html: renderedTemplate.html || undefined,
       text: renderedTemplate.text || undefined,
       attachments: attachments.length ? attachments : undefined,
@@ -179,7 +184,7 @@ Deno.serve(async (req) => {
         id: deliveryId,
         tenantId: String(payload.tenantId || "").trim(),
         templateKey: String(payload.templateKey || "generic_notification").trim(),
-        subject: resolveTenantSubject(payload),
+        subject: resolveEmailSubject(payload),
         to,
         entityType: String(payload.entityType || "").trim(),
         entityId: String(payload.entityId || "").trim(),

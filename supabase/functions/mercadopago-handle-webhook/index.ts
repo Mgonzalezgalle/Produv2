@@ -10,6 +10,7 @@ type WebhookPayload = {
   metadata?: Record<string, unknown>;
   tenantConfig?: {
     accessToken?: string;
+    accessTokenConfigured?: boolean;
     webhookSecret?: string;
   };
   data?: {
@@ -30,6 +31,41 @@ function json(body: unknown, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+function resolveLegacyTenantId(payload: WebhookPayload = {}) {
+  const directTenantId = String(payload?.tenantId || payload?.metadata?.tenantId || "").trim();
+  if (directTenantId) return directTenantId;
+  const externalReference = String(payload?.externalReference || "").trim();
+  const match = externalReference.match(/tenant:([^:]+):/);
+  return match?.[1] ? String(match[1]).trim() : "";
+}
+
+async function resolveTenantCredential(legacyEmpId = "") {
+  const supabaseUrl = String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  const serviceRoleKey = String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  const safeLegacyEmpId = String(legacyEmpId || "").trim();
+  if (!supabaseUrl || !serviceRoleKey || !safeLegacyEmpId) return {};
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_legacy_integration_credential_secret`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        legacy_emp_id: safeLegacyEmpId,
+        provider_name: "mercadopago",
+        environment_name: "tenant",
+      }),
+    });
+    if (!response.ok) return {};
+    const data = await response.json();
+    return data && typeof data === "object" ? data as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
 }
 
 function mapMercadoPagoStatus(value = "") {
@@ -154,8 +190,10 @@ Deno.serve(async (req) => {
   }
 
   const payload = await req.json() as WebhookPayload;
+  const credential = await resolveTenantCredential(resolveLegacyTenantId(payload));
   const accessToken =
     String(payload?.tenantConfig?.accessToken || "").trim() ||
+    String(credential?.secretValue || "").trim() ||
     String(Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "").trim();
   const expectedSignature =
     String(payload?.tenantConfig?.webhookSecret || "").trim() ||

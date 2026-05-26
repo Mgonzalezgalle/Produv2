@@ -59,8 +59,6 @@ export function EmpresaEditSection({
   setTenantBsaleConfig,
   tenantBsaleSaving = false,
   saveTenantBsaleConfig,
-  mercadoPagoGovernanceMode = "disabled",
-  tenantCanEditMercadoPagoConfig = false,
   tenantMercadoPagoConfig = {},
   setTenantMercadoPagoConfig,
   tenantMercadoPagoSaving = false,
@@ -167,12 +165,10 @@ export function EmpresaEditSection({
 
   const bsaleHasToken = Boolean(String(tenantBsaleConfig?.token || "").trim());
   const bsaleReady = bsaleGovernanceMode !== "disabled" && bsaleHasToken && Boolean(String(tenantBsaleConfig?.officeId || "").trim());
-  const mercadoPagoHasSeller = String(tenantMercadoPagoConfig?.sellerAccountLabel || "").trim();
-  const mercadoPagoHasAccessToken = String(tenantMercadoPagoConfig?.accessToken || "").trim();
+  const mercadoPagoHasAccessToken = tenantMercadoPagoConfig?.accessTokenConfigured === true
+    || Boolean(String(tenantMercadoPagoConfig?.accessToken || "").trim());
   const mercadoPagoHasWebhookSecret = String(tenantMercadoPagoConfig?.webhookSecret || "").trim();
   const mercadoPagoReadyForCollection =
-    mercadoPagoGovernanceMode !== "disabled" &&
-    mercadoPagoHasSeller &&
     mercadoPagoHasAccessToken &&
     tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false &&
     (tenantMercadoPagoConfig?.status === "connected" || tenantMercadoPagoConfig?.status === "draft");
@@ -256,7 +252,7 @@ export function EmpresaEditSection({
           <div style={{padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:800,color:"var(--wh)"}}>Mercado Pago</div>
-              <Badge label={mercadoPagoGovernanceMode === "disabled" ? "No habilitado" : mercadoPagoReadyForCollection ? "Listo" : "Pendiente"} color={mercadoPagoGovernanceMode === "disabled" ? "gray" : mercadoPagoReadyForCollection ? "green" : "yellow"} sm />
+              <Badge label={mercadoPagoReadyForCollection ? "Listo" : "Pendiente"} color={mercadoPagoReadyForCollection ? "green" : "yellow"} sm />
             </div>
             <div style={{fontSize:11,color:"var(--gr2)",lineHeight:1.55}}>Cobros online y links de pago para cartera.</div>
           </div>
@@ -402,16 +398,14 @@ export function EmpresaEditSection({
         <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>Cobros online · Mercado Pago</div>
-            <div style={{fontSize:11,color:"var(--gr2)"}}>Torre de Control habilita esta integración. Aquí el tenant conecta su cuenta y define la operación del link de pago.</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Conecta las credenciales de Mercado Pago de esta empresa para generar links de pago en Cobranza y registrar pagos contra sus documentos.</div>
           </div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <Badge label={mercadoPagoGovernanceMode === "disabled" ? "No habilitado" : "Habilitado por Torre"} color={mercadoPagoGovernanceMode === "disabled" ? "gray" : "green"} sm />
+            <Badge label={mercadoPagoReadyForCollection ? "Operativo" : "Configurable"} color={mercadoPagoReadyForCollection ? "green" : "yellow"} sm />
             <Badge label={tenantMercadoPagoConfig?.status || "disconnected"} color={tenantMercadoPagoConfig?.status === "connected" ? "cyan" : "yellow"} sm />
           </div>
         </div>
-        {mercadoPagoGovernanceMode === "disabled"
-          ? <div style={{fontSize:11,color:"var(--gr2)"}}>Mercado Pago todavía no está habilitado para este tenant. Debe activarse primero desde Torre de Control, en Integraciones.</div>
-          : <>
+        <>
               <R2>
                 <FG label="Cuenta seller / etiqueta visible">
                   <FI value={tenantMercadoPagoConfig?.sellerAccountLabel || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,sellerAccountLabel:e.target.value,status:p.status==="disconnected"&&e.target.value?"draft":p.status}))} placeholder="Ej: Play Media · Mercado Pago" />
@@ -427,21 +421,67 @@ export function EmpresaEditSection({
                 </FG>
               </R2>
               <R2>
+                <FG label="País / moneda Mercado Pago">
+                  <FSl value={tenantMercadoPagoConfig?.marketplace || "MLC"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,marketplace:e.target.value}))}>
+                    <option value="MLC">Chile · CLP</option>
+                    <option value="MLA">Argentina · ARS</option>
+                    <option value="MLB">Brasil · BRL</option>
+                    <option value="MLM">México · MXN</option>
+                    <option value="MCO">Colombia · COP</option>
+                    <option value="MPE">Perú · PEN</option>
+                    <option value="MLU">Uruguay · UYU</option>
+                  </FSl>
+                </FG>
+                <FG label="Expiración por defecto (días)">
+                  <FI value={tenantMercadoPagoConfig?.defaultExpirationDays || "7"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,defaultExpirationDays:e.target.value}))} placeholder="7" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Ambiente de credenciales">
+                  <FSl value={tenantMercadoPagoConfig?.credentialEnvironment || "production"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,credentialEnvironment:e.target.value}))}>
+                    <option value="production">Producción · APP_USR</option>
+                    <option value="test">Pruebas · TEST</option>
+                  </FSl>
+                </FG>
+                <FG label="Webhook / notificación de pago">
+                  <FI value={tenantMercadoPagoConfig?.notificationUrl || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,notificationUrl:e.target.value}))} placeholder="https://.../functions/v1/mercadopago-handle-webhook" />
+                </FG>
+              </R2>
+              <R2>
                 <FG label="Public key">
                   <FI value={tenantMercadoPagoConfig?.publicKey || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,publicKey:e.target.value,status:(e.target.value || p.accessToken || p.sellerAccountLabel) ? "draft" : "disconnected"}))} placeholder="APP_USR-..." />
                 </FG>
-                <FG label="Access token / referencia OAuth">
-                  <FI type="password" value={tenantMercadoPagoConfig?.accessToken || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,accessToken:e.target.value,status:(e.target.value && (p.publicKey || p.sellerAccountLabel)) ? "connected" : ((e.target.value || p.publicKey || p.sellerAccountLabel) ? "draft" : "disconnected")}))} placeholder="APP_USR-... o referencia segura" />
+                <FG label="Access token">
+                  <FI type="password" value={tenantMercadoPagoConfig?.accessToken || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,accessToken:e.target.value,status:e.target.value ? "connected" : ((p.accessTokenConfigured || p.publicKey || p.sellerAccountLabel) ? "draft" : "disconnected")}))} placeholder={tenantMercadoPagoConfig?.accessTokenConfigured ? "Token guardado · escribe uno nuevo para reemplazarlo" : "APP_USR-..."} />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Client ID">
+                  <FI value={tenantMercadoPagoConfig?.clientId || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,clientId:e.target.value}))} placeholder="ID de aplicación Mercado Pago" />
+                </FG>
+                <FG label="Client Secret">
+                  <FI type="password" value={tenantMercadoPagoConfig?.clientSecret || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,clientSecret:e.target.value,clientSecretConfigured:Boolean(e.target.value || p.clientSecretConfigured)}))} placeholder={tenantMercadoPagoConfig?.clientSecretConfigured ? "Secret guardado · escribe uno nuevo para reemplazarlo" : "Client secret"} />
                 </FG>
               </R2>
               <R2>
                 <FG label="Webhook secret">
                   <FI type="password" value={tenantMercadoPagoConfig?.webhookSecret || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,webhookSecret:e.target.value}))} placeholder="Secret de validación webhook" />
                 </FG>
-                <FG label="Expiración por defecto (días)">
-                  <FI value={tenantMercadoPagoConfig?.defaultExpirationDays || "7"} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,defaultExpirationDays:e.target.value}))} placeholder="7" />
+                <FG label="Estado de credenciales">
+                  <FI value={mercadoPagoHasAccessToken ? "Credenciales guardadas" : "Pendiente de access token"} readOnly />
                 </FG>
               </R2>
+              <R3>
+                <FG label="URL pago aprobado">
+                  <FI value={tenantMercadoPagoConfig?.successUrl || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,successUrl:e.target.value}))} placeholder="https://app.produ.cl/#/pago/aprobado" />
+                </FG>
+                <FG label="URL pago rechazado">
+                  <FI value={tenantMercadoPagoConfig?.failureUrl || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,failureUrl:e.target.value}))} placeholder="https://app.produ.cl/#/pago/rechazado" />
+                </FG>
+                <FG label="URL pago pendiente">
+                  <FI value={tenantMercadoPagoConfig?.pendingUrl || ""} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,pendingUrl:e.target.value}))} placeholder="https://app.produ.cl/#/pago/pendiente" />
+                </FG>
+              </R3>
               <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:4,marginBottom:12}}>
                 <input type="checkbox" checked={tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false} onChange={e=>setTenantMercadoPagoConfig?.(p=>({...p,enablePaymentLinksInCollection:e.target.checked}))}/>
                 Permitir links de pago directos dentro de Cobranza
@@ -461,13 +501,13 @@ export function EmpresaEditSection({
                 </div>
               </div>
               <div style={{fontSize:11,color:"var(--gr2)",marginBottom:12}}>
-                En una fase real, aquí podemos reemplazar el ingreso manual por `Conectar Mercado Pago` vía OAuth. Por ahora el tenant queda operativo cuando tiene cuenta seller, access token y links habilitados en Cobranza.
+                La empresa queda operativa cuando guardas un access token válido y mantienes habilitados los links de pago en Cobranza. El seller y la public key ayudan a identificar la cuenta, pero el cobro se ejecuta con el access token.
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Btn onClick={saveTenantMercadoPagoConfig} disabled={!canManageAdmin || !tenantCanEditMercadoPagoConfig || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
+                <Btn onClick={saveTenantMercadoPagoConfig} disabled={!canManageAdmin || tenantMercadoPagoSaving}>{tenantMercadoPagoSaving ? "Guardando..." : "Guardar Mercado Pago"}</Btn>
                 <GBtn disabled>OAuth próximamente</GBtn>
               </div>
-            </>}
+            </>
       </div>
       <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
         <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>

@@ -161,7 +161,11 @@ const TENANT_INTEGRATION_BINDINGS = [
     tenantKey: "mercadoPago",
     registryId: "mercadopago_payments",
     isEnabled(empresa = {}) {
-      return String(empresa?.integrationConfigs?.mercadoPago?.governance?.mode || "disabled") !== "disabled";
+      const config = empresa?.integrationConfigs?.mercadoPago || {};
+      return String(config?.governance?.mode || "disabled") !== "disabled"
+        || config?.tenant?.accessTokenConfigured === true
+        || Boolean(String(config?.tenant?.accessToken || "").trim())
+        || config?.tenant?.mode === "api";
     },
   },
   {

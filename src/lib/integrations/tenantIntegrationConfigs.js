@@ -36,31 +36,45 @@ export function buildTenantMercadoPagoConfigState(current = {}, {
   tenantCanEdit = false,
   envConfig = {},
 } = {}) {
-  const hasTenantCredentials = Boolean(current?.publicKey || current?.accessToken);
+  const hasTenantCredentials = Boolean(current?.publicKey || current?.accessToken || current?.accessTokenConfigured);
+  const effectiveGovernanceMode = governanceMode !== "disabled" || hasTenantCredentials
+    ? (governanceMode === "disabled" ? "api" : governanceMode)
+    : "disabled";
   return {
-    mode: governanceMode,
+    mode: effectiveGovernanceMode,
     status: current?.status || "disconnected",
+    credentialEnvironment: current?.credentialEnvironment || "production",
+    marketplace: current?.marketplace || envConfig?.marketplace || "MLC",
     sellerAccountLabel: current?.sellerAccountLabel || "",
+    successUrl: current?.successUrl || "",
+    failureUrl: current?.failureUrl || "",
+    pendingUrl: current?.pendingUrl || "",
+    notificationUrl: current?.notificationUrl || "",
+    clientId: current?.clientId || "",
+    clientSecret: "",
+    clientSecretConfigured: current?.clientSecretConfigured === true || Boolean(current?.clientSecret),
     publicKey: current?.publicKey || "",
-    accessToken: current?.accessToken || "",
+    accessToken: "",
+    accessTokenConfigured: current?.accessTokenConfigured === true || Boolean(current?.accessToken),
     webhookSecret: current?.webhookSecret || "",
     defaultExpirationDays: current?.defaultExpirationDays || "7",
     enablePaymentLinksInCollection: current?.enablePaymentLinksInCollection !== false,
     source: resolveTenantIntegrationSource({
       hasTenantCredentials,
       hasEnvironmentCredentials: Boolean(envConfig?.appId || envConfig?.publicKey),
-      tenantCanEdit,
+      tenantCanEdit: tenantCanEdit || hasTenantCredentials,
     }),
-    governed: governanceMode !== "disabled",
-    tenantCanEdit,
+    governed: effectiveGovernanceMode !== "disabled",
+    tenantCanEdit: tenantCanEdit || hasTenantCredentials,
   };
 }
 
-export function mergeTenantIntegrationConfig(empresa = {}, provider = "", environment = "tenant", nextConfig = {}) {
+export function mergeTenantIntegrationConfig(empresa = {}, provider = "", environment = "tenant", nextConfig = {}, providerPatch = {}) {
   return {
     ...(empresa?.integrationConfigs || {}),
     [provider]: {
       ...((empresa?.integrationConfigs || {})[provider] || {}),
+      ...(providerPatch && typeof providerPatch === "object" ? providerPatch : {}),
       [environment]: nextConfig,
     },
   };
@@ -74,6 +88,7 @@ export async function persistTenantIntegrationConfig({
   provider = "",
   environment = "tenant",
   nextConfig = {},
+  providerPatch = {},
   credentialSnapshot = null,
   auditAction = "",
   auditPayload = {},
@@ -81,12 +96,12 @@ export async function persistTenantIntegrationConfig({
   if (!empresa?.id || typeof saveEmpresas !== "function" || !provider) {
     throw new Error("Faltan datos para persistir la integración del tenant.");
   }
-  const nextIntegrationConfigs = mergeTenantIntegrationConfig(empresa, provider, environment, nextConfig);
+  const nextIntegrationConfigs = mergeTenantIntegrationConfig(empresa, provider, environment, nextConfig, providerPatch);
   await saveEmpresas((Array.isArray(empresas) ? empresas : []).map(em => (
     em.id === empresa.id ? { ...em, integrationConfigs: nextIntegrationConfigs } : em
   )));
   if (platformServices?.upsertIntegrationCredentialSnapshot && credentialSnapshot) {
-    await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, credentialSnapshot);
+    await platformServices.upsertIntegrationCredentialSnapshot(empresa.id, credentialSnapshot).catch(() => null);
   }
   if (platformServices?.appendSyncAuditLog && auditAction) {
     await platformServices.appendSyncAuditLog(
@@ -95,7 +110,7 @@ export async function persistTenantIntegrationConfig({
       "integration_config",
       `${provider}:${environment}`,
       auditPayload && typeof auditPayload === "object" ? auditPayload : {},
-    );
+    ).catch(() => null);
   }
   return nextIntegrationConfigs;
 }

@@ -271,7 +271,7 @@ export function useLabAdminPanelModule({
   const tenantCanEditBsaleConfig = bsaleGovernance.allowTenantConfig === true;
   const mercadoPagoGovernance = empresa?.integrationConfigs?.mercadoPago?.governance || {};
   const mercadoPagoGovernanceMode = mercadoPagoGovernance.mode || "disabled";
-  const tenantCanEditMercadoPagoConfig = mercadoPagoGovernanceMode !== "disabled";
+  const tenantCanEditMercadoPagoConfig = true;
   const diioGovernance = empresa?.integrationConfigs?.diio?.governance || {};
   const diioGovernanceMode = diioGovernance.mode || "disabled";
   const tenantDiioEnabled = diioGovernance.enabled === true || diioGovernance.mode === "manual" || diioGovernance.mode === "webhook";
@@ -849,26 +849,109 @@ export function useLabAdminPanelModule({
   const saveTenantMercadoPagoConfig = async () => {
     if (!empresa?.id) return unauthorizedResult();
     if (!enforceAdminSection("Empresa", "No tienes permisos para modificar Mercado Pago.")) return unauthorizedResult();
-    if (!tenantCanEditMercadoPagoConfig) {
-      ntf("Mercado Pago debe habilitarse primero desde Torre de Control.", "warn");
-      return unauthorizedResult();
-    }
     setTenantMercadoPagoSaving(true);
     try {
       const hasSeller = String(tenantMercadoPagoConfig.sellerAccountLabel || "").trim();
       const hasPublicKey = String(tenantMercadoPagoConfig.publicKey || "").trim();
-      const hasAccessToken = String(tenantMercadoPagoConfig.accessToken || "").trim();
-      const inferredStatus = hasAccessToken && (hasSeller || hasPublicKey)
-        ? "connected"
-        : (hasSeller || hasPublicKey || hasAccessToken ? "draft" : "disconnected");
+      const clientId = String(tenantMercadoPagoConfig.clientId || "").trim();
+      const clientSecretInput = String(tenantMercadoPagoConfig.clientSecret || "").trim();
+      const legacyStoredClientSecret = String(empresa?.integrationConfigs?.mercadoPago?.tenant?.clientSecret || "").trim();
+      const tokenInput = String(tenantMercadoPagoConfig.accessToken || "").trim();
+      const legacyStoredToken = String(empresa?.integrationConfigs?.mercadoPago?.tenant?.accessToken || "").trim();
+      const previousTokenConfigured = tenantMercadoPagoConfig.accessTokenConfigured === true
+        || Boolean(empresa?.integrationConfigs?.mercadoPago?.tenant?.accessTokenConfigured)
+        || Boolean(legacyStoredToken);
+      const previousClientSecretConfigured = tenantMercadoPagoConfig.clientSecretConfigured === true
+        || Boolean(empresa?.integrationConfigs?.mercadoPago?.tenant?.clientSecretConfigured)
+        || Boolean(legacyStoredClientSecret);
+      const mercadoPagoEnvConfig = getMercadoPagoPaymentsConfig();
+      const credentialEnvironment = String(tenantMercadoPagoConfig.credentialEnvironment || "production").trim() || "production";
+      const marketplace = String(tenantMercadoPagoConfig.marketplace || mercadoPagoEnvConfig.marketplace || "MLC").trim() || "MLC";
+      const successUrl = String(tenantMercadoPagoConfig.successUrl || "").trim();
+      const failureUrl = String(tenantMercadoPagoConfig.failureUrl || "").trim();
+      const pendingUrl = String(tenantMercadoPagoConfig.pendingUrl || "").trim();
+      const notificationUrl = String(tenantMercadoPagoConfig.notificationUrl || "").trim();
+      const requestedStatus = String(tenantMercadoPagoConfig.status || "").trim();
+      const clearSecret = requestedStatus === "disconnected" && !tokenInput;
+      const accessTokenConfigured = clearSecret ? false : Boolean(tokenInput || previousTokenConfigured);
+      const clientSecretConfigured = clearSecret ? false : Boolean(clientSecretInput || previousClientSecretConfigured);
+      const inferredStatus = clearSecret
+        ? "disconnected"
+        : accessTokenConfigured
+          ? (["paused", "invalid_credentials"].includes(requestedStatus) ? requestedStatus : "connected")
+          : (hasSeller || hasPublicKey ? "draft" : "disconnected");
+      const now = new Date().toISOString();
       const nextTenantConfig = {
         status: inferredStatus,
+        mode: inferredStatus === "disconnected" ? "disabled" : "api",
+        credentialEnvironment,
+        marketplace,
         sellerAccountLabel: hasSeller,
+        successUrl,
+        failureUrl,
+        pendingUrl,
+        notificationUrl,
+        clientId,
+        clientSecretConfigured,
         publicKey: hasPublicKey,
-        accessToken: hasAccessToken,
+        accessTokenConfigured,
         webhookSecret: String(tenantMercadoPagoConfig.webhookSecret || "").trim(),
         defaultExpirationDays: String(tenantMercadoPagoConfig.defaultExpirationDays || "7").trim(),
         enablePaymentLinksInCollection: tenantMercadoPagoConfig.enablePaymentLinksInCollection !== false,
+        enabledAt: inferredStatus === "disconnected" ? "" : (tenantMercadoPagoConfig.enabledAt || now),
+        updatedAt: now,
+      };
+      let secureCredentialStored = false;
+      if (platformServices?.upsertIntegrationCredentialSecret) {
+        try {
+          await platformServices.upsertIntegrationCredentialSecret(empresa.id, {
+            provider: "mercadopago",
+            environment: "tenant",
+            status: inferredStatus,
+            secretValue: tokenInput || legacyStoredToken,
+            clearSecret,
+            config: {
+              sellerAccountLabel: hasSeller,
+              clientId,
+              credentialEnvironment,
+              marketplace,
+              successUrlConfigured: Boolean(successUrl),
+              failureUrlConfigured: Boolean(failureUrl),
+              pendingUrlConfigured: Boolean(pendingUrl),
+              notificationUrlConfigured: Boolean(notificationUrl),
+              publicKeyConfigured: Boolean(hasPublicKey),
+              clientSecretConfigured,
+              webhookSecretConfigured: Boolean(nextTenantConfig.webhookSecret),
+              defaultExpirationDays: nextTenantConfig.defaultExpirationDays,
+              enablePaymentLinksInCollection: nextTenantConfig.enablePaymentLinksInCollection,
+            },
+            metadata: {
+              source: "tenant_admin",
+              managedFrom: "panel_admin",
+              clientSecret: clientSecretInput || legacyStoredClientSecret,
+              clientSecretConfigured,
+            },
+          });
+          secureCredentialStored = true;
+        } catch (err) {
+          console.warn("Mercado Pago secure credential storage unavailable; using tenant config fallback.", err);
+        }
+      }
+      if (!secureCredentialStored && !clearSecret) {
+        nextTenantConfig.secretStorage = "tenant_config_fallback";
+        if (tokenInput || legacyStoredToken) nextTenantConfig.accessToken = tokenInput || legacyStoredToken;
+        if (clientSecretInput || legacyStoredClientSecret) nextTenantConfig.clientSecret = clientSecretInput || legacyStoredClientSecret;
+      } else {
+        nextTenantConfig.secretStorage = secureCredentialStored ? "server_side" : "";
+      }
+      const nextGovernance = {
+        ...(empresa?.integrationConfigs?.mercadoPago?.governance || {}),
+        mode: inferredStatus === "disconnected" ? "disabled" : "api",
+        status: inferredStatus,
+        enabled: inferredStatus !== "disconnected",
+        allowTenantConfig: true,
+        managedFrom: "tenant_admin",
+        updatedAt: now,
       };
       await persistTenantIntegrationConfig({
         empresa,
@@ -878,14 +961,25 @@ export function useLabAdminPanelModule({
         provider: "mercadoPago",
         environment: "tenant",
         nextConfig: nextTenantConfig,
+        providerPatch: {
+          governance: nextGovernance,
+        },
         credentialSnapshot: {
           provider: "mercadopago",
           environment: "tenant",
           status: inferredStatus,
-          secretConfigured: Boolean(hasAccessToken || nextTenantConfig.webhookSecret),
+          secretConfigured: Boolean(accessTokenConfigured || nextTenantConfig.webhookSecret),
           config: {
             sellerAccountLabel: hasSeller,
+            clientId,
+            credentialEnvironment,
+            marketplace,
+            successUrlConfigured: Boolean(successUrl),
+            failureUrlConfigured: Boolean(failureUrl),
+            pendingUrlConfigured: Boolean(pendingUrl),
+            notificationUrlConfigured: Boolean(notificationUrl),
             publicKeyConfigured: Boolean(hasPublicKey),
+            clientSecretConfigured,
             webhookSecretConfigured: Boolean(nextTenantConfig.webhookSecret),
             defaultExpirationDays: nextTenantConfig.defaultExpirationDays,
             enablePaymentLinksInCollection: nextTenantConfig.enablePaymentLinksInCollection,
@@ -898,9 +992,13 @@ export function useLabAdminPanelModule({
         auditAction: "tenant_mercadopago_config_saved",
         auditPayload: {
           status: inferredStatus,
+          credentialEnvironment,
+          marketplace,
           sellerConfigured: Boolean(hasSeller),
+          clientIdConfigured: Boolean(clientId),
           publicKeyConfigured: Boolean(hasPublicKey),
-          accessTokenConfigured: Boolean(hasAccessToken),
+          accessTokenConfigured: Boolean(accessTokenConfigured),
+          clientSecretConfigured,
           webhookSecretConfigured: Boolean(nextTenantConfig.webhookSecret),
           defaultExpirationDays: nextTenantConfig.defaultExpirationDays,
           paymentLinksEnabled: nextTenantConfig.enablePaymentLinksInCollection,
@@ -908,8 +1006,12 @@ export function useLabAdminPanelModule({
       });
       setTenantMercadoPagoConfig(prev => ({
         ...prev,
+        ...nextTenantConfig,
         status: inferredStatus,
-        source: prev.publicKey || prev.accessToken ? "tenant" : "unset",
+        mode: nextTenantConfig.mode,
+        accessToken: "",
+        source: hasPublicKey || accessTokenConfigured ? "tenant" : "unset",
+        governed: inferredStatus !== "disconnected",
         tenantCanEdit: true,
       }));
       if (platformServices?.getTenantPlatformSnapshot) {

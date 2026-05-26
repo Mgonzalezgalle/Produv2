@@ -538,6 +538,20 @@ export function createSupabasePlatformServices({ fallbackServices = null } = {})
       return payload || null;
     },
 
+    async upsertIntegrationCredentialSecret(tenantId, draft = {}) {
+      const payload = await callSingleRpc("upsert_legacy_integration_credential_secret", {
+        legacy_emp_id: tenantId,
+        provider_name: draft.provider || "",
+        environment_name: draft.environment || "tenant",
+        status_name: draft.status || "draft",
+        secret_value: draft.secretValue || "",
+        clear_secret: draft.clearSecret === true,
+        config_data: draft.config || {},
+        metadata_data: draft.metadata || {},
+      });
+      return payload || null;
+    },
+
     async listTenantRoles(tenantId) {
       return callRoleRpc("get_legacy_tenant_custom_roles", {
         legacy_emp_id: tenantId,

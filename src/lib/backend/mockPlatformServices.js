@@ -476,6 +476,20 @@ export function createMockPlatformServices({ dbGet, dbSet, sha256Hex }) {
       return (Array.isArray(logs) ? logs : []).filter(item => !tenantId || item.tenantId === tenantId);
     },
 
+    async upsertIntegrationCredentialSecret(tenantId = "", draft = {}) {
+      return {
+        ok: true,
+        source: "mock",
+        tenantId: String(tenantId || "").trim(),
+        provider: String(draft?.provider || "").trim(),
+        environment: String(draft?.environment || "tenant").trim(),
+        status: String(draft?.status || "draft").trim(),
+        secretConfigured: draft?.clearSecret === true ? false : Boolean(draft?.secretValue || draft?.secretConfigured),
+        configKeys: Object.keys(draft?.config || {}),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+
     async createMercadoPagoPaymentLink(payload = {}) {
       const request = buildMercadoPagoPreferenceRequest(payload);
       if (!request?.ok) {

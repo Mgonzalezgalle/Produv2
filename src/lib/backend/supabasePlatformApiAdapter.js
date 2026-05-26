@@ -188,7 +188,39 @@ export function createSupabasePlatformApiAdapter({
         if (!fn.ok) {
           return buildUnavailable(fn.error || "No pudimos crear el link de pago en Mercado Pago.");
         }
-        return fn.data || { ok: false, source: "degraded", message: "La función de Mercado Pago no devolvió respuesta." };
+        const data = fn.data || null;
+        if (!data) {
+          return { ok: false, source: "degraded", message: "La función de Mercado Pago no devolvió respuesta." };
+        }
+        if (data?.paymentLink) return data;
+        const preference = data?.preference && typeof data.preference === "object" ? data.preference : data;
+        const initPoint = String(preference?.init_point || preference?.initPoint || preference?.sandbox_init_point || preference?.sandboxInitPoint || "").trim();
+        const sandboxInitPoint = String(preference?.sandbox_init_point || preference?.sandboxInitPoint || "").trim();
+        const preferenceId = String(preference?.id || preference?.preferenceId || "").trim();
+        if ((initPoint || sandboxInitPoint) && preferenceId) {
+          return {
+            ...data,
+            ok: true,
+            source: data?.source || "remote",
+            provider: "mercadopago",
+            paymentLink: {
+              provider: "mercadopago",
+              mode: "api",
+              status: "active",
+              preferenceId,
+              externalReference: String(preference?.external_reference || payload?.externalReference || "").trim(),
+              initPoint,
+              sandboxInitPoint,
+              createdAt: new Date().toISOString(),
+              expiresAt: String(payload?.payload?.expiration_date_to || "").trim(),
+              amount: Number(payload?.amount || 0),
+              currency: String(payload?.currency || "CLP").trim(),
+              customerName: String(payload?.customer?.name || "").trim(),
+              sellerAccountLabel: String(payload?.tenantConfig?.sellerAccountLabel || "").trim(),
+            },
+          };
+        }
+        return data;
       },
 
       async handleMercadoPagoPayment(payload = {}) {

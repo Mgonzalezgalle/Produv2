@@ -14,8 +14,14 @@ type PaymentLinkPayload = {
   payload?: Record<string, unknown>;
   tenantConfig?: {
     accessToken?: string;
+    accessTokenConfigured?: boolean;
     sellerAccountLabel?: string;
     marketplace?: string;
+    credentialEnvironment?: string;
+    successUrl?: string;
+    failureUrl?: string;
+    pendingUrl?: string;
+    notificationUrl?: string;
   };
 };
 
@@ -32,6 +38,74 @@ function json(body: unknown, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+async function resolveTenantCredential(legacyEmpId = "") {
+  const supabaseUrl = String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  const serviceRoleKey = String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+  const safeLegacyEmpId = String(legacyEmpId || "").trim();
+  if (!supabaseUrl || !serviceRoleKey || !safeLegacyEmpId) return {};
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_legacy_integration_credential_secret`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        legacy_emp_id: safeLegacyEmpId,
+        provider_name: "mercadopago",
+        environment_name: "tenant",
+      }),
+    });
+    if (!response.ok) return await resolveLegacyTenantCredential(supabaseUrl, serviceRoleKey, safeLegacyEmpId);
+    const data = await response.json();
+    if (data && typeof data === "object" && String((data as Record<string, unknown>)?.secretValue || "").trim()) {
+      return data as Record<string, unknown>;
+    }
+    return await resolveLegacyTenantCredential(supabaseUrl, serviceRoleKey, safeLegacyEmpId);
+  } catch {
+    return await resolveLegacyTenantCredential(supabaseUrl, serviceRoleKey, safeLegacyEmpId);
+  }
+}
+
+async function resolveLegacyTenantCredential(supabaseUrl: string, serviceRoleKey: string, legacyEmpId: string) {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_legacy_storage_item`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ p_key: "produ:empresas" }),
+    });
+    if (!response.ok) return {};
+    const rawValue = await response.json();
+    const storedValue = rawValue && typeof rawValue === "object" && "value" in rawValue
+      ? (rawValue as Record<string, unknown>).value
+      : rawValue;
+    const companies = Array.isArray(storedValue) ? storedValue : JSON.parse(String(storedValue || "[]"));
+    const tenant = Array.isArray(companies) ? companies.find((company) => String(company?.id || "") === legacyEmpId) : null;
+    const config = tenant?.integrationConfigs?.mercadoPago?.tenant || {};
+    const secretValue = String(config?.accessToken || "").trim();
+    return {
+      secretValue,
+      config: {
+        accessTokenConfigured: config?.accessTokenConfigured === true || Boolean(secretValue),
+        credentialEnvironment: config?.credentialEnvironment,
+        marketplace: config?.marketplace,
+        sellerAccountLabel: config?.sellerAccountLabel,
+        successUrl: config?.successUrl,
+        failureUrl: config?.failureUrl,
+        pendingUrl: config?.pendingUrl,
+        notificationUrl: config?.notificationUrl,
+      },
+    };
+  } catch {
+    return {};
+  }
 }
 
 function normalizeAmount(value: unknown) {
@@ -60,6 +134,22 @@ function resolveCurrency(value: unknown, marketplace: unknown) {
   return siteCurrency;
 }
 
+function safeUrl(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function credentialLooksLikeProduction(accessToken: string, credentialEnvironment = "production") {
+  if (String(credentialEnvironment || "production").trim() === "test") return true;
+  return accessToken.startsWith("APP_USR-");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -70,12 +160,19 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json() as PaymentLinkPayload;
+  const credential = await resolveTenantCredential(body?.tenantId || "");
+  const credentialConfig = credential?.config && typeof credential.config === "object"
+    ? credential.config as Record<string, unknown>
+    : {};
   const amount = normalizeAmount(body?.amount);
-  const currency = resolveCurrency(body?.currency, body?.tenantConfig?.marketplace);
+  const marketplace = body?.tenantConfig?.marketplace || credentialConfig?.marketplace;
+  const currency = resolveCurrency(body?.currency, marketplace);
+  const credentialEnvironment = String(body?.tenantConfig?.credentialEnvironment || credentialConfig?.credentialEnvironment || "production").trim() || "production";
   const externalReference = String(body?.externalReference || "").trim();
   const description = String(body?.description || "").trim() || "Pago de factura";
   const accessToken =
     String(body?.tenantConfig?.accessToken || "").trim() ||
+    String(credential?.secretValue || "").trim() ||
     String(Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "").trim();
 
   if (!accessToken) {
@@ -86,6 +183,16 @@ Deno.serve(async (req) => {
       error: "missing_mercadopago_access_token",
       message: "Falta el access token de Mercado Pago para este tenant.",
     }, 503);
+  }
+
+  if (!credentialLooksLikeProduction(accessToken, credentialEnvironment)) {
+    return json({
+      ok: false,
+      source: "degraded",
+      provider: "mercadopago",
+      error: "invalid_mercadopago_credential_environment",
+      message: "Las credenciales configuradas no parecen ser productivas. Para producción Mercado Pago debe usar credenciales APP_USR.",
+    }, 400);
   }
 
   if (!externalReference) {
@@ -108,6 +215,16 @@ Deno.serve(async (req) => {
     }, 400);
   }
 
+  const successUrl = safeUrl(body?.tenantConfig?.successUrl || credentialConfig?.successUrl);
+  const failureUrl = safeUrl(body?.tenantConfig?.failureUrl || credentialConfig?.failureUrl);
+  const pendingUrl = safeUrl(body?.tenantConfig?.pendingUrl || credentialConfig?.pendingUrl);
+  const notificationUrl = safeUrl(body?.tenantConfig?.notificationUrl || credentialConfig?.notificationUrl);
+  const backUrls = {
+    ...(successUrl ? { success: successUrl } : {}),
+    ...(failureUrl ? { failure: failureUrl } : {}),
+    ...(pendingUrl ? { pending: pendingUrl } : {}),
+  };
+
   const preferencePayload = {
     items: [
       {
@@ -129,6 +246,8 @@ Deno.serve(async (req) => {
       invoiceId: String(body?.invoiceId || "").trim(),
       ...(body?.metadata || {}),
     },
+    ...(Object.keys(backUrls).length ? { back_urls: backUrls, auto_return: successUrl ? "approved" : undefined } : {}),
+    ...(notificationUrl ? { notification_url: notificationUrl } : {}),
     ...(body?.payload || {}),
   };
 
@@ -160,20 +279,22 @@ Deno.serve(async (req) => {
     }, 502);
   }
 
+  const initPoint = String(data?.init_point || data?.sandbox_init_point || "").trim();
+  const sandboxInitPoint = String(data?.sandbox_init_point || "").trim();
   const paymentLink = {
     provider: "mercadopago",
     mode: "api",
     status: "active",
     preferenceId: String(data?.id || "").trim(),
     externalReference,
-    initPoint: String(data?.init_point || "").trim(),
-    sandboxInitPoint: String(data?.sandbox_init_point || "").trim(),
+    initPoint,
+    sandboxInitPoint,
     createdAt: new Date().toISOString(),
     expiresAt: String((body?.payload || {})?.expiration_date_to || "").trim(),
     amount,
     currency,
     customerName: String(body?.customer?.name || "").trim(),
-    sellerAccountLabel: String(body?.tenantConfig?.sellerAccountLabel || "").trim(),
+    sellerAccountLabel: String(body?.tenantConfig?.sellerAccountLabel || credentialConfig?.sellerAccountLabel || "").trim(),
   };
 
   return json({

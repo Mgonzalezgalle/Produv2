@@ -59,11 +59,22 @@ export function useLabBillingTools({
   const mercadoPagoConfig = getMercadoPagoPaymentsConfig();
   const mercadoPagoGovernance = empresa?.integrationConfigs?.mercadoPago?.governance || {};
   const mercadoPagoTenant = empresa?.integrationConfigs?.mercadoPago?.tenant || {};
-  const mercadoPagoEnabled = mercadoPagoGovernance.mode && mercadoPagoGovernance.mode !== "disabled";
-  const mercadoPagoConnected = mercadoPagoTenant.status === "connected" || mercadoPagoTenant.status === "draft";
+  const mercadoPagoAccessToken = String(mercadoPagoTenant?.accessToken || "").trim();
+  const mercadoPagoAccessTokenConfigured = mercadoPagoTenant?.accessTokenConfigured === true || Boolean(mercadoPagoAccessToken);
+  const mercadoPagoLinksEnabled = mercadoPagoTenant?.enablePaymentLinksInCollection !== false;
+  const mercadoPagoEnabled = (
+    (mercadoPagoGovernance.mode && mercadoPagoGovernance.mode !== "disabled")
+    || mercadoPagoAccessTokenConfigured
+    || mercadoPagoTenant?.mode === "api"
+  );
+  const mercadoPagoConnected = (
+    (mercadoPagoTenant.status === "connected" || mercadoPagoTenant.status === "draft")
+    && mercadoPagoAccessTokenConfigured
+    && mercadoPagoLinksEnabled
+  );
   const mercadoPagoDefaultExpirationDays = Math.max(1, Number(mercadoPagoTenant?.defaultExpirationDays || 7));
   const mercadoPagoMarketplace = String(mercadoPagoTenant?.marketplace || mercadoPagoConfig.marketplace || "MLC").trim();
-  const mercadoPagoAccessToken = String(mercadoPagoTenant?.accessToken || "").trim();
+  const mercadoPagoCredentialEnvironment = String(mercadoPagoTenant?.credentialEnvironment || "production").trim() || "production";
   const mercadoPagoWebhookSecret = String(mercadoPagoTenant?.webhookSecret || "").trim();
   const mercadoPagoSellerAccountLabel = String(mercadoPagoTenant?.sellerAccountLabel || "").trim();
   const mercadoPagoPaymentsApi = platformApi?.payments;
@@ -293,10 +304,10 @@ export function useLabBillingTools({
 
   const createMercadoPagoPaymentLinkDraft = useCallback((doc, entity) => {
     if (!mercadoPagoEnabled) {
-      return { ok: false, message: "Mercado Pago no está habilitado para este tenant desde Torre de Control." };
+      return { ok: false, message: "Mercado Pago todavía no está configurado para esta empresa." };
     }
     if (!mercadoPagoConnected) {
-      return { ok: false, message: "El tenant todavía no tiene configurada su cuenta de Mercado Pago en Panel Administrador." };
+      return { ok: false, message: "Falta guardar el access token de Mercado Pago o habilitar los links de pago en Panel Administrador." };
     }
     const providerDraft = buildMercadoPagoInvoicePaymentDraft({
       invoice: {
@@ -336,13 +347,29 @@ export function useLabBillingTools({
       };
     }
     const expiresAt = new Date(Date.now() + mercadoPagoDefaultExpirationDays * 24 * 60 * 60 * 1000).toISOString();
+    if (!mercadoPagoPaymentsApi?.createMercadoPagoPaymentLink) {
+      const message = "La conexión técnica de Mercado Pago no está disponible en esta sesión.";
+      ntf?.(message, "warn");
+      return {
+        ok: false,
+        message,
+        error: "mercadopago_api_unavailable",
+        source: "local",
+      };
+    }
     const remoteResult = await mercadoPagoPaymentsApi?.createMercadoPagoPaymentLink?.({
       ...built.request,
       ...built.draft,
       tenantConfig: {
         accessToken: mercadoPagoAccessToken,
+        accessTokenConfigured: mercadoPagoAccessTokenConfigured,
         sellerAccountLabel: mercadoPagoSellerAccountLabel,
         marketplace: mercadoPagoMarketplace,
+        credentialEnvironment: mercadoPagoCredentialEnvironment,
+        successUrl: mercadoPagoTenant?.successUrl || "",
+        failureUrl: mercadoPagoTenant?.failureUrl || "",
+        pendingUrl: mercadoPagoTenant?.pendingUrl || "",
+        notificationUrl: mercadoPagoTenant?.notificationUrl || "",
       },
       payload: {
         ...(built.request.payload || {}),
@@ -350,13 +377,40 @@ export function useLabBillingTools({
         expiration_date_to: expiresAt,
       },
     });
-    if (remoteResult?.ok && remoteResult?.paymentLink) {
-      const nextMercadoPago = appendMercadoPagoHistory(remoteResult.paymentLink, {
+    const remotePreference = remoteResult?.preference && typeof remoteResult.preference === "object"
+      ? remoteResult.preference
+      : null;
+    const normalizedPaymentLink = remoteResult?.paymentLink || (
+      remoteResult?.ok && remotePreference && (remotePreference.init_point || remotePreference.sandbox_init_point || remotePreference.id)
+        ? {
+            provider: "mercadopago",
+            mode: "api",
+            status: "active",
+            preferenceId: String(remotePreference.id || "").trim(),
+            externalReference: String(remotePreference.external_reference || built.request.externalReference || built.draft.externalReference || "").trim(),
+            initPoint: String(remotePreference.init_point || remotePreference.sandbox_init_point || "").trim(),
+            sandboxInitPoint: String(remotePreference.sandbox_init_point || "").trim(),
+            createdAt: new Date().toISOString(),
+            expiresAt,
+            amount: Number(built.draft.amount || 0),
+            currency: built.draft.currency || "CLP",
+            customerName: String(built.draft.customer?.name || "").trim(),
+            sellerAccountLabel: mercadoPagoSellerAccountLabel,
+          }
+        : null
+    );
+    const normalizedInitPoint = String(normalizedPaymentLink?.initPoint || normalizedPaymentLink?.sandboxInitPoint || "").trim();
+    if (remoteResult?.ok && normalizedInitPoint) {
+      const readyPaymentLink = {
+        ...normalizedPaymentLink,
+        initPoint: normalizedInitPoint,
+      };
+      const nextMercadoPago = appendMercadoPagoHistory(readyPaymentLink, {
         kind: "payment_link_created",
         label: "Link generado",
-        status: remoteResult.paymentLink?.status || "active",
-        amount: Number(remoteResult.paymentLink?.amount || built.draft.amount || 0),
-        reference: remoteResult.paymentLink?.preferenceId || built.request.preferenceKey || "",
+        status: readyPaymentLink?.status || "active",
+        amount: Number(readyPaymentLink?.amount || built.draft.amount || 0),
+        reference: readyPaymentLink?.preferenceId || built.request.preferenceKey || "",
       });
       const nextDoc = { ...doc, mercadoPago: nextMercadoPago };
       await persistFacturaUpdate(nextDoc);
@@ -364,7 +418,7 @@ export function useLabBillingTools({
       return {
         ok: true,
         message: "Link Mercado Pago generado.",
-        paymentLink: remoteResult.paymentLink,
+        paymentLink: readyPaymentLink,
         doc: nextDoc,
       };
     }
@@ -377,7 +431,12 @@ export function useLabBillingTools({
         source: remoteResult.source || "remote",
       };
     }
-    const failureMessage = remoteResult?.message || "Mercado Pago no respondió con un link válido.";
+    const providerDetail = remoteResult?.details?.message
+      || remoteResult?.preference?.message
+      || remoteResult?.error
+      || "";
+    const failureMessage = remoteResult?.message
+      || (providerDetail ? `Mercado Pago respondió sin link válido: ${providerDetail}` : "Mercado Pago no respondió con un link válido.");
     ntf?.(failureMessage, "warn");
     return {
       ok: false,
@@ -389,7 +448,9 @@ export function useLabBillingTools({
     appendMercadoPagoHistory,
     createMercadoPagoPaymentLinkDraft,
     mercadoPagoAccessToken,
+    mercadoPagoAccessTokenConfigured,
     mercadoPagoDefaultExpirationDays,
+    mercadoPagoCredentialEnvironment,
     mercadoPagoMarketplace,
     mercadoPagoPaymentsApi,
     mercadoPagoSellerAccountLabel,
@@ -486,6 +547,7 @@ export function useLabBillingTools({
       status,
       tenantConfig: {
         accessToken: mercadoPagoAccessToken,
+        accessTokenConfigured: mercadoPagoAccessTokenConfigured,
         webhookSecret: mercadoPagoWebhookSecret,
       },
       metadata: {
@@ -502,7 +564,7 @@ export function useLabBillingTools({
       paidAt: new Date().toISOString(),
     };
     return applyMercadoPagoPaymentResult(doc, paymentResult);
-  }, [applyMercadoPagoPaymentResult, empresa?.id, mercadoPagoAccessToken, mercadoPagoPaymentsApi, mercadoPagoWebhookSecret]);
+  }, [applyMercadoPagoPaymentResult, empresa?.id, mercadoPagoAccessToken, mercadoPagoAccessTokenConfigured, mercadoPagoPaymentsApi, mercadoPagoWebhookSecret]);
 
   const refreshMercadoPagoPaymentStatus = useCallback(async (doc) => {
     const hasPaymentReference = Boolean(
@@ -523,6 +585,7 @@ export function useLabBillingTools({
       currency: doc?.mercadoPago?.currency || doc?.moneda || "CLP",
       tenantConfig: {
         accessToken: mercadoPagoAccessToken,
+        accessTokenConfigured: mercadoPagoAccessTokenConfigured,
         webhookSecret: mercadoPagoWebhookSecret,
       },
       metadata: {
@@ -534,7 +597,7 @@ export function useLabBillingTools({
       return remoteResult || { ok: false, message: "No pudimos consultar el pago en Mercado Pago." };
     }
     return applyMercadoPagoPaymentResult(doc, remoteResult.paymentResult);
-  }, [applyMercadoPagoPaymentResult, empresa?.id, mercadoPagoAccessToken, mercadoPagoPaymentsApi, mercadoPagoWebhookSecret, ntf]);
+  }, [applyMercadoPagoPaymentResult, empresa?.id, mercadoPagoAccessToken, mercadoPagoAccessTokenConfigured, mercadoPagoPaymentsApi, mercadoPagoWebhookSecret, ntf]);
 
   const createStatementEmailDraft = useCallback((docs, entity, type) => {
     const contact = billingContact(entity, type);

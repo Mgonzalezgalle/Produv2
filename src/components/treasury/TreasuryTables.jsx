@@ -200,6 +200,13 @@ export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, on
 
                         {actionGroupByRow?.[row.id] === "payment" ? (
                           <div style={{ display: "grid", gap: 8, marginBottom: 14, justifyItems: "start" }}>
+                            {!hasMercadoPagoData(row) && onGeneratePaymentLink ? (
+                              <ContactActionButton
+                                tone="pay"
+                                label="Generar link de pago"
+                                onClick={() => onGeneratePaymentLink(row)}
+                              />
+                            ) : null}
                             {onPaymentLinkEmail ? <ContactActionButton tone="mail" label="Enviar link por correo" onClick={() => onPaymentLinkEmail(row)} /> : null}
                             {hasMercadoPagoData(row) && onCopyPaymentLink ? (
                               <ContactActionButton

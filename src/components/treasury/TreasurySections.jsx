@@ -170,10 +170,7 @@ export function TreasuryReceivablesSection({
             void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
               if (!result?.ok) {
                 notifyUserFacingError(props.ntf, result, "No pudimos generar el link de Mercado Pago.");
-                return;
               }
-              const emailDoc = result?.doc || doc;
-              if (sendBillingEmail) sendBillingEmail(emailDoc, entity);
             });
           }}
           onCopyPaymentLink={row => {

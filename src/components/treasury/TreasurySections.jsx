@@ -108,6 +108,8 @@ export function TreasuryReceivablesSection({
                 return;
               }
               sendPaymentLinkEmail?.(result?.doc || doc, entity);
+            }).catch(error => {
+              notifyUserFacingError(props.ntf, error, "No pudimos generar el link de pago.");
             });
           }}
           onBillingWhatsApp={row => {
@@ -137,6 +139,8 @@ export function TreasuryReceivablesSection({
                 return;
               }
               sendPaymentLinkWhatsApp?.(result?.doc || doc, entity);
+            }).catch(error => {
+              notifyUserFacingError(props.ntf, error, "No pudimos generar el link de pago.");
             });
           }}
           onStatementEmail={row => {
@@ -180,6 +184,8 @@ export function TreasuryReceivablesSection({
               if (!result?.ok) {
                 notifyUserFacingError(props.ntf, result, "No pudimos generar el link de Mercado Pago.");
               }
+            }).catch(error => {
+              notifyUserFacingError(props.ntf, error, "No pudimos generar el link de Mercado Pago.");
             });
           }}
           onCopyPaymentLink={row => {

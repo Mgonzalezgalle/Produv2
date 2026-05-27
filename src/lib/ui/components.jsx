@@ -319,7 +319,16 @@ export const MFoot = ({ onClose, onSave, label = "Guardar", disabled = false, se
 );
 
 export const Btn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: sm ? "7px 13px" : "10px 18px", borderRadius: 12, border: "none", background: "var(--cy)", color: "#ffffff", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 12px 24px rgba(26,26,46,.12)", ...s }}>{children}</button>;
-export const GBtn = ({ onClick, children, sm, s = {} }) => <button onClick={onClick} style={{ padding: sm ? "6px 12px" : "8px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", cursor: "pointer", fontSize: sm ? 11 : 12, fontWeight: 600, ...s }}>{children}</button>;
+export const GBtn = ({ onClick, children, sm, s = {}, type = "button", ...rest }) => (
+  <button
+    type={type}
+    onClick={onClick}
+    style={{ padding: sm ? "6px 12px" : "8px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "#ffffff", color: "var(--gr3)", cursor: rest.disabled ? "default" : "pointer", fontSize: sm ? 11 : 12, fontWeight: 600, opacity: rest.disabled ? 0.7 : 1, ...s }}
+    {...rest}
+  >
+    {children}
+  </button>
+);
 export const DBtn = ({ onClick, children, sm }) => <button onClick={onClick} style={{ padding: sm ? "4px 9px" : "7px 12px", borderRadius: 6, border: "1px solid #ff556625", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: sm ? 10 : 12, fontWeight: 600 }}>{children}</button>;
 export const XBtn = ({ onClick }) => <button onClick={onClick} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #ff556625", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 10, fontWeight: 600 }}>✕</button>;
 

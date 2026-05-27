@@ -93,7 +93,10 @@ export function TreasuryReceivablesSection({
             const entity = doc?.tipo === "auspiciador"
               ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
               : (props.clientes || []).find(item => item.id === doc?.entidadId);
-            if (!doc) return;
+            if (!doc) {
+              props.ntf?.("No encontramos el documento para generar el link de pago.", "warn");
+              return;
+            }
             const link = String(doc?.mercadoPago?.initPoint || "").trim();
             if (link) {
               sendPaymentLinkEmail?.(doc, entity);
@@ -119,7 +122,10 @@ export function TreasuryReceivablesSection({
             const entity = doc?.tipo === "auspiciador"
               ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
               : (props.clientes || []).find(item => item.id === doc?.entidadId);
-            if (!doc) return;
+            if (!doc) {
+              props.ntf?.("No encontramos el documento para generar el link de pago.", "warn");
+              return;
+            }
             const link = String(doc?.mercadoPago?.initPoint || "").trim();
             if (link) {
               sendPaymentLinkWhatsApp?.(doc, entity);
@@ -166,7 +172,10 @@ export function TreasuryReceivablesSection({
             const entity = doc?.tipo === "auspiciador"
               ? (props.auspiciadores || []).find(item => item.id === doc.entidadId)
               : (props.clientes || []).find(item => item.id === doc?.entidadId);
-            if (!doc) return;
+            if (!doc) {
+              props.ntf?.("No encontramos el documento para generar el link de Mercado Pago.", "warn");
+              return;
+            }
             void generateMercadoPagoPaymentLink(doc, entity).then((result) => {
               if (!result?.ok) {
                 notifyUserFacingError(props.ntf, result, "No pudimos generar el link de Mercado Pago.");

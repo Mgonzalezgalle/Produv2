@@ -92,10 +92,17 @@ function createDeferredSupabasePlatformApiAdapter({
       sendTransactionalEmail: callSection("notifications", "sendTransactionalEmail"),
       listTransactionalEmailLogs: callSection("notifications", "listTransactionalEmailLogs"),
     },
+    payments: {
+      createMercadoPagoPaymentLink: callSection("payments", "createMercadoPagoPaymentLink"),
+      handleMercadoPagoPayment: callSection("payments", "handleMercadoPagoPayment"),
+      listMercadoPagoLogs: callSection("payments", "listMercadoPagoLogs"),
+    },
     calendar: {
       startGoogleCalendarOAuth: callSection("calendar", "startGoogleCalendarOAuth"),
       completeGoogleCalendarOAuth: callSection("calendar", "completeGoogleCalendarOAuth"),
       createGoogleCalendarEvent: callSection("calendar", "createGoogleCalendarEvent"),
+      listGoogleCalendarEvents: callSection("calendar", "listGoogleCalendarEvents"),
+      deleteGoogleCalendarEvent: callSection("calendar", "deleteGoogleCalendarEvent"),
     },
     foundation: {
       status: callSection("foundation", "status"),

@@ -4,7 +4,7 @@ import {
   TREASURY_MODULE_LABEL,
   buildTreasurySidebarItem,
 } from "../utils/treasury";
-import { getTenantModuleLabel } from "../industry/tenantVocabulary";
+import { getTenantModuleIcon, getTenantModuleLabel } from "../industry/tenantVocabulary";
 
 export const ADDON_REGISTRY = {
   crm: { label: "CRM", icon: "🧲" },
@@ -46,6 +46,7 @@ export const ROLE_PERMISSION_GROUPS = [
 
 export function buildSidebarNavigation({ empresa, counts = {}, includeTreasury = true } = {}) {
   const labelFor = (moduleId, fallback) => getTenantModuleLabel(empresa, moduleId, fallback);
+  const iconFor = (moduleId, fallback) => getTenantModuleIcon(empresa, moduleId, fallback);
   return [
     {
       group: "General",
@@ -58,33 +59,33 @@ export function buildSidebarNavigation({ empresa, counts = {}, includeTreasury =
     {
       group: "Operación",
       items: [
-        { id: "clientes", icon: "👥", label: labelFor("clientes", "Clientes"), need: "clientes", cnt: counts.cli },
-        { id: "producciones", icon: "▶", label: labelFor("producciones", "Proyectos"), need: "producciones", cnt: counts.pro },
-        ...(empresa?.addons?.includes("television") ? [{ id: "programas", icon: "📺", label: labelFor("programas", "Producciones"), need: "programas", cnt: counts.pg }] : []),
-        ...(empresa?.addons?.includes("social") ? [{ id: "contenidos", icon: "📱", label: labelFor("contenidos", "Contenidos"), need: "contenidos", cnt: counts.pz }] : []),
+        { id: "clientes", icon: iconFor("clientes", "👥"), label: labelFor("clientes", "Clientes"), need: "clientes", cnt: counts.cli },
+        { id: "producciones", icon: iconFor("producciones", "▶"), label: labelFor("producciones", "Proyectos"), need: "producciones", cnt: counts.pro },
+        ...(empresa?.addons?.includes("television") ? [{ id: "programas", icon: iconFor("programas", "📺"), label: labelFor("programas", "Producciones"), need: "programas", cnt: counts.pg }] : []),
+        ...(empresa?.addons?.includes("social") ? [{ id: "contenidos", icon: iconFor("contenidos", "📱"), label: labelFor("contenidos", "Contenidos"), need: "contenidos", cnt: counts.pz }] : []),
       ],
     },
     {
       group: "Comercial",
       items: [
-        ...(empresa?.addons?.includes("crm") ? [{ id: "crm", icon: "🧲", label: labelFor("crm", "CRM"), need: "crm", cnt: counts.crm }] : []),
-        ...(empresa?.addons?.includes("television") ? [{ id: "auspiciadores", icon: "⭐", label: labelFor("auspiciadores", "Auspiciadores"), need: "auspiciadores", cnt: counts.aus }] : []),
-        ...(empresa?.addons?.includes("presupuestos") ? [{ id: "presupuestos", icon: "📋", label: labelFor("presupuestos", "Presupuestos"), need: "presupuestos", cnt: counts.pres }] : []),
+        ...(empresa?.addons?.includes("crm") ? [{ id: "crm", icon: iconFor("crm", "🧲"), label: labelFor("crm", "CRM"), need: "crm", cnt: counts.crm }] : []),
+        ...(empresa?.addons?.includes("television") ? [{ id: "auspiciadores", icon: iconFor("auspiciadores", "⭐"), label: labelFor("auspiciadores", "Auspiciadores"), need: "auspiciadores", cnt: counts.aus }] : []),
+        ...(empresa?.addons?.includes("presupuestos") ? [{ id: "presupuestos", icon: iconFor("presupuestos", "📋"), label: labelFor("presupuestos", "Presupuestos"), need: "presupuestos", cnt: counts.pres }] : []),
       ],
     },
     {
       group: "Finanzas",
       items: [
-        ...(empresa?.addons?.includes("facturacion") ? [{ id: "facturacion", icon: "🧾", label: labelFor("facturacion", "Facturación"), need: "facturacion", cnt: counts.fact }] : []),
-        ...(includeTreasury && empresa?.addons?.includes(TREASURY_MODULE_ID) ? [{ ...buildTreasurySidebarItem(counts.tes), label: labelFor(TREASURY_MODULE_ID, TREASURY_MODULE_LABEL) }] : []),
+        ...(empresa?.addons?.includes("facturacion") ? [{ id: "facturacion", icon: iconFor("facturacion", "🧾"), label: labelFor("facturacion", "Facturación"), need: "facturacion", cnt: counts.fact }] : []),
+        ...(includeTreasury && empresa?.addons?.includes(TREASURY_MODULE_ID) ? [{ ...buildTreasurySidebarItem(counts.tes), icon: iconFor(TREASURY_MODULE_ID, TREASURY_MODULE_ICON), label: labelFor(TREASURY_MODULE_ID, TREASURY_MODULE_LABEL) }] : []),
       ],
     },
     {
       group: "Recursos",
       items: [
-        ...(empresa?.addons?.includes("crew") ? [{ id: "crew", icon: "🎬", label: labelFor("crew", "Equipo / Crew"), need: "crew", cnt: counts.crew }] : []),
-        ...(empresa?.addons?.includes("contratos") ? [{ id: "contratos", icon: "📄", label: labelFor("contratos", "Contratos"), need: "contratos", cnt: counts.ct }] : []),
-        ...(empresa?.addons?.includes("activos") ? [{ id: "activos", icon: "📦", label: labelFor("activos", "Activos"), need: "activos", cnt: counts.act }] : []),
+        ...(empresa?.addons?.includes("crew") ? [{ id: "crew", icon: iconFor("crew", "🎬"), label: labelFor("crew", "Equipo / Crew"), need: "crew", cnt: counts.crew }] : []),
+        ...(empresa?.addons?.includes("contratos") ? [{ id: "contratos", icon: iconFor("contratos", "📄"), label: labelFor("contratos", "Contratos"), need: "contratos", cnt: counts.ct }] : []),
+        ...(empresa?.addons?.includes("activos") ? [{ id: "activos", icon: iconFor("activos", "📦"), label: labelFor("activos", "Activos"), need: "activos", cnt: counts.act }] : []),
       ],
     },
   ];

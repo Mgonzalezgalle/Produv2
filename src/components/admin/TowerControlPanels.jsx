@@ -110,24 +110,33 @@ function IndustryVocabularyEditor({ ef = {}, setEf }) {
                 <Badge label={entry.plural || module.basePlural} color="gray" sm />
               </div>
               <R3>
+                <FG label="Icono sidebar">
+                  <FI value={entry.icon || ""} onChange={event => updateEntry(module.id, "icon", event.target.value)} placeholder={module.baseIcon} />
+                </FG>
                 <FG label="Singular">
                   <FI value={entry.singular || ""} onChange={event => updateEntry(module.id, "singular", event.target.value)} placeholder={module.baseSingular} />
                 </FG>
                 <FG label="Plural / menú">
                   <FI value={entry.plural || ""} onChange={event => updateEntry(module.id, "plural", event.target.value)} placeholder={module.basePlural} />
                 </FG>
+              </R3>
+              <R3>
+                <FG label="Mostrar icono">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 38, fontSize: 12, color: "var(--gr3)", fontWeight: 700 }}>
+                    <input type="checkbox" checked={entry.showIcon !== false} onChange={event => updateEntry(module.id, "showIcon", event.target.checked)} />
+                    Visible en sidebar
+                  </label>
+                </FG>
                 <FG label="Botón principal">
                   <FI value={entry.newLabel || ""} onChange={event => updateEntry(module.id, "newLabel", event.target.value)} placeholder={module.baseNew} />
                 </FG>
-              </R3>
-              <R2>
                 <FG label="Nombre para listas">
                   <FI value={entry.listLabel || ""} onChange={event => updateEntry(module.id, "listLabel", event.target.value)} placeholder={entry.plural || module.basePlural} />
                 </FG>
-                <FG label="Cómo se menciona en correos">
-                  <FI value={entry.emailAlias || ""} onChange={event => updateEntry(module.id, "emailAlias", event.target.value)} placeholder={module.baseSingular.toLowerCase()} />
-                </FG>
-              </R2>
+              </R3>
+              <FG label="Cómo se menciona en correos">
+                <FI value={entry.emailAlias || ""} onChange={event => updateEntry(module.id, "emailAlias", event.target.value)} placeholder={module.baseSingular.toLowerCase()} />
+              </FG>
               <FG label="Descripción visible">
                 <FTA rows={2} value={entry.description || ""} onChange={event => updateEntry(module.id, "description", event.target.value)} placeholder={module.baseDescription} />
               </FG>

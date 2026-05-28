@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { canDo, canManageAdminPanel, getRoleConfig } from "../../lib/auth/authorization";
 import { buildSidebarNavigation } from "../../lib/modules/moduleRegistry";
+import { getTenantBrandSubtitle } from "../../lib/industry/tenantVocabulary";
 import { Badge } from "../../lib/ui/components";
 
 export function BrandLockup({
@@ -9,6 +10,8 @@ export function BrandLockup({
   wordColor="var(--cy)",
   align="left",
   glow=true,
+  subtitle,
+  empresa,
 }){
   const presets={
     sm:{ icon:34, iconRadius:8, iconGlyph:16, gap:10, title:17, subtitle:8.2, subtitleOffset:2, subtitleWeight:500 },
@@ -23,7 +26,7 @@ export function BrandLockup({
     </div>
     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",justifyContent:"center",width:"fit-content",textAlign:"left"}}>
       <div style={{fontFamily:"var(--fl,var(--fh))",fontSize:presets.title,fontWeight:800,color:wordColor,letterSpacing:-1.2,lineHeight:.92}}>Produ</div>
-      <div style={{fontSize:presets.subtitle,color:subtitleColor,letterSpacing:0,fontWeight:presets.subtitleWeight,lineHeight:1,marginTop:presets.subtitleOffset,whiteSpace:"nowrap"}}>Gestión de Productoras</div>
+      <div style={{fontSize:presets.subtitle,color:subtitleColor,letterSpacing:0,fontWeight:presets.subtitleWeight,lineHeight:1,marginTop:presets.subtitleOffset,whiteSpace:"nowrap"}}>{subtitle || getTenantBrandSubtitle(empresa)}</div>
     </div>
   </div>;
 }
@@ -68,7 +71,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)} title={n.label}
               style={{ display:"flex",alignItems:"center",justifyContent:"center",width:42,height:42,borderRadius:12,cursor:"pointer",background:active?"rgba(255,255,255,.08)":"transparent",border:active?"1px solid rgba(255,255,255,.12)":"1px solid transparent",boxShadow:"none",margin:"0 auto 4px",transition:".1s",position:"relative" }}>
-              <span style={{ fontSize:18 }}>{n.icon}</span>
+              {!!n.icon && <span style={{ fontSize:18 }}>{n.icon}</span>}
               {n.cnt>0&&<span style={{position:"absolute",top:3,right:3,minWidth:16,height:16,borderRadius:20,background:active?"#ffffff":"rgba(255,255,255,.12)",color:active?"var(--cy2)":"#e5edf7",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",fontFamily:"var(--fm)"}}>{n.cnt>9?"9+":n.cnt}</span>}
             </div>;
           })}
@@ -93,7 +96,7 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
             const active = base === n.id;
             return <div key={n.id} onClick={() => onNav(n.id)}
               style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",color:active?"#ffffff":flatSidebar?"#e5edf7":"var(--gr3)",fontSize:13,fontWeight:active?700:500,background:active?"rgba(255,255,255,.08)":"transparent",border:`1px solid ${active?"rgba(255,255,255,.12)":"transparent"}`,borderRadius:12,transition:".1s",marginBottom:4,boxShadow:"none" }}>
-              <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>
+              {!!n.icon && <span style={{ fontSize:16,flexShrink:0,width:22,textAlign:"center" }}>{n.icon}</span>}
               <span style={{ flex:1,whiteSpace:"nowrap",textAlign:"left" }}>{n.label}</span>
               {n.cnt !== undefined && <span style={{ background:active?"rgba(255,255,255,.10)":flatSidebar?"rgba(255,255,255,.08)":"var(--bdr2)",color:active?"#ffffff":flatSidebar?"#cbd5e1":"var(--gr2)",fontSize:10,padding:"1px 7px",borderRadius:20,fontFamily:"var(--fh)",fontWeight:700 }}>{n.cnt}</span>}
             </div>;
@@ -116,7 +119,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
     <div style={{padding:"14px 14px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:64}}>
       {!collapsed?<>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <BrandLockup size="sm" subtitleColor={sbMuted} wordColor="var(--wh)" glow={false} />
+          <BrandLockup size="sm" subtitleColor={sbMuted} wordColor="var(--wh)" glow={false} empresa={empresa} />
         </div>
         <button onClick={onToggle} style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",padding:4,borderRadius:4,fontSize:13}}>{isMobile?"✕":"‹"}</button>
       </>:

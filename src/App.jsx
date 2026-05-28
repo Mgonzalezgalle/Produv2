@@ -79,6 +79,7 @@ import {
   ADDON_REGISTRY,
   MODULE_LABELS,
 } from "./lib/modules/moduleRegistry";
+import { getTenantModuleLabel } from "./lib/industry/tenantVocabulary";
 import { SYSTEM_MESSAGE_PRESETS, THEME_PRESETS } from "./lib/config/appConfig";
 import { LAB_DATA_CONFIG, localLabKey } from "./lib/lab/labStorageConfig";
 import { dbGet, dbSet, dbCloneFromProd } from "./lib/lab/labDb";
@@ -1017,16 +1018,17 @@ export default function App(){
   }), [clientes, producciones, programas, socialCampaigns, crew, auspiciadores, crmOpps, contratos, presupuestos, facturas, activos, tareas, tasksEnabled, empId, curUser?.id, ef]);
 
   const bc = useMemo(() => {
-    if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:"CLIENTES",fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
-    if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:"PROYECTOS",fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
-    if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
-    if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
-    if(view==="pieza-det"){const campaign=socialCampaigns.find(x=>(Array.isArray(x?.piezas)?x.piezas:[]).some(piece=>piece.id===detId));const piece=(Array.isArray(campaign?.piezas)?campaign.piezas:[]).find(item=>item.id===detId);return [{l:"CONTENIDOS",fn:()=>navTo("contenidos")},{l:campaign?.nom||"—",fn:()=>navTo("contenido-det",campaign?.id)},{l:piece?.nom||"Pieza"}];}
-    if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:"PRODUCCIONES",fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
-    if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:"PRESUPUESTOS",fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
-    if(view==="crm"){return [{l:"CRM"}];}
-    return [{l:MODULE_LABELS[view]||view.toUpperCase()}];
-  }, [view, clientes, producciones, programas, socialCampaigns, episodios, presupuestos, detId, navTo]);
+    const labelFor = (moduleId, fallback) => getTenantModuleLabel(curEmp, moduleId, fallback).toUpperCase();
+    if(view==="cli-det"){const c=(clientes||[]).find(x=>x.id===detId);return [{l:labelFor("clientes","CLIENTES"),fn:()=>navTo("clientes")},{l:c?.nom||"—"}];}
+    if(view==="pro-det"){const p=(producciones||[]).find(x=>x.id===detId);return [{l:labelFor("producciones","PROYECTOS"),fn:()=>navTo("producciones")},{l:p?.nom||"—"}];}
+    if(view==="pg-det"){const pg=(programas||[]).find(x=>x.id===detId);return [{l:labelFor("programas","PRODUCCIONES"),fn:()=>navTo("programas")},{l:pg?.nom||"—"}];}
+    if(view==="contenido-det"){const pz=socialCampaigns.find(x=>x.id===detId);return [{l:labelFor("contenidos","CONTENIDOS"),fn:()=>navTo("contenidos")},{l:pz?.nom||"—"}];}
+    if(view==="pieza-det"){const campaign=socialCampaigns.find(x=>(Array.isArray(x?.piezas)?x.piezas:[]).some(piece=>piece.id===detId));const piece=(Array.isArray(campaign?.piezas)?campaign.piezas:[]).find(item=>item.id===detId);return [{l:labelFor("contenidos","CONTENIDOS"),fn:()=>navTo("contenidos")},{l:campaign?.nom||"—",fn:()=>navTo("contenido-det",campaign?.id)},{l:piece?.nom||"Pieza"}];}
+    if(view==="ep-det"){const ep=(episodios||[]).find(x=>x.id===detId);const pg=(programas||[]).find(x=>x.id===ep?.pgId);return [{l:labelFor("programas","PRODUCCIONES"),fn:()=>navTo("programas")},{l:pg?.nom||"—",fn:()=>navTo("pg-det",ep?.pgId)},{l:`Ep.${ep?.num}`}];}
+    if(view==="pres-det"){const p=(presupuestos||[]).find(x=>x.id===detId);return [{l:labelFor("presupuestos","PRESUPUESTOS"),fn:()=>navTo("presupuestos")},{l:p?.titulo||"—"}];}
+    if(view==="crm"){return [{l:labelFor("crm","CRM")}];}
+    return [{l:labelFor(view, MODULE_LABELS[view]||view.toUpperCase())}];
+  }, [view, clientes, producciones, programas, socialCampaigns, episodios, presupuestos, detId, navTo, curEmp]);
 
   const VP = useMemo(() => ({
     empresa:curEmp,

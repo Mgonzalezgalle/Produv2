@@ -549,6 +549,7 @@ export function useLabSuperAdminModule({
       logo: ef.logo || prev.logo || "",
       color: ef.color || prev.color || "#1a1a2e",
       addons: selectedAddons,
+      industryProfile: ef.industryProfile && typeof ef.industryProfile === "object" ? ef.industryProfile : (prev.industryProfile || {}),
       active: ef.active !== false,
       plan: ef.plan || "starter",
       theme: ef.theme || prev.theme || brandThemeLight,

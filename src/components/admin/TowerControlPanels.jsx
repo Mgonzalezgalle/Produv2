@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FilterSel, GBtn, KV, MultiSelect, R2, R3, SearchBar, Stat, TD, TH, ViewModeToggle } from "../../lib/ui/components";
+import { Badge, Btn, Card, DBtn, Empty, FG, FI, FSl, FTA, FilterSel, GBtn, KV, MultiSelect, R2, R3, SearchBar, Stat, TD, TH, ViewModeToggle } from "../../lib/ui/components";
+import {
+  TENANT_INDUSTRY_PRESETS,
+  TENANT_VOCABULARY_MODULES,
+  buildVocabularyFromPreset,
+  normalizeTenantIndustryProfile,
+} from "../../lib/industry/tenantVocabulary";
 import { buildTenantHealth } from "./towerControlHealth";
 import { TenantHealthBadgeRow } from "./TowerControlHealthViews";
 import { SolicitudesPanel } from "./TowerControlRequestsPanel";
@@ -29,6 +35,109 @@ const sidePanelCardStyle = {
   borderRadius: 22,
   boxShadow: "0 24px 60px rgba(0,0,0,.26)",
 };
+
+function IndustryVocabularyEditor({ ef = {}, setEf }) {
+  const profile = normalizeTenantIndustryProfile(ef.industryProfile || {});
+  const updateProfile = patch => {
+    setEf(prev => ({
+      ...prev,
+      industryProfile: normalizeTenantIndustryProfile({
+        ...(prev.industryProfile || {}),
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      }),
+    }));
+  };
+  const applyPreset = presetId => {
+    updateProfile({
+      presetId,
+      mode: presetId,
+      vocabulary: buildVocabularyFromPreset(presetId),
+    });
+  };
+  const updateEntry = (moduleId, field, value) => {
+    setEf(prev => {
+      const currentProfile = normalizeTenantIndustryProfile(prev.industryProfile || {});
+      return {
+        ...prev,
+        industryProfile: normalizeTenantIndustryProfile({
+          ...currentProfile,
+          updatedAt: new Date().toISOString(),
+          vocabulary: {
+            ...(currentProfile.vocabulary || {}),
+            [moduleId]: {
+              ...(currentProfile.vocabulary?.[moduleId] || {}),
+              [field]: value,
+            },
+          },
+        }),
+      };
+    });
+  };
+  const preset = TENANT_INDUSTRY_PRESETS[profile.presetId] || TENANT_INDUSTRY_PRESETS.productora;
+
+  return (
+    <div style={{ marginTop: 16, border: "1px solid var(--bdr2)", borderRadius: 16, padding: 16, background: "var(--sur)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 4 }}>Wizard multi industria</div>
+          <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.6, maxWidth: 720 }}>
+            Define cómo esta empresa entiende cada módulo. Es solo lenguaje visual: Produ mantiene la misma lógica interna, datos, permisos e integraciones.
+          </div>
+        </div>
+        <Badge label={preset.name} color={profile.presetId === "multi_industria" ? "cyan" : "gray"} sm />
+      </div>
+      <R2>
+        <FG label="Preset base">
+          <FSl value={profile.presetId} onChange={event => applyPreset(event.target.value)}>
+            {Object.values(TENANT_INDUSTRY_PRESETS).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </FSl>
+        </FG>
+        <FG label="Descripción del preset">
+          <FI value={preset.description} readOnly />
+        </FG>
+      </R2>
+      <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        {TENANT_VOCABULARY_MODULES.map(module => {
+          const entry = profile.vocabulary?.[module.id] || {};
+          return (
+            <div key={module.id} style={{ border: "1px solid var(--bdr2)", borderRadius: 14, padding: 12, background: "var(--card2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)" }}>{module.basePlural}</div>
+                  <div style={{ fontSize: 10, color: "var(--gr2)" }}>Módulo interno: {module.id}</div>
+                </div>
+                <Badge label={entry.plural || module.basePlural} color="gray" sm />
+              </div>
+              <R3>
+                <FG label="Singular">
+                  <FI value={entry.singular || ""} onChange={event => updateEntry(module.id, "singular", event.target.value)} placeholder={module.baseSingular} />
+                </FG>
+                <FG label="Plural / menú">
+                  <FI value={entry.plural || ""} onChange={event => updateEntry(module.id, "plural", event.target.value)} placeholder={module.basePlural} />
+                </FG>
+                <FG label="Botón principal">
+                  <FI value={entry.newLabel || ""} onChange={event => updateEntry(module.id, "newLabel", event.target.value)} placeholder={module.baseNew} />
+                </FG>
+              </R3>
+              <R2>
+                <FG label="Nombre para listas">
+                  <FI value={entry.listLabel || ""} onChange={event => updateEntry(module.id, "listLabel", event.target.value)} placeholder={entry.plural || module.basePlural} />
+                </FG>
+                <FG label="Cómo se menciona en correos">
+                  <FI value={entry.emailAlias || ""} onChange={event => updateEntry(module.id, "emailAlias", event.target.value)} placeholder={module.baseSingular.toLowerCase()} />
+                </FG>
+              </R2>
+              <FG label="Descripción visible">
+                <FTA rows={2} value={entry.description || ""} onChange={event => updateEntry(module.id, "description", event.target.value)} placeholder={module.baseDescription} />
+              </FG>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function EmpresasAdminPanel({
   totalEmp,
@@ -115,6 +224,8 @@ export function EmpresasAdminPanel({
         const visibleAddons = (emp.addons || []).slice(0, 3);
         const extraAddons = Math.max(0, (emp.addons || []).length - visibleAddons.length);
         const tenantHealth = healthByTenant[emp.id] || buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {});
+        const industryProfile = normalizeTenantIndustryProfile(emp.industryProfile || {});
+        const industryPreset = TENANT_INDUSTRY_PRESETS[industryProfile.presetId] || TENANT_INDUSTRY_PRESETS.productora;
         return <div key={emp.id} style={{ background:"var(--sur)", border:"1px solid var(--bdr)", borderRadius:14, padding:20, display:"grid", gap:12, boxShadow:"0 12px 28px rgba(15,23,42,.04)" }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: `${emp.color}24`, border: `1px solid ${emp.color}80`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--fh)", fontSize: 15, fontWeight: 800, color: emp.color, overflow: "hidden" }}>
             {emp.logo ? <img src={emp.logo} style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 10 }} alt={emp.nombre} /> : ini(emp.nombre)}
@@ -123,6 +234,7 @@ export function EmpresasAdminPanel({
             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
               <div style={{ fontSize: 14, fontWeight: 800 }}>{emp.nombre}</div>
               <Badge label={emp.active ? "Activa" : "Inactiva"} color={emp.active ? "green" : "red"} sm />
+              <Badge label={industryPreset.name} color={industryProfile.presetId === "multi_industria" ? "cyan" : "gray"} sm />
             </div>
             <div style={{ fontSize:11, color:"var(--gr2)", lineHeight:1.6 }}>{emp.rut || "Sin RUT"} · {emp.tenantCode || "Sin tenant"}</div>
             <div style={{ fontSize:11, color:"var(--gr2)", marginTop:4 }}>{emp.ema || "Sin correo"}</div>
@@ -193,6 +305,7 @@ export function EmpresasAdminPanel({
       <FG label="Email"><FI value={ef.ema || ""} onChange={e => setEf(p => ({ ...p, ema: e.target.value }))} placeholder="contacto@empresa.cl" /></FG>
       <R2><FG label="Teléfono"><FI value={ef.tel || ""} onChange={e => setEf(p => ({ ...p, tel: e.target.value }))} placeholder="+56 9 1234 5678" /></FG><FG label="Dirección"><FI value={ef.dir || ""} onChange={e => setEf(p => ({ ...p, dir: e.target.value }))} placeholder="Av. Principal 123, Santiago" /></FG></R2>
       <FG label="Addons activados"><MultiSelect options={Object.entries(addons).map(([v, a]) => ({ value: v, label: `${a.icon} ${a.label}` }))} value={ef.addons || []} onChange={v => setEf(p => ({ ...p, addons: v }))} placeholder="Seleccionar addons..." /></FG>
+      <IndustryVocabularyEditor ef={ef} setEf={setEf} />
       <R2><FG label="Color acento"><FI type="color" value={ef.color || "#1a1a2e"} onChange={e => setEf(p => ({ ...p, color: e.target.value }))} /></FG><FG label="Estado"><FSl value={ef.active === false ? "false" : "true"} onChange={e => setEf(p => ({ ...p, active: e.target.value === "true" }))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
       <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>La creación de empresa genera la instancia principal. Luego los datos operativos se poblarán al primer acceso.</div>
       <div style={{ display: "flex", gap: 8 }}><Btn onClick={saveEmp}>{eid ? "Actualizar" : "Crear Empresa"}</Btn>{eid && <GBtn onClick={() => { setEid(null); setEf({}); }}>Cancelar</GBtn>}</div>

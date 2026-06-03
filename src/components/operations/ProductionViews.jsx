@@ -1022,7 +1022,7 @@ export function ViewPiezaDet(props) {
 export function ViewPgDet(props) {
   const {
     id, empresa, user, clientes, producciones, programas, piezas, episodios, auspiciadores, movimientos, crew, eventos, tareas, navTo, openM, canDo, cDel, saveMov, delMov, setProgramas, setEventos, setTareas, ntf,
-    useBal, fmtM, fmtD, ini, ComentariosBlock, MovBlock, MiniCal, TareasContexto, exportMovCSV, exportMovPDF, normalizeTaskAssignees, getAssignedIds, AusCard,
+    useBal, fmtM, fmtD, ini, ComentariosBlock, MovBlock, MiniCal, TareasContexto, exportMovCSV, exportMovPDF, exportEpisodiosPDF, normalizeTaskAssignees, getAssignedIds, AusCard,
     today = helperToday, uid = helperUid,
   } = props;
   const empId = empresa?.id;
@@ -1075,6 +1075,7 @@ export function ViewPgDet(props) {
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={epQ} onChange={v => { setEpQ(v); setEpPg(1); }} placeholder="Buscar episodio..." />
         <FilterSel value={epF} onChange={v => { setEpF(v); setEpPg(1); }} options={["Planificado", "Grabado", "En Edición", "Programado", "Publicado", "Cancelado"]} placeholder="Todo estados" />
+        <GBtn sm onClick={() => exportEpisodiosPDF && exportEpisodiosPDF(fdEps, pg_, empresa)}>⬇ PDF estado</GBtn>
         {canDo && canDo("programas") && <Btn onClick={() => openM("ep", { pgId: id, num: eps.length ? Math.max(...eps.map(e => e.num)) + 1 : 1 })}>+ Nuevo Episodio</Btn>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 16 }}>

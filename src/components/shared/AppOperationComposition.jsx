@@ -1,5 +1,5 @@
 import { lazy, useMemo } from "react";
-import { exportActiveClientsCSV, exportActiveClientsPDF, exportComentariosCSV, exportComentariosPDF, exportMovCSV, exportMovPDF } from "../../lib/utils/exports";
+import { exportActiveClientsCSV, exportActiveClientsPDF, exportComentariosCSV, exportComentariosPDF, exportEpisodiosPDF, exportMovCSV, exportMovPDF } from "../../lib/utils/exports";
 
 const MCliView = lazy(() => import("../operations/OperationModals").then(module => ({ default: module.MCli })));
 const MProView = lazy(() => import("../operations/OperationModals").then(module => ({ default: module.MPro })));
@@ -66,6 +66,7 @@ export function buildAppOperationHelpers({
   const ausCardComponent = props => <AusCardView {...props} ini={ini} fmtM={fmtM} fmtD={fmtD} />;
   const exportMovCsvHelper = (movs, nombre) => exportMovCSV(movs, nombre);
   const exportMovPdfHelper = (movs, nombre, empresa, tipo) => exportMovPDF(movs, nombre, empresa, tipo, { companyPrintColor });
+  const exportEpisodiosPdfHelper = (episodios, programa, empresa) => exportEpisodiosPDF(episodios, programa, empresa, { companyPrintColor, fmtD, today });
   const exportActiveClientsCsvHelper = items => exportActiveClientsCSV(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, today });
   const exportActiveClientsPdfHelper = items => exportActiveClientsPDF(items, { companyBillingStatus, companyBillingBaseNet, companyBillingNet, companyReferralDiscountMonthsPending, fmtMoney, fmtD, today });
 
@@ -77,6 +78,7 @@ export function buildAppOperationHelpers({
     ausCardComponent,
     exportMovCsvHelper,
     exportMovPdfHelper,
+    exportEpisodiosPdfHelper,
     exportActiveClientsCsvHelper,
     exportActiveClientsPdfHelper,
     TareaCard: TareaCardView,

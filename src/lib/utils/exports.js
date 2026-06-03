@@ -20,12 +20,38 @@ export function exportComentariosCSV(items, nombre = "comentarios") {
 }
 
 let simplePdfBlobRuntimePromise = null;
+let modernPdfRuntimePromise = null;
 
 async function getSimplePdfBlobRuntime() {
   if (!simplePdfBlobRuntimePromise) {
     simplePdfBlobRuntimePromise = import("./pdf").then(module => module.buildSimplePdfBlob);
   }
   return simplePdfBlobRuntimePromise;
+}
+
+async function getModernPdfRuntime() {
+  if (!modernPdfRuntimePromise) {
+    modernPdfRuntimePromise = import("./pdf").then(module => module.buildModernPdf);
+  }
+  return modernPdfRuntimePromise;
+}
+
+function downloadBlob(blob, fileName = "produ_export.pdf") {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+function slugFileName(value = "produ") {
+  return String(value || "produ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase() || "produ";
 }
 
 export function exportComentariosPDF(items, nombre = "comentarios", empresa = null, helpers = {}) {
@@ -222,6 +248,67 @@ tbody td.r{text-align:right;font-family:monospace}
   w.document.write(html);
   w.document.close();
   setTimeout(() => w.print(), 600);
+}
+
+export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa = null, helpers = {}) {
+  const { companyPrintColor, fmtD, today } = helpers;
+  const safeEpisodes = Array.isArray(episodios) ? episodios : [];
+  const accent = companyPrintColor ? companyPrintColor(empresa) : "#1a1a2e";
+  const statusCounts = safeEpisodes.reduce((acc, ep) => {
+    const key = ep?.estado || "Sin estado";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const formatDate = value => value ? (fmtD ? fmtD(value) : new Date(`${value}T12:00:00`).toLocaleDateString("es-CL")) : "Por confirmar";
+  const rows = safeEpisodes.length ? safeEpisodes.map(ep => ({
+    label: `#${String(ep?.num || "").padStart(2, "0")} · ${ep?.titulo || "Episodio sin título"}`,
+    value: [
+      ep?.estado || "Sin estado",
+      `Grabación: ${formatDate(ep?.fechaGrab)}`,
+      `Emisión: ${ep?.fechaEmision ? formatDate(ep.fechaEmision) : "—"}`,
+    ].filter(Boolean).join(" · "),
+    bold: true,
+  })) : [{ label: "Sin episodios", value: "No hay episodios para exportar en esta producción." }];
+  const detailText = safeEpisodes
+    .filter(ep => ep?.invitado || ep?.locacion || ep?.duracion || ep?.descripcion || ep?.notas)
+    .map(ep => {
+      const details = [
+        ep?.invitado ? `Invitado / tema: ${ep.invitado}` : "",
+        ep?.locacion ? `Locación: ${ep.locacion}` : "",
+        ep?.duracion ? `Duración: ${ep.duracion} min` : "",
+        ep?.descripcion ? `Sinopsis: ${ep.descripcion}` : "",
+        ep?.notas ? `Notas: ${ep.notas}` : "",
+      ].filter(Boolean).join("\n");
+      return `#${String(ep?.num || "").padStart(2, "0")} ${ep?.titulo || "Episodio"}\n${details}`;
+    })
+    .join("\n\n");
+  const buildModernPdf = await getModernPdfRuntime();
+  const file = await buildModernPdf({
+    fileName: `${slugFileName(programa?.nom || "produccion")}_estado_episodios.pdf`,
+    title: "Estado de episodios",
+    accent,
+    empresa,
+    counterpartTitle: "Producción",
+    counterpartName: programa?.nom || "Producción",
+    counterpartLines: [
+      programa?.tip,
+      programa?.can ? `Canal: ${programa.can}` : "",
+      programa?.fre ? `Frecuencia: ${programa.fre}` : "",
+      programa?.temporada ? `Temporada: ${programa.temporada}` : "",
+    ].filter(Boolean),
+    metaLines: [
+      `Total episodios: ${safeEpisodes.length}`,
+      `Generado: ${formatDate(today ? today() : new Date().toISOString().slice(0, 10))}`,
+      Object.entries(statusCounts).map(([status, count]) => `${status}: ${count}`).join(" · ") || "Sin estados",
+    ],
+    bodySections: [
+      { title: "Detalle de episodios", rows },
+      ...(detailText ? [{ title: "Información adicional", text: detailText }] : []),
+    ],
+    footerPrimary: "Reporte creado con Produ.",
+    footerSecondary: "Plataforma de gestión para productoras audiovisuales.",
+  });
+  downloadBlob(file, file.name || `${slugFileName(programa?.nom || "produccion")}_estado_episodios.pdf`);
 }
 
 export function exportTreasuryPayablesCSV(rows = [], nombre = "cuentas_por_pagar") {

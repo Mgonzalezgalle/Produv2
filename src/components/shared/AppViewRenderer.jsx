@@ -35,6 +35,7 @@ export function AppViewRenderer({
     ausCardComponent,
     exportMovCsvHelper,
     exportMovPdfHelper,
+    exportEpisodiosPdfHelper,
     TareaCard,
     COLS_TAREAS,
     getRoleConfig,
@@ -110,7 +111,7 @@ export function AppViewRenderer({
     case "programas":
       return withFullFrame(<ViewPgs {...VP} setProgramas={modules.setters.setProgramas} useBal={useBal} fmtM={fmtM} />);
     case "pg-det":
-      return withFullFrame(<ViewPgDet {...VP} id={detId} setProgramas={modules.setters.setProgramas} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} AusCard={ausCardComponent} />);
+      return withFullFrame(<ViewPgDet {...VP} id={detId} setProgramas={modules.setters.setProgramas} setEpisodios={modules.setters.setEpisodios} setMovimientos={modules.setters.setMovimientos} setTareas={modules.setters.setTareas} useBal={useBal} fmtM={fmtM} fmtD={fmtD} ini={modules.ini} ComentariosBlock={comentariosBlockComponent} MovBlock={movBlockComponent} MiniCal={miniCalComponent} TareasContexto={tareasContextoComponent} exportMovCSV={exportMovCsvHelper} exportMovPDF={exportMovPdfHelper} exportEpisodiosPDF={exportEpisodiosPdfHelper} normalizeTaskAssignees={normalizeTaskAssignees} getAssignedIds={getAssignedIds} AusCard={ausCardComponent} />);
     case "contenidos":
       return withFullFrame(<ViewContenidos {...VP} setPiezas={modules.setters.setPiezas} useBal={useBal} fmtM={fmtM} countCampaignPieces={countCampaignPieces} />);
     case "contenido-det":

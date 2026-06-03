@@ -390,6 +390,23 @@ export function ViewCliDet({
     await updateClientPortal(portal => ({ ...portal, authorizedEmails: nextEmails }));
     ntf?.("Correos autorizados actualizados ✓");
   };
+  const togglePortalSection = async sectionKey => {
+    const labels = { productions: "Producciones", contents: "Contenidos" };
+    await updateClientPortal(portal => {
+      const currentSections = portal.sections || {};
+      const nextValue = !Boolean(currentSections[sectionKey]);
+      return {
+        ...portal,
+        sections: {
+          productions: currentSections.productions !== false,
+          contents: currentSections.contents === true,
+          [sectionKey]: nextValue,
+        },
+      };
+    });
+    const currentValue = Boolean(clientPortal.sections?.[sectionKey]);
+    ntf?.(`${labels[sectionKey] || "Sección"} ${currentValue ? "oculta" : "visible"} en el portal ✓`);
+  };
   const copyFinancePortalUrl = async () => {
     if (!financePortal?.slug) return;
     try {
@@ -622,6 +639,36 @@ export function ViewCliDet({
               <Badge label={clientPortal.enabled ? "Portal activo" : "Portal inactivo"} color={clientPortal.enabled ? "green" : "gray"} />
               <Badge label="Acceso por código" color="cyan" />
             </div>
+            <div style={{ border: "1px solid #dbe7f5", borderRadius: 16, padding: 12, background: "#f8fbff", marginBottom: 14 }}>
+              <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800, marginBottom: 10 }}>Secciones visibles</div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {[
+                  ["productions", "Producciones"],
+                  ["contents", "Contenidos"],
+                ].map(([key, label]) => {
+                  const active = key === "productions" ? clientPortal.sections?.productions !== false : clientPortal.sections?.contents === true;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => togglePortalSection(key)}
+                      style={{
+                        border: `1px solid ${active ? "#2f6ea8" : "#dbe7f5"}`,
+                        background: active ? "#edf5ff" : "#ffffff",
+                        color: active ? "#2f6ea8" : "#64748b",
+                        borderRadius: 999,
+                        padding: "8px 12px",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {active ? "Visible" : "Oculto"} · {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{portalUrl}</span>} />
             <KV label="Código de acceso" value={<span style={{ fontFamily: "var(--fm)", fontSize: 16, letterSpacing: 2, color: "var(--cy)" }}>{clientPortal.accessCode}</span>} />
             <KV label="Último acceso" value={clientPortal.lastAccessAt ? fmtPortalTimestamp(clientPortal.lastAccessAt) : "Todavía sin ingresos"} />
@@ -640,8 +687,9 @@ export function ViewCliDet({
             <div style={{ fontFamily: "var(--fh)", fontSize: 14, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Qué verá</div>
             <div style={{ display: "grid", gap: 8, fontSize: 12, color: "var(--gr2)" }}>
               <div>• Resumen con pendientes, aprobaciones y documentos por revisar.</div>
-              <div>• Contenidos para aprobar, observar o complementar con brief.</div>
-              <div>• Producciones y avances visibles para el cliente.</div>
+              {clientPortal.sections?.contents === true ? <div>• Contenidos para aprobar, observar o complementar con brief.</div> : null}
+              {clientPortal.sections?.productions !== false ? <div>• Producciones, episodios, invitados, fechas y estado.</div> : null}
+              {clientPortal.sections?.contents !== true && clientPortal.sections?.productions === false ? <div>• No hay secciones operativas visibles por ahora.</div> : null}
             </div>
             <Sep />
             <div style={{ fontSize: 11, color: "var(--gr3)", lineHeight: 1.6 }}>

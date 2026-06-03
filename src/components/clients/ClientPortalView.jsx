@@ -733,10 +733,14 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     payload.client?.rut ? `RUT ${payload.client.rut}` : null,
     `Atiende ${payload.empresa?.nombre || payload.empresa?.nom || "Produ"}`,
   ].filter(Boolean).join(" · ");
+  const portalSections = {
+    productions: payload.portal?.sections?.productions !== false,
+    contents: payload.portal?.sections?.contents === true,
+  };
   const tabs = [
     ["resumen", "Resumen", "#4f7cff"],
-    ["producciones", "Producciones", "#2f6ea8"],
-    ["contenidos", "Contenidos", "#8b5cf6"],
+    ...(portalSections.productions ? [["producciones", "Producciones", "#2f6ea8"]] : []),
+    ...(portalSections.contents ? [["contenidos", "Contenidos", "#8b5cf6"]] : []),
   ];
 
   const saveContentDecision = async () => {
@@ -916,15 +920,17 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               <div style={{ background: "#f7faff", border: "1px solid #dbe7f5", borderRadius: 18, padding: "16px 18px", boxShadow: "0 16px 36px rgba(15,23,42,.05)" }}>
                 <div style={{ fontSize: 10, letterSpacing: 1.25, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800, marginBottom: 8 }}>Lo más importante hoy</div>
                 <div style={{ display: "grid", gap: 8, fontSize: 12.5, color: "#334155" }}>
-                  <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div>
-                  <div>• {summary?.activeContent.length || 0} campaña(s) siguen activas en este espacio.</div>
-                  <div>• {summary?.activeProductions.length || 0} producción(es) están visibles desde tu portal.</div>
+                  {portalSections.contents ? <div>• {summary?.pendingApprovals.length || 0} contenido(s) esperan tu revisión.</div> : null}
+                  {portalSections.contents ? <div>• {summary?.activeContent.length || 0} campaña(s) siguen activas en este espacio.</div> : null}
+                  {portalSections.productions ? <div>• {summary?.activePrograms.length || 0} producción(es) están visibles desde tu portal.</div> : null}
+                  {!portalSections.contents && !portalSections.productions ? <div>• Este portal no tiene secciones visibles por ahora.</div> : null}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Badge label={`${summary?.pendingApprovals.length || 0} contenido(s) por revisar`} color="purple" />
-                <Badge label={`${summary?.activeContent.length || 0} campaña(s) activas`} color="cyan" />
-                <Badge label={`${summary?.totalContentPieces || 0} pieza(s) visibles`} color="yellow" />
+                {portalSections.contents ? <Badge label={`${summary?.pendingApprovals.length || 0} contenido(s) por revisar`} color="purple" /> : null}
+                {portalSections.contents ? <Badge label={`${summary?.activeContent.length || 0} campaña(s) activas`} color="cyan" /> : null}
+                {portalSections.contents ? <Badge label={`${summary?.totalContentPieces || 0} pieza(s) visibles`} color="yellow" /> : null}
+                {portalSections.productions ? <Badge label={`${summary?.activePrograms.length || 0} producción(es) visibles`} color="cyan" /> : null}
                 <GBtn onClick={() => {
                   const sessionKey = buildClientPortalSessionKey(slug);
                   if (typeof window !== "undefined") window.sessionStorage.removeItem(sessionKey);
@@ -964,24 +970,25 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         {tab === "resumen" ? (
           <>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))", gap: 14 }}>
-              <Stat label="Producciones activas" value={(summary?.activeProductions.length || 0) + (summary?.activePrograms.length || 0)} accent="#4f7cff" vc="#4f7cff" />
-              <Stat label="Campañas de contenido" value={summary?.activeContent.length || 0} accent="#a855f7" vc="#a855f7" />
-              <Stat label="Piezas visibles" value={summary?.totalContentPieces || 0} accent="#00b894" vc="#00b894" />
+              {portalSections.productions ? <Stat label="Producciones activas" value={(summary?.activeProductions.length || 0) + (summary?.activePrograms.length || 0)} accent="#4f7cff" vc="#4f7cff" /> : null}
+              {portalSections.contents ? <Stat label="Campañas de contenido" value={summary?.activeContent.length || 0} accent="#a855f7" vc="#a855f7" /> : null}
+              {portalSections.contents ? <Stat label="Piezas visibles" value={summary?.totalContentPieces || 0} accent="#00b894" vc="#00b894" /> : null}
               <Stat label="Monto pendiente" value={fmtMoney(summary?.pendingAmount || 0)} accent="#ff8844" vc="#ff8844" />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1.1fr .9fr", gap: 18 }}>
               <Card title="Lo que requiere atención hoy" sub="Una vista rápida para entrar a lo importante sin perder tiempo.">
                 <div style={{ display: "grid", gap: 10 }}>
-                  <div>• {summary?.pendingApprovals.length || 0} campaña(s) de contenido todavía esperan revisión.</div>
-                  <div>• {summary?.activeContent.length || 0} campaña(s) están activas y visibles para tu equipo.</div>
-                  <div>• {summary?.totalContentPieces || 0} pieza(s) ya están disponibles en este portal.</div>
-                  <div>• {summary?.activeProductions.length || 0} producción(es) siguen en curso.</div>
+                  {portalSections.contents ? <div>• {summary?.pendingApprovals.length || 0} campaña(s) de contenido todavía esperan revisión.</div> : null}
+                  {portalSections.contents ? <div>• {summary?.activeContent.length || 0} campaña(s) están activas y visibles para tu equipo.</div> : null}
+                  {portalSections.contents ? <div>• {summary?.totalContentPieces || 0} pieza(s) ya están disponibles en este portal.</div> : null}
+                  {portalSections.productions ? <div>• {summary?.activePrograms.length || 0} producción(es) están visibles desde este espacio.</div> : null}
                 </div>
               </Card>
               <Card title="Cómo usar este espacio" sub="Aquí puedes revisar avances y responder lo que hoy necesita confirmación.">
                 <div style={{ display: "grid", gap: 10 }}>
-                  <div>• En contenidos puedes aprobar piezas o pedir ajustes con observaciones claras.</div>
-                  <div>• El brief adicional y los comentarios quedarán visibles dentro de Produ.</div>
+                  {portalSections.contents ? <div>• En contenidos puedes aprobar piezas o pedir ajustes con observaciones claras.</div> : null}
+                  {portalSections.contents ? <div>• El brief adicional y los comentarios quedarán visibles dentro de Produ.</div> : null}
+                  {portalSections.productions ? <div>• En producciones puedes revisar episodios, invitados, fechas y estado.</div> : null}
                   <div>• La relación documental y financiera ahora vive en un portal independiente.</div>
                 </div>
               </Card>
@@ -989,7 +996,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           </>
         ) : null}
 
-        {tab === "producciones" ? (
+        {portalSections.productions && tab === "producciones" ? (
           <Card title="Producciones" sub="Revisa el estado de cada episodio y sus fechas principales.">
             {summary?.activePrograms.length ? (
               <div style={{ display: "grid", gap: 18 }}>
@@ -1078,7 +1085,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
           </Card>
         ) : null}
 
-        {tab === "contenidos" ? (
+        {portalSections.contents && tab === "contenidos" ? (
           <PortalSectionBoundary onBack={() => setTab("resumen")} details={contentDebugDetails}>
             <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 28, padding: 24, boxShadow: "0 20px 50px rgba(15,23,42,.06)" }}>
               <div style={{ display: "grid", gap: 18 }}>

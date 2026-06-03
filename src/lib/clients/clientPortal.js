@@ -50,6 +50,7 @@ export function normalizeClientPortal(raw = null, client = {}) {
   const now = new Date().toISOString();
   const fallbackEmails = collectClientPortalEmails(client);
   const enabled = Boolean(raw?.enabled);
+  const rawSections = raw?.sections && typeof raw.sections === "object" ? raw.sections : {};
   return {
     enabled,
     accessMode: String(raw?.accessMode || "email_code"),
@@ -63,6 +64,10 @@ export function normalizeClientPortal(raw = null, client = {}) {
     lastSharedAt: raw?.lastSharedAt || null,
     lastAccessAt: raw?.lastAccessAt || null,
     notes: String(raw?.notes || "").trim(),
+    sections: {
+      productions: rawSections.productions !== false,
+      contents: rawSections.contents === true,
+    },
   };
 }
 

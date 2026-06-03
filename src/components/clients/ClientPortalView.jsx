@@ -121,6 +121,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
     const [
       producciones,
       programas,
+      episodios,
       piezas,
       presupuestos,
       facturas,
@@ -130,6 +131,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
     ] = await Promise.all([
       dbGet(`produ:${empId}:producciones`),
       dbGet(`produ:${empId}:programas`),
+      dbGet(`produ:${empId}:episodios`),
       dbGet(`produ:${empId}:piezas`),
       dbGet(`produ:${empId}:presupuestos`),
       dbGet(`produ:${empId}:facturas`),
@@ -144,6 +146,7 @@ async function resolvePortalPayload(empresas = [], slug = "") {
       clients: Array.isArray(clients) ? clients : [],
       producciones: Array.isArray(producciones) ? producciones : [],
       programas: Array.isArray(programas) ? programas : [],
+      episodios: Array.isArray(episodios) ? episodios : [],
       piezas: Array.isArray(piezas) ? piezas : [],
       presupuestos: Array.isArray(presupuestos) ? presupuestos : [],
       facturas: Array.isArray(facturas) ? facturas : [],
@@ -410,6 +413,19 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     const clientId = client.id;
     const activeProductions = (payload?.producciones || []).filter(item => item?.cliId === clientId);
     const activePrograms = (payload?.programas || []).filter(item => item?.cliId === clientId);
+    const programEpisodes = activePrograms.flatMap(program => (payload?.episodios || [])
+      .filter(ep => ep?.pgId === program.id)
+      .map(ep => ({
+        ...ep,
+        programId: program.id,
+        programName: program.nom || "Producción",
+        programStatus: program.est || "Activa",
+      })))
+      .sort((a, b) => {
+        const programCompare = String(a.programName || "").localeCompare(String(b.programName || ""));
+        if (programCompare) return programCompare;
+        return Number(a.num || 0) - Number(b.num || 0);
+      });
     const activeContent = (payload?.piezas || []).filter(item => item?.cliId === clientId);
     const budgets = (payload?.presupuestos || []).filter(item => item?.cliId === clientId);
     const invoices = buildTreasuryReceivables({
@@ -426,6 +442,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
     return {
       activeProductions,
       activePrograms,
+      programEpisodes,
       activeContent,
       budgets,
       invoices,
@@ -713,6 +730,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   ].filter(Boolean).join(" · ");
   const tabs = [
     ["resumen", "Resumen", "#4f7cff"],
+    ["producciones", "Producciones", "#2f6ea8"],
     ["contenidos", "Contenidos", "#8b5cf6"],
   ];
 
@@ -964,6 +982,83 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
               </Card>
             </div>
           </>
+        ) : null}
+
+        {tab === "producciones" ? (
+          <Card title="Producciones" sub="Revisa el estado de cada episodio y sus fechas principales.">
+            {summary?.activePrograms.length ? (
+              <div style={{ display: "grid", gap: 18 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))", gap: 12 }}>
+                  <div style={{ borderRadius: 18, background: "#f7faff", border: "1px solid #dbe7f5", padding: "13px 15px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800 }}>Producciones visibles</div>
+                    <div style={{ fontFamily: "var(--fm)", fontSize: 21, fontWeight: 800, color: "#2f6ea8", marginTop: 7 }}>{summary.activePrograms.length}</div>
+                  </div>
+                  <div style={{ borderRadius: 18, background: "#f7faff", border: "1px solid #dbe7f5", padding: "13px 15px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800 }}>Episodios</div>
+                    <div style={{ fontFamily: "var(--fm)", fontSize: 21, fontWeight: 800, color: "#1a1a2e", marginTop: 7 }}>{summary.programEpisodes.length}</div>
+                  </div>
+                  <div style={{ borderRadius: 18, background: "#eefbf6", border: "1px solid #c9f2df", padding: "13px 15px" }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800 }}>Publicados</div>
+                    <div style={{ fontFamily: "var(--fm)", fontSize: 21, fontWeight: 800, color: "#00b894", marginTop: 7 }}>
+                      {summary.programEpisodes.filter(item => String(item?.estado || "").toLowerCase() === "publicado").length}
+                    </div>
+                  </div>
+                </div>
+
+                {summary.programEpisodes.length ? (
+                  isMobile ? (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {summary.programEpisodes.map(ep => (
+                        <div key={ep.id} style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#ffffff", padding: 15, display: "grid", gap: 10 }}>
+                          <div>
+                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800 }}>{ep.programName}</div>
+                            <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a", marginTop: 4 }}>#{String(ep.num || "").padStart(2, "0")} · {safeText(ep.titulo, "Episodio")}</div>
+                          </div>
+                          <div style={{ fontSize: 12.5, color: "#475569" }}><b style={{ color: "#0f172a" }}>Invitado:</b> {safeText(ep.invitado, "Por definir")}</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                            <Badge label={safeText(ep.estado, "Sin estado")} />
+                            <span style={{ fontSize: 12, color: "#64748b" }}>Grabación: {fmtDate(ep.fechaGrab)}</span>
+                            <span style={{ fontSize: 12, color: "#64748b" }}>Emisión: {fmtDate(ep.fechaEmision)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: "auto", border: "1px solid #dbe7f5", borderRadius: 18 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", background: "#ffffff" }}>
+                        <thead>
+                          <tr>
+                            <TH>Producción</TH>
+                            <TH>Nombre</TH>
+                            <TH>Invitado</TH>
+                            <TH>Estado</TH>
+                            <TH>Grabación</TH>
+                            <TH>Emisión</TH>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {summary.programEpisodes.map(ep => (
+                            <tr key={ep.id}>
+                              <TD>{safeText(ep.programName, "Producción")}</TD>
+                              <TD bold>#{String(ep.num || "").padStart(2, "0")} · {safeText(ep.titulo, "Episodio")}</TD>
+                              <TD>{safeText(ep.invitado, "Por definir")}</TD>
+                              <TD><Badge label={safeText(ep.estado, "Sin estado")} /></TD>
+                              <TD>{fmtDate(ep.fechaGrab)}</TD>
+                              <TD>{fmtDate(ep.fechaEmision)}</TD>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  <Empty text="Sin episodios visibles" sub="Cuando esta cuenta tenga episodios asociados, aparecerán aquí con su estado y fechas." />
+                )}
+              </div>
+            ) : (
+              <Empty text="Sin producciones visibles" sub="Cuando esta cuenta tenga producciones asociadas, aparecerán aquí." />
+            )}
+          </Card>
         ) : null}
 
         {tab === "contenidos" ? (

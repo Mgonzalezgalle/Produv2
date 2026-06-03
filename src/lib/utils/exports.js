@@ -267,27 +267,14 @@ export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa 
   }, {});
   const formatDate = value => value ? (fmtD ? fmtD(value) : new Date(`${value}T12:00:00`).toLocaleDateString("es-CL")) : "Por confirmar";
   const rows = safeEpisodes.length ? safeEpisodes.map(ep => ({
-    label: `#${String(ep?.num || "").padStart(2, "0")} · ${ep?.titulo || "Episodio sin título"}`,
+    label: `#${String(ep?.num || "").padStart(2, "0")} · ${ep?.titulo || "Episodio"} · ${ep?.invitado || "Invitado por definir"}`,
     value: [
       ep?.estado || "Sin estado",
-      `Grabación: ${formatDate(ep?.fechaGrab)}`,
-      `Emisión: ${ep?.fechaEmision ? formatDate(ep.fechaEmision) : "—"}`,
+      `G: ${formatDate(ep?.fechaGrab)}`,
+      `E: ${ep?.fechaEmision ? formatDate(ep.fechaEmision) : "—"}`,
     ].filter(Boolean).join(" · "),
     bold: true,
   })) : [{ label: "Sin episodios", value: "No hay episodios para exportar en esta producción." }];
-  const detailText = safeEpisodes
-    .filter(ep => ep?.invitado || ep?.locacion || ep?.duracion || ep?.descripcion || ep?.notas)
-    .map(ep => {
-      const details = [
-        ep?.invitado ? `Invitado / tema: ${ep.invitado}` : "",
-        ep?.locacion ? `Locación: ${ep.locacion}` : "",
-        ep?.duracion ? `Duración: ${ep.duracion} min` : "",
-        ep?.descripcion ? `Sinopsis: ${ep.descripcion}` : "",
-        ep?.notas ? `Notas: ${ep.notas}` : "",
-      ].filter(Boolean).join("\n");
-      return `#${String(ep?.num || "").padStart(2, "0")} ${ep?.titulo || "Episodio"}\n${details}`;
-    })
-    .join("\n\n");
   const buildModernPdf = await getModernPdfRuntime();
   const file = await buildModernPdf({
     fileName: `${slugFileName(programa?.nom || "produccion")}_estado_episodios.pdf`,
@@ -309,7 +296,6 @@ export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa 
     ],
     bodySections: [
       { title: "Detalle de episodios", rows },
-      ...(detailText ? [{ title: "Información adicional", text: detailText }] : []),
     ],
     footerPrimary: "Hecho con amor por Produ.",
     footerSecondary: "",

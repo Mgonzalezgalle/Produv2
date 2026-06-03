@@ -1034,6 +1034,7 @@ export function ViewPgDet(props) {
   const [tab, setTab] = useState(0);
   const [deleteProgramConfirmOpen, setDeleteProgramConfirmOpen] = useState(false);
   const [epQ, setEpQ] = useState(""); const [epF, setEpF] = useState(""); const [epSort, setEpSort] = useState("num-asc"); const [epPg, setEpPg] = useState(1); const EPP = 8;
+  const [exportingEpisodesPdf, setExportingEpisodesPdf] = useState(false);
   const pg_ = (programas || []).find(x => x.id === id); if (!pg_) return <Empty text="No encontrado" />;
   const eps = (episodios || []).filter(e => e.pgId === id).sort((a, b) => a.num - b.num);
   const aus = (auspiciadores || []).filter(a => (a.pids || []).includes(id));
@@ -1048,6 +1049,19 @@ export function ViewPgDet(props) {
     if (epSort === "num-desc") return Number(b.num || 0) - Number(a.num || 0);
     return Number(a.num || 0) - Number(b.num || 0);
   });
+  const downloadEpisodesPdf = async () => {
+    if (!exportEpisodiosPDF || exportingEpisodesPdf) return;
+    setExportingEpisodesPdf(true);
+    try {
+      await exportEpisodiosPDF(fdEps, pg_, empresa);
+      ntf && ntf("PDF de episodios descargado");
+    } catch (error) {
+      console.error("No se pudo descargar el PDF de episodios", error);
+      ntf && ntf("No se pudo generar el PDF de episodios");
+    } finally {
+      setExportingEpisodesPdf(false);
+    }
+  };
   const pCrew = (crew || []).filter(x => x.empId === empId && (pg_.crewIds || []).includes(x.id));
   const addCrew = async crId => { if (!canManagePrograms) return; const next = (programas || []).map(x => x.id === id ? { ...x, crewIds: [...(x.crewIds || []), crId] } : x); await setProgramas(next); };
   const remCrew = async crId => { if (!canManagePrograms) return; const next = (programas || []).map(x => x.id === id ? { ...x, crewIds: (x.crewIds || []).filter(i => i !== crId) } : x); await setProgramas(next); };
@@ -1075,7 +1089,7 @@ export function ViewPgDet(props) {
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <SearchBar value={epQ} onChange={v => { setEpQ(v); setEpPg(1); }} placeholder="Buscar episodio..." />
         <FilterSel value={epF} onChange={v => { setEpF(v); setEpPg(1); }} options={["Planificado", "Grabado", "En Edición", "Programado", "Publicado", "Cancelado"]} placeholder="Todo estados" />
-        <GBtn sm onClick={() => exportEpisodiosPDF && exportEpisodiosPDF(fdEps, pg_, empresa)}>⬇ PDF estado</GBtn>
+        <GBtn sm onClick={downloadEpisodesPdf}>{exportingEpisodesPdf ? "Generando..." : "⬇ PDF estado"}</GBtn>
         {canDo && canDo("programas") && <Btn onClick={() => openM("ep", { pgId: id, num: eps.length ? Math.max(...eps.map(e => e.num)) + 1 : 1 })}>+ Nuevo Episodio</Btn>}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 16 }}>

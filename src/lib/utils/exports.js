@@ -41,8 +41,14 @@ function downloadBlob(blob, fileName = "produ_export.pdf") {
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1200);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1200);
 }
 
 function slugFileName(value = "produ") {
@@ -305,8 +311,8 @@ export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa 
       { title: "Detalle de episodios", rows },
       ...(detailText ? [{ title: "Información adicional", text: detailText }] : []),
     ],
-    footerPrimary: "Reporte creado con Produ.",
-    footerSecondary: "Plataforma de gestión para productoras audiovisuales.",
+    footerPrimary: "Hecho con amor por Produ.",
+    footerSecondary: "",
   });
   downloadBlob(file, file.name || `${slugFileName(programa?.nom || "produccion")}_estado_episodios.pdf`);
 }

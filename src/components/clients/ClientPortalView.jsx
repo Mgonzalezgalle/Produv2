@@ -989,7 +989,6 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                   {portalSections.contents ? <div>• En contenidos puedes aprobar piezas o pedir ajustes con observaciones claras.</div> : null}
                   {portalSections.contents ? <div>• El brief adicional y los comentarios quedarán visibles dentro de Produ.</div> : null}
                   {portalSections.productions ? <div>• En producciones puedes revisar episodios, invitados, fechas y estado.</div> : null}
-                  <div>• La relación documental y financiera ahora vive en un portal independiente.</div>
                 </div>
               </Card>
             </div>

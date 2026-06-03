@@ -693,7 +693,7 @@ export function ViewCliDet({
             </div>
             <Sep />
             <div style={{ fontSize: 11, color: "var(--gr3)", lineHeight: 1.6 }}>
-              Este acceso queda reservado para seguimiento y revisión. La relación documental y financiera ahora vive en un portal separado.
+              Este acceso queda reservado para seguimiento y revisión de avances compartidos con el cliente.
             </div>
             <Sep />
             <div style={{ fontSize: 11, color: "var(--gr2)" }}>

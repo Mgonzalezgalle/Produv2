@@ -5,6 +5,7 @@ import { buildClientPortalSessionKey, normalizeClientPortal } from "../../lib/cl
 import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
 import { buildTreasuryReceivables } from "../../lib/utils/treasury";
 import { Badge, Btn, Card, Empty, FG, FTA, GBtn, Modal, Stat, TD, TH } from "../../lib/ui/components";
+import { getTenantPlatformSubtitle } from "../../lib/industry/tenantVocabulary";
 
 function todayIso() {
   return new Date().toISOString().split("T")[0];
@@ -184,18 +185,18 @@ function useViewportFlags() {
   };
 }
 
-function PublicPortalShell({ children }) {
+function PublicPortalShell({ children, empresa = null }) {
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "30px 20px 36px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gap: 22 }}>
         {children}
-        <PortalBrandFooter />
+        <PortalBrandFooter empresa={empresa} />
       </div>
     </div>
   );
 }
 
-function PortalBrandFooter() {
+function PortalBrandFooter({ empresa = null }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "15px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
@@ -204,7 +205,7 @@ function PortalBrandFooter() {
         </div>
       </div>
       <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
-        Plataforma de gestión para productoras audiovisuales.
+        {getTenantPlatformSubtitle(empresa)}
       </div>
     </div>
   );
@@ -265,7 +266,7 @@ function PortalGate({ empresa, client, portal, onUnlock }) {
     onUnlock();
   };
   return (
-    <PublicPortalShell>
+    <PublicPortalShell empresa={empresa}>
       <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #dbe6f3", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
         <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eef8", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>Portal de contenido</div>
@@ -893,7 +894,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
   };
 
   return (
-    <PublicPortalShell>
+    <PublicPortalShell empresa={payload.empresa}>
       <div style={{ display: "grid", gap: 20 }}>
         <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 28, boxShadow: "0 28px 80px rgba(15,23,42,.10)", overflow: "hidden" }}>
           <div style={{ padding: "30px 30px 24px", borderBottom: "1px solid #e8eef8", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>

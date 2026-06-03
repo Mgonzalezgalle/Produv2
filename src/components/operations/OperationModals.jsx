@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { DEFAULT_LISTAS, commentAttachmentFromFile } from "../../lib/utils/helpers";
 import { FG, FI, FSl, FTA, MFoot, Modal, MultiSelect, R2, R3, XBtn } from "../../lib/ui/components";
+import { getTenantVocabularyEntry, isMultiIndustryTenant } from "../../lib/industry/tenantVocabulary";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-export function MCli({ open, data, listas, onClose, onSave, uid }) {
+export function MCli({ open, data, empresa, listas, onClose, onSave, uid }) {
   const [f, setF] = useState({});
   const missingBsaleFields = [
     !String(f.nom || "").trim() ? "Razón social / nombre" : null,
@@ -33,7 +34,7 @@ export function MCli({ open, data, listas, onClose, onSave, uid }) {
       </div>
     </div>
     <R2><FG label="Nombre / Razón Social *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Empresa ABC S.A."/></FG><FG label="RUT"><FI value={f.rut || ""} onChange={e => u("rut", e.target.value)} placeholder="76.543.210-0"/></FG></R2>
-    <R2><FG label="Industria"><FSl value={f.ind || ""} onChange={e => u("ind", e.target.value)}><option value="">Seleccionar...</option>{(listas?.industriasCli || DEFAULT_LISTAS.industriasCli).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Giro"><FI value={f.giro || ""} onChange={e => u("giro", e.target.value)} placeholder="Servicios audiovisuales"/></FG></R2>
+    <R2><FG label="Industria"><FSl value={f.ind || ""} onChange={e => u("ind", e.target.value)}><option value="">Seleccionar...</option>{(listas?.industriasCli || DEFAULT_LISTAS.industriasCli).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Giro"><FI value={f.giro || ""} onChange={e => u("giro", e.target.value)} placeholder={isMultiIndustryTenant(empresa) ? "Servicios profesionales" : "Servicios audiovisuales"}/></FG></R2>
     <R2><FG label="Dirección"><FI value={f.dir || ""} onChange={e => u("dir", e.target.value)} placeholder="Av. Providencia 123"/></FG><FG label="Ciudad"><FI value={f.ciudad || ""} onChange={e => u("ciudad", e.target.value)} placeholder="Santiago"/></FG></R2>
     <R2><FG label="Comuna / Municipio"><FI value={f.comuna || ""} onChange={e => u("comuna", e.target.value)} placeholder="Providencia"/></FG><FG label="Límite de crédito"><FI type="number" min="0" value={f.creditLimit ?? ""} onChange={e => u("creditLimit", e.target.value)} placeholder="0"/></FG></R2>
     <FG label="Notas"><FTA value={f.not || ""} onChange={e => u("not", e.target.value)} placeholder="Observaciones generales..."/></FG>
@@ -53,31 +54,38 @@ export function MCli({ open, data, listas, onClose, onSave, uid }) {
   </Modal>;
 }
 
-export function MPro({ open, data, clientes, listas, onClose, onSave }) {
+export function MPro({ open, data, clientes, empresa, listas, onClose, onSave }) {
   const [f, setF] = useState({});
-  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", cliId: data?.cliId || "", tip: "Podcast", est: "Pre-Producción", ini: "", fin: "", des: "", crewIds: [], comentarios: [] }); }, [data, open]);
+  const projectLabel = getTenantVocabularyEntry(empresa, "producciones") || {};
+  const multiIndustry = isMultiIndustryTenant(empresa);
+  const projectTypes = multiIndustry ? ["Servicio", "Implementación", "Consultoría", "Operación", "Proyecto interno", "Otro"] : (listas?.tiposPro || DEFAULT_LISTAS.tiposPro);
+  const projectStatuses = multiIndustry ? ["Activo", "Planificado", "En curso", "En revisión", "Cerrado", "Pausado"] : (listas?.estadosPro || DEFAULT_LISTAS.estadosPro);
+  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", cliId: data?.cliId || "", tip: multiIndustry ? "Servicio" : "Podcast", est: multiIndustry ? "Activo" : "Pre-Producción", ini: "", fin: "", des: "", crewIds: [], comentarios: [] }); }, [data, open, multiIndustry]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
-  return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Proyecto" : "Nuevo Proyecto"} sub="Proyecto audiovisual">
-    <FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Nombre del proyecto"/></FG>
-    <R2><FG label="Cliente"><FSl value={f.cliId || ""} onChange={e => u("cliId", e.target.value)}><option value="">— Sin cliente —</option>{(clientes || []).map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip || ""} onChange={e => u("tip", e.target.value)}>{(listas?.tiposPro || DEFAULT_LISTAS.tiposPro).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Estado"><FSl value={f.est || ""} onChange={e => u("est", e.target.value)}>{(listas?.estadosPro || DEFAULT_LISTAS.estadosPro).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
+  return <Modal open={open} onClose={onClose} title={data?.id ? `Editar ${projectLabel.singular || "Proyecto"}` : (projectLabel.newLabel || "Nuevo Proyecto")} sub={projectLabel.description || "Proyecto audiovisual"}>
+    <FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder={`Nombre del ${(projectLabel.singular || "proyecto").toLowerCase()}`}/></FG>
+    <R2><FG label="Cliente"><FSl value={f.cliId || ""} onChange={e => u("cliId", e.target.value)}><option value="">— Sin cliente —</option>{(clientes || []).map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG><FG label="Tipo"><FSl value={f.tip || ""} onChange={e => u("tip", e.target.value)}>{projectTypes.map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label="Estado"><FSl value={f.est || ""} onChange={e => u("est", e.target.value)}>{projectStatuses.map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
     <R2><FG label="Fecha Inicio"><FI type="date" value={f.ini || ""} onChange={e => u("ini", e.target.value)} /></FG><FG label="Fecha Entrega"><FI type="date" value={f.fin || ""} onChange={e => u("fin", e.target.value)} /></FG></R2>
     <FG label="Descripción"><FTA value={f.des || ""} onChange={e => u("des", e.target.value)} placeholder="Descripción del proyecto..."/></FG>
     <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
   </Modal>;
 }
 
-export function MPg({ open, data, clientes, listas, onClose, onSave }) {
+export function MPg({ open, data, clientes, empresa, listas, onClose, onSave }) {
   const [f, setF] = useState({});
-  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", tip: "Producción", can: "", est: "Activo", totalEp: "", fre: "Semanal", temporada: "", conductor: "", prodEjec: "", des: "", cliId: "", crewIds: [], comentarios: [] }); }, [data, open]);
+  const programLabel = getTenantVocabularyEntry(empresa, "programas") || {};
+  const multiIndustry = isMultiIndustryTenant(empresa);
+  const operationTypes = multiIndustry ? ["Operación", "Servicio recurrente", "Proceso", "Mesa de trabajo", "Línea de negocio", "Otro"] : (listas?.tiposPg || DEFAULT_LISTAS.tiposPg);
+  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", tip: multiIndustry ? "Operación" : "Producción", can: "", est: "Activo", totalEp: "", fre: "Semanal", temporada: "", conductor: "", prodEjec: "", des: "", cliId: "", crewIds: [], comentarios: [] }); }, [data, open, multiIndustry]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
-  return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Producción" : "Nueva Producción"} sub="TV, Podcast, Web Series…" wide>
-    <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Nombre de la producción"/></FG><FG label="Tipo"><FSl value={f.tip || ""} onChange={e => u("tip", e.target.value)}>{(listas?.tiposPg || DEFAULT_LISTAS.tiposPg).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R2><FG label="Canal / Plataforma"><FI value={f.can || ""} onChange={e => u("can", e.target.value)} placeholder="Canal 13, Spotify..."/></FG><FG label="Estado"><FSl value={f.est || ""} onChange={e => u("est", e.target.value)}>{(listas?.estadosPg || DEFAULT_LISTAS.estadosPg).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
-    <R3><FG label="Total Episodios"><FI type="number" value={f.totalEp || ""} onChange={e => u("totalEp", Number(e.target.value))} placeholder="24"/></FG><FG label="Frecuencia"><FSl value={f.fre || ""} onChange={e => u("fre", e.target.value)}>{(listas?.freqsPg || DEFAULT_LISTAS.freqsPg).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label="Temporada"><FI value={f.temporada || ""} onChange={e => u("temporada", e.target.value)} placeholder="T1 2025"/></FG></R3>
-    <R2><FG label="Conductor / Host"><FI value={f.conductor || ""} onChange={e => u("conductor", e.target.value)} placeholder="Nombre del conductor"/></FG><FG label="Productor Ejecutivo"><FI value={f.prodEjec || ""} onChange={e => u("prodEjec", e.target.value)} placeholder="Nombre del productor"/></FG></R2>
+  return <Modal open={open} onClose={onClose} title={data?.id ? `Editar ${programLabel.singular || "Producción"}` : (programLabel.newLabel || "Nueva Producción")} sub={multiIndustry ? "Proceso, servicio o línea de trabajo activa" : "TV, Podcast, Web Series…"} wide>
+    <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder={`Nombre de ${(programLabel.singular || "la producción").toLowerCase()}`}/></FG><FG label="Tipo"><FSl value={f.tip || ""} onChange={e => u("tip", e.target.value)}>{operationTypes.map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R2><FG label={multiIndustry ? "Canal / Área" : "Canal / Plataforma"}><FI value={f.can || ""} onChange={e => u("can", e.target.value)} placeholder={multiIndustry ? "Área comercial, Operaciones..." : "Canal 13, Spotify..."}/></FG><FG label="Estado"><FSl value={f.est || ""} onChange={e => u("est", e.target.value)}>{(listas?.estadosPg || DEFAULT_LISTAS.estadosPg).map(o => <option key={o}>{o}</option>)}</FSl></FG></R2>
+    <R3><FG label={multiIndustry ? "Total entregas" : "Total Episodios"}><FI type="number" value={f.totalEp || ""} onChange={e => u("totalEp", Number(e.target.value))} placeholder="24"/></FG><FG label="Frecuencia"><FSl value={f.fre || ""} onChange={e => u("fre", e.target.value)}>{(listas?.freqsPg || DEFAULT_LISTAS.freqsPg).map(o => <option key={o}>{o}</option>)}</FSl></FG><FG label={multiIndustry ? "Ciclo / Etapa" : "Temporada"}><FI value={f.temporada || ""} onChange={e => u("temporada", e.target.value)} placeholder={multiIndustry ? "Fase 1" : "T1 2025"}/></FG></R3>
+    <R2><FG label={multiIndustry ? "Responsable principal" : "Conductor / Host"}><FI value={f.conductor || ""} onChange={e => u("conductor", e.target.value)} placeholder={multiIndustry ? "Nombre del responsable" : "Nombre del conductor"}/></FG><FG label={multiIndustry ? "Responsable ejecutivo" : "Productor Ejecutivo"}><FI value={f.prodEjec || ""} onChange={e => u("prodEjec", e.target.value)} placeholder={multiIndustry ? "Nombre del responsable" : "Nombre del productor"}/></FG></R2>
     <FG label="Cliente asociado (opcional)"><FSl value={f.cliId || ""} onChange={e => u("cliId", e.target.value)}><option value="">— Sin cliente —</option>{(clientes || []).map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG>
-    <FG label="Descripción"><FTA value={f.des || ""} onChange={e => u("des", e.target.value)} placeholder="De qué trata el programa..."/></FG>
+    <FG label="Descripción"><FTA value={f.des || ""} onChange={e => u("des", e.target.value)} placeholder={multiIndustry ? "Describe el objetivo, alcance o contexto..." : "De qué trata el programa..."}/></FG>
     <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
   </Modal>;
 }
@@ -320,17 +328,19 @@ export function MEvento({ open, data, producciones, programas, piezas, onClose, 
   </Modal>;
 }
 
-export function MActivo({ open, data, producciones, listas, onClose, onSave }) {
+export function MActivo({ open, data, producciones, empresa, listas, onClose, onSave }) {
   const [f, setF] = useState({});
+  const assetLabel = getTenantVocabularyEntry(empresa, "activos") || {};
+  const projectLabel = getTenantVocabularyEntry(empresa, "producciones") || {};
   useEffect(() => { setF(data?.id ? { ...data } : { nom: "", categoria: "", marca: "", modelo: "", serial: "", valorCompra: "", fechaCompra: "", estado: "Disponible", asignadoA: "", obs: "" }); }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
   const CATS = listas?.catActivos || DEFAULT_LISTAS.catActivos;
   const ESTADOS = listas?.estadosActivos || DEFAULT_LISTAS.estadosActivos;
-  return <Modal open={open} onClose={onClose} title={data?.id ? "Editar Activo" : "Nuevo Activo"} sub="Equipamiento o bien de la productora">
+  return <Modal open={open} onClose={onClose} title={data?.id ? `Editar ${assetLabel.singular || "Activo"}` : (assetLabel.newLabel || "Nuevo Activo")} sub={assetLabel.description || "Inventario, equipos y recursos."}>
     <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Canon EOS R5"/></FG><FG label="Categoría"><FSl value={f.categoria || ""} onChange={e => u("categoria", e.target.value)}><option value="">Seleccionar...</option>{CATS.map(c => <option key={c}>{c}</option>)}</FSl></FG></R2>
     <R3><FG label="Marca"><FI value={f.marca || ""} onChange={e => u("marca", e.target.value)} placeholder="Canon, Sony..."/></FG><FG label="Modelo"><FI value={f.modelo || ""} onChange={e => u("modelo", e.target.value)} placeholder="EOS R5"/></FG><FG label="N° Serie"><FI value={f.serial || ""} onChange={e => u("serial", e.target.value)} placeholder="SN-00001"/></FG></R3>
     <R3><FG label="Valor Compra"><FI type="number" value={f.valorCompra || ""} onChange={e => u("valorCompra", e.target.value)} placeholder="0"/></FG><FG label="Fecha Compra"><FI type="date" value={f.fechaCompra || ""} onChange={e => u("fechaCompra", e.target.value)} /></FG><FG label="Estado"><FSl value={f.estado || "Disponible"} onChange={e => u("estado", e.target.value)}>{ESTADOS.map(s => <option key={s}>{s}</option>)}</FSl></FG></R3>
-    <FG label="Asignado a Proyecto"><FSl value={f.asignadoA || ""} onChange={e => u("asignadoA", e.target.value)}><option value="">— Sin asignar —</option>{(producciones || []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
+    <FG label={`Asignado a ${projectLabel.singular || "Proyecto"}`}><FSl value={f.asignadoA || ""} onChange={e => u("asignadoA", e.target.value)}><option value="">— Sin asignar —</option>{(producciones || []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
     <FG label="Observaciones"><FTA value={f.obs || ""} onChange={e => u("obs", e.target.value)} placeholder="Condición, accesorios incluidos..."/></FG>
     <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
   </Modal>;

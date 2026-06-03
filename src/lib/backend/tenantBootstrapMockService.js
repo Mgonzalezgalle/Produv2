@@ -1,4 +1,5 @@
 import { normalizeEmpresasModel, uid } from "../utils/helpers";
+import { buildVocabularyFromPreset } from "../industry/tenantVocabulary";
 
 export function createTenantBootstrapMockService({ dbGet, dbSet, nextTenantCode, today }) {
   return {
@@ -10,6 +11,8 @@ export function createTenantBootstrapMockService({ dbGet, dbSet, nextTenantCode,
     } = {}) {
       const currentEmpresas = normalizeEmpresasModel((await dbGet("produ:empresas")) || []);
       const tenantId = companyDraft.id || `emp_${uid().slice(1, 7)}`;
+      const multiIndustry = customerType === "empresa" || customerType === "multi_industria";
+      const draftIndustryProfile = companyDraft.industryProfile && Object.keys(companyDraft.industryProfile).length ? companyDraft.industryProfile : null;
       const tenantDraft = normalizeEmpresasModel([{
         id: tenantId,
         tenantCode: companyDraft.tenantCode || nextTenantCode(currentEmpresas),
@@ -25,6 +28,13 @@ export function createTenantBootstrapMockService({ dbGet, dbSet, nextTenantCode,
         pendingActivation: true,
         requestType: "self_serve",
         customerType,
+        industryProfile: draftIndustryProfile || (multiIndustry ? {
+          presetId: "multi_industria",
+          mode: "multi_industria",
+          enabled: true,
+          updatedAt: new Date().toISOString(),
+          vocabulary: buildVocabularyFromPreset("multi_industria"),
+        } : {}),
         teamSize,
         requestedModules,
         plan: "",

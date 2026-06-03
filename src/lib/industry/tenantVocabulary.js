@@ -117,3 +117,14 @@ export function getTenantBrandSubtitle(empresa = {}) {
   const profile = normalizeTenantIndustryProfile(empresa?.industryProfile || {});
   return profile.presetId === "multi_industria" ? "Gestión de Empresas" : "Gestión de Productoras";
 }
+
+export function isMultiIndustryTenant(empresa = {}) {
+  const profile = normalizeTenantIndustryProfile(empresa?.industryProfile || {});
+  return profile.presetId === "multi_industria";
+}
+
+export function getTenantPlatformSubtitle(empresa = {}) {
+  return isMultiIndustryTenant(empresa)
+    ? "Plataforma de gestión para empresas."
+    : "Plataforma de gestión para productoras audiovisuales.";
+}

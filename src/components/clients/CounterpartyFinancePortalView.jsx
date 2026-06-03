@@ -21,6 +21,7 @@ import {
 import { Badge, Btn, GBtn, Modal } from "../../lib/ui/components";
 import { appendWorkflowEventEntry } from "../../lib/operations/workflowEvents";
 import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
+import { getTenantPlatformSubtitle } from "../../lib/industry/tenantVocabulary";
 
 function fmtMoney(value = 0) {
   return "$" + Number(value || 0).toLocaleString("es-CL");
@@ -201,7 +202,7 @@ function chunkRows(rows = [], size = 7) {
   return chunks;
 }
 
-async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [], fileName = "produ_portal.pdf" } = {}) {
+async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", companyIndustryProfile = null, counterpartName = "Portal financiero", counterpartLines = [], fileName = "produ_portal.pdf" } = {}) {
   const buildModernPdf = await getSimplePdfBlobRuntime();
   const safeRows = Array.isArray(rows) ? rows : [];
   const bodySections = safeRows.length
@@ -237,12 +238,12 @@ async function buildSectionPdfBlob({ title = "", subtitle = "", rows = [], accen
     ],
     bodySections,
     footerPrimary: "Portal creado con ♥ por Produ.",
-    footerSecondary: "Plataforma de gestión para productoras audiovisuales.",
+    footerSecondary: getTenantPlatformSubtitle({ industryProfile: companyIndustryProfile }),
   });
 }
 
-async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", counterpartName = "Portal financiero", counterpartLines = [] } = {}) {
-  const built = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, counterpartName, counterpartLines });
+async function downloadSectionPdf({ title = "", subtitle = "", rows = [], accent = "#2f6ea8", fileName = "produ_portal.pdf", companyName = "Produ", companyEmail = "", companyPhone = "", companyLogo = "", companyIndustryProfile = null, counterpartName = "Portal financiero", counterpartLines = [] } = {}) {
+  const built = await buildSectionPdfBlob({ title, subtitle, rows, accent, fileName, companyName, companyEmail, companyPhone, companyLogo, companyIndustryProfile, counterpartName, counterpartLines });
   const blob = await coercePdfBlob(built);
   const downloaded = triggerBlobDownload(blob, fileName);
   if (!downloaded) openBlobInNewTab(blob, fileName);
@@ -336,18 +337,18 @@ function useViewportFlags() {
   };
 }
 
-function PublicFinanceShell({ children }) {
+function PublicFinanceShell({ children, empresa = null }) {
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(circle at top left, rgba(47,110,168,.14), transparent 28%), radial-gradient(circle at top right, rgba(47,110,168,.07), transparent 24%), linear-gradient(180deg, #f4f8fd 0%, #edf3fb 42%, #f8fbff 100%)", padding: "24px 16px 30px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", display: "grid", gap: 22 }}>
         {children}
-        <PortalBrandFooter />
+        <PortalBrandFooter empresa={empresa} />
       </div>
     </div>
   );
 }
 
-function PortalBrandFooter() {
+function PortalBrandFooter({ empresa = null }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div style={{ background: "#ffffff", border: "1px solid #dbe6f3", borderRadius: 22, padding: "15px 22px", boxShadow: "0 16px 40px rgba(15,23,42,.06)" }}>
@@ -356,7 +357,7 @@ function PortalBrandFooter() {
         </div>
       </div>
       <div style={{ textAlign: "center", fontSize: 13, color: "#74859d" }}>
-        Plataforma de gestión para productoras audiovisuales.
+        {getTenantPlatformSubtitle(empresa)}
       </div>
     </div>
   );
@@ -565,7 +566,7 @@ function PortalGate({ payload, onUnlock }) {
   };
 
   return (
-    <PublicFinanceShell>
+    <PublicFinanceShell empresa={payload.empresa}>
       <div style={{ maxWidth: 760, margin: "0 auto", background: "#ffffff", border: "1px solid #dbe6f3", boxShadow: "0 28px 80px rgba(15,23,42,.10)", borderRadius: 28, overflow: "hidden" }}>
         <div style={{ padding: "34px 36px 20px", borderBottom: "1px solid #e8eef8", background: "linear-gradient(135deg, rgba(47,110,168,.10), rgba(255,255,255,.96) 48%, rgba(47,110,168,.04))" }}>
           <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700, color: "#2f6ea8", marginBottom: 12 }}>
@@ -740,6 +741,7 @@ function ClientFinanceBody({ payload, onPortalAction, onPortalSignal, onBudgetDe
     companyEmail: payload?.empresa?.ema || payload?.empresa?.email || "",
     companyPhone: payload?.empresa?.tel || "",
     companyLogo: payload?.empresa?.logo || "",
+    companyIndustryProfile: payload?.empresa?.industryProfile || null,
     counterpartName: payload?.client?.nom || "Cliente",
     counterpartLines: [payload?.client?.rut ? `RUT: ${payload.client.rut}` : ""].filter(Boolean),
   }), [payload]);
@@ -1185,6 +1187,7 @@ function ProviderFinanceBody({ payload, onPortalAction, onPortalSignal }) {
     companyEmail: payload?.empresa?.ema || payload?.empresa?.email || "",
     companyPhone: payload?.empresa?.tel || "",
     companyLogo: payload?.empresa?.logo || "",
+    companyIndustryProfile: payload?.empresa?.industryProfile || null,
     counterpartName: payload?.provider?.name || payload?.provider?.razonSocial || "Proveedor",
     counterpartLines: [payload?.provider?.rut ? `RUT: ${payload.provider.rut}` : ""].filter(Boolean),
   }), [payload]);
@@ -1752,7 +1755,7 @@ export function CounterpartyFinancePortalView({ empresas = [], descriptor = null
     : "Revisa facturas, pagos, órdenes de compra recibidas, presupuestos y paga en línea cuando tu documento ya tenga un link activo.";
 
   return (
-    <PublicFinanceShell>
+    <PublicFinanceShell empresa={payload.empresa}>
       <div style={{ display: "grid", gap: 18 }}>
         <FinanceHero
           type={payload.type}

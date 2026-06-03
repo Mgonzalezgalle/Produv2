@@ -94,6 +94,7 @@ export function CoreModalRouter({
       oportunidades={VP.crmOpps}
       crew={crew}
       crewOptions={(VP.crew || []).filter(c => c.empId === empresa?.id && c.active !== false)}
+      empresa={empresa}
       listas={VP.listas}
       onSaveCli={guardSave("clientes", d => cSave(clientes, setClientes, withEmp(d)))}
       onSavePro={guardSave("producciones", d => cSave(producciones, setProducciones, withEmp(d)))}

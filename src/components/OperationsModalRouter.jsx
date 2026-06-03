@@ -22,6 +22,7 @@ export function OperationsModalRouter({
   oportunidades,
   crew,
   crewOptions,
+  empresa,
   listas,
   onSaveCli,
   onSavePro,
@@ -39,6 +40,7 @@ export function OperationsModalRouter({
     <MCli
       open={mOpen==="cli"}
       data={mData}
+      empresa={empresa}
       listas={listas}
       onClose={closeM}
       onSave={onSaveCli}
@@ -47,6 +49,7 @@ export function OperationsModalRouter({
       open={mOpen==="pro"}
       data={mData}
       clientes={clientes}
+      empresa={empresa}
       listas={listas}
       onClose={closeM}
       onSave={onSavePro}
@@ -55,6 +58,7 @@ export function OperationsModalRouter({
       open={mOpen==="pg"}
       data={mData}
       clientes={clientes}
+      empresa={empresa}
       listas={listas}
       onClose={closeM}
       onSave={onSavePg}
@@ -112,6 +116,7 @@ export function OperationsModalRouter({
       open={mOpen==="activo"}
       data={mData}
       producciones={producciones}
+      empresa={empresa}
       listas={listas}
       onClose={closeM}
       onSave={onSaveActivo}

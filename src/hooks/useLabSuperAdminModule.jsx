@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { requestConfirm } from "../lib/ui/confirmService";
+import { buildVocabularyFromPreset } from "../lib/industry/tenantVocabulary";
 
 const isSameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -835,6 +836,9 @@ export function useLabSuperAdminModule({
         },
       });
       const empresaExists = (liveEmpresas || []).some(e => e.id === targetEmpId);
+      const requestedCustomerType = sol.customerType || sol.companyDraft?.customerType || "productora";
+      const requestedMultiIndustry = requestedCustomerType === "empresa" || requestedCustomerType === "multi_industria";
+      const requestedIndustryProfile = sol.companyDraft?.industryProfile && Object.keys(sol.companyDraft.industryProfile).length ? sol.companyDraft.industryProfile : null;
       const baseEmpresas = empresaExists
         ? liveEmpresas
         : normalizeEmpresasModel([
@@ -853,7 +857,14 @@ export function useLabSuperAdminModule({
               active: false,
               pendingActivation: true,
               requestType: "demo",
-              customerType: sol.customerType || sol.companyDraft?.customerType || "productora",
+              customerType: requestedCustomerType,
+              industryProfile: requestedIndustryProfile || (requestedMultiIndustry ? {
+                presetId: "multi_industria",
+                mode: "multi_industria",
+                enabled: true,
+                updatedAt: new Date().toISOString(),
+                vocabulary: buildVocabularyFromPreset("multi_industria"),
+              } : {}),
               teamSize: sol.teamSize || sol.companyDraft?.teamSize || "1-3",
               requestedModules: sol.requestedModules || sol.companyDraft?.requestedModules || [],
               referredByEmpId: sol.referredByEmpId || sol.companyDraft?.referredByEmpId || "",

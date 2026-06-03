@@ -285,7 +285,7 @@ export function SelfServeAcquisitionWizard({
               <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:800,marginBottom:6}}>Datos de empresa</div>
               <div style={{fontSize:12,color:"var(--gr2)",marginBottom:16}}>Queremos entender bien tu operación antes de activarla.</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-                <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Empresa / Productora *</div>
+                <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Empresa *</div>
                 <input value={solF.emp||""} onChange={e=>setField("emp", e.target.value)} placeholder="Play Media SpA" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
                 <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>RUT</div>
                 <input value={solF.rut||""} onChange={e=>setField("rut", e.target.value)} placeholder="77.118.348-2" style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}/></div>
@@ -300,6 +300,7 @@ export function SelfServeAcquisitionWizard({
                 <div><div style={{fontSize:11,fontWeight:700,color:"var(--gr2)",marginBottom:4}}>Tipo de cliente</div>
                 <select value={solF.customerType||"productora"} onChange={e=>setField("customerType", e.target.value)} style={{width:"100%",padding:"9px 12px",background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--wh)",fontSize:13,outline:"none"}}>
                   <option value="productora">Productora</option>
+                  <option value="empresa">Empresa / Multi industria</option>
                   <option value="creador">Creador independiente</option>
                   <option value="agencia">Agencia</option>
                   <option value="estudio">Estudio</option>

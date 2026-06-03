@@ -14,6 +14,7 @@ function buildTenantSnapshot(empresa = {}) {
     primaryColor: empresa?.theme?.cy || empresa?.primaryColor || "#00d4e8",
     active: empresa?.active !== false,
     customerType: empresa?.customerType || "productora",
+    industryProfile: empresa?.industryProfile || {},
     teamSize: empresa?.teamSize || "1-3",
     billingCurrency: empresa?.billingCurrency || "UF",
     billingMonthly: Number(empresa?.billingMonthly || 0),
@@ -22,6 +23,7 @@ function buildTenantSnapshot(empresa = {}) {
     requestedModules: Array.isArray(empresa?.addons) ? empresa.addons : [],
     metadata: {
       localTheme: empresa?.theme || null,
+      industryProfile: empresa?.industryProfile || {},
     },
   };
 }

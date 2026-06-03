@@ -1096,6 +1096,7 @@ export default function App(){
     ausCardComponent,
     exportMovCsvHelper,
     exportMovPdfHelper,
+    exportEpisodiosPdfHelper,
     exportActiveClientsCsvHelper,
     exportActiveClientsPdfHelper,
     TareaCard,
@@ -1269,12 +1270,13 @@ export default function App(){
     ausCardComponent,
     exportMovCsvHelper,
     exportMovPdfHelper,
+    exportEpisodiosPdfHelper,
     exportActiveClientsCsvHelper,
     exportActiveClientsPdfHelper,
     TareaCard,
     COLS_TAREAS,
     getRoleConfig,
-  }), [comentariosBlockComponent, movBlockComponent, miniCalComponent, tareasContextoComponent, ausCardComponent, exportMovCsvHelper, exportMovPdfHelper, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, TareaCard]);
+  }), [comentariosBlockComponent, movBlockComponent, miniCalComponent, tareasContextoComponent, ausCardComponent, exportMovCsvHelper, exportMovPdfHelper, exportEpisodiosPdfHelper, exportActiveClientsCsvHelper, exportActiveClientsPdfHelper, TareaCard]);
 
   const sidebarCollapsed=isMobile?false:collapsed;
   const SW=sidebarCollapsed?64:240;

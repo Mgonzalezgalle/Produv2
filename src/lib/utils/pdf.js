@@ -342,6 +342,127 @@ export async function buildModernPdf({
   return new File([bytes], fileName, { type: "application/pdf" });
 }
 
+export async function buildEpisodeStatusPdf({
+  fileName = "estado_episodios.pdf",
+  title = "Estado de episodios",
+  accent = "#1a1a2e",
+  empresa = null,
+  programa = null,
+  episodios = [],
+  formatDate = value => value || "—",
+  generatedAt = "",
+  footerPrimary = "Hecho con amor por Produ.",
+  footerSecondary = "",
+} = {}) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const marginX = 34;
+  const white = hexToRgb("#ffffff");
+  const navy = hexToRgb("#1a1a2e");
+  const text = hexToRgb("#0f172a");
+  const muted = hexToRgb("#667085");
+  const subtle = hexToRgb("#f6f9fd");
+  const border = hexToRgb("#dbe7f5");
+  const headerFill = hexToRgb("#f8fbff");
+  const accentColor = hexToRgb(accent || "#1a1a2e");
+  const rows = Array.isArray(episodios) ? episodios : [];
+  const logo = await loadPdfImage(pdf, empresa?.logo || "");
+  let page = null;
+  let y = 0;
+
+  const truncate = (value, maxWidth, targetFont = font, size = 9.5) => {
+    const raw = String(value || "—");
+    if (targetFont.widthOfTextAtSize(raw, size) <= maxWidth) return raw;
+    let next = raw;
+    while (next.length > 1 && targetFont.widthOfTextAtSize(`${next}...`, size) > maxWidth) {
+      next = next.slice(0, -1);
+    }
+    return `${next.trimEnd()}...`;
+  };
+  const statusTone = status => {
+    const normalized = String(status || "").trim().toLowerCase();
+    if (normalized === "publicado" || normalized === "aprobado" || normalized === "grabado") return { bg: "#eafaf2", bd: "#bdf0d5", fg: "#35c879" };
+    if (normalized === "programado" || normalized === "planificado") return { bg: "#f4edff", bd: "#dec8ff", fg: "#9b5cf6" };
+    if (normalized.includes("edicion") || normalized.includes("edición")) return { bg: "#f3f4f6", bd: "#c6cad1", fg: "#1f2433" };
+    if (normalized === "cancelado") return { bg: "#fff1f2", bd: "#fecdd3", fg: "#e5485d" };
+    return { bg: "#eef5ff", bd: "#cfe0fb", fg: "#2b6df6" };
+  };
+  const drawFooter = targetPage => {
+    const primaryWidth = font.widthOfTextAtSize(footerPrimary, 8.8);
+    targetPage.drawText(footerPrimary, { x: (pageWidth - primaryWidth) / 2, y: 22, size: 8.8, font, color: muted });
+    if (footerSecondary) {
+      const secondaryWidth = font.widthOfTextAtSize(footerSecondary, 8);
+      targetPage.drawText(footerSecondary, { x: (pageWidth - secondaryWidth) / 2, y: 10, size: 8, font, color: muted });
+    }
+  };
+  const drawPage = () => {
+    page = pdf.addPage([pageWidth, pageHeight]);
+    page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: white });
+    page.drawRectangle({ x: 0, y: pageHeight - 82, width: pageWidth, height: 82, color: accentColor });
+    if (logo) {
+      const dims = fitPdfImageDimensions(logo, 118, 42);
+      page.drawImage(logo, { x: marginX, y: pageHeight - 62, width: dims?.width || 92, height: dims?.height || 32 });
+    } else {
+      page.drawText(empresa?.nombre || "Produ", { x: marginX, y: pageHeight - 50, size: 20, font: bold, color: white });
+    }
+    page.drawText(title, { x: pageWidth - 300, y: pageHeight - 50, size: 19, font: bold, color: white });
+    drawFooter(page);
+    y = pageHeight - 112;
+  };
+  const drawTableHeader = () => {
+    drawRoundedPdfBox(page, marginX, y - 28, pageWidth - marginX * 2, 32, headerFill, border, 0.8);
+    const headers = [
+      ["N°", marginX + 14],
+      ["TITULO", marginX + 62],
+      ["INVITADO", marginX + 464],
+      ["GRABACION", marginX + 572],
+      ["EMISION", marginX + 650],
+      ["ESTADO", marginX + 736],
+    ];
+    headers.forEach(([label, x]) => page.drawText(label, { x, y: y - 10, size: 8.5, font: bold, color: muted }));
+    y -= 42;
+  };
+  const ensureSpace = (needed = 44) => {
+    if (y - needed < 48) {
+      drawPage();
+      drawTableHeader();
+    }
+  };
+
+  drawPage();
+  page.drawText(programa?.nom || "Producción", { x: marginX, y, size: 16, font: bold, color: text });
+  page.drawText([programa?.tip, programa?.can, programa?.temporada ? `Temporada ${programa.temporada}` : ""].filter(Boolean).join(" · ") || "Estado de producción", { x: marginX, y: y - 18, size: 9.5, font, color: muted });
+  const meta = [`Total episodios: ${rows.length}`, generatedAt ? `Generado: ${generatedAt}` : ""].filter(Boolean).join(" · ");
+  page.drawText(meta, { x: pageWidth - marginX - bold.widthOfTextAtSize(meta, 9), y: y - 18, size: 9, font: bold, color: muted });
+  y -= 48;
+  drawTableHeader();
+
+  if (!rows.length) {
+    drawRoundedPdfBox(page, marginX, y - 42, pageWidth - marginX * 2, 48, subtle, border, 0.8);
+    page.drawText("No hay episodios para exportar en esta producción.", { x: marginX + 16, y: y - 18, size: 10, font, color: muted });
+  } else {
+    rows.forEach(ep => {
+      ensureSpace(38);
+      page.drawLine({ start: { x: marginX, y: y - 20 }, end: { x: pageWidth - marginX, y: y - 20 }, thickness: 0.8, color: border });
+      page.drawText(`#${String(ep?.num || "").padStart(2, "0")}`, { x: marginX + 14, y, size: 10, font: bold, color: navy });
+      page.drawText(truncate(ep?.titulo || "Episodio", 365, bold, 9.6), { x: marginX + 62, y, size: 9.6, font: bold, color: text });
+      page.drawText(truncate(ep?.invitado || "Por definir", 92, font, 9.4), { x: marginX + 464, y, size: 9.4, font, color: muted });
+      page.drawText(formatDate(ep?.fechaGrab), { x: marginX + 572, y, size: 9.2, font, color: muted });
+      page.drawText(formatDate(ep?.fechaEmision), { x: marginX + 650, y, size: 9.2, font, color: muted });
+      const tone = statusTone(ep?.estado);
+      drawRoundedPdfBox(page, marginX + 730, y - 8, 72, 20, hexToRgb(tone.bg), hexToRgb(tone.bd), 0.8);
+      page.drawText(truncate(String(ep?.estado || "Sin estado").toUpperCase(), 58, bold, 7.6), { x: marginX + 740, y: y - 1, size: 7.6, font: bold, color: hexToRgb(tone.fg) });
+      y -= 34;
+    });
+  }
+
+  const bytes = await pdf.save();
+  return new File([bytes], fileName, { type: "application/pdf" });
+}
+
 export function buildSimplePdfBlob(lines, accent = "#00d4e8") {
   const pageWidth = 595;
   const pageHeight = 842;

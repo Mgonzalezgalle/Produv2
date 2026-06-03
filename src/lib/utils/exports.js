@@ -21,6 +21,7 @@ export function exportComentariosCSV(items, nombre = "comentarios") {
 
 let simplePdfBlobRuntimePromise = null;
 let modernPdfRuntimePromise = null;
+let episodeStatusPdfRuntimePromise = null;
 
 async function getSimplePdfBlobRuntime() {
   if (!simplePdfBlobRuntimePromise) {
@@ -34,6 +35,13 @@ async function getModernPdfRuntime() {
     modernPdfRuntimePromise = import("./pdf").then(module => module.buildModernPdf);
   }
   return modernPdfRuntimePromise;
+}
+
+async function getEpisodeStatusPdfRuntime() {
+  if (!episodeStatusPdfRuntimePromise) {
+    episodeStatusPdfRuntimePromise = import("./pdf").then(module => module.buildEpisodeStatusPdf);
+  }
+  return episodeStatusPdfRuntimePromise;
 }
 
 function downloadBlob(blob, fileName = "produ_export.pdf") {
@@ -260,43 +268,17 @@ export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa 
   const { companyPrintColor, fmtD, today } = helpers;
   const safeEpisodes = Array.isArray(episodios) ? episodios : [];
   const accent = companyPrintColor ? companyPrintColor(empresa) : "#1a1a2e";
-  const statusCounts = safeEpisodes.reduce((acc, ep) => {
-    const key = ep?.estado || "Sin estado";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
   const formatDate = value => value ? (fmtD ? fmtD(value) : new Date(`${value}T12:00:00`).toLocaleDateString("es-CL")) : "Por confirmar";
-  const rows = safeEpisodes.length ? safeEpisodes.map(ep => ({
-    label: `#${String(ep?.num || "").padStart(2, "0")} · ${ep?.titulo || "Episodio"} · ${ep?.invitado || "Invitado por definir"}`,
-    value: [
-      ep?.estado || "Sin estado",
-      `G: ${formatDate(ep?.fechaGrab)}`,
-      `E: ${ep?.fechaEmision ? formatDate(ep.fechaEmision) : "—"}`,
-    ].filter(Boolean).join(" · "),
-    bold: true,
-  })) : [{ label: "Sin episodios", value: "No hay episodios para exportar en esta producción." }];
-  const buildModernPdf = await getModernPdfRuntime();
-  const file = await buildModernPdf({
+  const buildEpisodeStatusPdf = await getEpisodeStatusPdfRuntime();
+  const file = await buildEpisodeStatusPdf({
     fileName: `${slugFileName(programa?.nom || "produccion")}_estado_episodios.pdf`,
     title: "Estado de episodios",
     accent,
     empresa,
-    counterpartTitle: "Producción",
-    counterpartName: programa?.nom || "Producción",
-    counterpartLines: [
-      programa?.tip,
-      programa?.can ? `Canal: ${programa.can}` : "",
-      programa?.fre ? `Frecuencia: ${programa.fre}` : "",
-      programa?.temporada ? `Temporada: ${programa.temporada}` : "",
-    ].filter(Boolean),
-    metaLines: [
-      `Total episodios: ${safeEpisodes.length}`,
-      `Generado: ${formatDate(today ? today() : new Date().toISOString().slice(0, 10))}`,
-      Object.entries(statusCounts).map(([status, count]) => `${status}: ${count}`).join(" · ") || "Sin estados",
-    ],
-    bodySections: [
-      { title: "Detalle de episodios", rows },
-    ],
+    programa,
+    episodios: safeEpisodes,
+    formatDate,
+    generatedAt: formatDate(today ? today() : new Date().toISOString().slice(0, 10)),
     footerPrimary: "Hecho con amor por Produ.",
     footerSecondary: "",
   });

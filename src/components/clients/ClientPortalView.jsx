@@ -426,6 +426,10 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
         if (programCompare) return programCompare;
         return Number(a.num || 0) - Number(b.num || 0);
       });
+    const programEpisodeGroups = activePrograms.map(program => ({
+      program,
+      episodes: programEpisodes.filter(ep => ep.programId === program.id),
+    }));
     const activeContent = (payload?.piezas || []).filter(item => item?.cliId === clientId);
     const budgets = (payload?.presupuestos || []).filter(item => item?.cliId === clientId);
     const invoices = buildTreasuryReceivables({
@@ -443,6 +447,7 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
       activeProductions,
       activePrograms,
       programEpisodes,
+      programEpisodeGroups,
       activeContent,
       budgets,
       invoices,
@@ -1006,51 +1011,63 @@ export function ClientPortalView({ empresas = [], slug = "", platformServices = 
                 </div>
 
                 {summary.programEpisodes.length ? (
-                  isMobile ? (
-                    <div style={{ display: "grid", gap: 12 }}>
-                      {summary.programEpisodes.map(ep => (
-                        <div key={ep.id} style={{ borderRadius: 18, border: "1px solid #dbe7f5", background: "#ffffff", padding: 15, display: "grid", gap: 10 }}>
+                  <div style={{ display: "grid", gap: 16 }}>
+                    {summary.programEpisodeGroups.filter(group => group.episodes.length).map(group => (
+                      <div key={group.program.id} style={{ borderRadius: 20, border: "1px solid #dbe7f5", background: "#ffffff", overflow: "hidden" }}>
+                        <div style={{ padding: "14px 16px", borderBottom: "1px solid #e8eef8", background: "#f8fbff", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                           <div>
-                            <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "#6b7c93", fontWeight: 800 }}>{ep.programName}</div>
-                            <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a", marginTop: 4 }}>#{String(ep.num || "").padStart(2, "0")} · {safeText(ep.titulo, "Episodio")}</div>
+                            <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>{safeText(group.program.nom, "Producción")}</div>
+                            <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 3 }}>{[group.program.tip, group.program.temporada, group.program.can].filter(Boolean).join(" · ") || "Seguimiento de episodios"}</div>
                           </div>
-                          <div style={{ fontSize: 12.5, color: "#475569" }}><b style={{ color: "#0f172a" }}>Invitado:</b> {safeText(ep.invitado, "Por definir")}</div>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                            <Badge label={safeText(ep.estado, "Sin estado")} />
-                            <span style={{ fontSize: 12, color: "#64748b" }}>Grabación: {fmtDate(ep.fechaGrab)}</span>
-                            <span style={{ fontSize: 12, color: "#64748b" }}>Emisión: {fmtDate(ep.fechaEmision)}</span>
-                          </div>
+                          <Badge label={`${group.episodes.length} episodio(s)`} color="cyan" />
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: "auto", border: "1px solid #dbe7f5", borderRadius: 18 }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", background: "#ffffff" }}>
-                        <thead>
-                          <tr>
-                            <TH>Producción</TH>
-                            <TH>Nombre</TH>
-                            <TH>Invitado</TH>
-                            <TH>Estado</TH>
-                            <TH>Grabación</TH>
-                            <TH>Emisión</TH>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {summary.programEpisodes.map(ep => (
-                            <tr key={ep.id}>
-                              <TD>{safeText(ep.programName, "Producción")}</TD>
-                              <TD bold>#{String(ep.num || "").padStart(2, "0")} · {safeText(ep.titulo, "Episodio")}</TD>
-                              <TD>{safeText(ep.invitado, "Por definir")}</TD>
-                              <TD><Badge label={safeText(ep.estado, "Sin estado")} /></TD>
-                              <TD>{fmtDate(ep.fechaGrab)}</TD>
-                              <TD>{fmtDate(ep.fechaEmision)}</TD>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
+                        {isMobile ? (
+                          <div style={{ display: "grid", gap: 10, padding: 12 }}>
+                            {group.episodes.map(ep => (
+                              <div key={ep.id} style={{ borderRadius: 16, border: "1px solid #dbe7f5", background: "#ffffff", padding: 13, display: "grid", gap: 9 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                                  <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a" }}>#{String(ep.num || "").padStart(2, "0")} · {safeText(ep.titulo, "Episodio")}</div>
+                                  <Badge label={safeText(ep.estado, "Sin estado")} />
+                                </div>
+                                <div style={{ fontSize: 12.5, color: "#475569" }}><b style={{ color: "#0f172a" }}>Invitado:</b> {safeText(ep.invitado, "Por definir")}</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                  <div style={{ fontSize: 11.5, color: "#64748b" }}><b>Grabación</b><br />{fmtDate(ep.fechaGrab)}</div>
+                                  <div style={{ fontSize: 11.5, color: "#64748b" }}><b>Emisión</b><br />{fmtDate(ep.fechaEmision)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", background: "#ffffff" }}>
+                              <thead>
+                                <tr>
+                                  <TH>N°</TH>
+                                  <TH>Título</TH>
+                                  <TH>Invitado</TH>
+                                  <TH>Grabación</TH>
+                                  <TH>Emisión</TH>
+                                  <TH>Estado</TH>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.episodes.map(ep => (
+                                  <tr key={ep.id}>
+                                    <TD style={{ color: "#1a1a2e", fontWeight: 900 }}>#{String(ep.num || "").padStart(2, "0")}</TD>
+                                    <TD bold>{safeText(ep.titulo, "Episodio")}</TD>
+                                    <TD>{safeText(ep.invitado, "Por definir")}</TD>
+                                    <TD>{fmtDate(ep.fechaGrab)}</TD>
+                                    <TD>{fmtDate(ep.fechaEmision)}</TD>
+                                    <TD><Badge label={safeText(ep.estado, "Sin estado")} /></TD>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <Empty text="Sin episodios visibles" sub="Cuando esta cuenta tenga episodios asociados, aparecerán aquí con su estado y fechas." />
                 )}

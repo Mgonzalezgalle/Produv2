@@ -103,6 +103,7 @@ import { useLabTheme } from "./hooks/useLabTheme";
 import { assignedNameList, COLS_TAREAS, getAssignedIds, normalizeTaskAssignees } from "./lib/utils/tasks";
 import { resolveClientPortalSlugFromPath } from "./lib/clients/clientPortal";
 import { resolveFinancePortalRoute } from "./lib/clients/financialPortal";
+import { appendOperationalAuditEntry } from "./lib/operations/operationalAudit";
 import {
   attachDiioToCommentCollection,
   attachDiioToCrmActivities,
@@ -215,6 +216,7 @@ export default function App(){
   const [superPanel,setSuperPanel]=useState(false);
   const [alertasOpen,setAlertasOpen]=useState(false);
   const [alertasLeidas,setAlertasLeidas]=useState([]);
+  const [alertasResueltas,setAlertasResueltas]=useState([]);
   const [alertasOcultas,setAlertasOcultas]=useState([]);
   const [systemOpen,setSystemOpen]=useState(false);
   const [systemLeidas,setSystemLeidas]=useState([]);
@@ -233,6 +235,7 @@ export default function App(){
   const sessionActivityRef = useRef(0);
   const moduleLoadingTimeoutRef = useRef(null);
   const alertasReadKey = useMemo(() => curUser ? localLabKey(`alertas-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
+  const alertasResolvedKey = useMemo(() => curUser ? localLabKey(`alertas-resueltas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const alertasHiddenKey = useMemo(() => curUser ? localLabKey(`alertas-ocultas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
   const systemReadKey = useMemo(() => curUser ? localLabKey(`system-leidas:${curUser.id}:${curEmp?.id || "global"}`) : "", [curUser, curEmp?.id]);
 
@@ -373,6 +376,25 @@ export default function App(){
     fmtM,
   }), []);
   const alertas = useLabAlerts(episodios, programas, eventos || [], tasksEnabled ? (tareas || []) : [], facturas || [], contratos || [], curEmp?.portalAlerts || [], empId, alertHelpers);
+  const recordAlertLifecycle = useCallback((action, alerta = {}) => {
+    if (!empId || !action || !alerta?.id) return;
+    appendOperationalAuditEntry({
+      empId,
+      area: "alertas",
+      action,
+      entityType: alerta.entityType || "alerta",
+      entityId: alerta.entityId || alerta.id,
+      actor: curUser,
+      payload: {
+        alertId: alerta.id,
+        alertTitle: alerta.titulo || alerta.title || "",
+        alertArea: alerta.area || "",
+        alertSeverity: alerta.severity || alerta.tipo || "",
+        source: alerta.source || "",
+      },
+      platformServices,
+    });
+  }, [curUser, empId, platformServices]);
 
   const { theme, applyTheme, saveTheme } = useLabTheme({
     THEME_PRESETS,
@@ -1148,6 +1170,20 @@ export default function App(){
   }, [alertasReadKey]);
 
   useEffect(() => {
+    if (!alertasResolvedKey) {
+      setAlertasResueltas([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(alertasResolvedKey) || sessionStorage.getItem(alertasResolvedKey) || "[]";
+      const parsed = JSON.parse(raw);
+      setAlertasResueltas(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setAlertasResueltas([]);
+    }
+  }, [alertasResolvedKey]);
+
+  useEffect(() => {
     if (!systemReadKey) {
       setSystemLeidas([]);
       return;
@@ -1190,6 +1226,13 @@ export default function App(){
   }, [alertas]);
 
   useEffect(() => {
+    setAlertasResueltas(prev => {
+      const next = prev.filter(id => (alertas || []).some(alerta => alerta.id === id));
+      return sameIdArray(prev, next) ? prev : next;
+    });
+  }, [alertas]);
+
+  useEffect(() => {
     setSystemLeidas(prev => {
       const next = prev.filter(id => (systemMessages || []).some(message => message.id === id));
       return sameIdArray(prev, next) ? prev : next;
@@ -1202,6 +1245,13 @@ export default function App(){
     try { localStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
     try { sessionStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasReadKey, alertasLeidas]);
+
+  useEffect(() => {
+    if (!alertasResolvedKey) return;
+    const payload = JSON.stringify(Array.isArray(alertasResueltas) ? alertasResueltas : []);
+    try { localStorage.setItem(alertasResolvedKey, payload); } catch { /* ignore storage write failures */ }
+    try { sessionStorage.setItem(alertasResolvedKey, payload); } catch { /* ignore storage write failures */ }
+  }, [alertasResolvedKey, alertasResueltas]);
 
   useEffect(() => {
     if (!systemReadKey) return;
@@ -1385,11 +1435,14 @@ export default function App(){
     alertas,
     alertasOcultas,
     alertasLeidas,
+    alertasResueltas,
     setAlertasLeidas,
+    setAlertasResueltas,
     setAlertasOcultas,
     setAlertasOpen,
+    recordAlertLifecycle,
     fmtD,
-  }), [alertasOpen, alertas, alertasOcultas, alertasLeidas]);
+  }), [alertasOpen, alertas, alertasOcultas, alertasLeidas, alertasResueltas, recordAlertLifecycle]);
   const systemPanelProps = useMemo(() => ({
     open: systemOpen,
     SystemMessagesPanelView,

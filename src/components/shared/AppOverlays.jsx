@@ -16,11 +16,15 @@ export function AppOverlays({
     alertas,
     alertasOcultas,
     alertasLeidas,
+    alertasResueltas,
     setAlertasLeidas,
+    setAlertasResueltas,
     setAlertasOcultas,
     setAlertasOpen,
+    recordAlertLifecycle,
     fmtD,
   } = alertsPanel;
+  const findAlert = id => (alertas || []).find(item => item.id === id) || { id };
   const {
     open: systemOpen,
     SystemMessagesPanelView,
@@ -70,16 +74,41 @@ export function AppOverlays({
       <AlertasPanelView
         alertas={alertas.filter(a => !alertasOcultas.includes(a.id))}
         leidas={alertasLeidas}
-        onMarcar={id => setAlertasLeidas(p => p.includes(id) ? p : [...p, id])}
-        onMarcarTodas={() => setAlertasLeidas(prev => Array.from(new Set([...(prev || []), ...alertas.filter(a => !alertasOcultas.includes(a.id)).map(a => a.id)])))}
+        resueltas={alertasResueltas}
+        onMarcar={id => {
+          setAlertasLeidas(p => p.includes(id) ? p : [...p, id]);
+          recordAlertLifecycle?.("alert_reviewed", findAlert(id));
+        }}
+        onMarcarTodas={() => {
+          const visibleAlerts = alertas.filter(a => !alertasOcultas.includes(a.id));
+          setAlertasLeidas(prev => Array.from(new Set([...(prev || []), ...visibleAlerts.map(a => a.id)])));
+          visibleAlerts.forEach(item => recordAlertLifecycle?.("alert_reviewed", item));
+        }}
+        onResolver={id => {
+          setAlertasResueltas(p => p.includes(id) ? p : [...p, id]);
+          setAlertasLeidas(p => p.includes(id) ? p : [...p, id]);
+          recordAlertLifecycle?.("alert_resolved", findAlert(id));
+        }}
+        onResolverTodas={() => {
+          const activeAlerts = alertas.filter(a => !alertasOcultas.includes(a.id) && !alertasResueltas.includes(a.id));
+          const activeIds = activeAlerts.map(a => a.id);
+          setAlertasResueltas(prev => Array.from(new Set([...(prev || []), ...activeIds])));
+          setAlertasLeidas(prev => Array.from(new Set([...(prev || []), ...activeIds])));
+          activeAlerts.forEach(item => recordAlertLifecycle?.("alert_resolved", item));
+        }}
         onOcultar={id => {
+          recordAlertLifecycle?.("alert_archived", findAlert(id));
           setAlertasOcultas(p => p.includes(id) ? p : [...p, id]);
           setAlertasLeidas(p => p.filter(item => item !== id));
+          setAlertasResueltas(p => p.filter(item => item !== id));
         }}
         onOcultarTodas={() => {
-          const hiddenIds = alertas.filter(a => alertasLeidas.includes(a.id) && !alertasOcultas.includes(a.id)).map(a => a.id);
+          const hiddenAlerts = alertas.filter(a => (alertasLeidas.includes(a.id) || alertasResueltas.includes(a.id)) && !alertasOcultas.includes(a.id));
+          const hiddenIds = hiddenAlerts.map(a => a.id);
+          hiddenAlerts.forEach(item => recordAlertLifecycle?.("alert_archived", item));
           setAlertasOcultas(prev => Array.from(new Set([...(prev || []), ...hiddenIds])));
           setAlertasLeidas(prev => prev.filter(id => !hiddenIds.includes(id)));
+          setAlertasResueltas(prev => prev.filter(id => !hiddenIds.includes(id)));
         }}
         onClose={() => setAlertasOpen(false)}
         fmtD={fmtD}

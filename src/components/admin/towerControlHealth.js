@@ -1,3 +1,5 @@
+import { buildTenantReadiness } from "../../lib/tenants/runtimeFoundation";
+
 export function getRemoteProvisionedModules(snapshot = {}) {
   const fromModules = snapshot?.modules?.provisioned;
   const fromTenant = snapshot?.tenant?.requested_modules;
@@ -34,6 +36,7 @@ export function buildTenantHealth(emp, users = [], snapshot = {}) {
   const remoteBsale = getRemoteBsaleSnapshot(snapshot);
   const foundationReady = Boolean(snapshot?.tenant);
   const identityAligned = foundationReady && localUsers === remoteUsers && localRoles === remoteRoles;
+  const readiness = buildTenantReadiness(emp, users, snapshot);
   return {
     foundationReady,
     identityAligned,
@@ -41,5 +44,6 @@ export function buildTenantHealth(emp, users = [], snapshot = {}) {
     remoteRoles,
     remoteModules,
     remoteBsale,
+    readiness,
   };
 }

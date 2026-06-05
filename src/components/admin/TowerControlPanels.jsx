@@ -563,6 +563,18 @@ export function CarteraAdminPanel({
                 <KV label="Usuarios locales / remotos" value={`${users.filter(user => user.empId === emp.id).length} / ${detailHealth.remoteUsers}`} />
                 <KV label="Roles custom locales / remotos" value={`${Array.isArray(emp.customRoles) ? emp.customRoles.length : 0} / ${detailHealth.remoteRoles}`} />
                 <KV label="Módulos remotos" value={detailHealth.remoteModules.length ? detailHealth.remoteModules.length : "—"} />
+                <KV label="Preparación SaaS" value={detailHealth.readiness?.summary || "—"} />
+                <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+                  {(detailHealth.readiness?.checks || []).map(check => (
+                    <div key={check.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "8px 10px", borderRadius: 10, border: "1px solid var(--bdr2)", background: check.ready ? "rgba(0,224,138,.07)" : "var(--card2)" }}>
+                      <span style={{ fontSize: 11, color: "var(--gr3)", fontWeight: 700 }}>{check.label}</span>
+                      <Badge label={check.ready ? "OK" : "Pendiente"} color={check.ready ? "green" : "yellow"} sm />
+                    </div>
+                  ))}
+                  {!!detailHealth.readiness?.issues?.length && <div style={{ padding: 10, borderRadius: 12, background: "#ffcc4412", border: "1px solid #ffcc4438", color: "#b7791f", fontSize: 11, lineHeight: 1.55 }}>
+                    {detailHealth.readiness.issues.slice(0, 3).join(" ")}
+                  </div>}
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12 }}>
                 <FG label="Estado de pago">

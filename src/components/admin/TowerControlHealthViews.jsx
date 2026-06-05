@@ -2,6 +2,13 @@ import { Badge } from "../../lib/ui/components";
 
 export function TenantHealthBadgeRow({ health, compact = false }) {
   if (!health) return null;
+  const readiness = health.readiness || {};
+  const readinessLabel = readiness.level === "ready"
+    ? `SaaS listo ${readiness.score}%`
+    : readiness.level === "attention"
+      ? `Revisar ${readiness.score}%`
+      : `Riesgo ${readiness.score || 0}%`;
+  const readinessColor = readiness.level === "ready" ? "green" : readiness.level === "attention" ? "yellow" : "red";
   const tributaryLabel = health.remoteBsale?.governanceMode === "production"
     ? "Tributario prod"
     : health.remoteBsale?.governanceMode === "sandbox"
@@ -14,6 +21,7 @@ export function TenantHealthBadgeRow({ health, compact = false }) {
       : "gray";
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      <Badge label={readinessLabel} color={readinessColor} sm />
       <Badge label={health.foundationReady ? "Foundation OK" : "Sin foundation"} color={health.foundationReady ? "green" : "gray"} sm />
       <Badge label={health.identityAligned ? "Identidad alineada" : "Identidad parcial"} color={health.identityAligned ? "green" : "yellow"} sm />
       {!compact && <Badge label={tributaryLabel} color={tributaryColor} sm />}

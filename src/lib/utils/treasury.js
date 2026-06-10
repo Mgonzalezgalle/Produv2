@@ -10,6 +10,26 @@ import {
 
 export const TREASURY_MODULE_ID = "tesoreria";
 export const TREASURY_MODULE_LABEL = "Tesorería";
+export const TREASURY_CURRENCIES = ["CLP", "USD", "EUR", "UF"];
+
+export function normalizeTreasuryCurrency(value = "CLP") {
+  const currency = String(value || "CLP").trim().toUpperCase();
+  return TREASURY_CURRENCIES.includes(currency) ? currency : "CLP";
+}
+
+export function formatTreasuryMoney(value = 0, currency = "CLP") {
+  const amount = Number(value || 0);
+  const safeCurrency = normalizeTreasuryCurrency(currency);
+  if (safeCurrency === "UF") {
+    return `UF ${amount.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: safeCurrency,
+    minimumFractionDigits: safeCurrency === "CLP" ? 0 : 2,
+    maximumFractionDigits: safeCurrency === "CLP" ? 0 : 2,
+  }).format(amount);
+}
 export const TREASURY_MODULE_ICON = "🏦";
 export const TREASURY_STORE_KEYS = [
   "treasuryProviders",
@@ -58,6 +78,7 @@ export function buildSeedTreasuryData(empId = "") {
         rut: "77.123.450-2",
         direccion: "Providencia 1250, Santiago",
         tipoProveedor: "Arriendo",
+        currency: "CLP",
         contactos: [
           { id: "tpv1c1", nombre: "Carolina Pérez", cargo: "Ejecutiva comercial", email: "carolina@arriendosprov.cl", telefono: "+56 9 8123 1111" },
         ],
@@ -73,6 +94,7 @@ export function buildSeedTreasuryData(empId = "") {
         rut: "76.889.221-4",
         direccion: "Avenida Matta 988, Santiago",
         tipoProveedor: "Postproducción",
+        currency: "CLP",
         contactos: [
           { id: "tpv2c1", nombre: "Javier Muñoz", cargo: "Productor ejecutivo", email: "javier@spu.cl", telefono: "+56 9 7444 2211" },
           { id: "tpv2c2", nombre: "Andrea León", cargo: "Cobranza", email: "cobranza@spu.cl", telefono: "+56 2 2555 8899" },
@@ -83,8 +105,8 @@ export function buildSeedTreasuryData(empId = "") {
       },
     ] : [],
     treasuryPayables: empId === "emp1" ? [
-      { id: "tp1", empId, supplier: "Arriendos Providencia", folio: "ARR-204", category: "Arriendo", issueDate: "2026-04-01", dueDate: "2026-04-12", total: 450000, paid: 0, status: "Pendiente", pdfName: "arriendo-abril.pdf", pdfUrl: "", notes: "Oficina comercial abril" },
-      { id: "tp2", empId, supplier: "Servicios Post Uno", folio: "SPU-882", category: "Servicio", issueDate: "2026-03-20", dueDate: "2026-04-02", total: 720000, paid: 220000, status: "Parcial", pdfName: "post-marzo.pdf", pdfUrl: "", notes: "Saldo pendiente edición final" },
+      { id: "tp1", empId, supplier: "Arriendos Providencia", currency: "CLP", folio: "ARR-204", category: "Arriendo", issueDate: "2026-04-01", dueDate: "2026-04-12", total: 450000, paid: 0, status: "Pendiente", pdfName: "arriendo-abril.pdf", pdfUrl: "", notes: "Oficina comercial abril" },
+      { id: "tp2", empId, supplier: "Servicios Post Uno", currency: "CLP", folio: "SPU-882", category: "Servicio", issueDate: "2026-03-20", dueDate: "2026-04-02", total: 720000, paid: 220000, status: "Parcial", pdfName: "post-marzo.pdf", pdfUrl: "", notes: "Saldo pendiente edición final" },
     ] : [],
     treasuryPurchaseOrders: empId === "emp1" ? [
       { id: "po1", empId, clientId: "c1", number: "OC-BS-2026-14", issueDate: "2026-04-02", amount: 4200000, status: "Aceptada", linkedInvoiceIds: [], pdfName: "oc-bancoseguro.pdf", pdfUrl: "", notes: "Campaña invierno 2026" },
@@ -270,6 +292,7 @@ export function recoverTreasuryPayables({ payables = [], providers = [], disburs
       id: payableId,
       empId,
       supplier: inferredSupplier,
+      currency: normalizeTreasuryCurrency(fallbackPortalProvider?.currency || "CLP"),
       docType: "Pagos sin Factura",
       folio: inferredLabel,
       category: "Proveedor",
@@ -672,6 +695,7 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
         rut: provider?.rut || "",
         direccion: provider?.direccion || "",
         tipoProveedor: provider?.tipoProveedor || "",
+        currency: normalizeTreasuryCurrency(provider?.currency || "CLP"),
         creditLimit: Number(provider?.creditLimit || 0),
         financialPortal: provider?.financialPortal || null,
         contactos: emptyArray(provider?.contactos),
@@ -692,6 +716,7 @@ export function buildTreasuryProviders({ providers = [], payables = [], issuedOr
         rut: provider?.rut || current.rut,
         direccion: provider?.direccion || current.direccion,
         tipoProveedor: provider?.tipoProveedor || current.tipoProveedor,
+        currency: normalizeTreasuryCurrency(provider?.currency || current.currency || "CLP"),
         creditLimit: Number(provider?.creditLimit || current.creditLimit || 0),
         financialPortal: provider?.financialPortal || current.financialPortal || null,
         contactos: emptyArray(provider?.contactos).length ? emptyArray(provider?.contactos) : current.contactos,

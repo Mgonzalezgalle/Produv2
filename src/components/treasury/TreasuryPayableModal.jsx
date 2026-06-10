@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { DEFAULT_LISTAS, today, uid } from "../../lib/utils/helpers";
+import { TREASURY_CURRENCIES, normalizeTreasuryCurrency } from "../../lib/utils/treasury";
 
 export function TreasuryPayableModal({ open, data, providers = [], listas = {}, onClose, onSave }) {
   const [form, setForm] = useState({});
@@ -36,6 +37,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       docType: docTypeOptions[0] || "Factura Afecta",
       folio: "",
       category: "Servicio",
+      currency: "CLP",
       issueDate: today(),
       dueDate: "",
       total: "",
@@ -48,6 +50,14 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
   }, [data, open, docTypeOptions]);
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const setSupplier = value => {
+    const provider = providers.find(item => String(item?.name || "").trim() === value);
+    setForm(prev => ({
+      ...prev,
+      supplier: value,
+      currency: normalizeTreasuryCurrency(provider?.currency || prev.currency || "CLP"),
+    }));
+  };
 
   const onFileChange = event => {
     const file = event.target.files?.[0];
@@ -67,7 +77,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar cuenta por pagar" : "Nueva cuenta por pagar"} sub="Registra un documento manual y adjunta su respaldo PDF">
       <R2>
         <FG label="Proveedor *">
-          <FSl value={form.supplier || ""} onChange={e => setField("supplier", e.target.value)} style={validationIssue?.key === "supplier" ? VALIDATION_FIELD_STYLE : undefined}>
+          <FSl value={form.supplier || ""} onChange={e => setSupplier(e.target.value)} style={validationIssue?.key === "supplier" ? VALIDATION_FIELD_STYLE : undefined}>
             <option value="">Seleccionar proveedor...</option>
             {providerOptions.map(option => <option key={option} value={option}>{option}</option>)}
           </FSl>
@@ -96,6 +106,11 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
           <FI type="number" min="0" value={form.total || ""} onChange={e => setField("total", e.target.value)} placeholder="0" style={validationIssue?.key === "total" ? VALIDATION_FIELD_STYLE : undefined} />
           <ValidationHint>{validationIssue?.key === "total" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
+        <FG label="Moneda">
+          <FSl value={form.currency || "CLP"} onChange={e => setField("currency", e.target.value)}>
+            {TREASURY_CURRENCIES.map(option => <option key={option} value={option}>{option}</option>)}
+          </FSl>
+        </FG>
       </R2>
       <FG label="Adjuntar PDF">
         <input ref={fileRef} type="file" accept="application/pdf" onChange={onFileChange} style={{ ...{ width: "100%", color: "var(--gr3)" } }} />
@@ -117,6 +132,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
           onSave({
             ...form,
             total: Number(form.total || 0),
+            currency: normalizeTreasuryCurrency(form.currency || "CLP"),
             paid: 0,
             status: "Pendiente",
           });

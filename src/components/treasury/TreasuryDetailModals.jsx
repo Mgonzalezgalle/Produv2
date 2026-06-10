@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { DBtn, GBtn, Modal } from "../../lib/ui/components";
 import { fmtD, fmtM } from "../../lib/utils/helpers";
+import { TREASURY_CURRENCIES, formatTreasuryMoney, normalizeTreasuryCurrency } from "../../lib/utils/treasury";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import {
@@ -67,6 +68,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
       rut: provider?.rut || "",
       direccion: provider?.direccion || "",
       tipoProveedor: provider?.tipoProveedor || "",
+      currency: normalizeTreasuryCurrency(provider?.currency || "CLP"),
       creditLimit: Number(provider?.creditLimit || 0),
       financialPortal: normalizeProviderFinancePortal(provider?.financialPortal, provider),
       contactos: Array.isArray(provider?.contactos) ? provider.contactos : [],
@@ -217,8 +219,8 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
         </div>
         <div className="treasury-modal-summary">
           <MiniKpiCard color="#4f7cff" label="Documentos por pagar" value={provider.payables.length} />
-          <MiniKpiCard color="#ffcc44" label="Monto por pagar" value={fmtM(provider.pending)} />
-          <MiniKpiCard color="var(--red)" label="Monto atrasado" value={fmtM(provider.payables.filter(item => item.status === "Vencida").reduce((acc, item) => acc + Number(item.pending || 0), 0))} />
+          <MiniKpiCard color="#ffcc44" label="Monto por pagar" value={formatTreasuryMoney(provider.pending, draft.currency)} />
+          <MiniKpiCard color="var(--red)" label="Monto atrasado" value={formatTreasuryMoney(provider.payables.filter(item => item.status === "Vencida").reduce((acc, item) => acc + Number(item.pending || 0), 0), draft.currency)} />
         </div>
         {tab === "documentos" ? (
           <div style={{ display: "grid", gap: 12 }}>
@@ -227,8 +229,8 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 { key: "folio", label: "Número", render: row => <div><div style={{ fontWeight:700 }}>{row.folio || "—"}</div><div className="treasury-muted" style={{ fontSize:11 }}>{row.docType || "Documento"}</div></div> },
                 { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" },
                 { key: "dueDate", label: "Vencimiento", render: row => row.dueDate ? fmtD(row.dueDate) : "—" },
-                { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> },
-                { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.status === "Vencida" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> },
+                { key: "total", label: "Monto", render: row => <span className="treasury-mono">{formatTreasuryMoney(row.total, row.currency || draft.currency)}</span> },
+                { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.status === "Vencida" ? "overdue" : "pending")}`}>{formatTreasuryMoney(row.pending, row.currency || draft.currency)}</span> },
                 { key: "status", label: "Estado", render: row => <StatusBadge label={row.status} /> },
               ]}
               rows={provider.payables}
@@ -275,6 +277,12 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
               <label><div className="treasury-section-sub">Razón social</div><input style={fieldInputStyle()} value={draft.razonSocial} onChange={e => setDraft({ ...draft, razonSocial: e.target.value })} /></label>
               <label><div className="treasury-section-sub">RUT</div><input style={fieldInputStyle()} value={draft.rut} onChange={e => setDraft({ ...draft, rut: e.target.value })} /></label>
               <label><div className="treasury-section-sub">Tipo de proveedor</div><input style={fieldInputStyle()} value={draft.tipoProveedor} onChange={e => setDraft({ ...draft, tipoProveedor: e.target.value })} /></label>
+              <label>
+                <div className="treasury-section-sub">Moneda predeterminada</div>
+                <select style={fieldInputStyle()} value={draft.currency || "CLP"} onChange={e => setDraft({ ...draft, currency: normalizeTreasuryCurrency(e.target.value) })}>
+                  {TREASURY_CURRENCIES.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
               <label><div className="treasury-section-sub">Línea de crédito</div><input type="number" min="0" style={fieldInputStyle()} value={draft.creditLimit || 0} onChange={e => setDraft({ ...draft, creditLimit: Number(e.target.value || 0) })} /></label>
             </div>
             <label style={{ display: "block", marginTop: 12 }}><div className="treasury-section-sub">Dirección</div><input style={fieldInputStyle()} value={draft.direccion} onChange={e => setDraft({ ...draft, direccion: e.target.value })} /></label>

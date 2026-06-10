@@ -16,6 +16,7 @@ import {
   summarizeTreasuryReceivables,
   recoverTreasuryDisbursementsFromProviders,
   recoverTreasuryPayables,
+  normalizeTreasuryCurrency,
 } from "../lib/utils/treasury";
 
 function mergeById(items = [], nextItems = []) {
@@ -66,6 +67,7 @@ function sanitizeTreasuryPayable(next = {}, empId = "") {
     id: String(next?.id || "").trim(),
     empId: String(next?.empId || empId || "").trim(),
     supplier: String(next?.supplier || "").trim(),
+    currency: normalizeTreasuryCurrency(next?.currency || "CLP"),
     docType: String(next?.docType || "").trim(),
     folio: String(next?.folio || "").trim(),
     category: String(next?.category || "").trim(),
@@ -121,6 +123,7 @@ function sanitizeTreasuryProvider(next = {}, empId = "") {
     rut: String(next?.rut || "").trim(),
     direccion: String(next?.direccion || "").trim(),
     tipoProveedor: String(next?.tipoProveedor || "").trim(),
+    currency: normalizeTreasuryCurrency(next?.currency || "CLP"),
     creditLimit: Number(next?.creditLimit || 0) || 0,
     financialPortal: next?.financialPortal && typeof next.financialPortal === "object"
       ? { ...next.financialPortal }
@@ -801,6 +804,7 @@ export function useLabTreasuryModule({
         name: safeNext.name || "",
         rut: safeNext.rut || "",
         providerType: safeNext.tipoProveedor || "",
+        currency: safeNext.currency || "CLP",
       },
       platformServices,
     });
@@ -965,6 +969,7 @@ export function useLabTreasuryModule({
       rut: "",
       direccion: "",
       tipoProveedor: "",
+      currency: "CLP",
       contactos: [],
       bankAccounts: [],
       payables: [],

@@ -21,10 +21,11 @@ import { TreasuryStyles, SectionCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
+import { formatTreasuryMoney, normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
 
-function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null }) {
+function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null, wide = false }) {
   return (
-    <div style={{ padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.78),rgba(241,245,249,.9))", boxShadow: "0 10px 24px rgba(148,163,184,.12)" }}>
+    <div style={{ gridColumn: wide ? "1 / -1" : "auto", padding: "14px 15px", borderRadius: 16, border: "1px solid var(--bdr2)", background: "linear-gradient(180deg,rgba(255,255,255,.78),rgba(241,245,249,.9))", boxShadow: "0 10px 24px rgba(148,163,184,.12)" }}>
       <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>{label}</div>
       <div style={{ fontFamily: "var(--fh)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: tone, lineHeight: 1 }}>{value}</div>
       {!!hint && <div style={{ fontSize: 11, color: "var(--gr2)", lineHeight: 1.45, marginTop: 8 }}>{hint}</div>}
@@ -34,9 +35,23 @@ function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null }
 
 function summarizeMovementLog(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
+  const currencies = TREASURY_CURRENCIES
+    .map(currency => {
+      const currencyRows = list.filter(item => normalizeTreasuryCurrency(item?.currency) === currency);
+      return {
+        currency,
+        docs: currencyRows.length,
+        total: currencyRows.reduce((sum, item) => sum + Number(item?.amount || 0), 0),
+      };
+    })
+    .filter(item => item.docs > 0);
+  const primary = currencies.find(item => item.currency === "CLP") || { currency: "CLP", docs: 0, total: 0 };
   return {
     docs: list.length,
-    total: list.reduce((sum, item) => sum + Number(item?.amount || 0), 0),
+    total: primary.total,
+    currency: "CLP",
+    currencies,
+    otherCurrencies: currencies.filter(item => item.currency !== "CLP"),
   };
 }
 
@@ -526,6 +541,32 @@ export function TreasuryModule(props) {
     if (!ids.length || !deleter) return;
     setPendingBulkDelete({ ids, deleter });
   };
+  const otherCurrencyBalances = (payablesSummary.otherCurrencies || [])
+    .map(item => formatTreasuryMoney(item.pending, item.currency))
+    .join(" · ");
+  const otherCurrencyPayments = (disbursementSummary.otherCurrencies || [])
+    .map(item => formatTreasuryMoney(item.total, item.currency))
+    .join(" · ");
+  const otherCurrencyMetric = otherCurrencyBalances
+    ? {
+        label: "Otras monedas",
+        value: otherCurrencyBalances,
+        tone: "#2b6df6",
+        wide: true,
+        hint: otherCurrencyPayments
+          ? `Pagos realizados: ${otherCurrencyPayments}. Montos sin convertir a CLP.`
+          : "Saldos pendientes separados, sin convertir a CLP.",
+      }
+    : null;
+  const otherCurrencyKpi = otherCurrencyBalances
+    ? {
+        color: "#2b6df6",
+        label: "Otras monedas",
+        value: otherCurrencyBalances,
+        sub: "Saldos sin convertir a CLP",
+        scope: "CxP",
+      }
+    : null;
   const treasuryHero = tab === 0
     ? {
         badge: { label: "Foco en cobranza", color: "cyan" },
@@ -553,12 +594,14 @@ export function TreasuryModule(props) {
           { label: "Pendiente de pago", value: fmtM(payablesSummary.pending), tone: "#ffcc44", hint: "Saldo aún no desembolsado." },
           { label: "Vencido", value: fmtM(payablesSummary.overdue), tone: "var(--red)", hint: "Documentos atrasados dentro de la salida de caja." },
           { label: "Pagos realizados", value: fmtM(disbursementSummary.total), tone: "#00e08a", hint: `${disbursementSummary.docs} desembolso(s) registrados.` },
+          ...(otherCurrencyMetric ? [otherCurrencyMetric] : []),
         ],
         kpis: [
           { color: "#a78bfa", label: "Documentos por pagar", value: fmtM(payablesSummary.total), sub: `${payablesSummary.docs} registrados`, scope: "CxP" },
           { color: "#ffcc44", label: "Pendiente", value: fmtM(payablesSummary.pending), scope: "CxP" },
           { color: "var(--red)", label: "Vencido", value: fmtM(payablesSummary.overdue), sub: "saldo con atraso", scope: "CxP" },
           { color: "#00e08a", label: "Pagos realizados", value: fmtM(disbursementSummary.total), sub: `${disbursementSummary.docs} desembolso(s)`, scope: "CxP" },
+          ...(otherCurrencyKpi ? [otherCurrencyKpi] : []),
         ],
       };
 
@@ -582,6 +625,7 @@ export function TreasuryModule(props) {
                 value={metric.value}
                 tone={metric.tone}
                 hint={metric.hint}
+                wide={metric.wide}
               />
             ))}
           </div>

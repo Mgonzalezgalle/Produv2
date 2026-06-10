@@ -10,7 +10,7 @@ import {
 
 export const TREASURY_MODULE_ID = "tesoreria";
 export const TREASURY_MODULE_LABEL = "Tesorería";
-export const TREASURY_CURRENCIES = ["CLP", "USD", "EUR", "UF"];
+export const TREASURY_CURRENCIES = ["CLP", "PEN", "USD", "EUR", "UF"];
 
 export function normalizeTreasuryCurrency(value = "CLP") {
   const currency = String(value || "CLP").trim().toUpperCase();
@@ -22,6 +22,9 @@ export function formatTreasuryMoney(value = 0, currency = "CLP") {
   const safeCurrency = normalizeTreasuryCurrency(currency);
   if (safeCurrency === "UF") {
     return `UF ${amount.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (safeCurrency === "PEN") {
+    return `S/ ${amount.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
@@ -495,12 +498,39 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
 
 export function summarizeStoredPayables(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
+  const currencies = TREASURY_CURRENCIES
+    .map(currency => {
+      const currencyRows = list.filter(item => normalizeTreasuryCurrency(item?.currency) === currency);
+      return {
+        currency,
+        docs: currencyRows.length,
+        total: currencyRows.reduce((sum, item) => sum + Number(item.total || 0), 0),
+        paid: currencyRows.reduce((sum, item) => sum + Number(item.paid || 0), 0),
+        pending: currencyRows.reduce((sum, item) => sum + Number(item.pending || 0), 0),
+        overdue: currencyRows
+          .filter(item => item.status === "Vencida")
+          .reduce((sum, item) => sum + Number(item.pending || 0), 0),
+      };
+    })
+    .filter(item => item.docs > 0);
+  const primary = currencies.find(item => item.currency === "CLP") || {
+    currency: "CLP",
+    docs: 0,
+    total: 0,
+    paid: 0,
+    pending: 0,
+    overdue: 0,
+  };
   return {
     docs: list.length,
-    total: list.reduce((sum, item) => sum + Number(item.total || 0), 0),
-    paid: list.reduce((sum, item) => sum + Number(item.paid || 0), 0),
-    pending: list.reduce((sum, item) => sum + Number(item.pending || 0), 0),
-    overdue: list.filter(item => item.status === "Vencida").reduce((sum, item) => sum + Number(item.pending || 0), 0),
+    total: primary.total,
+    paid: primary.paid,
+    pending: primary.pending,
+    overdue: primary.overdue,
+    currency: "CLP",
+    currencies,
+    otherCurrencies: currencies.filter(item => item.currency !== "CLP"),
+    hasMultipleCurrencies: currencies.length > 1,
   };
 }
 
@@ -662,6 +692,7 @@ export function buildTreasuryDisbursementLog({ disbursements = [], payables = []
       return {
         ...item,
         amount: Number(item.amount || 0),
+        currency: normalizeTreasuryCurrency(item.currency || payable?.currency || "CLP"),
         targetLabel: payable?.folio || payable?.supplier || item.reference || "Cuenta por pagar",
         counterpartyLabel: payable?.supplier || "—",
         providerId: payable?.providerId || "",

@@ -42,7 +42,7 @@ export function renderTransactionalEmailTemplate(payload: TemplatePayload) {
           <div style="background:linear-gradient(180deg,#dceafe 0%,#edf4ff 100%);border:1px solid #d5e3f7;border-bottom:none;border-radius:24px 24px 0 0;padding:28px 32px 22px 32px;text-align:center">
             <div style="text-align:center">
               <div style="font-size:30px;line-height:1;font-weight:800;letter-spacing:-.04em;color:#12233f">Produ</div>
-              <div style="margin-top:6px;font-size:13px;line-height:1.2;color:#55708e">Gestión de Productoras</div>
+              <div style="margin-top:6px;font-size:13px;line-height:1.2;color:#55708e">Plataforma de Gestión de Empresas</div>
               <div style="margin-top:16px;font-size:16px;line-height:1.4;color:#1f3655;font-weight:700">Notificación de ${safeCompanyName}</div>
             </div>
           </div>
@@ -53,9 +53,6 @@ export function renderTransactionalEmailTemplate(payload: TemplatePayload) {
               </div>
               ${footerHtml}
             </div>
-          </div>
-          <div style="padding:14px 10px 0 10px;text-align:center;font-size:11px;line-height:1.6;color:#7b8ba3">
-            Plataforma de gestión para productoras audiovisuales.
           </div>
         </div>
       </div>

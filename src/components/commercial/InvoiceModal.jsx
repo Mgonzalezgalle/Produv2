@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   DEFAULT_LISTAS,
   fmtD,
@@ -57,6 +57,7 @@ export function MFact({
   onClose,
   onSave,
 }) {
+  const [saving, setSaving] = useState(false);
   const {
     f,
     setF,
@@ -135,6 +136,20 @@ export function MFact({
     ...(supportsProduDocumentHonorarios(selectedBillingType.code) ? [{ value: "hon", label: "Boleta Honorarios 15,25%" }] : []),
   ];
   const isElectronicDocumentLocked = !!data?.externalSync;
+  useEffect(() => {
+    if (open) setSaving(false);
+  }, [open, data?.id]);
+
+  const submitInvoice = async () => {
+    if (!canSubmit || saving) return;
+    setSaving(true);
+    try {
+      const saved = await onSave(buildPayload((factura) => factura?.cobranzaEstado || "Pendiente de pago"));
+      if (saved === false) setSaving(false);
+    } catch {
+      setSaving(false);
+    }
+  };
 
   return <Modal extraWide open={open} onClose={onClose} title={data?.id?`${isElectronicDocumentLocked ? "Detalle" : "Editar"} ${f.tipoDoc||"Documento"}`:`Nuevo ${f.tipoDoc||"Documento"}`} sub={isElectronicDocumentLocked ? "Documento emitido electrónicamente. Solo lectura para proteger consistencia tributaria." : "Registro de cobro y documento comercial"}>
     {isElectronicDocumentLocked && (
@@ -299,7 +314,7 @@ export function MFact({
             relatedDocumentReason: prev.relatedDocumentReason || getDefaultProduBillingReferenceReason(selectedBillingType.code),
             relatedExternalDocumentId: related?.externalSync?.externalDocumentId || "",
           }));
-        }} disabled={f.referenceCodeSii === "801"} style={hasReferenceError ? FIELD_ERROR_STYLE : undefined}>
+        }} disabled={f.referenceCodeSii === "801"} style={hasReferenceError ? VALIDATION_FIELD_STYLE : undefined}>
           <option value="">— Seleccionar documento origen —</option>
           {relatedDocumentOptions.map((item)=><option key={item.id} value={item.id}>{item.correlativo || item.id} · {getProduBillingDocumentTypeLabel(item.documentTypeCode || item.tipoDocumento || item.tipoDoc)}</option>)}
         </FSl>
@@ -434,10 +449,12 @@ export function MFact({
     ) : (
       <>
         <ValidationBanner title={validationIssue?.title} detail={validationMessage} />
-        <MFoot disabled={!canSubmit} onClose={onClose} onSave={()=>{
-          if (!canSubmit) return;
-          onSave(buildPayload((factura) => factura?.cobranzaEstado || "Pendiente de pago"));
-        }}/>
+        <MFoot
+          disabled={!canSubmit || saving}
+          label={saving ? "Guardando..." : "Guardar"}
+          onClose={onClose}
+          onSave={submitInvoice}
+        />
       </>
     )}
   </Modal>;

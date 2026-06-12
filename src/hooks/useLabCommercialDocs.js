@@ -275,89 +275,60 @@ export function useLabCommercialDocs({
             cobranzaEstado: cobranzaState(safeFact),
           }];
 
-      const itemsById = new Map(currentFacts.map((x) => [x.id, x]));
-      series.forEach((item) => itemsById.set(item.id, item));
-      const normalizedSeries = Array.from(itemsById.values()).map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id));
-      let nextFacts = upsertById(
+      const normalizedSeries = series.map(item => sanitizeFacturaPayload(item, curEmp?.id, item.id));
+      const nextFacts = upsertById(
         currentFacts,
         normalizedSeries,
       );
-      for (const item of normalizedSeries) {
-        const invoiceExists = currentFacts.some(existing => existing.id === item.id);
-        const syncResult = await foundationInvoices().upsertRecord({
-          registryName: "invoices",
-          record: item,
-          setRecords: setFacturas,
-          metadata: {
-            reason: invoiceExists ? "invoice_updated" : "invoice_created",
-            actorUserId: currentUser?.id || "",
-            actorUserEmail: currentUser?.email || "",
-            recurring: recurringEnabled,
-            seriesId: item.seriesId || "",
-            seriesIndex: Number(item.seriesIndex || 0),
-          },
-          degradedMessage: "No pudimos sincronizar facturas con foundation.",
-          sanitizeRecord: (entry, empId) => sanitizeFacturaPayload(entry, empId, entry?.id || ""),
-          audit: {
-            area: "facturacion",
-            action: invoiceExists ? "invoice_updated" : "invoice_created",
-            entityType: "factura",
-            entityId: item.id || "",
-            payload: {
-              recurring: recurringEnabled,
-              seriesId: item.seriesId || "",
-              seriesIndex: Number(item.seriesIndex || 0),
-              total: Number(item.total || 0),
-              documentType: item.documentTypeCode || item.tipoDocumento || item.tipoDoc || "",
-              entityId: item.entidadId || "",
-              entityType: item.tipo || "",
-            },
-          },
-          workflow: {
-            stream: "invoices",
-            eventName: invoiceExists ? "invoice_updated" : "invoice_created",
-            entityType: "factura",
-            entityId: item.id || "",
-            payload: {
-              recurring: recurringEnabled,
-              seriesId: item.seriesId || "",
-              seriesIndex: Number(item.seriesIndex || 0),
-              total: Number(item.total || 0),
-              cobranzaEstado: item.cobranzaEstado || "",
-            },
-          },
-        });
-        if (Array.isArray(syncResult?.records) && syncResult.records.length) {
-          nextFacts = syncResult.records;
-        }
-      }
+      await setFacturas(nextFacts);
+      const invoiceSync = await foundationInvoices().syncSnapshot({
+        registryName: "invoices",
+        records: nextFacts,
+        metadata: {
+          reason: isNew ? "invoice_created" : "invoice_updated",
+          actorUserId: currentUser?.id || "",
+          actorUserEmail: currentUser?.email || "",
+          recurring: recurringEnabled,
+          seriesId,
+          affectedInvoices: normalizedSeries.map(item => item.id),
+          recordCount: nextFacts.length,
+        },
+        degradedMessage: "No pudimos sincronizar facturas con foundation.",
+      });
+      let hasAncillaryWarning = invoiceSync?.source === "degraded";
 
       const createdItems = series.filter(item => item?.treasuryPurchaseOrderId);
       if (createdItems.length && typeof setTreasuryPurchaseOrders === "function") {
-        const createdByOrder = createdItems.reduce((acc, item) => {
-          const key = item.treasuryPurchaseOrderId;
-          if (!key) return acc;
-          acc.set(key, [...(acc.get(key) || []), item.id]);
-          return acc;
-        }, new Map());
-        const nextOrders = (Array.isArray(treasuryPurchaseOrders) ? treasuryPurchaseOrders : []).map(order => {
-          const extraIds = createdByOrder.get(order.id);
-          if (!extraIds?.length) return order;
-          const linkedInvoiceIds = Array.from(new Set([...(Array.isArray(order.linkedInvoiceIds) ? order.linkedInvoiceIds : []), ...extraIds]));
-          return { ...order, linkedInvoiceIds };
-        });
-        await setTreasuryPurchaseOrders(nextOrders);
-        await foundationInvoices().syncSnapshot({
-          registryName: "purchase_orders",
-          records: nextOrders,
-          metadata: {
-            reason: "purchase_order_invoice_linked",
-            actorUserId: currentUser?.id || "",
-            actorUserEmail: currentUser?.email || "",
-            affectedOrders: Array.from(createdByOrder.keys()),
-          },
-          degradedMessage: "No pudimos sincronizar las órdenes de compra con foundation.",
-        });
+        try {
+          const createdByOrder = createdItems.reduce((acc, item) => {
+            const key = item.treasuryPurchaseOrderId;
+            if (!key) return acc;
+            acc.set(key, [...(acc.get(key) || []), item.id]);
+            return acc;
+          }, new Map());
+          const nextOrders = (Array.isArray(treasuryPurchaseOrders) ? treasuryPurchaseOrders : []).map(order => {
+            const extraIds = createdByOrder.get(order.id);
+            if (!extraIds?.length) return order;
+            const linkedInvoiceIds = Array.from(new Set([...(Array.isArray(order.linkedInvoiceIds) ? order.linkedInvoiceIds : []), ...extraIds]));
+            return { ...order, linkedInvoiceIds };
+          });
+          await setTreasuryPurchaseOrders(nextOrders);
+          const purchaseOrderSync = await foundationInvoices().syncSnapshot({
+            registryName: "purchase_orders",
+            records: nextOrders,
+            metadata: {
+              reason: "purchase_order_invoice_linked",
+              actorUserId: currentUser?.id || "",
+              actorUserEmail: currentUser?.email || "",
+              affectedOrders: Array.from(createdByOrder.keys()),
+            },
+            degradedMessage: "No pudimos sincronizar las órdenes de compra con foundation.",
+          });
+          hasAncillaryWarning = hasAncillaryWarning || purchaseOrderSync?.source === "degraded";
+        } catch (error) {
+          hasAncillaryWarning = true;
+          console.error("[facturacion] Factura guardada, pero no pudimos vincular la orden de compra", error);
+        }
       }
 
       let nextMovs = Array.isArray(movimientos) ? [...movimientos] : [];
@@ -384,9 +355,18 @@ export function useLabCommercialDocs({
         }
       });
 
-      await setMovimientos(nextMovs);
+      try {
+        await setMovimientos(nextMovs);
+      } catch (error) {
+        hasAncillaryWarning = true;
+        console.error("[facturacion] Factura guardada, pero no pudimos actualizar movimientos", error);
+      }
       closeM();
-      ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths === 1 ? "" : "s"})` : "Documento guardado ✓");
+      if (hasAncillaryWarning) {
+        ntf("Documento guardado. Hay información relacionada pendiente de sincronización.", "warn");
+      } else {
+        ntf(recurringEnabled ? `Serie mensual creada ✓ (${recurringMonths} documento${recurringMonths === 1 ? "" : "s"})` : "Documento guardado ✓");
+      }
       return true;
     } catch (error) {
       console.error("[facturacion] No pudimos persistir el documento", error);

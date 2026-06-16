@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { loadStoredJson } from "../lib/auth/sessionStorage";
 import { localLabKey } from "../lib/lab/labStorageConfig";
+import { normalizeTenantOperationalSnapshot } from "../lib/tenants/tenantDataIntegrity";
 
 export function useLabBootGuards({
   curEmp,
@@ -15,6 +16,10 @@ export function useLabBootGuards({
   setCrew,
   users,
   syncCrew,
+  uid,
+  tenantCollections = {},
+  tenantSetters = {},
+  tenantLoadingMap = {},
 }) {
   useEffect(() => {
     if (!curEmp?.id || !curUser?.id) {
@@ -37,4 +42,23 @@ export function useLabBootGuards({
     const synced = syncCrew(scopedUsers, currentCrew);
     if (JSON.stringify(synced) !== JSON.stringify(currentCrew)) setCrew(synced);
   }, [curEmp?.id, users, crew, ldCrew, setCrew, syncCrew]);
+
+  useEffect(() => {
+    if (!curEmp?.id) return;
+    if (Object.values(tenantLoadingMap || {}).some(Boolean)) return;
+    const { collections, changed } = normalizeTenantOperationalSnapshot({
+      empId: curEmp.id,
+      uid,
+      collections: tenantCollections,
+    });
+    if (!changed) return;
+    Object.entries(collections).forEach(([key, value]) => {
+      const setter = tenantSetters?.[key];
+      if (typeof setter !== "function") return;
+      if (JSON.stringify(value) === JSON.stringify(tenantCollections?.[key] || [])) return;
+      Promise.resolve(setter(value)).catch(error => {
+        console.warn(`[tenant-integrity] No pudimos normalizar ${key}`, error);
+      });
+    });
+  }, [curEmp?.id, uid, tenantCollections, tenantSetters, tenantLoadingMap]);
 }

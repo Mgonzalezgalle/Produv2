@@ -46,6 +46,7 @@ export function ListasEditor({ listas, saveListas, defaultListas }) {
     { key: "tiposDocPagar", label: "Tipos de Documento por Pagar" },
     { key: "catActivos", label: "Categorías de Activos" },
     { key: "estadosActivos", label: "Estados de Activos" },
+    { key: "sucursalesActivos", label: "Sucursales de Activos" },
     { key: "prioridadesTarea", label: "Prioridades de Tarea" },
     { key: "estadosTarea", label: "Estados de Tarea" },
   ];

@@ -19,6 +19,7 @@ export function OperationsModalRouter({
   producciones,
   programas,
   piezas,
+  activos,
   oportunidades,
   crew,
   crewOptions,
@@ -117,6 +118,7 @@ export function OperationsModalRouter({
       open={mOpen==="activo"}
       data={mData}
       producciones={producciones}
+      activos={activos}
       crew={crew}
       users={users}
       empresa={empresa}

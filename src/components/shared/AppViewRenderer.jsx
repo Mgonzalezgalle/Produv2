@@ -139,7 +139,7 @@ export function AppViewRenderer({
     case treasuryModuleId:
       return withFullFrame(<TreasuryModule {...VP} treasury={modules.treasuryProps} />);
     case "activos":
-      return withFullFrame(<ViewActivos {...VP} setActivos={modules.setters.setActivos} fmtM={fmtM} fmtD={fmtD} />);
+      return withFullFrame(<ViewActivos {...VP} setActivos={modules.setters.setActivos} setCrew={modules.setters.setCrew} setListas={modules.setters.setListas} fmtM={fmtM} fmtD={fmtD} />);
     default:
       return <Empty text="Módulo no disponible" />;
   }

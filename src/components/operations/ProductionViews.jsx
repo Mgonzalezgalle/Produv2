@@ -9,6 +9,7 @@ import {
   DBtn,
   Empty,
   FilterSel,
+  FI,
   FSl,
   GBtn,
   KV,
@@ -1431,12 +1432,16 @@ export function ViewCrew(props) {
 }
 
 export function ViewActivos(props) {
-  const { empresa, activos, producciones, crew = [], users = [], listas, openM, canDo, cDel, setActivos, fmtM, fmtD } = props;
+  const { empresa, activos, crew = [], users = [], listas, openM, canDo, cDel, setActivos, setCrew, setListas, fmtM, fmtD } = props;
   const empId = empresa?.id;
   const canManageAssets = !!(canDo && canDo("activos"));
   const [q, setQ] = useState("");
   const [fc, setFc] = useState("");
   const [fe, setFe] = useState("");
+  const [fs, setFs] = useState("");
+  const [fp, setFp] = useState("");
+  const [newBranchName, setNewBranchName] = useState("");
+  const [newCollaborator, setNewCollaborator] = useState({ nom: "", rol: "", ema: "", tel: "" });
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
@@ -1446,18 +1451,25 @@ export function ViewActivos(props) {
   const PP = 10;
   const CATS = listas?.catActivos || DEFAULT_LISTAS.catActivos;
   const ESTADOS = listas?.estadosActivos || DEFAULT_LISTAS.estadosActivos;
+  const currentAssets = (activos || []).filter(x => x.empId === empId);
   const resolveAssetPerson = asset => {
     const personId = asset?.assignedPersonId || asset?.personaId || "";
     const personType = asset?.assignedPersonType || asset?.personaTipo || "";
     const fromCrew = (crew || []).find(item => String(item.id) === String(personId));
     const fromUser = (users || []).find(item => String(item.id) === String(personId));
     const person = personType === "user" ? fromUser || fromCrew : fromCrew || fromUser;
-    return asset?.assignedPersonName || asset?.personaNombre || person?.nom || person?.name || person?.email || "";
+    return asset?.collaboratorName || asset?.assignedPersonName || asset?.personaNombre || person?.nom || person?.name || person?.email || "";
   };
-  const fd = (activos || []).filter(x => x.empId === empId).filter(a => {
+  const branchOptions = Array.from(new Set([
+    ...(listas?.sucursalesActivos || DEFAULT_LISTAS.sucursalesActivos || []),
+    ...currentAssets.map(item => item.sucursal || item.branchName || item.location),
+  ].map(item => String(item || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const collaboratorOptions = Array.from(new Set(currentAssets.map(item => resolveAssetPerson(item)).map(item => String(item || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const fd = currentAssets.filter(a => {
     const personName = resolveAssetPerson(a);
-    const haystack = [a.nom, a.marca, a.modelo, a.serial, personName].join(" ").toLowerCase();
-    return haystack.includes(q.toLowerCase()) && (!fc || a.categoria === fc) && (!fe || a.estado === fe);
+    const branchName = a.sucursal || a.branchName || a.location || "";
+    const haystack = [a.nom, a.marca, a.modelo, a.serial, personName, branchName].join(" ").toLowerCase();
+    return haystack.includes(q.toLowerCase()) && (!fc || a.categoria === fc) && (!fe || a.estado === fe) && (!fs || branchName === fs) && (!fp || personName === fp);
   }).sort((a, b) => {
     if (sortMode === "az") return String(a.nom || "").localeCompare(String(b.nom || ""));
     if (sortMode === "za") return String(b.nom || "").localeCompare(String(a.nom || ""));
@@ -1468,27 +1480,90 @@ export function ViewActivos(props) {
   });
   const totalValor = fd.reduce((s, a) => s + Number(a.valorCompra || 0), 0);
   const dispCount = fd.filter(a => a.estado === "Disponible").length;
-  const enUsoCount = fd.filter(a => a.estado === "En Uso").length;
-  const statColor = s => ({ Disponible: "#00e08a", "En Uso": "var(--cy)", "En Mantención": "#ffcc44", Dañado: "#ff8844", "Dado de Baja": "#ff5566" }[s] || "var(--gr2)");
+  const assignedCount = fd.filter(a => (a.estado === "Asignado" || a.estado === "En Uso" || resolveAssetPerson(a))).length;
+  const branchCount = new Set(fd.map(a => a.sucursal || a.branchName || a.location).filter(Boolean)).size;
+  const statColor = s => ({ Disponible: "#00e08a", Asignado: "var(--cy)", "En Uso": "var(--cy)", "En Mantención": "#ffcc44", Dañado: "#ff8844", Baja: "#ff5566", "Dado de Baja": "#ff5566" }[s] || "var(--gr2)");
   const toggleSelected = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = checked => setSelectedIds(checked ? fd.slice((pg - 1) * PP, pg * PP).map(item => item.id) : []);
+  const addBranch = () => {
+    const name = String(newBranchName || "").trim();
+    if (!name || !setListas) return;
+    setListas(prev => {
+      const base = prev || listas || {};
+      const nextBranches = Array.from(new Set([...(base.sucursalesActivos || DEFAULT_LISTAS.sucursalesActivos || []), name]));
+      return { ...base, sucursalesActivos: nextBranches };
+    });
+    setNewBranchName("");
+  };
+  const addCollaborator = () => {
+    const name = String(newCollaborator.nom || "").trim();
+    if (!name || !setCrew) return;
+    const member = {
+      id: helperUid(),
+      empId,
+      nom: name,
+      rol: String(newCollaborator.rol || "").trim() || "Colaborador",
+      area: "Operación",
+      tipo: "interno",
+      ema: String(newCollaborator.ema || "").trim(),
+      tel: String(newCollaborator.tel || "").trim(),
+      dis: "",
+      tarifa: "",
+      not: "Creado desde Gestión de Activos.",
+      active: true,
+      source: "assets",
+    };
+    setCrew(prev => [...(Array.isArray(prev) ? prev : crew || []), member]);
+    setNewCollaborator({ nom: "", rol: "", ema: "", tel: "" });
+  };
   return <div>
     <ModuleHeader
       module="Activos"
-      title="Activos"
-      description="Mantén control del equipamiento, su estado, valor y asignación dentro de la operación."
+      title="Gestión de activos"
+      description="Controla licencias, equipos, computadores y entregables por sucursal, estado y colaborador asignado."
       actions={canManageAssets ? <Btn onClick={() => openM("activo", {})}>+ Nuevo Activo</Btn> : null}
     />
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+    {canManageAssets && <Card title="Maestros de activos" sub="Crea sucursales y colaboradores antes de asignar activos." style={{ marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
+        <div style={{ border: "1px solid var(--bdr2)", borderRadius: 16, padding: 14, background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "var(--wh)", marginBottom: 8 }}>Sucursales</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+            <FI value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="Ej: Casa matriz, Bodega, Oficina Lima" />
+            <GBtn sm onClick={addBranch}>Crear</GBtn>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {branchOptions.slice(0, 10).map(branch => <Badge key={branch} label={branch} color="blue" sm />)}
+            {!branchOptions.length && <span style={{ fontSize: 11, color: "var(--gr2)" }}>Aún no hay sucursales creadas.</span>}
+          </div>
+        </div>
+        <div style={{ border: "1px solid var(--bdr2)", borderRadius: 16, padding: 14, background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "var(--wh)", marginBottom: 8 }}>Colaboradores</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 8 }}>
+            <FI value={newCollaborator.nom} onChange={e => setNewCollaborator(prev => ({ ...prev, nom: e.target.value }))} placeholder="Nombre" />
+            <FI value={newCollaborator.rol} onChange={e => setNewCollaborator(prev => ({ ...prev, rol: e.target.value }))} placeholder="Rol" />
+            <FI value={newCollaborator.ema} onChange={e => setNewCollaborator(prev => ({ ...prev, ema: e.target.value }))} placeholder="Correo" />
+            <FI value={newCollaborator.tel} onChange={e => setNewCollaborator(prev => ({ ...prev, tel: e.target.value }))} placeholder="Teléfono" />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: 10 }}>
+            <span style={{ fontSize: 11, color: "var(--gr2)" }}>Se crea activo y sincronizado con Crew.</span>
+            <GBtn sm onClick={addCollaborator}>Crear colaborador</GBtn>
+          </div>
+        </div>
+      </div>
+    </Card>}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
       <Stat label="Total Activos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Disponibles" value={dispCount} accent="#00e08a" vc="#00e08a" />
-      <Stat label="En Uso" value={enUsoCount} accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Asignados" value={assignedCount} accent="var(--cy)" vc="var(--cy)" />
+      <Stat label="Sucursales" value={branchCount} accent="#9d6cff" vc="#9d6cff" />
       <Stat label="Valor Total" value={fmtM(totalValor)} accent="#ffcc44" vc="#ffcc44" />
     </div>
     <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar activo, marca o responsable..." />
+      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar activo, marca, sucursal o colaborador..." />
       <FilterSel value={fc} onChange={v => { setFc(v); setPg(1); }} options={CATS} placeholder="Todas categorías" />
       <FilterSel value={fe} onChange={v => { setFe(v); setPg(1); }} options={ESTADOS} placeholder="Todo estados" />
+      <FilterSel value={fs} onChange={v => { setFs(v); setPg(1); }} options={branchOptions} placeholder="Todas sucursales" />
+      <FilterSel value={fp} onChange={v => { setFp(v); setPg(1); }} options={collaboratorOptions} placeholder="Todos colaboradores" />
       <FilterSel value={sortMode} onChange={v => { setSortMode(v); setPg(1); }} options={[{ value: "recent", label: "Más reciente" }, { value: "oldest", label: "Más antiguo" }, { value: "az", label: "A-Z" }, { value: "za", label: "Z-A" }, { value: "value-desc", label: "Mayor valor" }, { value: "value-asc", label: "Menor valor" }]} placeholder="Ordenar" />
       <ViewModeToggle value={vista} onChange={setVista} />
     </div>
@@ -1512,7 +1587,7 @@ export function ViewActivos(props) {
     </div>
     {vista === "cards" ? <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
-        {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); const personName = resolveAssetPerson(a); return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+        {fd.slice((pg - 1) * PP, pg * PP).map(a => { const personName = resolveAssetPerson(a); const branchName = a.sucursal || a.branchName || a.location || ""; return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{a.nom}</div>
@@ -1522,11 +1597,12 @@ export function ViewActivos(props) {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             <Badge label={a.categoria || "Sin categoría"} color="gray" sm />
+            <Badge label={branchName || "Sin sucursal"} color="blue" sm />
             {a.serial && <Badge label={`SN ${a.serial}`} color="cyan" sm />}
           </div>
           <div style={{ fontSize: 11, color: "var(--gr2)", display: "grid", gap: 5 }}>
-            <span>Responsable: {personName || "Sin responsable"}</span>
-            <span>Proyecto: {pro ? pro.nom : "Sin proyecto"}</span>
+            <span>Colaborador: {personName || "Sin colaborador asignado"}</span>
+            <span>Sucursal: {branchName || "Sin sucursal"}</span>
             <span>Compra: {a.fechaCompra ? fmtD(a.fechaCompra) : "—"}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bdr)" }}>
@@ -1540,17 +1616,17 @@ export function ViewActivos(props) {
     </> :
       <Card>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Responsable</TH><TH>Proyecto</TH><TH onClick={() => setSortMode(sortMode === "value-desc" ? "value-asc" : "value-desc")} active={sortMode === "value-desc" || sortMode === "value-asc"} dir={sortMode === "value-desc" ? "desc" : "asc"}>Valor</TH><TH></TH></tr></thead>
+          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Nombre</TH><TH>Categoría</TH><TH>Sucursal</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Colaborador</TH><TH onClick={() => setSortMode(sortMode === "value-desc" ? "value-asc" : "value-desc")} active={sortMode === "value-desc" || sortMode === "value-asc"} dir={sortMode === "value-desc" ? "desc" : "asc"}>Valor</TH><TH></TH></tr></thead>
           <tbody>
-            {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); const personName = resolveAssetPerson(a); return <tr key={a.id}>
+            {fd.slice((pg - 1) * PP, pg * PP).map(a => { const personName = resolveAssetPerson(a); const branchName = a.sucursal || a.branchName || a.location || ""; return <tr key={a.id}>
               <TD><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={() => toggleSelected(a.id)} /></TD>
               <TD bold>{a.nom}</TD>
               <TD><Badge label={a.categoria || "—"} color="gray" sm /></TD>
+              <TD style={{ fontSize: 12 }}>{branchName || <span style={{ color: "var(--gr)" }}>Sin sucursal</span>}</TD>
               <TD style={{ fontSize: 12 }}>{[a.marca, a.modelo].filter(Boolean).join(" · ") || "—"}</TD>
               <TD mono style={{ fontSize: 11 }}>{a.serial || "—"}</TD>
               <TD><span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: statColor(a.estado) + "22", color: statColor(a.estado), border: `1px solid ${statColor(a.estado)}40` }}>{a.estado || "—"}</span></TD>
-              <TD style={{ fontSize: 12 }}>{personName || <span style={{ color: "var(--gr)" }}>Sin responsable</span>}</TD>
-              <TD style={{ fontSize: 12 }}>{pro ? pro.nom : <span style={{ color: "var(--gr)" }}>Sin proyecto</span>}</TD>
+              <TD style={{ fontSize: 12 }}>{personName || <span style={{ color: "var(--gr)" }}>Sin colaborador</span>}</TD>
               <TD mono style={{ fontSize: 12 }}>{a.valorCompra ? fmtM(a.valorCompra) : "—"}</TD>
               <TD><div style={{ display: "flex", gap: 4 }}>
                 {canManageAssets && <><GBtn sm onClick={() => openM("activo", a)}>✏</GBtn><XBtn onClick={() => cDel(activos, setActivos, a.id, null, "Activo eliminado")} /></>}

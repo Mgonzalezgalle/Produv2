@@ -70,6 +70,61 @@ export function CoreModalRouter({
     helpers,
     canDo: VP.canDo,
   });
+  const saveAssetWithCollaborator = guardSave("activos", async (payload = {}) => {
+    const { __newCollaborator, ...assetPayload } = payload || {};
+    let nextAsset = withEmp(assetPayload);
+    const collaboratorName = String(__newCollaborator?.nom || "").trim();
+
+    if (collaboratorName) {
+      const collaboratorSnapshot = {
+        nom: collaboratorName,
+        rol: String(__newCollaborator?.rol || "").trim(),
+        ema: String(__newCollaborator?.ema || "").trim(),
+        tel: String(__newCollaborator?.tel || "").trim(),
+        active: __newCollaborator?.active !== false,
+      };
+
+      if (__newCollaborator?.active !== false) {
+        const collaboratorId = uid();
+        const crewMember = withEmp({
+          id: collaboratorId,
+          nom: collaboratorSnapshot.nom,
+          rol: collaboratorSnapshot.rol || "Colaborador",
+          area: "Operación",
+          tipo: "interno",
+          tel: collaboratorSnapshot.tel,
+          ema: collaboratorSnapshot.ema,
+          dis: "",
+          tarifa: "",
+          not: "Creado desde Gestión de Activos.",
+          active: true,
+          source: "assets",
+        });
+        await setCrew(prev => [...(Array.isArray(prev) ? prev : crew || []), crewMember]);
+        nextAsset = {
+          ...nextAsset,
+          assignedPersonId: collaboratorId,
+          assignedPersonType: "crew",
+          assignedPersonName: collaboratorSnapshot.nom,
+          collaboratorId,
+          collaboratorName: collaboratorSnapshot.nom,
+          collaboratorSnapshot,
+        };
+      } else {
+        nextAsset = {
+          ...nextAsset,
+          assignedPersonId: "",
+          assignedPersonType: "",
+          assignedPersonName: collaboratorSnapshot.nom,
+          collaboratorId: "",
+          collaboratorName: collaboratorSnapshot.nom,
+          collaboratorSnapshot,
+        };
+      }
+    }
+
+    return cSave(VP.activos, setActivos, nextAsset);
+  });
 
   return <>
     <OperationsModalRouter
@@ -91,6 +146,7 @@ export function CoreModalRouter({
       producciones={producciones}
       programas={programas}
       piezas={piezas}
+      activos={VP.activos}
       oportunidades={VP.crmOpps}
       crew={crew}
       crewOptions={(VP.crew || []).filter(c => c.empId === empresa?.id && c.active !== false)}
@@ -106,7 +162,7 @@ export function CoreModalRouter({
       onSaveAus={guardSave("auspiciadores", d => cSave(auspiciadores, setAuspiciadores, withEmp(d)))}
       onSaveCrew={guardSave("crew", d => cSave(crew, setCrew, withEmp(d)))}
       onSaveEvento={guardSave("calendario", d => cSave(eventos, setEventos, withEmp(d)))}
-      onSaveActivo={guardSave("activos", d => cSave(VP.activos, setActivos, withEmp(d)))}
+      onSaveActivo={saveAssetWithCollaborator}
       onSaveTarea={saveTask}
     />
     <CrmModalRouter

@@ -1199,7 +1199,7 @@ export default function App(){
     disbursements:treasuryDisbursements||[],
     setDisbursements:setTreasuryDisbursements,
   }), [treasuryProviders, treasuryPayables, treasuryPurchaseOrders, treasuryIssuedOrders, treasuryReceipts, treasuryDisbursements, setTreasuryProviders, setTreasuryPayables, setTreasuryPurchaseOrders, setTreasuryIssuedOrders, setTreasuryReceipts, setTreasuryDisbursements]);
-  const setters = useMemo(() => ({setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas}), [setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setCrew, setEventos, setPresupuestos, setFacturas, setActivos, setMovimientos, setTareas]);
+  const setters = useMemo(() => ({setClientes,setProducciones,setProgramas,setPiezas,setEpisodios,setAuspiciadores,setCrmOpps,setCrmActivities,setCrmStages,setContratos,setCrew,setEventos,setPresupuestos,setFacturas,setActivos,setMovimientos,setTareas,setListas}), [setClientes, setProducciones, setProgramas, setPiezas, setEpisodios, setAuspiciadores, setCrmOpps, setCrmActivities, setCrmStages, setContratos, setCrew, setEventos, setPresupuestos, setFacturas, setActivos, setMovimientos, setTareas, setListas]);
   const modalStateSetters = setters;
   const treasuryEnabled = !LAB_DATA_CONFIG.releaseMode || treasuryReleaseEnabled();
   const {

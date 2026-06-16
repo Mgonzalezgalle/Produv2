@@ -328,19 +328,27 @@ export function MEvento({ open, data, producciones, programas, piezas, onClose, 
   </Modal>;
 }
 
-export function MActivo({ open, data, producciones, crew, users, empresa, listas, onClose, onSave }) {
+export function MActivo({ open, data, activos, crew, users, empresa, listas, onClose, onSave }) {
   const [f, setF] = useState({});
+  const [newBranch, setNewBranch] = useState("");
+  const [newCollaborator, setNewCollaborator] = useState({ nom: "", rol: "", ema: "", tel: "", active: true });
   const assetLabel = getTenantVocabularyEntry(empresa, "activos") || {};
-  const projectLabel = getTenantVocabularyEntry(empresa, "producciones") || {};
   const empId = empresa?.id;
   const peopleOptions = [
-    ...(crew || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `crew:${item.id}`, label: item.nom || item.name || "Equipo", personId: item.id, personType: "crew", personName: item.nom || item.name || "" })),
-    ...(users || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `user:${item.id}`, label: item.name || item.email || "Usuario", personId: item.id, personType: "user", personName: item.name || item.email || "" })),
+    ...(crew || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `crew:${item.id}`, label: `${item.nom || item.name || "Colaborador"}${item.rol ? ` · ${item.rol}` : ""}`, personId: item.id, personType: "crew", personName: item.nom || item.name || "" })),
+    ...(users || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `user:${item.id}`, label: `${item.name || item.email || "Usuario"} · Usuario`, personId: item.id, personType: "user", personName: item.name || item.email || "" })),
   ];
+  const branchOptions = Array.from(new Set([
+    ...(listas?.sucursalesActivos || DEFAULT_LISTAS.sucursalesActivos || []),
+    ...(activos || []).filter(item => item.empId === empId).map(item => item.sucursal || item.branchName || item.location),
+    ...(data?.sucursal ? [data.sucursal] : []),
+  ].map(item => String(item || "").trim()).filter(Boolean)));
   useEffect(() => {
     setF(data?.id
       ? { ...data }
-      : { nom: "", categoria: "", marca: "", modelo: "", serial: "", valorCompra: "", fechaCompra: "", estado: "Disponible", asignadoA: "", assignedPersonId: "", assignedPersonType: "", assignedPersonName: "", obs: "" });
+      : { nom: "", categoria: "", marca: "", modelo: "", serial: "", valorCompra: "", fechaCompra: "", estado: "Disponible", sucursal: "", assignedPersonId: "", assignedPersonType: "", assignedPersonName: "", obs: "" });
+    setNewBranch("");
+    setNewCollaborator({ nom: "", rol: "", ema: "", tel: "", active: true });
   }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
   const selectedPersonValue = f.assignedPersonId ? `${f.assignedPersonType || "crew"}:${f.assignedPersonId}` : "";
@@ -353,6 +361,7 @@ export function MActivo({ open, data, producciones, crew, users, empresa, listas
       assignedPersonName: option?.personName || "",
     }));
   };
+  const collaboratorReady = String(newCollaborator.nom || "").trim();
   const CATS = listas?.catActivos || DEFAULT_LISTAS.catActivos;
   const ESTADOS = listas?.estadosActivos || DEFAULT_LISTAS.estadosActivos;
   return <Modal open={open} onClose={onClose} title={data?.id ? `Editar ${assetLabel.singular || "Activo"}` : (assetLabel.newLabel || "Nuevo Activo")} sub={assetLabel.description || "Inventario, equipos y recursos."}>
@@ -360,11 +369,37 @@ export function MActivo({ open, data, producciones, crew, users, empresa, listas
     <R3><FG label="Marca"><FI value={f.marca || ""} onChange={e => u("marca", e.target.value)} placeholder="Canon, Sony..."/></FG><FG label="Modelo"><FI value={f.modelo || ""} onChange={e => u("modelo", e.target.value)} placeholder="EOS R5"/></FG><FG label="N° Serie"><FI value={f.serial || ""} onChange={e => u("serial", e.target.value)} placeholder="SN-00001"/></FG></R3>
     <R3><FG label="Valor Compra"><FI type="number" value={f.valorCompra || ""} onChange={e => u("valorCompra", e.target.value)} placeholder="0"/></FG><FG label="Fecha Compra"><FI type="date" value={f.fechaCompra || ""} onChange={e => u("fechaCompra", e.target.value)} /></FG><FG label="Estado"><FSl value={f.estado || "Disponible"} onChange={e => u("estado", e.target.value)}>{ESTADOS.map(s => <option key={s}>{s}</option>)}</FSl></FG></R3>
     <R2>
-      <FG label={`${projectLabel.singular || "Proyecto"} asociado`}><FSl value={f.asignadoA || ""} onChange={e => u("asignadoA", e.target.value)}><option value="">— Sin proyecto asociado —</option>{(producciones || []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
-      <FG label="Persona responsable"><FSl value={selectedPersonValue} onChange={e => updatePerson(e.target.value)}><option value="">— Sin responsable —</option>{peopleOptions.map(person => <option key={person.value} value={person.value}>{person.label}</option>)}</FSl></FG>
+      <FG label="Sucursal *"><FSl value={f.sucursal || ""} onChange={e => u("sucursal", e.target.value)}><option value="">— Seleccionar sucursal —</option>{branchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}</FSl></FG>
+      <FG label="Nueva sucursal"><FI value={newBranch} onChange={e => { const value = e.target.value; setNewBranch(value); u("sucursal", value); }} placeholder="Ej: Oficina Lima, Bodega Norte..."/></FG>
     </R2>
+    <R2>
+      <FG label="Colaborador asignado"><FSl value={selectedPersonValue} onChange={e => updatePerson(e.target.value)}><option value="">— Sin colaborador —</option>{peopleOptions.map(person => <option key={person.value} value={person.value}>{person.label}</option>)}</FSl></FG>
+      <FG label="Crear colaborador"><FI value={newCollaborator.nom} onChange={e => { const value = e.target.value; setNewCollaborator(prev => ({ ...prev, nom: value })); if (value) setF(prev => ({ ...prev, assignedPersonId: "", assignedPersonType: "", assignedPersonName: value })); }} placeholder="Nombre del colaborador"/></FG>
+    </R2>
+    {collaboratorReady && <div style={{ border: "1px solid var(--bdr2)", borderRadius: 16, padding: 14, background: "linear-gradient(180deg,#ffffff,#f8fbff)", marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--wh)", marginBottom: 10 }}>Datos del colaborador</div>
+      <R3>
+        <FG label="Cargo / rol"><FI value={newCollaborator.rol} onChange={e => setNewCollaborator(prev => ({ ...prev, rol: e.target.value }))} placeholder="Ej: Diseñador, Ejecutivo, Editor"/></FG>
+        <FG label="Correo"><FI value={newCollaborator.ema} onChange={e => setNewCollaborator(prev => ({ ...prev, ema: e.target.value }))} placeholder="correo@empresa.cl"/></FG>
+        <FG label="Teléfono"><FI value={newCollaborator.tel} onChange={e => setNewCollaborator(prev => ({ ...prev, tel: e.target.value }))} placeholder="+56 9..."/></FG>
+      </R3>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--gr3)", fontWeight: 700 }}>
+        <input type="checkbox" checked={newCollaborator.active !== false} onChange={e => setNewCollaborator(prev => ({ ...prev, active: e.target.checked }))}/>
+        Colaborador activo: sincronizar con crew
+      </label>
+    </div>}
     <FG label="Observaciones"><FTA value={f.obs || ""} onChange={e => u("obs", e.target.value)} placeholder="Condición, accesorios incluidos..."/></FG>
-    <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
+    <MFoot onClose={onClose} onSave={() => {
+      if (!f.nom?.trim() || !String(f.sucursal || "").trim()) return;
+      const payload = {
+        ...f,
+        sucursal: String(f.sucursal || "").trim(),
+        asignadoA: "",
+        refTipo: "",
+      };
+      if (collaboratorReady) payload.__newCollaborator = { ...newCollaborator, nom: String(newCollaborator.nom || "").trim() };
+      onSave(payload);
+    }} />
   </Modal>;
 }
 

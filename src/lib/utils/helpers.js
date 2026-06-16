@@ -179,8 +179,9 @@ export const DEFAULT_LISTAS = {
   tiposEntidadFact: ["Cliente","Auspiciador"],
   tiposDocFact: ["Factura Afecta","Factura Exenta","Boleta Afecta","Boleta Exenta","Nota de Crédito","Nota de Débito","Guía de Despacho","Orden de Factura","Invoice"],
   tiposDocPagar: ["Factura Afecta","Boleta de Honorarios","Factura Exenta"],
-  catActivos: ["Cámara","Lente","Iluminación","Sonido","Estabilizador","Monitor","Storage","Computación","Transporte","Set Dressing","Drone","Accesorio","Otro"],
+  catActivos: ["Licencia de software","Equipo","PC / Notebook","Entregable","Cámara","Lente","Iluminación","Sonido","Monitor","Storage","Transporte","Drone","Accesorio","Otro"],
   estadosActivos: ["Disponible","Asignado","En Mantención","Baja"],
+  sucursalesActivos: ["Casa matriz","Oficina comercial","Bodega","Remoto"],
   prioridadesTarea: ["Alta","Media","Baja"],
   estadosTarea: ["Pendiente","En Progreso","En Revisión","Completada"],
 };

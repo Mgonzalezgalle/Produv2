@@ -16,10 +16,10 @@ function normalizeEmail(value = "") {
 
 function inferTenantAddons(tenantStore = {}) {
   const moduleMap = [
-    ["programas", "television"],
-    ["episodios", "television"],
+    ["programas", "programas"],
+    ["episodios", "programas"],
     ["producciones", "producciones"],
-    ["piezas", "social"],
+    ["piezas", "contenidos"],
     ["presupuestos", "presupuestos"],
     ["facturas", "facturacion"],
     ["crmOpps", "crm"],
@@ -151,6 +151,7 @@ async function recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel
         treasuryReceipts,
         treasuryDisbursements,
       }),
+      modularityMigrated: true,
     });
   }
 

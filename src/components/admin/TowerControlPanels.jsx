@@ -7,6 +7,7 @@ import {
   normalizeTenantIndustryProfile,
 } from "../../lib/industry/tenantVocabulary";
 import { buildTenantHealth } from "./towerControlHealth";
+import { getSelectableAddons } from "../../lib/modules/moduleRegistry";
 import { TenantHealthBadgeRow } from "./TowerControlHealthViews";
 import { SolicitudesPanel } from "./TowerControlRequestsPanel";
 import { SystemUsersPanel } from "./TowerControlUsersPanel";
@@ -356,7 +357,7 @@ export function EmpresasAdminPanel({
       <R2><FG label="Nombre *"><FI value={ef.nombre || ""} onChange={e => setEf(p => ({ ...p, nombre: e.target.value }))} placeholder="Play Media SpA" /></FG><FG label="RUT"><FI value={ef.rut || ""} onChange={e => setEf(p => ({ ...p, rut: e.target.value }))} placeholder="78.118.348-2" /></FG></R2>
       <FG label="Email"><FI value={ef.ema || ""} onChange={e => setEf(p => ({ ...p, ema: e.target.value }))} placeholder="contacto@empresa.cl" /></FG>
       <R2><FG label="Teléfono"><FI value={ef.tel || ""} onChange={e => setEf(p => ({ ...p, tel: e.target.value }))} placeholder="+56 9 1234 5678" /></FG><FG label="Dirección"><FI value={ef.dir || ""} onChange={e => setEf(p => ({ ...p, dir: e.target.value }))} placeholder="Av. Principal 123, Santiago" /></FG></R2>
-      <FG label="Addons activados"><MultiSelect options={Object.entries(addons).map(([v, a]) => ({ value: v, label: `${a.icon} ${a.label}` }))} value={ef.addons || []} onChange={v => setEf(p => ({ ...p, addons: v }))} placeholder="Seleccionar addons..." /></FG>
+      <FG label="Módulos activados"><MultiSelect options={getSelectableAddons(addons).map(([v, a]) => ({ value: v, label: `${a.icon} ${a.label}` }))} value={ef.addons || []} onChange={v => setEf(p => ({ ...p, addons: v }))} placeholder="Seleccionar módulos..." /></FG>
       <IndustryVocabularyEditor ef={ef} setEf={setEf} />
       <R2><FG label="Color acento"><FI type="color" value={ef.color || "#1a1a2e"} onChange={e => setEf(p => ({ ...p, color: e.target.value }))} /></FG><FG label="Estado"><FSl value={ef.active === false ? "false" : "true"} onChange={e => setEf(p => ({ ...p, active: e.target.value === "true" }))}><option value="true">Activa</option><option value="false">Inactiva</option></FSl></FG></R2>
       <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>La creación de empresa genera la instancia principal. Luego los datos operativos se poblarán al primer acceso.</div>

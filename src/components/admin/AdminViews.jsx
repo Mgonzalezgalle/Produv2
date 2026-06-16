@@ -224,7 +224,7 @@ export function AdminPanel(rawProps) {
           <div style={{ fontSize: 10, color: "var(--gr2)", textTransform: "uppercase", letterSpacing: 1.4 }}>Lectura rápida</div>
           <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_ADMIN_HEADER_GRID, gap: 8 }}>
             <AdminStatCard label="Usuarios activos" value={activeUsers} tone="var(--cy)" />
-            <AdminStatCard label="Addons activos" value={(empresa?.addons || []).length} tone="#00e08a" />
+            <AdminStatCard label="Módulos activos" value={(empresa?.addons || []).length} tone="#00e08a" />
             <AdminStatCard label="Usuarios inactivos" value={inactiveUsers} tone="#ffcc44" />
           </div>
         </div>

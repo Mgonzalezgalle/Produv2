@@ -1,3 +1,5 @@
+import { normalizeTenantAddons, tenantHasModule } from "../modules/moduleRegistry";
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const HASH_RE = /^[a-f0-9]{64}$/i;
 
@@ -238,7 +240,7 @@ export function daysUntil(date) {
 }
 
 export function hasAddon(empresa, addon) {
-  return Array.isArray(empresa?.addons) && empresa.addons.includes(addon);
+  return tenantHasModule(empresa, addon);
 }
 
 function contractRefPrefix(refType = "") {
@@ -750,15 +752,18 @@ export function normalizeEmpresasTenantCodes(empresas = []) {
 function normalizeEmpresasAddons(empresas = []) {
   return (Array.isArray(empresas) ? empresas : []).map(emp => {
     const addons = Array.isArray(emp?.addons) ? emp.addons : [];
-    const withTasks = emp?.migratedTasksAddon === true && !addons.includes("tareas")
-      ? [...addons, "tareas"]
-      : addons;
-    const withCrm = emp?.migratedCrmAddon === true && !withTasks.includes("crm")
+    const modularityMigrated = emp?.modularityMigrated === true;
+    const normalizedAddons = normalizeTenantAddons(addons, { migrateLegacy: !modularityMigrated });
+    const withTasks = !modularityMigrated && emp?.migratedTasksAddon === true && !normalizedAddons.includes("tareas")
+      ? [...normalizedAddons, "tareas"]
+      : normalizedAddons;
+    const withCrm = !modularityMigrated && emp?.migratedCrmAddon === true && !withTasks.includes("crm")
       ? [...withTasks, "crm"]
       : withTasks;
     return {
       ...emp,
-      addons: withCrm,
+      addons: normalizeTenantAddons(withCrm),
+      modularityMigrated: true,
       migratedTasksAddon: emp?.migratedTasksAddon === true,
       migratedCrmAddon: emp?.migratedCrmAddon === true,
     };

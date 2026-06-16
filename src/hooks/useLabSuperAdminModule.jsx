@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { requestConfirm } from "../lib/ui/confirmService";
 import { buildVocabularyFromPreset } from "../lib/industry/tenantVocabulary";
+import { normalizeTenantAddons } from "../lib/modules/moduleRegistry";
 
 const isSameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -538,7 +539,7 @@ export function useLabSuperAdminModule({
     if (!ef.nombre?.trim()) return;
     const id = eid || `emp_${uid().slice(1, 7)}`;
     const prev = empresas.find(e => e.id === eid) || {};
-    const selectedAddons = Array.isArray(ef.addons) ? [...new Set(ef.addons)] : [];
+    const selectedAddons = normalizeTenantAddons(ef.addons);
     const obj = {
       id,
       tenantCode: prev.tenantCode || nextTenantCode(empresas),
@@ -550,6 +551,7 @@ export function useLabSuperAdminModule({
       logo: ef.logo || prev.logo || "",
       color: ef.color || prev.color || "#1a1a2e",
       addons: selectedAddons,
+      modularityMigrated: true,
       industryProfile: ef.industryProfile && typeof ef.industryProfile === "object" ? ef.industryProfile : (prev.industryProfile || {}),
       active: ef.active !== false,
       plan: ef.plan || "starter",

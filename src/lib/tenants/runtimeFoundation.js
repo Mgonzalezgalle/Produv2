@@ -83,9 +83,9 @@ export function buildTenantReadiness(empresa = {}, users = [], snapshot = {}) {
     },
     {
       id: "modules",
-      label: "Módulos",
-      ready: runtime.addons.length > 0,
-      issue: "Activar los módulos que esta empresa usará.",
+      label: "Base modular",
+      ready: true,
+      issue: "La base Clientes siempre está disponible; los módulos opcionales se activan según necesidad.",
     },
     {
       id: "industry",

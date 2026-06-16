@@ -1,3 +1,5 @@
+import { tenantHasModule } from "../modules/moduleRegistry";
+
 export const ROLES = {
   superadmin: { label: "Super Admin", color: "#ff5566" },
   admin: { label: "Administrador", color: "#00d4e8" },
@@ -32,9 +34,10 @@ const ACTION_ALIASES = {
 
 const ACTION_ADDON_REQUIREMENTS = {
   tareas: "tareas",
-  programas: "television",
-  auspiciadores: "television",
-  contenidos: "social",
+  producciones: "producciones",
+  programas: "programas",
+  auspiciadores: "auspiciadores",
+  contenidos: "contenidos",
   crm: "crm",
   presupuestos: "presupuestos",
   facturacion: "facturacion",
@@ -69,7 +72,7 @@ export function normalizePermissionAction(action = "") {
 }
 
 export function hasAddon(empresa, addon) {
-  return Array.isArray(empresa?.addons) && empresa.addons.includes(addon);
+  return tenantHasModule(empresa, addon);
 }
 
 export function requiredAddonForAction(action = "") {

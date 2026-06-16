@@ -358,14 +358,14 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
           <div className="login-title" style={{fontFamily:"var(--fh)",fontSize:44,lineHeight:1.02,fontWeight:800,maxWidth:470,marginBottom:14,color:"#152033"}}>Sé parte de Produ, inicia tu experiencia desde hoy.</div>
           <div className="login-promo-copy" style={{fontSize:15,color:"#66748d",lineHeight:1.8,maxWidth:500,marginBottom:18}}>Activa tu empresa, define al primer administrador y arma la base operativa de Produ con un flujo simple, claro y mucho más cercano a la experiencia comercial de la marca.</div>
           <div className="login-promo-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
-            {[["Base","Clientes, proyectos y calendario"],["Operación","Producción, contenido y seguimiento"],["Comercial","Presupuestos, contratos y documentos"]].map(([title,sub])=><div key={title} style={{padding:"15px 15px",borderRadius:18,background:"#f8fbff",border:"1px solid #dbe6f3"}}><div style={{fontSize:12,fontWeight:800,color:"#152033",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"#66748d",lineHeight:1.55}}>{sub}</div></div>)}
+            {[["Base","Clientes y dashboard operativo"],["Operación","Proyectos, producción, contenido y seguimiento"],["Comercial","Presupuestos, contratos y documentos"]].map(([title,sub])=><div key={title} style={{padding:"15px 15px",borderRadius:18,background:"#f8fbff",border:"1px solid #dbe6f3"}}><div style={{fontSize:12,fontWeight:800,color:"#152033",marginBottom:6}}>{title}</div><div style={{fontSize:11,color:"#66748d",lineHeight:1.55}}>{sub}</div></div>)}
           </div>
         </div>
         <div className="login-promo-footer" style={{display:"grid",gridTemplateColumns:"1.08fr .92fr",gap:12,alignItems:"end"}}>
           <div style={{padding:18,borderRadius:22,background:"linear-gradient(180deg,#173a78 0%,#10204f 100%)",border:"1px solid rgba(23,58,120,.35)",color:"#eff5ff"}}>
             <div style={{fontSize:11,color:"rgba(239,245,255,.72)",textTransform:"uppercase",letterSpacing:1.3,marginBottom:8}}>Qué incluye</div>
             <div style={{display:"grid",gap:8,fontSize:12,color:"#eff5ff"}}>
-              <div>• Base Produ: dashboard, calendario, clientes y proyectos</div>
+              <div>• Base Produ: dashboard, clientes y módulos activables</div>
               <div>• Addons según tu operación comercial, financiera u operativa</div>
               <div>• Activación guiada y supervisada por el equipo de Produ</div>
             </div>

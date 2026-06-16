@@ -33,6 +33,7 @@ export function normalizeTenantAddons(addons = [], { migrateLegacy = false } = {
       next.add("producciones");
       next.add("contenidos");
     }
+    next.add("calendario");
     next.delete("television");
     next.delete("social");
   }

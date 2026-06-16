@@ -539,7 +539,7 @@ export function useLabSuperAdminModule({
     if (!ef.nombre?.trim()) return;
     const id = eid || `emp_${uid().slice(1, 7)}`;
     const prev = empresas.find(e => e.id === eid) || {};
-    const selectedAddons = normalizeTenantAddons(ef.addons);
+    const selectedAddons = normalizeTenantAddons(eid ? ef.addons : ["calendario", ...(Array.isArray(ef.addons) ? ef.addons : [])]);
     const obj = {
       id,
       tenantCode: prev.tenantCode || nextTenantCode(empresas),

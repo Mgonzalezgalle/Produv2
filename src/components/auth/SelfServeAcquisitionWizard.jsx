@@ -459,7 +459,7 @@ export function SelfServeAcquisitionWizard({
               <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:6}}>
                 <div>
                   <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{baseProduct.label}</div>
-                  <div style={{fontSize:11,color:"rgba(239,245,255,.72)"}}>Incluye dashboard, calendario, clientes y proyectos</div>
+                  <div style={{fontSize:11,color:"rgba(239,245,255,.72)"}}>Incluye dashboard, clientes y módulos activables</div>
                 </div>
                 <div style={{fontSize:14,fontWeight:800,color:"#8fbcff"}}>
                   {pricingSnapshot.base.promoMonthlyUF === 0 && pricingSnapshot.base.promoMonths > 0

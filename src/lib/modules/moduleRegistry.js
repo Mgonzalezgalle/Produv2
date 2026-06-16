@@ -16,6 +16,7 @@ export {
 } from "./moduleAccess";
 
 export const ADDON_REGISTRY = {
+  calendario: { label: "Calendario", icon: "📅", group: "Base" },
   producciones: { label: "Proyectos", icon: "▶", group: "Operación" },
   programas: { label: "Producciones", icon: "📺", group: "Operación" },
   contenidos: { label: "Contenidos", icon: "📱", group: "Operación" },
@@ -69,7 +70,7 @@ export function buildSidebarNavigation({ empresa, counts = {}, includeTreasury =
       group: "General",
       items: [
         { id: "dashboard", icon: "⊞", label: "Dashboard" },
-        { id: "calendario", icon: "📅", label: "Calendario" },
+        ...(tenantHasModule(empresa, "calendario") ? [{ id: "calendario", icon: "📅", label: "Calendario", need: "calendario" }] : []),
         ...(tenantHasModule(empresa, "tareas") ? [{ id: "tareas", icon: "✅", label: "Mis Tareas", cnt: counts.tar }] : []),
       ],
     },

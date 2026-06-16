@@ -33,6 +33,7 @@ const ACTION_ALIASES = {
 };
 
 const ACTION_ADDON_REQUIREMENTS = {
+  calendario: "calendario",
   tareas: "tareas",
   producciones: "producciones",
   programas: "programas",
@@ -48,6 +49,7 @@ const ACTION_ADDON_REQUIREMENTS = {
 };
 
 const VIEW_ACCESS_RULES = {
+  calendario: { action: "calendario" },
   tareas: { action: "tareas" },
   producciones: { action: "producciones" },
   "pro-det": { action: "producciones" },

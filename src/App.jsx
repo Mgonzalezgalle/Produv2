@@ -1038,7 +1038,7 @@ export default function App(){
         if (targetUserId === curUser.id) {
           setCurUser(prev => prev ? { ...prev, googleCalendar: nextGoogleCalendar } : prev);
         }
-        navTo("calendario");
+        navTo(hasAddon(curEmp, "calendario") ? "calendario" : "dashboard");
         ntf("Google Calendar conectado ✓");
         Promise.resolve(saveUsers(nextUsers)).catch(() => {
           ntf("Conectamos Google Calendar, pero no pudimos persistir la conexión localmente.", "warn");
@@ -1057,7 +1057,7 @@ export default function App(){
       if (!status) return false;
       if (status === "connected") return applyGoogleCalendarConnection(payload?.connection || null);
       ntf(String(payload?.message || "No pudimos conectar Google Calendar."), "warn");
-      navTo("calendario");
+      navTo(hasAddon(curEmp, "calendario") ? "calendario" : "dashboard");
       cleanUrl();
       return true;
     };

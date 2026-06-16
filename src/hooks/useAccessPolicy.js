@@ -21,6 +21,7 @@ export function useAccessPolicy({ user, empresa, view }) {
         return hasAddon(safeEmpresa, addon);
       },
       tasksEnabled: actionNeedsAddon("tareas", safeEmpresa),
+      calendarEnabled: actionNeedsAddon("calendario", safeEmpresa),
       budgetsEnabled: actionNeedsAddon("presupuestos", safeEmpresa),
       invoicesEnabled: actionNeedsAddon("facturacion", safeEmpresa),
       projectsEnabled: actionNeedsAddon("producciones", safeEmpresa),

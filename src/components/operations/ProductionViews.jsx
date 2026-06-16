@@ -1442,6 +1442,7 @@ export function ViewActivos(props) {
   const [fp, setFp] = useState("");
   const [newBranchName, setNewBranchName] = useState("");
   const [newCollaborator, setNewCollaborator] = useState({ nom: "", rol: "", ema: "", tel: "" });
+  const [mastersOpen, setMastersOpen] = useState(false);
   const [sortMode, setSortMode] = useState("recent");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkEstado, setBulkEstado] = useState("");
@@ -1521,9 +1522,12 @@ export function ViewActivos(props) {
       module="Activos"
       title="Gestión de activos"
       description="Controla licencias, equipos, computadores y entregables por sucursal, estado y colaborador asignado."
-      actions={canManageAssets ? <Btn onClick={() => openM("activo", {})}>+ Nuevo Activo</Btn> : null}
+      actions={canManageAssets ? <>
+        <GBtn onClick={() => setMastersOpen(true)}>Maestros</GBtn>
+        <Btn onClick={() => openM("activo", {})}>+ Nuevo Activo</Btn>
+      </> : null}
     />
-    {canManageAssets && <Card title="Maestros de activos" sub="Crea sucursales y colaboradores antes de asignar activos." style={{ marginBottom: 18 }}>
+    {canManageAssets && <Modal open={mastersOpen} onClose={() => setMastersOpen(false)} title="Maestros de activos" sub="Crea sucursales y colaboradores antes de asignar activos." wide>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
         <div style={{ border: "1px solid var(--bdr2)", borderRadius: 16, padding: 14, background: "linear-gradient(180deg,#ffffff,#f8fbff)" }}>
           <div style={{ fontSize: 12, fontWeight: 900, color: "var(--wh)", marginBottom: 8 }}>Sucursales</div>
@@ -1550,7 +1554,7 @@ export function ViewActivos(props) {
           </div>
         </div>
       </div>
-    </Card>}
+    </Modal>}
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
       <Stat label="Total Activos" value={fd.length} accent="var(--cy)" vc="var(--cy)" />
       <Stat label="Disponibles" value={dispCount} accent="#00e08a" vc="#00e08a" />

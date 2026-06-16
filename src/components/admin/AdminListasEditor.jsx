@@ -2,18 +2,19 @@ import { useState } from "react";
 import { requestConfirm } from "../../lib/ui/confirmService";
 
 export function ListasEditor({ listas, saveListas, defaultListas }) {
-  const mergeListValues = (base = {}, overrides = {}) => {
-    const keys = new Set([...Object.keys(base || {}), ...Object.keys(overrides || {})]);
+  const buildTenantListValues = (base = {}, tenantLists = {}) => {
+    const keys = new Set([...Object.keys(base || {}), ...Object.keys(tenantLists || {})]);
     const next = {};
     keys.forEach(key => {
       const baseArr = Array.isArray(base?.[key]) ? base[key] : [];
-      const overrideArr = Array.isArray(overrides?.[key]) ? overrides[key] : [];
-      next[key] = [...new Set([...baseArr, ...overrideArr].filter(v => String(v || "").trim()))];
+      const tenantArr = Array.isArray(tenantLists?.[key]) ? tenantLists[key] : null;
+      const source = tenantArr || baseArr;
+      next[key] = [...new Set(source.map(v => String(v || "").trim()).filter(Boolean))];
     });
     return next;
   };
 
-  const L = mergeListValues(defaultListas, listas || {});
+  const L = buildTenantListValues(defaultListas, listas || {});
   const [active, setActive] = useState("tiposPro");
   const [newVal, setNewVal] = useState("");
 
@@ -52,7 +53,7 @@ export function ListasEditor({ listas, saveListas, defaultListas }) {
   ];
 
   const items = L[active] || [];
-  const persistLists = next => saveListas(mergeListValues(defaultListas, next || {}));
+  const persistLists = next => saveListas(buildTenantListValues(defaultListas, next || {}));
 
   const addItem = () => {
     if (!newVal.trim() || items.includes(newVal.trim())) return;

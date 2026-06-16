@@ -1431,7 +1431,7 @@ export function ViewCrew(props) {
 }
 
 export function ViewActivos(props) {
-  const { empresa, activos, producciones, listas, openM, canDo, cDel, setActivos, fmtM, fmtD } = props;
+  const { empresa, activos, producciones, crew = [], users = [], listas, openM, canDo, cDel, setActivos, fmtM, fmtD } = props;
   const empId = empresa?.id;
   const canManageAssets = !!(canDo && canDo("activos"));
   const [q, setQ] = useState("");
@@ -1446,7 +1446,19 @@ export function ViewActivos(props) {
   const PP = 10;
   const CATS = listas?.catActivos || DEFAULT_LISTAS.catActivos;
   const ESTADOS = listas?.estadosActivos || DEFAULT_LISTAS.estadosActivos;
-  const fd = (activos || []).filter(x => x.empId === empId).filter(a => (a.nom.toLowerCase().includes(q.toLowerCase()) || (a.marca || "").toLowerCase().includes(q.toLowerCase())) && (!fc || a.categoria === fc) && (!fe || a.estado === fe)).sort((a, b) => {
+  const resolveAssetPerson = asset => {
+    const personId = asset?.assignedPersonId || asset?.personaId || "";
+    const personType = asset?.assignedPersonType || asset?.personaTipo || "";
+    const fromCrew = (crew || []).find(item => String(item.id) === String(personId));
+    const fromUser = (users || []).find(item => String(item.id) === String(personId));
+    const person = personType === "user" ? fromUser || fromCrew : fromCrew || fromUser;
+    return asset?.assignedPersonName || asset?.personaNombre || person?.nom || person?.name || person?.email || "";
+  };
+  const fd = (activos || []).filter(x => x.empId === empId).filter(a => {
+    const personName = resolveAssetPerson(a);
+    const haystack = [a.nom, a.marca, a.modelo, a.serial, personName].join(" ").toLowerCase();
+    return haystack.includes(q.toLowerCase()) && (!fc || a.categoria === fc) && (!fe || a.estado === fe);
+  }).sort((a, b) => {
     if (sortMode === "az") return String(a.nom || "").localeCompare(String(b.nom || ""));
     if (sortMode === "za") return String(b.nom || "").localeCompare(String(a.nom || ""));
     if (sortMode === "value-desc") return Number(b.valorCompra || 0) - Number(a.valorCompra || 0);
@@ -1474,7 +1486,7 @@ export function ViewActivos(props) {
       <Stat label="Valor Total" value={fmtM(totalValor)} accent="#ffcc44" vc="#ffcc44" />
     </div>
     <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar activo o marca..." />
+      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar activo, marca o responsable..." />
       <FilterSel value={fc} onChange={v => { setFc(v); setPg(1); }} options={CATS} placeholder="Todas categorías" />
       <FilterSel value={fe} onChange={v => { setFe(v); setPg(1); }} options={ESTADOS} placeholder="Todo estados" />
       <FilterSel value={sortMode} onChange={v => { setSortMode(v); setPg(1); }} options={[{ value: "recent", label: "Más reciente" }, { value: "oldest", label: "Más antiguo" }, { value: "az", label: "A-Z" }, { value: "za", label: "Z-A" }, { value: "value-desc", label: "Mayor valor" }, { value: "value-asc", label: "Menor valor" }]} placeholder="Ordenar" />
@@ -1500,7 +1512,7 @@ export function ViewActivos(props) {
     </div>
     {vista === "cards" ? <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 12 }}>
-        {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+        {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); const personName = resolveAssetPerson(a); return <div key={a.id} style={{ background: "var(--card)", border: "1px solid var(--bdr)", borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{a.nom}</div>
@@ -1513,7 +1525,8 @@ export function ViewActivos(props) {
             {a.serial && <Badge label={`SN ${a.serial}`} color="cyan" sm />}
           </div>
           <div style={{ fontSize: 11, color: "var(--gr2)", display: "grid", gap: 5 }}>
-            <span>Asignado: {pro ? pro.nom : "Sin asignar"}</span>
+            <span>Responsable: {personName || "Sin responsable"}</span>
+            <span>Proyecto: {pro ? pro.nom : "Sin proyecto"}</span>
             <span>Compra: {a.fechaCompra ? fmtD(a.fechaCompra) : "—"}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--bdr)" }}>
@@ -1527,22 +1540,23 @@ export function ViewActivos(props) {
     </> :
       <Card>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Asignado a</TH><TH onClick={() => setSortMode(sortMode === "value-desc" ? "value-asc" : "value-desc")} active={sortMode === "value-desc" || sortMode === "value-asc"} dir={sortMode === "value-desc" ? "desc" : "asc"}>Valor</TH><TH></TH></tr></thead>
+          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Nombre</TH><TH>Categoría</TH><TH>Marca/Modelo</TH><TH>N° Serie</TH><TH>Estado</TH><TH>Responsable</TH><TH>Proyecto</TH><TH onClick={() => setSortMode(sortMode === "value-desc" ? "value-asc" : "value-desc")} active={sortMode === "value-desc" || sortMode === "value-asc"} dir={sortMode === "value-desc" ? "desc" : "asc"}>Valor</TH><TH></TH></tr></thead>
           <tbody>
-            {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); return <tr key={a.id}>
+            {fd.slice((pg - 1) * PP, pg * PP).map(a => { const pro = (producciones || []).find(x => x.id === a.asignadoA); const personName = resolveAssetPerson(a); return <tr key={a.id}>
               <TD><input type="checkbox" checked={selectedIds.includes(a.id)} onChange={() => toggleSelected(a.id)} /></TD>
               <TD bold>{a.nom}</TD>
               <TD><Badge label={a.categoria || "—"} color="gray" sm /></TD>
               <TD style={{ fontSize: 12 }}>{[a.marca, a.modelo].filter(Boolean).join(" · ") || "—"}</TD>
               <TD mono style={{ fontSize: 11 }}>{a.serial || "—"}</TD>
               <TD><span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: statColor(a.estado) + "22", color: statColor(a.estado), border: `1px solid ${statColor(a.estado)}40` }}>{a.estado || "—"}</span></TD>
-              <TD style={{ fontSize: 12 }}>{pro ? pro.nom : <span style={{ color: "var(--gr)" }}>Sin asignar</span>}</TD>
+              <TD style={{ fontSize: 12 }}>{personName || <span style={{ color: "var(--gr)" }}>Sin responsable</span>}</TD>
+              <TD style={{ fontSize: 12 }}>{pro ? pro.nom : <span style={{ color: "var(--gr)" }}>Sin proyecto</span>}</TD>
               <TD mono style={{ fontSize: 12 }}>{a.valorCompra ? fmtM(a.valorCompra) : "—"}</TD>
               <TD><div style={{ display: "flex", gap: 4 }}>
                 {canManageAssets && <><GBtn sm onClick={() => openM("activo", a)}>✏</GBtn><XBtn onClick={() => cDel(activos, setActivos, a.id, null, "Activo eliminado")} /></>}
               </div></TD>
             </tr>; })}
-            {!fd.length && <tr><td colSpan={9}><Empty text="Sin activos registrados" sub={canDo && canDo("activos") ? "Registra el primero con el botón superior" : ""} /></td></tr>}
+            {!fd.length && <tr><td colSpan={10}><Empty text="Sin activos registrados" sub={canDo && canDo("activos") ? "Registra el primero con el botón superior" : ""} /></td></tr>}
           </tbody>
         </table></div>
         <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg} />

@@ -12,8 +12,11 @@ import {
 } from "../../lib/ui/components";
 import { DEFAULT_LISTAS, fmtM, hasAddon, today } from "../../lib/utils/helpers";
 
-export function MCt({open,data,empresa,clientes,producciones,programas,piezas,presupuestos,facturas,listas,onClose,onSave}){
+const providerDisplayName = provider => String(provider?.name || provider?.razonSocial || provider?.nom || provider?.nombre || "").trim();
+
+export function MCt({open,data,empresa,clientes,providers,producciones,programas,piezas,presupuestos,facturas,listas,onClose,onSave}){
   const [f,setF]=useState({});
+  const providerOptions = (Array.isArray(providers) ? providers : []).filter(item => item?.id || providerDisplayName(item));
   const canPrograms = hasAddon(empresa, "television");
   const canSocial = hasAddon(empresa, "social");
   const canPres = hasAddon(empresa, "presupuestos");
@@ -21,19 +24,36 @@ export function MCt({open,data,empresa,clientes,producciones,programas,piezas,pr
   useEffect(()=>{
     setF(data?.id
       ? {...data, pids:data.pids||[], facturaIds:data.facturaIds||[], alertaDias:data.alertaDias||30}
-      : {nom:"",cliId:data?.cliId||"",tip:"Producción",est:"Borrador",mon:"",ini:"",vig:"",arc:"",not:"",pids:[],presupuestoId:"",facturaIds:[],alertaDias:30,renovacionAuto:false}
+      : {nom:"",providerId:data?.providerId||"",providerName:data?.providerName||"",cliId:"",tip:"Servicio",est:"Borrador",mon:"",ini:"",vig:"",arc:"",not:"",pids:[],presupuestoId:"",facturaIds:[],alertaDias:30,renovacionAuto:false}
     );
   },[data,open]);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  const updateProvider = id => {
+    const provider = providerOptions.find(item => String(item.id || providerDisplayName(item)) === String(id));
+    setF(prev => ({ ...prev, providerId:provider?.id || "", providerName:providerDisplayName(provider), cliId:"" }));
+  };
   const opts=[
     ...(producciones||[]).map(p=>({value:"p:"+p.id,label:"📽 "+p.nom})),
     ...(canPrograms ? (programas||[]).map(p=>({value:"pg:"+p.id,label:"📺 "+p.nom})) : []),
     ...(canSocial ? (piezas||[]).map(p=>({value:"pz:"+p.id,label:"📱 "+p.nom})) : []),
   ];
+  const legacyClient = (clientes||[]).find(c => c.id === f.cliId);
   const presupuestosCli = (presupuestos||[]).filter(p => !f.cliId || p.cliId === f.cliId);
   const facturasCli = (facturas||[]).filter(x => !f.cliId || x.entidadId === f.cliId);
-  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Contrato":"Nuevo Contrato"} sub="Documento legal">
-    <R2><FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de Proyecto Q2"/></FG><FG label="Cliente"><FSl value={f.cliId||""} onChange={e=>u("cliId",e.target.value)}><option value="">— Sin cliente —</option>{(clientes||[]).map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}</FSl></FG></R2>
+  return <Modal open={open} onClose={onClose} title={data?.id?"Editar Contrato":"Nuevo Contrato"} sub="Contrato de proveedor">
+    <R2>
+      <FG label="Nombre *"><FI value={f.nom||""} onChange={e=>u("nom",e.target.value)} placeholder="Contrato de servicio Q2"/></FG>
+      <FG label="Proveedor">
+        <FSl value={f.providerId||""} onChange={e=>updateProvider(e.target.value)}>
+          <option value="">— Sin proveedor seleccionado —</option>
+          {providerOptions.map(provider=><option key={provider.id || providerDisplayName(provider)} value={provider.id || providerDisplayName(provider)}>{providerDisplayName(provider)}</option>)}
+        </FSl>
+      </FG>
+    </R2>
+    <FG label="Nombre proveedor externo"><FI value={f.providerName||""} onChange={e=>u("providerName",e.target.value)} placeholder="Si no está creado en Tesorería, escríbelo aquí"/></FG>
+    {legacyClient && <div style={{ marginBottom: 14, padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)", color: "var(--gr2)", fontSize: 12 }}>
+      Este contrato histórico venía asociado al cliente {legacyClient.nom}. Desde ahora los contratos se gestionan por proveedor.
+    </div>}
     <FG label="Asociaciones"><MultiSelect options={opts} value={f.pids||[]} onChange={v=>u("pids",v)} placeholder={canSocial?"Proyectos, producciones y campañas...":canPrograms?"Proyectos y producciones...":"Proyectos vinculados..."}/></FG>
     <R2><FG label="Tipo"><FSl value={f.tip||""} onChange={e=>u("tip",e.target.value)}>{(listas?.tiposCt||DEFAULT_LISTAS.tiposCt).map(o=><option key={o}>{o}</option>)}</FSl></FG><FG label="Estado"><FSl value={f.est||""} onChange={e=>u("est",e.target.value)}>{(listas?.estadosCt||DEFAULT_LISTAS.estadosCt).map(o=><option key={o}>{o}</option>)}</FSl></FG></R2>
     <R3>

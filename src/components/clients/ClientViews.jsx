@@ -245,7 +245,6 @@ export function ViewCliDet({
   const prs = (producciones || []).filter(p => p.cliId === id);
   const pgs = (programas || []).filter(p => p.cliId === id);
   const ctn = (piezas || []).filter(p => p.cliId === id);
-  const cts = (contratos || []).filter(x => x.cliId === id);
   let ti = 0;
   let tg = 0;
   prs.forEach(p => { const b = bal(p.id); ti += b.i; tg += b.g; });
@@ -600,7 +599,7 @@ export function ViewCliDet({
       <DetHeader title={c.nom} tag={c.ind} meta={[c.rut && `RUT: ${c.rut}`, c.dir].filter(Boolean)} actions={canManageClients && <><GBtn onClick={() => openM("cli", c)}>✏ Editar</GBtn><DBtn onClick={() => { if (!canManageClients) return; setDeleteClientConfirmOpen(true); }}>🗑 Eliminar</DBtn></>} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <Stat label="Asociaciones" value={prs.length + pgs.length + ctn.length} accent="var(--cy)" vc="var(--cy)" />
-        <Stat label="Contratos" value={cts.length} />
+        <Stat label="Contactos" value={(c.contactos || []).length} />
         <Stat label="Ingresos" value={fmtM(ti)} accent="#00e08a" vc="#00e08a" />
         <Stat label="Balance" value={fmtM(ti - tg)} accent={ti - tg >= 0 ? "#00e08a" : "#ff5566"} vc={ti - tg >= 0 ? "#00e08a" : "#ff5566"} />
       </div>
@@ -800,10 +799,6 @@ export function ViewCliDet({
         </div> : <Empty text="Sin actividad del portal" sub="Cuando el cliente apruebe, observe o deje comentarios, aparecerán aquí." />}
       </Card>
       {associationBlocks.map(block => <Card key={block.key} title={`${block.title} (${block.count})`} action={block.action} style={{ marginBottom: 16 }}>{block.render()}</Card>)}
-      <Card title={`Contratos (${cts.length})`} action={canDo?.("contratos") ? { label: "+ Nuevo", fn: () => openM("ct", { cliId: id }) } : null}>
-        {cts.map(ct => <div key={ct.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--bdr)" }}><span style={{ fontSize: 18, flexShrink: 0 }}>📄</span><div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{ct.nom}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>{ct.tip}{ct.vig ? ` · ${fmtD(ct.vig)}` : ""}</div></div><Badge label={ct.est} />{ct.mon && <span style={{ fontFamily: "var(--fm)", fontSize: 12 }}>{fmtM(ct.mon)}</span>}</div>)}
-        {!cts.length && <Empty text="Sin contratos" />}
-      </Card>
       <Modal open={!!emailChoice} onClose={() => setEmailChoice(null)} title="Enviar correo" sub="Elige cómo quieres continuar con este contacto.">
         <div style={{ display: "grid", gap: 10 }}>
           <button

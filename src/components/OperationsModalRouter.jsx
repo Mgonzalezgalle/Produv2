@@ -22,6 +22,7 @@ export function OperationsModalRouter({
   oportunidades,
   crew,
   crewOptions,
+  users,
   empresa,
   listas,
   onSaveCli,
@@ -116,6 +117,8 @@ export function OperationsModalRouter({
       open={mOpen==="activo"}
       data={mData}
       producciones={producciones}
+      crew={crew}
+      users={users}
       empresa={empresa}
       listas={listas}
       onClose={closeM}

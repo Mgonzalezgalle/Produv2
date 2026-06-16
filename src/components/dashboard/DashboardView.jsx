@@ -191,7 +191,7 @@ export function ViewDashboard({
     ...contractsExpiring.slice(0, 2).map(contract => ({
       id: `contract-${contract.id}`,
       title: contract.nom || "Contrato",
-      sub: `Contrato por vencer${contract.cliId ? ` · ${(clis.find(item => item.id === contract.cliId)?.nom) || "sin cliente"}` : ""}`,
+      sub: `Contrato de proveedor por vencer${contract.providerName ? ` · ${contract.providerName}` : ""}`,
       badge: contract.vig ? fmtD(contract.vig) : "Sin fecha",
       tone: "warning",
       target: ["contratos"],

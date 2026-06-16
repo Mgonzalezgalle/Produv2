@@ -392,8 +392,36 @@ export function ViewPres({ empresa, user, platformApi, presupuestos, clientes, p
   </div>;
 }
 
-export function ViewCts({ empresa, user, platformApi, contratos, clientes, presupuestos, openM, canDo, cDel, setContratos }) {
+function contractProviderLabel(ct = {}, providers = [], clientes = []) {
+  const provider = (providers || []).find(item => String(item?.id || "") === String(ct.providerId || ""));
+  const providerName = String(provider?.name || provider?.razonSocial || provider?.nom || provider?.nombre || ct.providerName || ct.supplier || "").trim();
+  if (providerName) return providerName;
+  const legacyClient = (clientes || []).find(item => String(item?.id || "") === String(ct.cliId || ""));
+  return legacyClient?.nom ? `${legacyClient.nom} · histórico` : "Sin proveedor";
+}
+
+function contractProviderContact(ct = {}, providers = [], clientes = []) {
+  const provider = (providers || []).find(item => String(item?.id || "") === String(ct.providerId || ""));
+  const primaryProviderContact = (provider?.contactos || []).find(item => item?.email || item?.ema) || (provider?.contactos || [])[0];
+  if (provider) {
+    return {
+      name: primaryProviderContact?.nombre || primaryProviderContact?.nom || provider.name || provider.razonSocial || "",
+      email: String(primaryProviderContact?.email || primaryProviderContact?.ema || provider.email || provider.correo || provider.paymentEmail || "").trim(),
+      label: contractProviderLabel(ct, providers, clientes),
+    };
+  }
+  const client = (clientes || []).find(item => item.id === ct.cliId);
+  const contact = (client?.contactos || []).find(item => item?.ema) || (client?.contactos || [])[0];
+  return {
+    name: contact?.nom || client?.nom || "",
+    email: String(contact?.ema || "").trim(),
+    label: contractProviderLabel(ct, providers, clientes),
+  };
+}
+
+export function ViewCts({ empresa, user, platformApi, contratos, clientes, treasuryProviders, presupuestos, openM, canDo, cDel, setContratos }) {
   const empId = empresa?.id;
+  const providers = treasuryProviders || [];
   const [q, setQ] = React.useState("");
   const [fe, setFe] = React.useState("");
   const [sortMode, setSortMode] = React.useState("recent");
@@ -405,7 +433,10 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
   const [emailComposerDraft, setEmailComposerDraft] = React.useState(null);
   const [emailComposerSending, setEmailComposerSending] = React.useState(false);
   const PP = 10;
-  const fd = (contratos || []).filter(x => x.empId === empId).filter(c => c.nom.toLowerCase().includes(q.toLowerCase()) && (!fe || contractVisualState(c) === fe || c.est === fe)).sort((a, b) => {
+  const fd = (contratos || []).filter(x => x.empId === empId).filter(c => {
+    const haystack = [c.nom, c.providerName, c.supplier, contractProviderLabel(c, providers, clientes)].join(" ").toLowerCase();
+    return haystack.includes(q.toLowerCase()) && (!fe || contractVisualState(c) === fe || c.est === fe);
+  }).sort((a, b) => {
     if (sortMode === "az") return String(a.nom || "").localeCompare(String(b.nom || ""));
     if (sortMode === "za") return String(b.nom || "").localeCompare(String(a.nom || ""));
     if (sortMode === "amount-desc") return Number(b.mon || 0) - Number(a.mon || 0);
@@ -456,16 +487,15 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
     return { ok: true, source: "mailto_fallback", warning: "remote_delivery_failed" };
   }, [empresa?.id, platformApi, user?.email]);
   const openContractEmailComposer = React.useCallback(async (ct) => {
-    const client = (clientes || []).find(item => item.id === ct.cliId);
-    const contact = (client?.contactos || []).find(item => item?.ema) || (client?.contactos || [])[0];
-    const email = String(contact?.ema || "").trim();
+    const contact = contractProviderContact(ct, providers, clientes);
+    const email = contact.email;
     if (!email) {
-      window.alert("El cliente no tiene email registrado para enviar este contrato.");
+      window.alert("El proveedor no tiene email registrado para enviar este contrato.");
       return;
     }
     const resolved = resolveTransactionalEmailTemplate(empresa, "contract_manual_delivery", {
       companyName: empresa?.nombre || empresa?.nom || "Produ",
-      entityLabel: client?.nom || contact?.nom || "cliente",
+      entityLabel: contact.label || contact.name || "proveedor",
       documentNumber: ct?.nom || "sin nombre",
       contractType: ct?.tip || "Contrato",
       validityLabel: ct?.vig ? fmtD(ct.vig) : "Sin vigencia definida",
@@ -492,18 +522,18 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       replyTo: user?.email || "",
       metadata: {
         companyName: empresa?.nombre || empresa?.nom || "Produ",
-        entityLabel: client?.nom || "",
-        contactName: contact?.nom || "",
+        entityLabel: contact.label || "",
+        contactName: contact.name || "",
         documentNumber: ct?.nom || "",
       },
     });
     setEmailComposerOpen(true);
-  }, [clientes, empresa, user?.email]);
+  }, [clientes, empresa, providers, user?.email]);
   return <div>
     <ModuleHeader
       module="Contratos"
       title="Contratos"
-      description="Centraliza acuerdos comerciales, vigencias y vínculos con presupuestos y facturas desde una sola vista."
+      description="Centraliza contratos de proveedores, vigencias, montos y documentos de respaldo desde una sola vista."
       actions={canDo && canDo("contratos") ? <Btn onClick={() => openM("ct", {})}>+ Nuevo Contrato</Btn> : null}
     />
     <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_STAT_GRID, gap: 14, marginBottom: 20 }}>
@@ -513,7 +543,7 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
       <Stat label="Vencidos" value={vencidos} accent="#ff5566" vc="#ff5566" />
     </div>
     <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar contrato..." />
+      <SearchBar value={q} onChange={v => { setQ(v); setPg(1); }} placeholder="Buscar contrato o proveedor..." />
       <FilterSel value={fe} onChange={v => { setFe(v); setPg(1); }} options={["Borrador", "En Revisión", "Firmado", "Vigente", "Vencido"]} placeholder="Todo estados" />
       <FilterSel value={sortMode} onChange={v => { setSortMode(v); setPg(1); }} options={[{ value: "recent", label: "Más reciente" }, { value: "oldest", label: "Más antiguo" }, { value: "az", label: "A-Z" }, { value: "za", label: "Z-A" }, { value: "amount-desc", label: "Mayor monto" }, { value: "amount-asc", label: "Menor monto" }]} placeholder="Ordenar" />
       <ViewModeToggle value={vista} onChange={setVista} />
@@ -546,13 +576,13 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
     {vista === "cards" ? <>
       <div style={{ display: "grid", gridTemplateColumns: RESPONSIVE_CARD_GRID, gap: 16, marginBottom: 12 }}>
         {fd.slice((pg - 1) * PP, pg * PP).map(ct => {
-          const c = (clientes || []).find(x => x.id === ct.cliId);
+          const providerName = contractProviderLabel(ct, providers, clientes);
           const vinculos = [(ct.pids || []).length && `${(ct.pids || []).length} vínculo${(ct.pids || []).length === 1 ? "" : "s"}`, ct.presupuestoId && `${(presupuestos || []).filter(p => p.id === ct.presupuestoId).length} presupuesto`, (ct.facturaIds || []).length && `${(ct.facturaIds || []).length} factura${(ct.facturaIds || []).length === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
           return <div key={ct.id} style={{ background: "linear-gradient(180deg,#ffffff,#f8fbff)", border: "1px solid var(--bdr)", borderRadius: 18, padding: 18, display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 12px 28px rgba(15,23,42,.06)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.25 }}>{ct.nom}</div>
-                <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{c?.nom || "Sin cliente"}</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 4 }}>{providerName}</div>
               </div>
               <Badge label={contractVisualState(ct)} />
             </div>
@@ -576,11 +606,11 @@ export function ViewCts({ empresa, user, platformApi, contratos, clientes, presu
     </> :
       <Card>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Contrato</TH><TH>Cliente</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
+          <thead><tr><TH style={{ width: 36 }}><input type="checkbox" checked={fd.slice((pg - 1) * PP, pg * PP).length > 0 && fd.slice((pg - 1) * PP, pg * PP).every(item => selectedIds.includes(item.id))} onChange={e => toggleAll(e.target.checked)} /></TH><TH onClick={() => setSortMode(sortMode === "az" ? "za" : "az")} active={sortMode === "az" || sortMode === "za"} dir={sortMode === "za" ? "desc" : "asc"}>Contrato</TH><TH>Proveedor</TH><TH>Tipo</TH><TH>Estado</TH><TH onClick={() => setSortMode(sortMode === "amount-desc" ? "amount-asc" : "amount-desc")} active={sortMode === "amount-desc" || sortMode === "amount-asc"} dir={sortMode === "amount-desc" ? "desc" : "asc"}>Monto</TH><TH onClick={() => setSortMode(sortMode === "oldest" ? "recent" : "oldest")} active={sortMode === "recent" || sortMode === "oldest"} dir={sortMode === "recent" ? "desc" : "asc"}>Vigencia</TH><TH>Conexiones</TH><TH></TH></tr></thead>
           <tbody>
-            {fd.slice((pg - 1) * PP, pg * PP).map(ct => { const c = (clientes || []).find(x => x.id === ct.cliId); return <tr key={ct.id}>
+            {fd.slice((pg - 1) * PP, pg * PP).map(ct => { const providerName = contractProviderLabel(ct, providers, clientes); return <tr key={ct.id}>
               <TD><input type="checkbox" checked={selectedIds.includes(ct.id)} onChange={() => toggleSelected(ct.id)} /></TD>
-              <TD bold>{ct.nom}</TD><TD>{c ? c.nom : "—"}</TD><TD><Badge label={ct.tip} color="gray" sm /></TD><TD><Badge label={contractVisualState(ct)} /></TD>
+              <TD bold>{ct.nom}</TD><TD>{providerName}</TD><TD><Badge label={ct.tip} color="gray" sm /></TD><TD><Badge label={contractVisualState(ct)} /></TD>
               <TD mono style={{ fontSize: 12 }}>{ct.mon ? fmtM(ct.mon) : "—"}</TD>
               <TD mono style={{ fontSize: 11 }}>{ct.vig ? fmtD(ct.vig) : "—"}</TD>
               <TD style={{ fontSize: 11, color: "var(--gr2)" }}>

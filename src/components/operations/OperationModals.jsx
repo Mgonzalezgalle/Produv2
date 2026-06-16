@@ -328,19 +328,41 @@ export function MEvento({ open, data, producciones, programas, piezas, onClose, 
   </Modal>;
 }
 
-export function MActivo({ open, data, producciones, empresa, listas, onClose, onSave }) {
+export function MActivo({ open, data, producciones, crew, users, empresa, listas, onClose, onSave }) {
   const [f, setF] = useState({});
   const assetLabel = getTenantVocabularyEntry(empresa, "activos") || {};
   const projectLabel = getTenantVocabularyEntry(empresa, "producciones") || {};
-  useEffect(() => { setF(data?.id ? { ...data } : { nom: "", categoria: "", marca: "", modelo: "", serial: "", valorCompra: "", fechaCompra: "", estado: "Disponible", asignadoA: "", obs: "" }); }, [data, open]);
+  const empId = empresa?.id;
+  const peopleOptions = [
+    ...(crew || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `crew:${item.id}`, label: item.nom || item.name || "Equipo", personId: item.id, personType: "crew", personName: item.nom || item.name || "" })),
+    ...(users || []).filter(item => item.empId === empId && item.active !== false).map(item => ({ value: `user:${item.id}`, label: item.name || item.email || "Usuario", personId: item.id, personType: "user", personName: item.name || item.email || "" })),
+  ];
+  useEffect(() => {
+    setF(data?.id
+      ? { ...data }
+      : { nom: "", categoria: "", marca: "", modelo: "", serial: "", valorCompra: "", fechaCompra: "", estado: "Disponible", asignadoA: "", assignedPersonId: "", assignedPersonType: "", assignedPersonName: "", obs: "" });
+  }, [data, open]);
   const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const selectedPersonValue = f.assignedPersonId ? `${f.assignedPersonType || "crew"}:${f.assignedPersonId}` : "";
+  const updatePerson = value => {
+    const option = peopleOptions.find(item => item.value === value);
+    setF(prev => ({
+      ...prev,
+      assignedPersonId: option?.personId || "",
+      assignedPersonType: option?.personType || "",
+      assignedPersonName: option?.personName || "",
+    }));
+  };
   const CATS = listas?.catActivos || DEFAULT_LISTAS.catActivos;
   const ESTADOS = listas?.estadosActivos || DEFAULT_LISTAS.estadosActivos;
   return <Modal open={open} onClose={onClose} title={data?.id ? `Editar ${assetLabel.singular || "Activo"}` : (assetLabel.newLabel || "Nuevo Activo")} sub={assetLabel.description || "Inventario, equipos y recursos."}>
     <R2><FG label="Nombre *"><FI value={f.nom || ""} onChange={e => u("nom", e.target.value)} placeholder="Canon EOS R5"/></FG><FG label="Categoría"><FSl value={f.categoria || ""} onChange={e => u("categoria", e.target.value)}><option value="">Seleccionar...</option>{CATS.map(c => <option key={c}>{c}</option>)}</FSl></FG></R2>
     <R3><FG label="Marca"><FI value={f.marca || ""} onChange={e => u("marca", e.target.value)} placeholder="Canon, Sony..."/></FG><FG label="Modelo"><FI value={f.modelo || ""} onChange={e => u("modelo", e.target.value)} placeholder="EOS R5"/></FG><FG label="N° Serie"><FI value={f.serial || ""} onChange={e => u("serial", e.target.value)} placeholder="SN-00001"/></FG></R3>
     <R3><FG label="Valor Compra"><FI type="number" value={f.valorCompra || ""} onChange={e => u("valorCompra", e.target.value)} placeholder="0"/></FG><FG label="Fecha Compra"><FI type="date" value={f.fechaCompra || ""} onChange={e => u("fechaCompra", e.target.value)} /></FG><FG label="Estado"><FSl value={f.estado || "Disponible"} onChange={e => u("estado", e.target.value)}>{ESTADOS.map(s => <option key={s}>{s}</option>)}</FSl></FG></R3>
-    <FG label={`Asignado a ${projectLabel.singular || "Proyecto"}`}><FSl value={f.asignadoA || ""} onChange={e => u("asignadoA", e.target.value)}><option value="">— Sin asignar —</option>{(producciones || []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
+    <R2>
+      <FG label={`${projectLabel.singular || "Proyecto"} asociado`}><FSl value={f.asignadoA || ""} onChange={e => u("asignadoA", e.target.value)}><option value="">— Sin proyecto asociado —</option>{(producciones || []).map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</FSl></FG>
+      <FG label="Persona responsable"><FSl value={selectedPersonValue} onChange={e => updatePerson(e.target.value)}><option value="">— Sin responsable —</option>{peopleOptions.map(person => <option key={person.value} value={person.value}>{person.label}</option>)}</FSl></FG>
+    </R2>
     <FG label="Observaciones"><FTA value={f.obs || ""} onChange={e => u("obs", e.target.value)} placeholder="Condición, accesorios incluidos..."/></FG>
     <MFoot onClose={onClose} onSave={() => { if (!f.nom?.trim()) return; onSave(f); }} />
   </Modal>;

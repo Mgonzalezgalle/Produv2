@@ -63,6 +63,12 @@ export function EmpresaEditSection({
   setTenantMercadoPagoConfig,
   tenantMercadoPagoSaving = false,
   saveTenantMercadoPagoConfig,
+  simpleApiRcvGovernanceMode = "disabled",
+  tenantCanEditSimpleApiRcvConfig = false,
+  tenantSimpleApiRcvConfig = {},
+  setTenantSimpleApiRcvConfig,
+  tenantSimpleApiRcvSaving = false,
+  saveTenantSimpleApiRcvConfig,
   diioGovernanceMode = "disabled",
   tenantDiioEnabled = false,
   tenantCanEditDiioConfig = false,
@@ -172,6 +178,16 @@ export function EmpresaEditSection({
     mercadoPagoHasAccessToken &&
     tenantMercadoPagoConfig?.enablePaymentLinksInCollection !== false &&
     (tenantMercadoPagoConfig?.status === "connected" || tenantMercadoPagoConfig?.status === "draft");
+  const simpleApiRcvHasRutCertificado = String(tenantSimpleApiRcvConfig?.rutCertificado || "").trim();
+  const simpleApiRcvHasRutEmpresa = String(tenantSimpleApiRcvConfig?.rutEmpresa || "").trim();
+  const simpleApiRcvHasPassword = tenantSimpleApiRcvConfig?.passwordConfigured === true || Boolean(String(tenantSimpleApiRcvConfig?.password || "").trim());
+  const simpleApiRcvHasCertificate = tenantSimpleApiRcvConfig?.certificateConfigured === true || Boolean(String(tenantSimpleApiRcvConfig?.certificateBase64 || "").trim());
+  const simpleApiRcvReady =
+    simpleApiRcvGovernanceMode !== "disabled" &&
+    Boolean(simpleApiRcvHasRutCertificado) &&
+    Boolean(simpleApiRcvHasRutEmpresa) &&
+    simpleApiRcvHasPassword &&
+    simpleApiRcvHasCertificate;
   const diioHasWorkspace = String(tenantDiioConfig?.workspaceLabel || "").trim();
   const diioHasCompanyUrl = String(tenantDiioConfig?.companyUrl || "").trim();
   const diioHasClientId = String(tenantDiioConfig?.clientId || "").trim();
@@ -508,6 +524,131 @@ export function EmpresaEditSection({
                 <GBtn disabled>OAuth próximamente</GBtn>
               </div>
             </>
+      </div>
+      <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--wh)",marginBottom:4}}>SII · Registro de Compras y Ventas</div>
+            <div style={{fontSize:11,color:"var(--gr2)"}}>Torre de Control habilita la integración RCV. Aquí la empresa deja su operación tributaria, incluyendo certificado digital `.pfx`, porque esta API de SimpleAPI no expone un flujo equivalente solo con credenciales del SII.</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <Badge label={simpleApiRcvGovernanceMode === "disabled" ? "No habilitado" : "Habilitado por Torre"} color={simpleApiRcvGovernanceMode === "disabled" ? "gray" : "green"} sm />
+            <Badge label={tenantSimpleApiRcvConfig?.status || "disconnected"} color={tenantSimpleApiRcvConfig?.status === "configured" || tenantSimpleApiRcvConfig?.status === "connected" ? "cyan" : "yellow"} sm />
+          </div>
+        </div>
+        {simpleApiRcvGovernanceMode === "disabled"
+          ? <div style={{fontSize:11,color:"var(--gr2)"}}>RCV del SII todavía no está habilitado para esta empresa. Debe activarse primero desde Torre de Control, en Integraciones.</div>
+          : <>
+              <R2>
+                <FG label="Estado conexión">
+                  <FSl value={tenantSimpleApiRcvConfig?.status || "disconnected"} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,status:e.target.value}))}>
+                    <option value="disconnected">disconnected</option>
+                    <option value="draft">draft</option>
+                    <option value="configured">configured</option>
+                    <option value="connected">connected</option>
+                    <option value="invalid_credentials">invalid_credentials</option>
+                    <option value="paused">paused</option>
+                  </FSl>
+                </FG>
+                <FG label="Ambiente tributario">
+                  <FSl value={String(Number(tenantSimpleApiRcvConfig?.ambiente ?? (simpleApiRcvGovernanceMode === "certification" ? 0 : 1)))} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,ambiente:Number(e.target.value)}))}>
+                    <option value="0">Certificación</option>
+                    <option value="1">Producción</option>
+                  </FSl>
+                </FG>
+              </R2>
+              <R2>
+                <FG label="RUT certificado">
+                  <FI value={tenantSimpleApiRcvConfig?.rutCertificado || ""} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,rutCertificado:e.target.value,status:(e.target.value || p.rutEmpresa || p.passwordConfigured || p.certificateConfigured) ? "draft" : "disconnected"}))} placeholder="11111111-1" />
+                </FG>
+                <FG label="RUT empresa">
+                  <FI value={tenantSimpleApiRcvConfig?.rutEmpresa || ""} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,rutEmpresa:e.target.value,status:(e.target.value || p.rutCertificado || p.passwordConfigured || p.certificateConfigured) ? "draft" : "disconnected"}))} placeholder="76123456-7" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Password certificado">
+                  <FI type="password" value={tenantSimpleApiRcvConfig?.password || ""} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,password:e.target.value,passwordConfigured:Boolean(e.target.value || p.passwordConfigured),status:(e.target.value || p.rutCertificado || p.rutEmpresa || p.certificateConfigured) ? "draft" : "disconnected"}))} placeholder={tenantSimpleApiRcvConfig?.passwordConfigured ? "Password guardado · escribe uno nuevo para reemplazarlo" : "Password del .pfx"} />
+                </FG>
+                <FG label="Detalle boletas en ventas">
+                  <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:8}}>
+                    <input type="checkbox" checked={tenantSimpleApiRcvConfig?.procesaBoletas === true} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,procesaBoletas:e.target.checked}))}/>
+                    Incluir boletas electrónicas cuando se consulten ventas
+                  </label>
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Certificado digital (.pfx)">
+                  <div style={{display:"grid",gap:8}}>
+                    <input
+                      type="file"
+                      accept=".pfx,application/x-pkcs12"
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const buffer = await file.arrayBuffer();
+                          const bytes = new Uint8Array(buffer);
+                          let binary = "";
+                          bytes.forEach(byte => {
+                            binary += String.fromCharCode(byte);
+                          });
+                          const base64 = btoa(binary);
+                          setTenantSimpleApiRcvConfig?.(p => ({
+                            ...p,
+                            certificateBase64: base64,
+                            certificateFileName: file.name,
+                            certificateMimeType: file.type || "application/x-pkcs12",
+                            certificateConfigured: true,
+                            status: (p.rutCertificado || p.rutEmpresa || p.passwordConfigured || base64) ? "draft" : "disconnected",
+                          }));
+                        } catch {
+                          ntf?.("No pudimos leer el certificado digital.", "warn");
+                        } finally {
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <div style={{fontSize:11,color:"var(--gr2)"}}>
+                      {tenantSimpleApiRcvConfig?.certificateConfigured
+                        ? `Certificado cargado${tenantSimpleApiRcvConfig?.certificateFileName ? ` · ${tenantSimpleApiRcvConfig.certificateFileName}` : ""}`
+                        : "Aún no hay certificado cargado para esta empresa."}
+                    </div>
+                  </div>
+                </FG>
+                <FG label="Estado de secretos">
+                  <FI value={tenantSimpleApiRcvConfig?.secretStorage === "server_side" ? "Guardado server-side" : tenantSimpleApiRcvConfig?.secretStorage === "tenant_config_fallback" ? "Fallback local" : "Pendiente"} readOnly />
+                </FG>
+              </R2>
+              <FG label="Notas internas">
+                <FTA value={tenantSimpleApiRcvConfig?.notes || ""} onChange={e=>setTenantSimpleApiRcvConfig?.(p=>({...p,notes:e.target.value}))} placeholder="Observaciones sobre certificado, representante, ambiente o soporte de RCV." />
+              </FG>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:12}}>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Estado operativo</div>
+                  <div style={{fontSize:12,fontWeight:700,color:simpleApiRcvReady ? "var(--cy)" : "var(--gr3)"}}>
+                    {simpleApiRcvReady ? "Listo para consultar RCV" : "Configuración incompleta"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Certificado</div>
+                  <div style={{fontSize:12,fontWeight:700,color:simpleApiRcvHasCertificate ? "var(--cy)" : "var(--gr3)"}}>
+                    {simpleApiRcvHasCertificate ? "Configurado" : "Pendiente"}
+                  </div>
+                </div>
+                <div style={{padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--sur)"}}>
+                  <div style={{fontSize:11,color:"var(--gr2)",marginBottom:4}}>Password</div>
+                  <div style={{fontSize:12,fontWeight:700,color:simpleApiRcvHasPassword ? "var(--cy)" : "var(--gr3)"}}>
+                    {simpleApiRcvHasPassword ? "Configurado" : "Pendiente"}
+                  </div>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"var(--gr2)",marginBottom:12}}>
+                SimpleAPI RCV usa `ApiKey` propia más certificado digital del contribuyente. En la verificación de documentación no apareció una variante equivalente solo con usuario y clave del SII para este flujo.
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Btn onClick={saveTenantSimpleApiRcvConfig} disabled={!canManageAdmin || !tenantCanEditSimpleApiRcvConfig || tenantSimpleApiRcvSaving}>{tenantSimpleApiRcvSaving ? "Guardando..." : "Guardar RCV"}</Btn>
+              </div>
+            </>}
       </div>
       <div style={{marginTop:14,padding:"12px 14px",border:"1px solid var(--bdr2)",borderRadius:10,background:"var(--card2)"}}>
         <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>

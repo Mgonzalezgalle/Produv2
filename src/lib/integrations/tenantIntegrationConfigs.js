@@ -69,6 +69,41 @@ export function buildTenantMercadoPagoConfigState(current = {}, {
   };
 }
 
+export function buildTenantSimpleApiRcvConfigState(current = {}, {
+  governanceMode = "disabled",
+  tenantCanEdit = false,
+} = {}) {
+  const hasCertificate = current?.certificateConfigured === true || Boolean(current?.certificateBase64);
+  const hasPassword = current?.passwordConfigured === true || Boolean(current?.password);
+  const hasTenantCredentials = Boolean(current?.rutCertificado || current?.rutEmpresa || hasCertificate || hasPassword);
+  const effectiveGovernanceMode = governanceMode !== "disabled" || hasTenantCredentials
+    ? (governanceMode === "disabled" ? "production" : governanceMode)
+    : "disabled";
+  return {
+    mode: effectiveGovernanceMode,
+    status: current?.status || "disconnected",
+    rutCertificado: current?.rutCertificado || "",
+    rutEmpresa: current?.rutEmpresa || "",
+    ambiente: Number(current?.ambiente ?? (effectiveGovernanceMode === "certification" ? 0 : 1)),
+    procesaBoletas: current?.procesaBoletas === true,
+    password: "",
+    passwordConfigured: current?.passwordConfigured === true || Boolean(current?.password),
+    certificateBase64: "",
+    certificateFileName: current?.certificateFileName || "",
+    certificateMimeType: current?.certificateMimeType || "application/x-pkcs12",
+    certificateConfigured: current?.certificateConfigured === true || Boolean(current?.certificateBase64),
+    secretStorage: current?.secretStorage || "",
+    notes: current?.notes || "",
+    source: resolveTenantIntegrationSource({
+      hasTenantCredentials,
+      hasEnvironmentCredentials: false,
+      tenantCanEdit: tenantCanEdit || hasTenantCredentials,
+    }),
+    governed: effectiveGovernanceMode !== "disabled",
+    tenantCanEdit: tenantCanEdit || hasTenantCredentials,
+  };
+}
+
 export function mergeTenantIntegrationConfig(empresa = {}, provider = "", environment = "tenant", nextConfig = {}, providerPatch = {}) {
   return {
     ...(empresa?.integrationConfigs || {}),

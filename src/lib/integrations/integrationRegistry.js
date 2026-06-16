@@ -120,6 +120,20 @@ export const INTEGRATION_REGISTRY = [
     dependencies: ["invoice_domain_contract", "billing_adapter", "server_side_credentials"],
     envKeys: ["VITE_BSALE_MODE", "VITE_BSALE_ACCESS_TOKEN", "VITE_BSALE_OFFICE_ID", "VITE_BSALE_PRICE_LIST_ID", "VITE_BSALE_DOCUMENT_TYPE_ID"],
   },
+  {
+    id: "simpleapi_rcv",
+    name: "Registro de Compras y Ventas SII",
+    domain: INTEGRATION_DOMAIN.TAX,
+    provider: "simpleapi",
+    stage: INTEGRATION_STAGE.READY_FOR_LAB,
+    modes: [INTEGRATION_MODE.API],
+    capabilities: [INTEGRATION_CAPABILITY.TAX_COMPLIANCE],
+    owner: "finance_platform",
+    priority: 92,
+    notes: "Consulta server-side del RCV del SII via SimpleAPI, con ApiKey en secreto y certificado PFX enviado al backend.",
+    dependencies: ["supabase_edge_function", "tenant_certificate_capture", "server_side_credentials"],
+    envKeys: [],
+  },
 ].map(normalizeIntegrationRecord);
 
 export function getIntegrationRegistry() {
@@ -195,6 +209,13 @@ const TENANT_INTEGRATION_BINDINGS = [
     registryId: "freshdesk",
     isEnabled(empresa = {}) {
       return empresa?.freshdeskEnabled === true || empresa?.supportChatEnabled === true;
+    },
+  },
+  {
+    tenantKey: "simpleApiRcv",
+    registryId: "simpleapi_rcv",
+    isEnabled(empresa = {}) {
+      return String(empresa?.integrationConfigs?.simpleApiRcv?.governance?.mode || "disabled") !== "disabled";
     },
   },
 ];

@@ -6,6 +6,7 @@ import { normalizeDiioTenantConnection } from "../lib/integrations/diioIntegrati
 import { getMercadoPagoPaymentsConfig } from "../lib/integrations/mercadoPagoPaymentsConfig";
 import {
   buildTenantBsaleConfigState,
+  buildTenantSimpleApiRcvConfigState,
   buildTenantMercadoPagoConfigState,
   persistTenantIntegrationConfig,
 } from "../lib/integrations/tenantIntegrationConfigs";
@@ -232,6 +233,22 @@ export function useLabAdminPanelModule({
     enablePaymentLinksInCollection: true,
   });
   const [tenantMercadoPagoSaving, setTenantMercadoPagoSaving] = useState(false);
+  const [tenantSimpleApiRcvConfig, setTenantSimpleApiRcvConfig] = useState({
+    status: "disconnected",
+    rutCertificado: "",
+    rutEmpresa: "",
+    ambiente: 1,
+    procesaBoletas: false,
+    password: "",
+    passwordConfigured: false,
+    certificateBase64: "",
+    certificateFileName: "",
+    certificateMimeType: "application/x-pkcs12",
+    certificateConfigured: false,
+    secretStorage: "",
+    notes: "",
+  });
+  const [tenantSimpleApiRcvSaving, setTenantSimpleApiRcvSaving] = useState(false);
   const [tenantDiioConfig, setTenantDiioConfig] = useState({
     status: "disconnected",
     workspaceLabel: "",
@@ -272,6 +289,9 @@ export function useLabAdminPanelModule({
   const mercadoPagoGovernance = empresa?.integrationConfigs?.mercadoPago?.governance || {};
   const mercadoPagoGovernanceMode = mercadoPagoGovernance.mode || "disabled";
   const tenantCanEditMercadoPagoConfig = true;
+  const simpleApiRcvGovernance = empresa?.integrationConfigs?.simpleApiRcv?.governance || {};
+  const simpleApiRcvGovernanceMode = simpleApiRcvGovernance.mode || "disabled";
+  const tenantCanEditSimpleApiRcvConfig = simpleApiRcvGovernanceMode !== "disabled";
   const diioGovernance = empresa?.integrationConfigs?.diio?.governance || {};
   const diioGovernanceMode = diioGovernance.mode || "disabled";
   const tenantDiioEnabled = diioGovernance.enabled === true || diioGovernance.mode === "manual" || diioGovernance.mode === "webhook";
@@ -305,6 +325,14 @@ export function useLabAdminPanelModule({
       envConfig,
     }));
   }, [empresa, mercadoPagoGovernanceMode, tenantCanEditMercadoPagoConfig]);
+
+  useEffect(() => {
+    const current = empresa?.integrationConfigs?.simpleApiRcv?.tenant || {};
+    setTenantSimpleApiRcvConfig(buildTenantSimpleApiRcvConfigState(current, {
+      governanceMode: simpleApiRcvGovernanceMode,
+      tenantCanEdit: tenantCanEditSimpleApiRcvConfig,
+    }));
+  }, [empresa, simpleApiRcvGovernanceMode, tenantCanEditSimpleApiRcvConfig]);
 
   useEffect(() => {
     const current = normalizeDiioTenantConnection(empresa?.integrationConfigs?.diio?.tenant || {});
@@ -1026,6 +1054,156 @@ export function useLabAdminPanelModule({
     return true;
   };
 
+  const saveTenantSimpleApiRcvConfig = async () => {
+    if (!empresa?.id) return unauthorizedResult();
+    if (!enforceAdminSection("Empresa", "No tienes permisos para modificar la configuración RCV del SII.")) return unauthorizedResult();
+    if (!tenantCanEditSimpleApiRcvConfig) {
+      ntf("RCV del SII debe habilitarse primero desde Torre de Control.", "warn");
+      return unauthorizedResult();
+    }
+    setTenantSimpleApiRcvSaving(true);
+    try {
+      const rutCertificado = String(tenantSimpleApiRcvConfig.rutCertificado || "").trim();
+      const rutEmpresa = String(tenantSimpleApiRcvConfig.rutEmpresa || "").trim();
+      const passwordInput = String(tenantSimpleApiRcvConfig.password || "").trim();
+      const legacyStoredPassword = String(empresa?.integrationConfigs?.simpleApiRcv?.tenant?.password || "").trim();
+      const previousPasswordConfigured = tenantSimpleApiRcvConfig.passwordConfigured === true
+        || Boolean(empresa?.integrationConfigs?.simpleApiRcv?.tenant?.passwordConfigured)
+        || Boolean(legacyStoredPassword);
+      const certificateInput = String(tenantSimpleApiRcvConfig.certificateBase64 || "").trim();
+      const legacyStoredCertificate = String(empresa?.integrationConfigs?.simpleApiRcv?.tenant?.certificateBase64 || "").trim();
+      const previousCertificateConfigured = tenantSimpleApiRcvConfig.certificateConfigured === true
+        || Boolean(empresa?.integrationConfigs?.simpleApiRcv?.tenant?.certificateConfigured)
+        || Boolean(legacyStoredCertificate);
+      const requestedStatus = String(tenantSimpleApiRcvConfig.status || "").trim();
+      const clearSecret = requestedStatus === "disconnected" && !passwordInput && !certificateInput;
+      const passwordConfigured = clearSecret ? false : Boolean(passwordInput || previousPasswordConfigured);
+      const certificateConfigured = clearSecret ? false : Boolean(certificateInput || previousCertificateConfigured);
+      const hasNonSecretInputs = Boolean(rutCertificado || rutEmpresa);
+      const inferredStatus = clearSecret
+        ? "disconnected"
+        : rutCertificado && rutEmpresa && passwordConfigured && certificateConfigured
+          ? (["paused", "invalid_credentials"].includes(requestedStatus) ? requestedStatus : "configured")
+          : (hasNonSecretInputs || passwordConfigured || certificateConfigured ? "draft" : "disconnected");
+      const ambiente = Number(tenantSimpleApiRcvConfig.ambiente ?? (simpleApiRcvGovernanceMode === "certification" ? 0 : 1)) === 0 ? 0 : 1;
+      const nextTenantConfig = {
+        status: inferredStatus,
+        mode: inferredStatus === "disconnected" ? "disabled" : "api",
+        rutCertificado,
+        rutEmpresa,
+        ambiente,
+        procesaBoletas: tenantSimpleApiRcvConfig.procesaBoletas === true,
+        certificateFileName: String(tenantSimpleApiRcvConfig.certificateFileName || "").trim(),
+        certificateMimeType: String(tenantSimpleApiRcvConfig.certificateMimeType || "").trim() || "application/x-pkcs12",
+        certificateConfigured,
+        passwordConfigured,
+        notes: String(tenantSimpleApiRcvConfig.notes || "").trim(),
+      };
+      let secureCredentialStored = false;
+      if (platformServices?.upsertIntegrationCredentialSecret) {
+        try {
+          await platformServices.upsertIntegrationCredentialSecret(empresa.id, {
+            provider: "simpleapi_rcv",
+            environment: "tenant",
+            status: inferredStatus,
+            secretValue: clearSecret ? "" : JSON.stringify({
+              password: passwordInput || legacyStoredPassword,
+              certificateBase64: certificateInput || legacyStoredCertificate,
+              certificateFileName: nextTenantConfig.certificateFileName,
+              certificateMimeType: nextTenantConfig.certificateMimeType,
+            }),
+            clearSecret,
+            config: {
+              rutCertificado,
+              rutEmpresa,
+              ambiente,
+              procesaBoletas: nextTenantConfig.procesaBoletas,
+              certificateFileName: nextTenantConfig.certificateFileName,
+              certificateMimeType: nextTenantConfig.certificateMimeType,
+              certificateConfigured,
+              passwordConfigured,
+            },
+            metadata: {
+              source: "tenant_admin",
+              managedFrom: "panel_admin",
+              requiresCertificate: true,
+              governedMode: simpleApiRcvGovernanceMode,
+            },
+          });
+          secureCredentialStored = true;
+        } catch (err) {
+          console.warn("SimpleAPI RCV secure credential storage unavailable; using tenant config fallback.", err);
+        }
+      }
+      if (!secureCredentialStored && !clearSecret) {
+        nextTenantConfig.secretStorage = "tenant_config_fallback";
+        if (passwordInput || legacyStoredPassword) nextTenantConfig.password = passwordInput || legacyStoredPassword;
+        if (certificateInput || legacyStoredCertificate) nextTenantConfig.certificateBase64 = certificateInput || legacyStoredCertificate;
+      } else {
+        nextTenantConfig.secretStorage = secureCredentialStored ? "server_side" : "";
+      }
+      await persistTenantIntegrationConfig({
+        empresa,
+        empresas,
+        saveEmpresas,
+        platformServices,
+        provider: "simpleApiRcv",
+        environment: "tenant",
+        nextConfig: nextTenantConfig,
+        credentialSnapshot: {
+          provider: "simpleapi_rcv",
+          environment: "tenant",
+          status: inferredStatus,
+          secretConfigured: Boolean(passwordConfigured || certificateConfigured),
+          config: {
+            rutCertificadoConfigured: Boolean(rutCertificado),
+            rutEmpresaConfigured: Boolean(rutEmpresa),
+            ambiente,
+            procesaBoletas: nextTenantConfig.procesaBoletas,
+            certificateFileName: nextTenantConfig.certificateFileName,
+            certificateMimeType: nextTenantConfig.certificateMimeType,
+            certificateConfigured,
+            passwordConfigured,
+          },
+          metadata: {
+            source: "tenant_admin",
+            governedMode: simpleApiRcvGovernanceMode,
+            requiresCertificate: true,
+          },
+        },
+        auditAction: "tenant_simpleapi_rcv_config_saved",
+        auditPayload: {
+          status: inferredStatus,
+          rutCertificadoConfigured: Boolean(rutCertificado),
+          rutEmpresaConfigured: Boolean(rutEmpresa),
+          ambiente,
+          procesaBoletas: nextTenantConfig.procesaBoletas,
+          certificateConfigured,
+          passwordConfigured,
+          certificateFileName: nextTenantConfig.certificateFileName,
+        },
+      });
+      setTenantSimpleApiRcvConfig(prev => ({
+        ...prev,
+        ...nextTenantConfig,
+        password: "",
+        certificateBase64: "",
+        source: rutCertificado || rutEmpresa || certificateConfigured || passwordConfigured ? "tenant" : "unset",
+        governed: inferredStatus !== "disconnected",
+        tenantCanEdit: true,
+      }));
+      if (platformServices?.getTenantPlatformSnapshot) {
+        refreshPlatformSnapshot();
+      }
+      ntf("Configuración RCV del SII guardada ✓");
+    } catch (err) {
+      notifyUserFacingError(ntf, err, "No pudimos guardar la configuración RCV del SII.");
+    } finally {
+      setTenantSimpleApiRcvSaving(false);
+    }
+    return true;
+  };
+
   const saveTenantDiioConfig = async () => {
     if (!empresa?.id) return unauthorizedResult();
     if (!enforceAdminSection("Empresa", "No tienes permisos para modificar Diio.")) return unauthorizedResult();
@@ -1339,12 +1517,17 @@ export function useLabAdminPanelModule({
     tenantBsaleSaving,
     mercadoPagoGovernanceMode,
     tenantCanEditMercadoPagoConfig,
+    simpleApiRcvGovernanceMode,
+    tenantCanEditSimpleApiRcvConfig,
     diioGovernanceMode,
     tenantDiioEnabled,
     tenantCanEditDiioConfig,
     tenantMercadoPagoConfig,
     setTenantMercadoPagoConfig,
     tenantMercadoPagoSaving,
+    tenantSimpleApiRcvConfig,
+    setTenantSimpleApiRcvConfig,
+    tenantSimpleApiRcvSaving,
     tenantDiioConfig,
     setTenantDiioConfig,
     tenantDiioSaving,
@@ -1361,6 +1544,7 @@ export function useLabAdminPanelModule({
     prepareMembershipTransitionQueue,
     saveTenantBsaleConfig,
     saveTenantMercadoPagoConfig,
+    saveTenantSimpleApiRcvConfig,
     saveTenantDiioConfig,
     verifyTenantDiioConnection,
     importTenantDiioMeetings,

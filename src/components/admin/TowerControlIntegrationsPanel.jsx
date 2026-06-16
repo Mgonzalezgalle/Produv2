@@ -5,6 +5,7 @@ import { getTransactionalEmailProviderSnapshot } from "../../lib/integrations/tr
 import { getGoogleCalendarProviderSnapshot } from "../../lib/integrations/googleCalendarConfig";
 import { getMercadoPagoPaymentsProviderSnapshot } from "../../lib/integrations/mercadoPagoPaymentsConfig";
 import { getDiioProviderSnapshot, normalizeDiioGovernanceConfig } from "../../lib/integrations/diioIntegration";
+import { buildTenantSimpleApiRcvConfigState } from "../../lib/integrations/tenantIntegrationConfigs";
 
 export function IntegracionesAdminPanel({
   empresas,
@@ -39,6 +40,14 @@ export function IntegracionesAdminPanel({
   const mercadoPagoMode = mercadoPagoGovernance.mode || "disabled";
   const mercadoPagoEnabled = mercadoPagoMode !== "disabled";
   const mercadoPagoSnapshot = getMercadoPagoPaymentsProviderSnapshot();
+  const simpleApiRcvProvisioning = selectedIntegrationEmp?.integrationConfigs?.simpleApiRcv || {};
+  const simpleApiRcvGovernance = simpleApiRcvProvisioning?.governance || {};
+  const simpleApiRcvMode = simpleApiRcvGovernance.mode || "disabled";
+  const simpleApiRcvEnabled = simpleApiRcvMode !== "disabled";
+  const simpleApiRcvTenant = buildTenantSimpleApiRcvConfigState(simpleApiRcvProvisioning?.tenant || {}, {
+    governanceMode: simpleApiRcvMode,
+    tenantCanEdit: simpleApiRcvEnabled,
+  });
   const diioProvisioning = normalizeDiioGovernanceConfig(selectedIntegrationEmp?.integrationConfigs?.diio || {});
   const diioGovernance = diioProvisioning.governance;
   const diioMapping = diioProvisioning.mapping;
@@ -238,6 +247,48 @@ export function IntegracionesAdminPanel({
               <KV label="Provisionamiento Bsale local / remoto" value={`${bsaleMode} / ${remoteBsale?.governanceMode || "disabled"}`} />
               <KV label="Audit logs remotos" value={`${(remoteSnapshot?.auditLogs || []).length}`} />
             </>}
+      </Card>
+      <Card title="SII · Registro de Compras y Ventas" sub={selectedIntegrationEmp.nombre}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <Badge label={simpleApiRcvEnabled ? "Provisionada" : "No provisionada"} color={simpleApiRcvEnabled ? "green" : "gray"} sm />
+          <Badge label={simpleApiRcvMode === "production" ? "Producción" : simpleApiRcvMode === "certification" ? "Certificación" : "Desactivada"} color={simpleApiRcvMode === "production" ? "purple" : simpleApiRcvMode === "certification" ? "cyan" : "gray"} sm />
+          <Badge label={simpleApiRcvTenant?.certificateConfigured ? "Certificado cargado" : "Sin certificado"} color={simpleApiRcvTenant?.certificateConfigured ? "green" : "yellow"} sm />
+        </div>
+        <div style={{ fontSize: 12, color: "var(--gr2)", lineHeight: 1.6, marginBottom: 14 }}>
+          Torre de Control define si este tenant puede usar la integración de RCV del SII. El tenant luego completa RUTs, password y certificado digital `.pfx`. Esta integración queda expresamente gobernada porque el flujo usa secretos operativos y no quedó documentada una variante equivalente solo con credenciales del SII.
+        </div>
+        <R3>
+          <FG label="Provisionamiento">
+            <FSl
+              value={simpleApiRcvMode}
+              onChange={e => persistIntegration(emp => ({
+                ...emp,
+                integrationConfigs: {
+                  ...(emp.integrationConfigs || {}),
+                  simpleApiRcv: {
+                    ...((emp.integrationConfigs || {}).simpleApiRcv || {}),
+                    governance: {
+                      ...(((emp.integrationConfigs || {}).simpleApiRcv || {}).governance || {}),
+                      mode: e.target.value,
+                      enabled: e.target.value !== "disabled",
+                      allowTenantConfig: e.target.value !== "disabled",
+                    },
+                  },
+                },
+              }), { action: "tenant_simpleapi_rcv_governance_updated", integration: "simpleapi_rcv", field: "governance.mode", value: e.target.value })}
+            >
+              <option value="disabled">Desactivada</option>
+              <option value="certification">Certificación</option>
+              <option value="production">Producción</option>
+            </FSl>
+          </FG>
+          <FG label="Estado tenant">
+            <FI value={simpleApiRcvTenant?.status || "disconnected"} readOnly />
+          </FG>
+          <FG label="Operación visible">
+            <FI value={simpleApiRcvTenant?.procesaBoletas ? "Ventas con boletas" : "Ventas sin boletas"} readOnly />
+          </FG>
+        </R3>
       </Card>
       <Card title="Google Calendar" sub={selectedIntegrationEmp.nombre}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>

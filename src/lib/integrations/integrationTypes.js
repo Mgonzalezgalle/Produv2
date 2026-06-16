@@ -1,6 +1,7 @@
 export const INTEGRATION_DOMAIN = {
   PAYMENTS: "payments",
   BILLING: "billing",
+  TAX: "tax",
   SUPPORT: "support",
   CALENDAR: "calendar",
   EMAIL: "email",
@@ -37,6 +38,7 @@ export const INTEGRATION_CAPABILITY = {
   EVENT_SYNC: "event_sync",
   INBOUND_WEBHOOKS: "inbound_webhooks",
   PAYMENT_RECONCILIATION: "payment_reconciliation",
+  TAX_COMPLIANCE: "tax_compliance",
 };
 
 export function normalizeIntegrationRecord(record = {}) {

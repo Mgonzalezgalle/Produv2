@@ -141,6 +141,16 @@ export function createSupabasePlatformApiAdapter({
       },
     },
 
+    tax: {
+      async fetchSiiRcvReport(payload = {}) {
+        const fn = await callEdgeFunction("simpleapi-rcv", payload);
+        if (!fn.ok) {
+          return buildUnavailable(fn.error || "No pudimos consultar el Registro de Compras y Ventas en SimpleAPI.");
+        }
+        return fn.data || { ok: false, source: "degraded", message: "La función de RCV no devolvió respuesta." };
+      },
+    },
+
     foundation: {
       async status() {
         return callFoundationRpc("platform_foundation_status");

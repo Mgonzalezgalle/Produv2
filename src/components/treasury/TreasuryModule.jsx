@@ -1,15 +1,21 @@
 import React, { useMemo, useState } from "react";
 import {
   Badge,
+  Empty,
   FilterSel,
+  FI,
+  FSl,
   GBtn,
   ModuleHeader,
   Paginator,
+  TD,
+  TH,
 } from "../../lib/ui/components";
 import { fmtD, fmtM, fmtMonthPeriod, openWhatsApp } from "../../lib/utils/helpers";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+import { fetchSimpleApiRcvReport } from "../../lib/integrations/simpleApiRcv";
 import { TreasuryIssuedOrderModal } from "./TreasuryIssuedOrderModal";
 import { ProvidersPanel } from "./TreasuryDetails";
 import { IssuedOrderDetailModal, PortfolioDetailModal, ProviderDetailModal } from "./TreasuryDetailModals";
@@ -84,6 +90,337 @@ function escapeEmailHtml(value = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function cleanRcvText(value = "") {
+  return String(value ?? "").trim();
+}
+
+function normalizeRcvRut(value = "") {
+  return cleanRcvText(value).replace(/\./g, "").replace(/\s/g, "").toUpperCase();
+}
+
+function rcvFirst(row = {}, keys = []) {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== null && cleanRcvText(value) !== "") return value;
+  }
+  return "";
+}
+
+function rcvNumber(value) {
+  const normalized = Number(String(value ?? "").replace(/\./g, "").replace(",", ".").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function rcvDate(value) {
+  const raw = cleanRcvText(value);
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const parts = raw.split(/[/-]/).map(part => part.padStart(2, "0"));
+  if (parts.length === 3) {
+    if (parts[0].length === 4) return `${parts[0]}-${parts[1]}-${parts[2]}`;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return "";
+}
+
+function rcvDocTypeLabel(value = "") {
+  const code = cleanRcvText(value);
+  const map = {
+    30: "Factura",
+    33: "Factura Afecta",
+    34: "Factura Exenta",
+    39: "Boleta",
+    41: "Boleta Exenta",
+    46: "Factura de Compra",
+    52: "Guía de Despacho",
+    56: "Nota de Débito",
+    61: "Nota de Crédito",
+  };
+  return map[code] || code || "Documento";
+}
+
+function findBestRcvArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "object") return [];
+  const candidates = [
+    value.data,
+    value.detalle,
+    value.Detalle,
+    value.registros,
+    value.Registros,
+    value.documentos,
+    value.Documentos,
+    value.compras,
+    value.ventas,
+    value.RCV,
+    value.rcv,
+  ];
+  for (const candidate of candidates) {
+    const found = findBestRcvArray(candidate);
+    if (found.length) return found;
+  }
+  const nestedArrays = Object.values(value).filter(Array.isArray);
+  if (nestedArrays.length) return nestedArrays.sort((a, b) => b.length - a.length)[0];
+  return [];
+}
+
+function stableRcvId(operation, row, periodLabel) {
+  const base = [
+    operation,
+    rcvFirst(row, ["TipoDoc", "TipoDTE", "TipoDocumento", "Tipo"]),
+    rcvFirst(row, ["Folio", "folio", "NroDoc", "NumeroDocumento", "NroDocumento"]),
+    rcvFirst(row, ["RUTEmisor", "RutEmisor", "RutProveedor", "RUTRecep", "RutReceptor", "RutCliente"]),
+    periodLabel,
+  ].map(cleanRcvText).join("_");
+  return `sii_rcv_${base.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 90)}`;
+}
+
+function normalizeRcvRows(response, operation, periodLabel) {
+  return findBestRcvArray(response?.data ?? response).map((row, index) => {
+    const folio = cleanRcvText(rcvFirst(row, ["Folio", "folio", "NroDoc", "NumeroDocumento", "NroDocumento", "Numero"]));
+    const docTypeCode = cleanRcvText(rcvFirst(row, ["TipoDoc", "TipoDTE", "TipoDocumento", "Tipo", "TpoDoc"]));
+    const rut = operation === "compras"
+      ? cleanRcvText(rcvFirst(row, ["RUTEmisor", "RutEmisor", "RutProveedor", "RUTProveedor", "RUTContraparte"]))
+      : cleanRcvText(rcvFirst(row, ["RUTRecep", "RutReceptor", "RUTReceptor", "RutCliente", "RUTCliente", "RUTContraparte"]));
+    const name = operation === "compras"
+      ? cleanRcvText(rcvFirst(row, ["RazonSocialEmisor", "RznSoc", "RazonSocial", "NombreEmisor", "Proveedor", "RazonSocialProveedor"]))
+      : cleanRcvText(rcvFirst(row, ["RazonSocialRecep", "RazonSocialReceptor", "RazonSocial", "NombreReceptor", "Cliente", "RazonSocialCliente"]));
+    const issueDate = rcvDate(rcvFirst(row, ["FechaEmision", "FchEmis", "FchEmision", "FechaDocto", "Fecha"]));
+    const total = rcvNumber(rcvFirst(row, ["MontoTotal", "MntTotal", "Total", "Monto", "MontoDocumento"]));
+    const net = rcvNumber(rcvFirst(row, ["MontoNeto", "MntNeto", "Neto"]));
+    const tax = rcvNumber(rcvFirst(row, ["IVA", "MontoIVA", "Iva", "IVARecuperable"]));
+    return {
+      id: stableRcvId(operation, row, periodLabel) || `sii_rcv_${operation}_${index}`,
+      operation,
+      folio,
+      docTypeCode,
+      docType: rcvDocTypeLabel(docTypeCode),
+      rut,
+      normalizedRut: normalizeRcvRut(rut),
+      name: name || "Sin contraparte",
+      issueDate,
+      total,
+      net,
+      tax,
+      status: cleanRcvText(rcvFirst(row, ["Estado", "EstadoDoc", "EstadoDocumento"])) || "RCV",
+      raw: row,
+    };
+  }).filter(row => row.folio || row.total || row.rut || row.name);
+}
+
+function SiiRcvImportPanel({
+  empresa,
+  platformApi,
+  clientes = [],
+  facturas = [],
+  payables = [],
+  canManageTreasury,
+  saveFacturaDoc,
+  savePayable,
+  ntf,
+}) {
+  const todayDate = new Date();
+  const tenantConfig = empresa?.integrationConfigs?.simpleApiRcv?.tenant || {};
+  const governanceMode = empresa?.integrationConfigs?.simpleApiRcv?.governance?.mode || "disabled";
+  const [operation, setOperation] = React.useState("compras");
+  const [month, setMonth] = React.useState(String(todayDate.getMonth() + 1).padStart(2, "0"));
+  const [year, setYear] = React.useState(String(todayDate.getFullYear()));
+  const [rows, setRows] = React.useState([]);
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [lastMessage, setLastMessage] = React.useState("");
+  const periodLabel = `${year}-${month}`;
+  const enabled = governanceMode !== "disabled";
+  const hasPayloadSecrets = Boolean(
+    (cleanRcvText(tenantConfig.password) || tenantConfig.passwordConfigured === true) &&
+    (cleanRcvText(tenantConfig.certificateBase64) || tenantConfig.certificateConfigured === true)
+  );
+  const findClient = row => (clientes || []).find(client => normalizeRcvRut(client?.rut) === row.normalizedRut) || null;
+  const importedRows = rows.map(row => {
+    const client = operation === "ventas" ? findClient(row) : null;
+    const duplicate = operation === "compras"
+      ? (payables || []).some(item => item?.source === "sii_rcv" && item?.externalId === row.id)
+      : (facturas || []).some(item => item?.externalSync?.provider === "sii_rcv" && item?.externalSync?.externalDocumentId === row.id);
+    const blockedReason = operation === "ventas" && !client ? "Cliente no encontrado por RUT" : "";
+    return { ...row, client, duplicate, blockedReason, importable: !duplicate && !blockedReason };
+  });
+  const selectedRows = importedRows.filter(row => selectedIds.includes(row.id) && row.importable);
+  const toggleAll = checked => setSelectedIds(checked ? importedRows.filter(row => row.importable).map(row => row.id) : []);
+  const queryRcv = async () => {
+    if (!enabled) {
+      ntf?.("RCV del SII debe habilitarse primero desde Torre de Control.", "warn");
+      return;
+    }
+    if (!hasPayloadSecrets) {
+      ntf?.("Falta password o certificado disponible para consultar RCV desde este panel.", "warn");
+      setLastMessage("La configuración está habilitada, pero no hay password/certificado disponible en el tenant para enviar la consulta.");
+      return;
+    }
+    setLoading(true);
+    setLastMessage("");
+    try {
+      const result = await fetchSimpleApiRcvReport(platformApi, {
+        tenantId: empresa?.id || "",
+        operation,
+        period: { month: Number(month), year: Number(year) },
+        credentials: {
+          rutCertificado: tenantConfig.rutCertificado,
+          rutEmpresa: tenantConfig.rutEmpresa,
+          password: tenantConfig.password,
+          ambiente: tenantConfig.ambiente ?? (governanceMode === "certification" ? 0 : 1),
+          procesaBoletas: tenantConfig.procesaBoletas === true,
+        },
+        certificate: {
+          base64: tenantConfig.certificateBase64,
+          fileName: tenantConfig.certificateFileName,
+          mimeType: tenantConfig.certificateMimeType,
+        },
+      });
+      if (!result?.ok) {
+        setRows([]);
+        setSelectedIds([]);
+        setLastMessage(result?.message || "No pudimos consultar RCV.");
+        ntf?.(result?.message || "No pudimos consultar RCV.", "warn");
+        return;
+      }
+      const normalized = normalizeRcvRows(result, operation, periodLabel);
+      setRows(normalized);
+      setSelectedIds(normalized.map(row => row.id));
+      setLastMessage(`${normalized.length} documento(s) encontrados en RCV.`);
+      ntf?.("Consulta RCV completada ✓");
+    } catch (error) {
+      console.warn("[sii-rcv] Consulta fallida", error);
+      setRows([]);
+      setSelectedIds([]);
+      setLastMessage("No pudimos consultar RCV en este momento.");
+      ntf?.("No pudimos consultar RCV en este momento.", "warn");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const importSelected = async () => {
+    if (!canManageTreasury || !selectedRows.length) return;
+    let imported = 0;
+    for (const row of selectedRows) {
+      if (operation === "compras") {
+        const saved = await savePayable?.({
+          id: row.id,
+          source: "sii_rcv",
+          externalId: row.id,
+          supplier: row.name,
+          docType: row.docType,
+          folio: row.folio,
+          category: "RCV SII",
+          currency: "CLP",
+          issueDate: row.issueDate,
+          dueDate: row.issueDate,
+          total: row.total,
+          status: "Pendiente",
+          notes: `Importado desde SII RCV compras ${periodLabel}. RUT proveedor: ${row.rut}.`,
+          rcv: { operation, period: periodLabel, raw: row.raw },
+        });
+        if (saved !== false) imported += 1;
+      } else {
+        const saved = await saveFacturaDoc?.({
+          id: row.id,
+          source: "sii_rcv",
+          externalId: row.id,
+          tipo: "cliente",
+          entidadId: row.client?.id || "",
+          entidadNombre: row.name,
+          tipoDoc: row.docType,
+          documentTypeCode: row.docTypeCode === "34" ? "factura_exenta" : "factura_afecta",
+          tipoDocumento: row.docTypeCode === "34" ? "factura_exenta" : "factura_afecta",
+          correlativo: row.folio,
+          estado: "Emitida",
+          cobranzaEstado: "Pendiente de pago",
+          fechaEmision: row.issueDate,
+          fechaVencimiento: row.issueDate,
+          montoNeto: row.net || Math.max(0, row.total - row.tax),
+          iva: row.tax > 0,
+          ivaVal: row.tax,
+          total: row.total,
+          obs: `Importado desde SII RCV ventas ${periodLabel}. RUT receptor: ${row.rut}.`,
+          externalSync: {
+            provider: "sii_rcv",
+            status: "imported",
+            externalDocumentId: row.id,
+            externalFolio: row.folio,
+            providerMessage: "Documento importado desde Registro de Compras y Ventas SII.",
+          },
+          rcv: { operation, period: periodLabel, raw: row.raw },
+        });
+        if (saved !== false) imported += 1;
+      }
+    }
+    ntf?.(`${imported} documento(s) importado(s) desde RCV ✓`);
+    setSelectedIds([]);
+  };
+  return (
+    <SectionCard title="SII · Registro de Compras y Ventas" subtitle="Consulta el RCV por período, revisa diferencias e importa documentos a Tesorería sin duplicar">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))", gap: 10, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 6, fontWeight: 700 }}>Operación</div>
+          <FSl value={operation} onChange={e => { setOperation(e.target.value); setRows([]); setSelectedIds([]); }}>
+            <option value="compras">Compras → CxP</option>
+            <option value="ventas">Ventas → CxC</option>
+          </FSl>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 6, fontWeight: 700 }}>Mes</div>
+          <FSl value={month} onChange={e => setMonth(e.target.value)}>
+            {Array.from({ length: 12 }, (_, idx) => String(idx + 1).padStart(2, "0")).map(value => <option key={value} value={value}>{fmtMonthPeriod(`${year}-${value}-01`)}</option>)}
+          </FSl>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 6, fontWeight: 700 }}>Año</div>
+          <FI value={year} onChange={e => setYear(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} />
+        </div>
+        <div style={{ display: "flex", alignItems: "end", gap: 8, flexWrap: "wrap" }}>
+          <GBtn onClick={queryRcv} disabled={loading || !canManageTreasury}>{loading ? "Consultando..." : "Consultar RCV"}</GBtn>
+          <GBtn onClick={importSelected} disabled={!selectedRows.length || !canManageTreasury}>Importar seleccionados ({selectedRows.length})</GBtn>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <Badge label={enabled ? "Habilitado" : "No habilitado"} color={enabled ? "green" : "gray"} sm />
+        <Badge label={hasPayloadSecrets ? "Credenciales disponibles" : "Faltan secretos de consulta"} color={hasPayloadSecrets ? "cyan" : "yellow"} sm />
+        <Badge label={operation === "compras" ? "Importa a CxP" : "Importa a CxC"} color={operation === "compras" ? "purple" : "cyan"} sm />
+      </div>
+      {!!lastMessage && <div style={{ fontSize: 12, color: "var(--gr2)", marginBottom: 12 }}>{lastMessage}</div>}
+      {importedRows.length ? (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <TH style={{ width: 36 }}><input type="checkbox" checked={importedRows.some(row => row.importable) && importedRows.filter(row => row.importable).every(row => selectedIds.includes(row.id))} onChange={e => toggleAll(e.target.checked)} /></TH>
+                <TH>Documento</TH>
+                <TH>{operation === "compras" ? "Proveedor" : "Cliente"}</TH>
+                <TH>RUT</TH>
+                <TH>Emisión</TH>
+                <TH>Monto</TH>
+                <TH>Estado</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {importedRows.map(row => (
+                <tr key={row.id}>
+                  <TD><input type="checkbox" disabled={!row.importable} checked={selectedIds.includes(row.id)} onChange={() => setSelectedIds(prev => prev.includes(row.id) ? prev.filter(id => id !== row.id) : [...prev, row.id])} /></TD>
+                  <TD><div style={{ fontWeight: 800 }}>{row.docType}</div><div style={{ fontSize: 11, color: "var(--gr2)" }}>Folio {row.folio || "—"}</div></TD>
+                  <TD>{operation === "ventas" && row.client ? row.client.nom : row.name}</TD>
+                  <TD mono>{row.rut || "—"}</TD>
+                  <TD>{row.issueDate ? fmtD(row.issueDate) : "—"}</TD>
+                  <TD mono>{fmtM(row.total || 0)}</TD>
+                  <TD><Badge label={row.duplicate ? "Ya importado" : row.blockedReason || "Listo"} color={row.duplicate ? "gray" : row.blockedReason ? "yellow" : "green"} sm /></TD>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <Empty text="Sin consulta RCV cargada" sub="Elige compras o ventas, selecciona período y consulta el RCV para previsualizar documentos." />}
+    </SectionCard>
+  );
 }
 
 export function TreasuryModule(props) {
@@ -631,6 +968,17 @@ export function TreasuryModule(props) {
           </div>
         </div>
       </div>
+      <SiiRcvImportPanel
+        empresa={props.empresa}
+        platformApi={props.platformApi}
+        clientes={clientes}
+        facturas={facturas}
+        payables={payables}
+        canManageTreasury={canManageTreasury}
+        saveFacturaDoc={saveFacturaDoc}
+        savePayable={savePayable}
+        ntf={props.ntf}
+      />
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>
         <button className={`treasury-tab ${tab === 1 ? "active" : ""}`} onClick={() => setTab(1)}>Cuentas por Pagar</button>

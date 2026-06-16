@@ -23,7 +23,14 @@ export function useAccessPolicy({ user, empresa, view }) {
       tasksEnabled: actionNeedsAddon("tareas", safeEmpresa),
       budgetsEnabled: actionNeedsAddon("presupuestos", safeEmpresa),
       invoicesEnabled: actionNeedsAddon("facturacion", safeEmpresa),
+      projectsEnabled: actionNeedsAddon("producciones", safeEmpresa),
+      programsEnabled: actionNeedsAddon("programas", safeEmpresa),
       socialEnabled: actionNeedsAddon("contenidos", safeEmpresa),
+      sponsorsEnabled: actionNeedsAddon("auspiciadores", safeEmpresa),
+      contractsEnabled: actionNeedsAddon("contratos", safeEmpresa),
+      treasuryEnabled: actionNeedsAddon("tesoreria", safeEmpresa),
+      assetsEnabled: actionNeedsAddon("activos", safeEmpresa),
+      crewEnabled: actionNeedsAddon("crew", safeEmpresa),
     };
   }, [empresa, user, view]);
 }

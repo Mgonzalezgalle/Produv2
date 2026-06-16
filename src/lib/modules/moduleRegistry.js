@@ -5,8 +5,15 @@ import {
   buildTreasurySidebarItem,
 } from "../utils/treasury";
 import { getTenantModuleIcon, getTenantModuleLabel } from "../industry/tenantVocabulary";
+import { tenantHasModule } from "./moduleAccess";
 
-export const BASE_MODULE_IDS = ["clientes"];
+export {
+  BASE_MODULE_IDS,
+  MODULE_ADDON_ALIASES,
+  isBaseModule,
+  normalizeTenantAddons,
+  tenantHasModule,
+} from "./moduleAccess";
 
 export const ADDON_REGISTRY = {
   producciones: { label: "Proyectos", icon: "▶", group: "Operación" },
@@ -42,44 +49,6 @@ export const MODULE_LABELS = {
   television: "TELEVISIÓN",
   social: "CONTENIDOS RRSS",
 };
-
-export const MODULE_ADDON_ALIASES = {
-  producciones: ["television", "social"],
-  programas: ["television"],
-  contenidos: ["social"],
-  auspiciadores: ["television"],
-  television: ["programas"],
-  social: ["contenidos"],
-};
-
-export function isBaseModule(moduleId = "") {
-  return BASE_MODULE_IDS.includes(moduleId);
-}
-
-export function tenantHasModule(empresa = {}, moduleId = "") {
-  if (isBaseModule(moduleId)) return true;
-  const addons = Array.isArray(empresa?.addons) ? empresa.addons : [];
-  const aliases = MODULE_ADDON_ALIASES[moduleId] || [];
-  return addons.includes(moduleId) || aliases.some(alias => addons.includes(alias));
-}
-
-export function normalizeTenantAddons(addons = [], { migrateLegacy = false } = {}) {
-  const source = Array.isArray(addons) ? addons.filter(Boolean) : [];
-  const next = new Set(source);
-  if (migrateLegacy) {
-    if (source.includes("television")) {
-      next.add("producciones");
-      next.add("programas");
-      next.add("auspiciadores");
-    }
-    if (source.includes("social")) {
-      next.add("producciones");
-      next.add("contenidos");
-    }
-  }
-  BASE_MODULE_IDS.forEach(moduleId => next.delete(moduleId));
-  return Array.from(next);
-}
 
 export function getSelectableAddons(addons = ADDON_REGISTRY) {
   return Object.entries(addons).filter(([, addon]) => addon?.selectable !== false);

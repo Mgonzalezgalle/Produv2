@@ -1,4 +1,4 @@
-import { tenantHasModule } from "../modules/moduleRegistry";
+import { tenantHasModule } from "../modules/moduleAccess";
 
 export const ROLES = {
   superadmin: { label: "Super Admin", color: "#ff5566" },
@@ -22,8 +22,8 @@ export const PERMS = {
 };
 
 export const ROLE_PERMISSION_GROUPS = [
-  { label: "General", items: [["calendario","Calendario"],["tareas","Tareas"]] },
-  { label: "Operación", items: [["clientes","Clientes"],["producciones","Proyectos"],["programas","Producciones"],["contenidos","Contenidos"],["crew","Crew"],["movimientos","Movimientos"]] },
+  { label: "Base", items: [["clientes","Clientes"],["calendario","Calendario"],["tareas","Tareas"]] },
+  { label: "Operación", items: [["producciones","Proyectos"],["programas","Producciones"],["contenidos","Contenidos"],["crew","Crew"],["movimientos","Movimientos"]] },
   { label: "Comercial", items: [["crm","CRM"],["auspiciadores","Auspiciadores"],["contratos","Contratos"],["presupuestos","Presupuestos"],["facturacion","Facturación"],["tesoreria","Tesorería"]] },
   { label: "Recursos", items: [["activos","Activos"]] },
 ];
@@ -49,11 +49,23 @@ const ACTION_ADDON_REQUIREMENTS = {
 
 const VIEW_ACCESS_RULES = {
   tareas: { action: "tareas" },
+  producciones: { action: "producciones" },
+  "pro-det": { action: "producciones" },
+  programas: { action: "programas" },
+  "pg-det": { action: "programas" },
+  "ep-det": { action: "programas" },
+  contenidos: { action: "contenidos" },
+  "contenido-det": { action: "contenidos" },
+  "pieza-det": { action: "contenidos" },
   crm: { action: "crm" },
+  auspiciadores: { action: "auspiciadores" },
+  contratos: { action: "contratos" },
   presupuestos: { action: "presupuestos" },
   "pres-det": { action: "presupuestos" },
   facturacion: { action: "facturacion" },
   tesoreria: { action: "tesoreria" },
+  crew: { action: "crew" },
+  activos: { action: "activos" },
 };
 
 const ADMIN_SECTION_RULES = {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { requestConfirm } from "../lib/ui/confirmService";
 import { buildVocabularyFromPreset } from "../lib/industry/tenantVocabulary";
-import { normalizeTenantAddons } from "../lib/modules/moduleRegistry";
+import { normalizeTenantAddons } from "../lib/modules/moduleAccess";
 
 const isSameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

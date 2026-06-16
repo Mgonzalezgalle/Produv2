@@ -107,12 +107,25 @@ function NavGroups({ NAV, base, collapsed, onNav, user, empresa, flatSidebar, co
   </div>;
 }
 
+function resolveSidebarBase(view = "") {
+  const map = {
+    "cli-det": "clientes",
+    "pro-det": "producciones",
+    "pg-det": "programas",
+    "ep-det": "programas",
+    "contenido-det": "contenidos",
+    "pieza-det": "contenidos",
+    "pres-det": "presupuestos",
+  };
+  return map[view] || String(view || "").split("-")[0];
+}
+
 export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,counts,collapsed,onToggle,syncPulse,isMobile,ini,includeTreasury=true,mobileOpen=false}){
   const sbBg="var(--sidebar-bg)";
   const sbPanel="var(--sidebar-panel)";
   const sbText="var(--sidebar-text)";
   const sbMuted="var(--sidebar-muted)";
-  const base=view==="contenido-det"?"contenidos":view.split("-")[0];
+  const base=resolveSidebarBase(view);
   const NAV=buildSidebarNavigation({empresa,counts,includeTreasury});
   const SW=collapsed?64:240;
   return <aside className={`app-sidebar${mobileOpen ? " mob-open" : ""}`} style={{width:SW,minHeight:"100vh",background:sbBg,display:isMobile && !mobileOpen ? "none" : "flex",flexDirection:"column",position:"fixed",left:0,top:0,bottom:0,zIndex:200,transition:"width .2s",overflow:"hidden",boxShadow:"2px 0 24px rgba(15,23,42,.24)"}}>

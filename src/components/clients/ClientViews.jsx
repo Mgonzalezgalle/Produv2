@@ -5,7 +5,7 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { ActivityTimelineCard } from "../shared/ActivityTimelineCard";
 import { ActivityTimelinePreviewModal } from "../shared/ActivityTimelinePreviewModal";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
-import { normalizeCommentAttachments } from "../../lib/utils/helpers";
+import { hasAddon, normalizeCommentAttachments } from "../../lib/utils/helpers";
 import {
   buildClientPortalUrl,
   collectClientPortalEmails,
@@ -567,6 +567,7 @@ export function ViewCliDet({
   const associationBlocks = [
     {
       key: "pro",
+      enabled: hasAddon(empresa, "producciones"),
       title: "Proyectos",
       count: prs.length,
       action: canDo?.("producciones") ? { label: "+ Nuevo", fn: () => openM("pro", { cliId: id }) } : null,
@@ -574,6 +575,7 @@ export function ViewCliDet({
     },
     {
       key: "pg",
+      enabled: hasAddon(empresa, "programas"),
       title: "Producciones",
       count: pgs.length,
       action: canDo?.("programas") ? { label: "+ Nuevo", fn: () => openM("pg", { cliId: id }) } : null,
@@ -581,12 +583,17 @@ export function ViewCliDet({
     },
     {
       key: "pz",
+      enabled: hasAddon(empresa, "contenidos"),
       title: "Contenidos",
       count: ctn.length,
       action: canDo?.("contenidos") ? { label: "+ Nuevo", fn: () => openM("contenido", { cliId: id }) } : null,
       render: () => <table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><TH onClick={() => setPzSort(pzSort === "name-asc" ? "name-desc" : "name-asc")} active={pzSort === "name-asc" || pzSort === "name-desc"} dir={pzSort === "name-desc" ? "desc" : "asc"}>Campaña</TH><TH>Plataforma</TH><TH onClick={() => setPzSort(pzSort === "date-asc" ? "date-desc" : "date-asc")} active={pzSort === "date-asc" || pzSort === "date-desc"} dir={pzSort === "date-desc" ? "desc" : "asc"}>Mes</TH><TH>Estado</TH><TH>Piezas</TH><TH onClick={() => setPzSort(pzSort === "balance-asc" ? "balance-desc" : "balance-asc")} active={pzSort === "balance-asc" || pzSort === "balance-desc"} dir={pzSort === "balance-desc" ? "desc" : "asc"}>Balance</TH><TH></TH></tr></thead><tbody>{sortedCtn.map(p => { const b = bal(p.id); return <tr key={p.id} onClick={() => navTo("contenido-det", p.id)}><TD bold>{p.nom}</TD><TD><Badge label={p.plataforma || "Contenidos"} color="gray" sm /></TD><TD>{[p.mes, p.ano].filter(Boolean).join(" ") || "—"}</TD><TD><Badge label={p.est || "Planificada"} /></TD><TD mono style={{ fontSize: 11 }}>{countCampaignPieces(p)}</TD><TD style={{ color: b.b >= 0 ? "#00e08a" : "#ff5566", fontFamily: "var(--fm)", fontSize: 12 }}>{fmtM(b.b)}</TD><TD><GBtn sm onClick={e => { e.stopPropagation(); navTo("contenido-det", p.id); }}>Ver →</GBtn></TD></tr>; })}</tbody></table>,
     },
-  ].filter(block => block.count > 0);
+  ].filter(block => block.enabled && block.count > 0);
+  const contentPortalSections = [
+    hasAddon(empresa, "programas") ? ["productions", "Producciones"] : null,
+    hasAddon(empresa, "contenidos") ? ["contents", "Contenidos"] : null,
+  ].filter(Boolean);
 
   return (
     <div>
@@ -642,10 +649,7 @@ export function ViewCliDet({
             <div style={{ border: "1px solid #dbe7f5", borderRadius: 16, padding: 12, background: "#f8fbff", marginBottom: 14 }}>
               <div style={{ fontSize: 10, letterSpacing: 1.1, textTransform: "uppercase", color: "var(--gr2)", fontWeight: 800, marginBottom: 10 }}>Secciones visibles</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {[
-                  ["productions", "Producciones"],
-                  ["contents", "Contenidos"],
-                ].map(([key, label]) => {
+                {contentPortalSections.length ? contentPortalSections.map(([key, label]) => {
                   const active = key === "productions" ? clientPortal.sections?.productions !== false : clientPortal.sections?.contents === true;
                   return (
                     <button
@@ -666,7 +670,7 @@ export function ViewCliDet({
                       {active ? "Visible" : "Oculto"} · {label}
                     </button>
                   );
-                })}
+                }) : <span style={{ fontSize: 12, color: "var(--gr2)" }}>Activa Producciones o Contenidos para mostrar secciones en este portal.</span>}
               </div>
             </div>
             <KV label="Enlace estable" value={<span style={{ fontSize: 12, color: "var(--wh)", wordBreak: "break-all" }}>{portalUrl}</span>} />

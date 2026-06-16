@@ -1,4 +1,4 @@
-import { normalizeTenantAddons, tenantHasModule } from "../modules/moduleRegistry";
+import { normalizeTenantAddons, tenantHasModule } from "../modules/moduleAccess";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const HASH_RE = /^[a-f0-9]{64}$/i;

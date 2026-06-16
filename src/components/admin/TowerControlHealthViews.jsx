@@ -9,6 +9,21 @@ export function TenantHealthBadgeRow({ health, compact = false }) {
       ? `Revisar ${readiness.score}%`
       : `Riesgo ${readiness.score || 0}%`;
   const readinessColor = readiness.level === "ready" ? "green" : readiness.level === "attention" ? "yellow" : "red";
+  const operational = health.operationalIntegrity || {};
+  const operationalLabel = operational.level === "ready"
+    ? `Operación OK ${operational.score}%`
+    : operational.level === "attention"
+      ? `Operación revisar ${operational.issueCount || 0}`
+      : operational.level === "risk"
+        ? `Operación riesgo ${operational.issueCount || 0}`
+        : "Sin operación";
+  const operationalColor = operational.level === "ready"
+    ? "green"
+    : operational.level === "attention"
+      ? "yellow"
+      : operational.level === "risk"
+        ? "red"
+        : "gray";
   const tributaryLabel = health.remoteBsale?.governanceMode === "production"
     ? "Tributario prod"
     : health.remoteBsale?.governanceMode === "sandbox"
@@ -22,6 +37,7 @@ export function TenantHealthBadgeRow({ health, compact = false }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       <Badge label={readinessLabel} color={readinessColor} sm />
+      <Badge label={operationalLabel} color={operationalColor} sm />
       <Badge label={health.foundationReady ? "Foundation OK" : "Sin foundation"} color={health.foundationReady ? "green" : "gray"} sm />
       <Badge label={health.identityAligned ? "Identidad alineada" : "Identidad parcial"} color={health.identityAligned ? "green" : "yellow"} sm />
       {!compact && <Badge label={tributaryLabel} color={tributaryColor} sm />}

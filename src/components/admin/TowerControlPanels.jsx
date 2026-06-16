@@ -16,6 +16,22 @@ import { WizardAdminPanel } from "./TowerControlWizardPanel";
 
 export { ComunicacionesAdminPanel, IntegracionesAdminPanel, SolicitudesPanel, SystemUsersPanel, WizardAdminPanel };
 
+const OPERATIONAL_COLLECTION_KEYS = [
+  "clientes",
+  "producciones",
+  "programas",
+  "piezas",
+  "auspiciadores",
+  "presupuestos",
+  "facturas",
+  "treasuryProviders",
+  "treasuryPayables",
+  "treasuryPurchaseOrders",
+  "treasuryIssuedOrders",
+  "treasuryReceipts",
+  "treasuryDisbursements",
+];
+
 const sidePanelBackdropStyle = {
   position: "fixed",
   inset: 0,
@@ -169,10 +185,12 @@ export function EmpresasAdminPanel({
   saveEmp,
   users = [],
   platformServices,
+  dbGet,
   releaseMode = false,
 }) {
   const [vista, setVista] = useState("cards");
   const [remoteSnapshots, setRemoteSnapshots] = useState({});
+  const [operationalSnapshots, setOperationalSnapshots] = useState({});
   useEffect(() => {
     if (!platformServices?.getTenantPlatformSnapshot || !filteredEmp.length) {
       queueMicrotask(() => setRemoteSnapshots({}));
@@ -194,8 +212,31 @@ export function EmpresasAdminPanel({
       cancelled = true;
     };
   }, [filteredEmp, platformServices]);
+  useEffect(() => {
+    if (!dbGet || !filteredEmp.length) {
+      queueMicrotask(() => setOperationalSnapshots({}));
+      return;
+    }
+    let cancelled = false;
+    Promise.all(filteredEmp.slice(0, 12).map(async emp => {
+      const entries = await Promise.all(OPERATIONAL_COLLECTION_KEYS.map(async key => {
+        try {
+          return [key, await dbGet(`produ:${emp.id}:${key}`, [])];
+        } catch {
+          return [key, []];
+        }
+      }));
+      return [emp.id, Object.fromEntries(entries)];
+    })).then(entries => {
+      if (cancelled) return;
+      setOperationalSnapshots(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbGet, filteredEmp]);
   const healthByTenant = Object.fromEntries(
-    filteredEmp.map(emp => [emp.id, buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {})]),
+    filteredEmp.map(emp => [emp.id, buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {}, operationalSnapshots[emp.id] || {})]),
   );
   const foundationReadyCount = filteredEmp.filter(emp => healthByTenant[emp.id]?.foundationReady).length;
   const identityAlignedCount = filteredEmp.filter(emp => healthByTenant[emp.id]?.identityAligned).length;
@@ -203,6 +244,7 @@ export function EmpresasAdminPanel({
     const mode = healthByTenant[emp.id]?.remoteBsale?.governanceMode;
     return mode === "sandbox" || mode === "production";
   }).length;
+  const operationalReadyCount = filteredEmp.filter(emp => healthByTenant[emp.id]?.operationalIntegrity?.level === "ready").length;
   const statCards = [
     { label: "Empresas", value: totalEmp, accent: "var(--cy)" },
     { label: "Activas", value: activeEmp, accent: "#4ade80" },
@@ -210,6 +252,7 @@ export function EmpresasAdminPanel({
     { label: "Foundation OK", value: foundationReadyCount, accent: "#60a5fa" },
     { label: "Identidad alineada", value: identityAlignedCount, accent: "#f59e0b" },
     { label: "Tributario provisionado", value: tributaryProvisionedCount, accent: "#a855f7" },
+    { label: "Operación OK", value: operationalReadyCount, accent: "#00e08a" },
   ];
   return <div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginBottom: 16 }}>
@@ -232,7 +275,7 @@ export function EmpresasAdminPanel({
       {filteredEmp.map(emp => {
         const visibleAddons = (emp.addons || []).slice(0, 3);
         const extraAddons = Math.max(0, (emp.addons || []).length - visibleAddons.length);
-        const tenantHealth = healthByTenant[emp.id] || buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {});
+        const tenantHealth = healthByTenant[emp.id] || buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {}, operationalSnapshots[emp.id] || {});
         const industryProfile = normalizeTenantIndustryProfile(emp.industryProfile || {});
         const industryPreset = TENANT_INDUSTRY_PRESETS[industryProfile.presetId] || TENANT_INDUSTRY_PRESETS.productora;
         return <div key={emp.id} style={{ background:"var(--sur)", border:"1px solid var(--bdr)", borderRadius:14, padding:20, display:"grid", gap:12, boxShadow:"0 12px 28px rgba(15,23,42,.04)" }}>
@@ -289,7 +332,7 @@ export function EmpresasAdminPanel({
                 <TD style={{ fontSize:11 }}>{(emp.addons || []).length}</TD>
                 <TD>
                   <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                    <TenantHealthBadgeRow health={buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {})} compact />
+                    <TenantHealthBadgeRow health={healthByTenant[emp.id] || buildTenantHealth(emp, users, remoteSnapshots[emp.id] || {}, operationalSnapshots[emp.id] || {})} compact />
                     <GBtn sm onClick={() => { setEid(emp.id); setEf({ ...emp }); }}>Editar</GBtn>
                     <GBtn sm onClick={() => onSave("empresas", empresas.map(e => e.id === emp.id ? { ...e, active: !e.active } : e))}>{emp.active ? "Desactivar" : "Activar"}</GBtn>
                     {!releaseMode && emp.active === false && <DBtn sm onClick={() => onDeleteEmpresa && onDeleteEmpresa(emp)}>Eliminar</DBtn>}

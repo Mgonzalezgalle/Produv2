@@ -109,6 +109,157 @@ function normalizeDisbursements(rows = [], empId = "", payables = [], uid = defa
   });
 }
 
+function countTenantRecordIssues(rows = [], empId = "", label = "registros") {
+  return asArray(rows).reduce((issues, item, index) => {
+    if (!item?.id) issues.push(`${label}: registro ${index + 1} sin ID.`);
+    if (empId && item?.empId && item.empId !== empId) issues.push(`${label}: registro ${item.id || index + 1} pertenece a otra empresa.`);
+    return issues;
+  }, []);
+}
+
+function buildRelationIssueRows({
+  rows = [],
+  targetRows = [],
+  directKey = "",
+  targetLabel = "",
+  rowLabel = "",
+}) {
+  const targetIds = new Set(asArray(targetRows).map(item => item.id).filter(Boolean));
+  return asArray(rows).reduce((issues, item) => {
+    const directValue = cleanText(item?.[directKey]);
+    if (directValue && !targetIds.has(directValue)) {
+      issues.push(`${rowLabel} ${cleanText(item.folio || item.reference || item.id) || "sin folio"} apunta a un ${targetLabel} inexistente.`);
+      return issues;
+    }
+    if (!directValue) {
+      const matched = matchByAnyValue(targetRows, [item.reference, item.folio, item.documentNumber, item.targetLabel]);
+      if (!matched) issues.push(`${rowLabel} ${cleanText(item.folio || item.reference || item.id) || "sin folio"} no está asociado a un ${targetLabel}.`);
+    }
+    return issues;
+  }, []);
+}
+
+export function buildTenantOperationalIntegrityReport({
+  empId = "",
+  collections = {},
+} = {}) {
+  const clientes = asArray(collections.clientes);
+  const invoices = asArray(collections.facturas);
+  const providers = asArray(collections.treasuryProviders);
+  const payables = asArray(collections.treasuryPayables);
+  const purchaseOrders = asArray(collections.treasuryPurchaseOrders);
+  const receipts = asArray(collections.treasuryReceipts);
+  const disbursements = asArray(collections.treasuryDisbursements);
+  const budgets = asArray(collections.presupuestos);
+  const content = asArray(collections.piezas);
+
+  const issues = [
+    ...countTenantRecordIssues(clientes, empId, "Clientes"),
+    ...countTenantRecordIssues(invoices, empId, "Facturación"),
+    ...countTenantRecordIssues(providers, empId, "Proveedores"),
+    ...countTenantRecordIssues(payables, empId, "Cuentas por pagar"),
+    ...countTenantRecordIssues(purchaseOrders, empId, "Órdenes de compra"),
+    ...countTenantRecordIssues(receipts, empId, "Pagos recibidos"),
+    ...countTenantRecordIssues(disbursements, empId, "Pagos realizados"),
+    ...countTenantRecordIssues(budgets, empId, "Presupuestos"),
+    ...countTenantRecordIssues(content, empId, "Contenido"),
+    ...buildRelationIssueRows({
+      rows: receipts,
+      targetRows: invoices,
+      directKey: "invoiceId",
+      targetLabel: "documento emitido",
+      rowLabel: "Pago recibido",
+    }),
+    ...buildRelationIssueRows({
+      rows: disbursements,
+      targetRows: payables,
+      directKey: "payableId",
+      targetLabel: "documento por pagar",
+      rowLabel: "Pago realizado",
+    }),
+  ];
+
+  const invoiceIds = new Set(invoices.map(item => item.id).filter(Boolean));
+  purchaseOrders.forEach(order => {
+    asArray(order.linkedInvoiceIds).forEach(invoiceId => {
+      if (!invoiceIds.has(invoiceId)) {
+        issues.push(`OC ${cleanText(order.number || order.folio || order.id) || "sin folio"} está vinculada a una factura inexistente.`);
+      }
+    });
+  });
+
+  payables.forEach(payable => {
+    const hasProvider = payable.providerId && providers.some(provider => provider.id === payable.providerId);
+    const supplierValues = [payable.supplier, payable.providerName, payable.rut].map(cleanText).filter(Boolean).map(value => value.toLowerCase());
+    const matchedProvider = supplierValues.length && providers.some(provider => [
+      provider.name,
+      provider.razonSocial,
+      provider.rut,
+      provider.email,
+    ].map(cleanText).filter(Boolean).map(value => value.toLowerCase()).some(value => supplierValues.includes(value)));
+    if (providers.length && !hasProvider && !matchedProvider) {
+      issues.push(`Documento por pagar ${cleanText(payable.folio || payable.documentNumber || payable.id) || "sin folio"} no está asociado a un proveedor válido.`);
+    }
+  });
+
+  const totalCollections = [
+    clientes,
+    invoices,
+    providers,
+    payables,
+    purchaseOrders,
+    receipts,
+    disbursements,
+    budgets,
+    content,
+  ].reduce((total, rows) => total + rows.length, 0);
+  const relationCount = receipts.length + disbursements.length + purchaseOrders.reduce((total, order) => total + asArray(order.linkedInvoiceIds).length, 0);
+  const cleanRelations = Math.max(0, relationCount - issues.length);
+  const score = totalCollections === 0
+    ? 0
+    : Math.max(25, Math.min(100, 100 - issues.length * 10));
+  const level = totalCollections === 0
+    ? "empty"
+    : issues.length === 0
+      ? "ready"
+      : issues.length <= 3
+        ? "attention"
+        : "risk";
+
+  return {
+    level,
+    score,
+    issueCount: issues.length,
+    totalRecords: totalCollections,
+    relationCount,
+    cleanRelations,
+    summary: totalCollections === 0
+      ? "Sin datos operativos"
+      : issues.length === 0
+        ? "Operación consistente"
+        : `${issues.length} punto${issues.length === 1 ? "" : "s"} por revisar`,
+    metrics: {
+      clientes: clientes.length,
+      facturas: invoices.length,
+      proveedores: providers.length,
+      cuentasPorPagar: payables.length,
+      ordenesCompra: purchaseOrders.length,
+      pagosRecibidos: receipts.length,
+      pagosRealizados: disbursements.length,
+      presupuestos: budgets.length,
+      contenidos: content.length,
+    },
+    checks: [
+      { id: "tenant_scope", label: "Datos dentro del tenant", ready: !issues.some(issue => issue.includes("otra empresa")) },
+      { id: "payments_invoices", label: "Pagos recibidos asociados", ready: !issues.some(issue => issue.startsWith("Pago recibido")) },
+      { id: "payments_payables", label: "Pagos realizados asociados", ready: !issues.some(issue => issue.startsWith("Pago realizado")) },
+      { id: "purchase_orders", label: "OC vinculadas correctamente", ready: !issues.some(issue => issue.startsWith("OC ")) },
+      { id: "providers", label: "Proveedores consistentes", ready: !issues.some(issue => issue.includes("proveedor válido")) },
+    ],
+    issues: issues.slice(0, 12),
+  };
+}
+
 export function normalizeTenantOperationalSnapshot({
   empId = "",
   uid = defaultId,

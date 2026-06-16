@@ -1,4 +1,5 @@
 import { buildTenantReadiness } from "../../lib/tenants/runtimeFoundation";
+import { buildTenantOperationalIntegrityReport } from "../../lib/tenants/tenantDataIntegrity";
 
 export function getRemoteProvisionedModules(snapshot = {}) {
   const fromModules = snapshot?.modules?.provisioned;
@@ -27,7 +28,7 @@ export function getRemoteBsaleSnapshot(snapshot = {}) {
   };
 }
 
-export function buildTenantHealth(emp, users = [], snapshot = {}) {
+export function buildTenantHealth(emp, users = [], snapshot = {}, operationalSnapshot = {}) {
   const localUsers = (users || []).filter(user => user.empId === emp?.id).length;
   const localRoles = Array.isArray(emp?.customRoles) ? emp.customRoles.length : 0;
   const remoteUsers = Array.isArray(snapshot?.userShadows) ? snapshot.userShadows.length : 0;
@@ -37,6 +38,10 @@ export function buildTenantHealth(emp, users = [], snapshot = {}) {
   const foundationReady = Boolean(snapshot?.tenant);
   const identityAligned = foundationReady && localUsers === remoteUsers && localRoles === remoteRoles;
   const readiness = buildTenantReadiness(emp, users, snapshot);
+  const operationalIntegrity = buildTenantOperationalIntegrityReport({
+    empId: emp?.id,
+    collections: operationalSnapshot,
+  });
   return {
     foundationReady,
     identityAligned,
@@ -45,5 +50,6 @@ export function buildTenantHealth(emp, users = [], snapshot = {}) {
     remoteModules,
     remoteBsale,
     readiness,
+    operationalIntegrity,
   };
 }

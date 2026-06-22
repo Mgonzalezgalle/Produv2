@@ -12,11 +12,15 @@ export function isPasswordHash(v = "") {
 
 export async function normalizeUserAuth(user = {}) {
   const { password, ...rest } = user || {};
-  const passwordHash = user.passwordHash
-    ? user.passwordHash
-    : user.password
-      ? await sha256Hex(user.password)
-      : "";
+  const rawHash = String(user.passwordHash || "").trim();
+  const rawPassword = String(user.password || "").trim();
+  const passwordHash = isPasswordHash(rawHash)
+    ? rawHash
+    : rawPassword
+      ? await sha256Hex(rawPassword)
+      : rawHash
+        ? await sha256Hex(rawHash)
+        : "";
   return {
     ...rest,
     passwordHash,

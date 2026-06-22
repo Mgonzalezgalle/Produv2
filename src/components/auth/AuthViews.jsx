@@ -171,7 +171,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setLoad(true);setErr("");
     resetTwoFactorFlow();
     await new Promise(r=>setTimeout(r,400));
-    const { user, error, requiresSecondFactor, updatedUser } = await (
+    const { user, error, requiresSecondFactor, updatedUser, authStrength } = await (
       platformApi?.auth?.loginWithPassword
         ? platformApi.auth.loginWithPassword({ email, password: pass })
         : authGateway.authenticate({ users, empresas, email, password: pass })
@@ -180,7 +180,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
     if(user && authGateway.supportsTwoFactorSetup() && requiresSecondFactor) startSecondFactorFlow(user);
-    else if(user) onLogin(user, { authStrength: authGateway.strategy === "supabase" ? "supabase" : "password_only", requiresSecondFactor: false });
+    else if(user) onLogin(user, { authStrength: authStrength || (authGateway.strategy === "supabase" ? "supabase" : "password_only"), requiresSecondFactor: false });
     else setErr(error || "Email o contraseña incorrectos");
     setLoad(false);
   };

@@ -1,5 +1,6 @@
 import { sb } from "./supabaseClient";
 import { findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
+import { authenticateLocalUser } from "./localAuthProvider";
 import { isStoredSessionExpired, validateStoredSessionBinding } from "./sessionStorage";
 
 function warnSupabaseAuth(message, error, extra = {}) {
@@ -10,13 +11,24 @@ function warnSupabaseAuth(message, error, extra = {}) {
 }
 
 export async function authenticateSupabaseUser({ users = [], empresas = [], email = "", password = "" }) {
+  const safeEmail = normalizeAuthEmail(email);
+  const domainUser = findActiveDomainUserByEmail(users, safeEmail);
   try {
     const { data, error } = await sb.auth.signInWithPassword({
-      email: String(email || "").trim(),
+      email: safeEmail,
       password: String(password || ""),
     });
-    const domainUser = findActiveDomainUserByEmail(users, email);
     if (error || !data?.user) {
+      const localFallback = await authenticateLocalUser({ users, email: safeEmail, password });
+      if (localFallback?.user) {
+        return {
+          ...localFallback,
+          empresa: resolveTenantForUser(localFallback.user, empresas, null),
+          error: "",
+          authStrength: "password_only",
+          authSource: "local_fallback",
+        };
+      }
       const rawError = error?.message || "";
       const translatedError = rawError === "Email not confirmed"
         ? "Tu cuenta Auth existe, pero debes confirmar el correo antes de entrar al laboratorio."
@@ -42,11 +54,23 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
       user: linkedUser,
       empresa: resolveTenantForUser(linkedUser, empresas, null),
       error: "",
+      authStrength: "supabase",
+      authSource: "supabase",
     };
   } catch (error) {
     warnSupabaseAuth("Supabase sign-in failed unexpectedly", error, {
-      email: normalizeAuthEmail(email),
+      email: safeEmail,
     });
+    const localFallback = await authenticateLocalUser({ users, email: safeEmail, password });
+    if (localFallback?.user) {
+      return {
+        ...localFallback,
+        empresa: resolveTenantForUser(localFallback.user, empresas, null),
+        error: "",
+        authStrength: "password_only",
+        authSource: "local_fallback",
+      };
+    }
     return {
       user: null,
       empresa: null,

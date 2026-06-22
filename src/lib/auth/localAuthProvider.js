@@ -1,5 +1,5 @@
 import { isStoredSessionExpired, removeStoredJson, saveStoredJson, sessionPayload, validateStoredSessionBinding } from "./sessionStorage";
-import { sha256Hex } from "./authCrypto";
+import { isPasswordHash, sha256Hex } from "./authCrypto";
 import { findActiveDomainUserByEmail, findActiveDomainUserById, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 import { requiresLocalTwoFactor } from "./localTwoFactor";
 
@@ -32,9 +32,11 @@ export async function authenticateLocalUser({ users = [], email = "", password =
     };
   }
   const hashedPass = await sha256Hex(password);
+  const storedHash = String(userByEmail?.passwordHash || "").trim();
   const valid = !!(userByEmail && (
-    userByEmail.passwordHash === hashedPass ||
-    (!userByEmail.passwordHash && userByEmail.password === password)
+    (isPasswordHash(storedHash) && storedHash.toLowerCase() === hashedPass) ||
+    (!isPasswordHash(storedHash) && storedHash && storedHash === password) ||
+    (!storedHash && userByEmail.password === password)
   ));
   if (valid) {
     return {

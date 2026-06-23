@@ -182,20 +182,15 @@ export function useLabGlobalInit({
     let cancelled = false;
 
     const init = async () => {
-      try {
+      const initEmpresas = async () => {
         const value = await dbGet("produ:empresas");
-        if (cancelled) return;
+        if (cancelled) return null;
         if (!value) {
           if (LAB_DATA_CONFIG.releaseMode) {
-            const recovered = await recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel });
-            if (cancelled) return;
-            setEmpresasRaw(recovered);
-            if (Array.isArray(recovered) && recovered.length) {
-              await dbSet("produ:empresas", recovered);
-            }
+            setEmpresasRaw([]);
           } else {
             const source = await dbCloneFromProd("produ:empresas", SEED_EMPRESAS);
-            if (cancelled) return;
+            if (cancelled) return null;
             const seeded = normalizeEmpresasTenantCodes(source || SEED_EMPRESAS);
             setEmpresasRaw(seeded);
             await dbSet("produ:empresas", seeded);
@@ -207,36 +202,49 @@ export function useLabGlobalInit({
             && Array.isArray(normalized)
             && normalized.length === 0
           ) {
-            const recovered = await recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel });
-            if (cancelled) return;
-            setEmpresasRaw(recovered);
-            if (Array.isArray(recovered) && recovered.length) {
-              await dbSet("produ:empresas", recovered);
-            }
-            return;
+            setEmpresasRaw([]);
+            return null;
           }
           setEmpresasRaw(normalized);
           if (!LAB_DATA_CONFIG.releaseMode && JSON.stringify(normalized) !== JSON.stringify(value)) {
             await dbSet("produ:empresas", normalized);
           }
         }
-      } catch (error) {
-        logGlobalInitIssue("No pudimos inicializar empresas", error);
-      }
+        return null;
+      };
 
-      try {
+      const initUsers = async () => {
         const value = await dbGet("produ:users");
         const clonedUsers = !value && !LAB_DATA_CONFIG.releaseMode ? await dbCloneFromProd("produ:users", SEED_USERS) : null;
-        if (cancelled) return;
+        if (cancelled) return null;
         const baseUsers = value && Array.isArray(value) ? value : clonedUsers || (LAB_DATA_CONFIG.releaseMode ? [] : SEED_USERS);
         const normalizedUsers = LAB_DATA_CONFIG.releaseMode ? baseUsers : ensureRequiredSystemUsers(baseUsers);
         setUsersRaw(normalizedUsers);
         if (!LAB_DATA_CONFIG.releaseMode && (!value || JSON.stringify(normalizedUsers) !== JSON.stringify(baseUsers))) {
           await dbSet("produ:users", normalizedUsers);
         }
+        return null;
+      };
+
+      try {
+        applyTheme(THEME_PRESETS.dark);
       } catch (error) {
-        logGlobalInitIssue("No pudimos inicializar usuarios", error);
+        logGlobalInitIssue("No pudimos aplicar el tema inicial", error);
       }
+
+      try {
+        const stored = loadStoredJson(localLabKey("session"));
+        if (stored && !cancelled) setStoredSession(stored);
+      } catch (error) {
+        logGlobalInitIssue("No pudimos restaurar la sesión almacenada", error);
+      }
+
+      await Promise.all([
+        initEmpresas().catch(error => logGlobalInitIssue("No pudimos inicializar empresas", error)),
+        initUsers().catch(error => logGlobalInitIssue("No pudimos inicializar usuarios", error)),
+      ]);
+
+      if (!cancelled) setGlobalInitReady(true);
 
       try {
         const value = await dbGet("produ:printLayouts");
@@ -254,21 +262,16 @@ export function useLabGlobalInit({
       } catch (error) {
         logGlobalInitIssue("No pudimos inicializar layouts de impresión", error);
       }
-
-      try {
-        applyTheme(THEME_PRESETS.dark);
-      } catch (error) {
-        logGlobalInitIssue("No pudimos aplicar el tema inicial", error);
-      }
-
-      try {
-        const stored = loadStoredJson(localLabKey("session"));
-        if (stored && !cancelled) setStoredSession(stored);
-      } catch (error) {
-        logGlobalInitIssue("No pudimos restaurar la sesión almacenada", error);
-      }
       finally {
-        if (!cancelled) setGlobalInitReady(true);
+        if (LAB_DATA_CONFIG.releaseMode && !cancelled) {
+          Promise.resolve(dbGet("produ:empresas")).then(async value => {
+            if (cancelled || (Array.isArray(value) && value.length)) return;
+            const recovered = await recoverReleaseEmpresasFromStorage({ dbGet, normalizeEmpresasModel });
+            if (cancelled || !Array.isArray(recovered) || !recovered.length) return;
+            setEmpresasRaw(recovered);
+            await dbSet("produ:empresas", recovered);
+          }).catch(error => logGlobalInitIssue("No pudimos recuperar empresas en segundo plano", error));
+        }
       }
     };
 

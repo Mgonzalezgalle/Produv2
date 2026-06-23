@@ -17,7 +17,8 @@ function parseStoredValue(key, rawValue) {
   }
 }
 
-let legacyStorageRpcAvailability = "unknown";
+const LEGACY_STORAGE_RPC_ENABLED = String(import.meta.env?.VITE_SUPABASE_LEGACY_STORAGE_RPC || "false").toLowerCase() === "true";
+let legacyStorageRpcAvailability = LEGACY_STORAGE_RPC_ENABLED ? "unknown" : "unavailable";
 
 function isLegacyStorageRpcUnavailableError(error) {
   const code = String(error?.code || "").trim();

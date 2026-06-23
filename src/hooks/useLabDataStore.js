@@ -121,22 +121,33 @@ export function useGlobalLabData() {
     let alive = true;
     const controls = [empresasCtl, usersCtl, printLayoutsCtl, themeCtl];
     controls.forEach(control => control.startLoading());
-    Promise.all([
+    Promise.allSettled([
       dbGet("produ:empresas"),
       dbGet("produ:users"),
-      dbGet("produ:printLayouts"),
-      dbGet("produ:theme"),
     ])
-      .then(([empresasValue, usersValue, printLayoutsValue, themeValue]) => {
+      .then(([empresasResult, usersResult]) => {
         if (!alive) return;
-        empresasCtl.hydrate(empresasValue);
-        usersCtl.hydrate(usersValue);
-        printLayoutsCtl.hydrate(printLayoutsValue);
-        themeCtl.hydrate(themeValue);
+        empresasCtl.hydrate(empresasResult.status === "fulfilled" ? empresasResult.value : null);
+        usersCtl.hydrate(usersResult.status === "fulfilled" ? usersResult.value : null);
       })
       .catch(() => {
         if (!alive) return;
-        controls.forEach(control => control.hydrate(null));
+        empresasCtl.hydrate(null);
+        usersCtl.hydrate(null);
+      });
+    Promise.allSettled([
+      dbGet("produ:printLayouts"),
+      dbGet("produ:theme"),
+    ])
+      .then(([printLayoutsResult, themeResult]) => {
+        if (!alive) return;
+        printLayoutsCtl.hydrate(printLayoutsResult.status === "fulfilled" ? printLayoutsResult.value : null);
+        themeCtl.hydrate(themeResult.status === "fulfilled" ? themeResult.value : null);
+      })
+      .catch(() => {
+        if (!alive) return;
+        printLayoutsCtl.hydrate(null);
+        themeCtl.hydrate(null);
       });
     return () => {
       alive = false;

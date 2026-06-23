@@ -17,8 +17,9 @@ function parseStoredValue(key, rawValue) {
   }
 }
 
-const LEGACY_STORAGE_RPC_ENABLED = String(import.meta.env?.VITE_SUPABASE_LEGACY_STORAGE_RPC || "false").toLowerCase() === "true";
-let legacyStorageRpcAvailability = LEGACY_STORAGE_RPC_ENABLED ? "unknown" : "unavailable";
+const LEGACY_STORAGE_READ_RPC_ENABLED = String(import.meta.env?.VITE_SUPABASE_LEGACY_STORAGE_READ_RPC || "false").toLowerCase() === "true";
+let legacyStorageReadRpcAvailability = LEGACY_STORAGE_READ_RPC_ENABLED ? "unknown" : "unavailable";
+let legacyStorageWriteRpcAvailability = "unknown";
 
 function isLegacyStorageRpcUnavailableError(error) {
   const code = String(error?.code || "").trim();
@@ -27,15 +28,27 @@ function isLegacyStorageRpcUnavailableError(error) {
 }
 
 function shouldTryLegacyStorageRpc() {
-  return legacyStorageRpcAvailability !== "unavailable";
+  return legacyStorageReadRpcAvailability !== "unavailable";
 }
 
 function markLegacyStorageRpcAvailable() {
-  legacyStorageRpcAvailability = "available";
+  legacyStorageReadRpcAvailability = "available";
 }
 
 function markLegacyStorageRpcUnavailable() {
-  legacyStorageRpcAvailability = "unavailable";
+  legacyStorageReadRpcAvailability = "unavailable";
+}
+
+function shouldTryLegacyStorageWriteRpc() {
+  return legacyStorageWriteRpcAvailability !== "unavailable";
+}
+
+function markLegacyStorageWriteRpcAvailable() {
+  legacyStorageWriteRpcAvailability = "available";
+}
+
+function markLegacyStorageWriteRpcUnavailable() {
+  legacyStorageWriteRpcAvailability = "unavailable";
 }
 
 async function readViaLegacyStorageRpc(key) {
@@ -55,7 +68,7 @@ async function writeViaLegacyStorageRpc(key, rawValue) {
     p_value: rawValue,
   });
   if (error) throw error;
-  markLegacyStorageRpcAvailable();
+  markLegacyStorageWriteRpcAvailable();
   return {
     ok: data?.ok === true,
     value: rawValue,
@@ -138,13 +151,13 @@ export async function dbGet(key) {
 export async function dbSetDetailed(key, val) {
   try {
     const rawValue = JSON.stringify(val);
-    if (shouldTryLegacyStorageRpc()) {
+    if (shouldTryLegacyStorageWriteRpc()) {
       try {
         return await writeViaLegacyStorageRpc(key, rawValue);
       } catch (rpcError) {
         if (isLegacyStorageRpcUnavailableError(rpcError)) {
-          markLegacyStorageRpcUnavailable();
-          console.warn("[lab-storage] RPC de escritura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
+          markLegacyStorageWriteRpcUnavailable();
+          console.warn("[lab-storage] RPC de escritura no disponible, intentaremos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
         } else {
           console.error("[lab-storage] RPC de escritura falló", { key, error: rpcError });
           return {

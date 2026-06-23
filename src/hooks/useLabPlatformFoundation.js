@@ -51,6 +51,7 @@ function createDeferredSupabasePlatformApiAdapter({
   authGateway = null,
   users = [],
   empresas = [],
+  sessionKey = "",
 }) {
   let liveApiPromise = null;
   const resolveApi = async () => {
@@ -72,10 +73,19 @@ function createDeferredSupabasePlatformApiAdapter({
   };
   return {
     auth: {
-      loginWithPassword: callSection("auth", "loginWithPassword"),
-      restoreSession: callSection("auth", "restoreSession"),
-      logout: callSection("auth", "logout"),
-      requestPasswordReset: callSection("auth", "requestPasswordReset"),
+      loginWithPassword({ email, password }) {
+        return authGateway.authenticate({ users, empresas, email, password });
+      },
+      restoreSession({ storedSession = null } = {}) {
+        return authGateway.restoreSession({ storedSession, users, empresas, sessionKey });
+      },
+      async logout() {
+        await authGateway.clearSession({ sessionKey });
+        return { ok: true };
+      },
+      requestPasswordReset({ email }) {
+        return authGateway.requestPasswordReset({ email });
+      },
     },
     tenants: {
       createPendingTenant: callSection("tenants", "createPendingTenant"),
@@ -164,6 +174,7 @@ export function useLabPlatformFoundation({
             authGateway,
             users: users || [],
             empresas: empresas || [],
+            sessionKey,
           })
         : createMockPlatformApiAdapter({
             authService,

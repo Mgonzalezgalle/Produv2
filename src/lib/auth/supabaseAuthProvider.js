@@ -27,6 +27,12 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
           error: "",
           authStrength: "password_only",
           authSource: "local_fallback",
+          authDiagnostics: {
+            supabaseOk: false,
+            localFallbackOk: true,
+            domainUserFound: Boolean(domainUser),
+            supabaseError: error?.message || "missing_session_user",
+          },
         };
       }
       const rawError = error?.message || "";
@@ -39,6 +45,12 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
         error: domainUser
           ? (translatedError || "Credenciales inválidas o cuenta Auth todavía no activada.")
           : (translatedError || "No fue posible iniciar sesión con Supabase Auth."),
+        authDiagnostics: {
+          supabaseOk: false,
+          localFallbackOk: false,
+          domainUserFound: Boolean(domainUser),
+          supabaseError: rawError || "missing_session_user",
+        },
       };
     }
     const linkedUser = findActiveDomainUserByEmail(users, data.user.email);
@@ -56,6 +68,11 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
       error: "",
       authStrength: "supabase",
       authSource: "supabase",
+      authDiagnostics: {
+        supabaseOk: true,
+        localFallbackOk: false,
+        domainUserFound: true,
+      },
     };
   } catch (error) {
     warnSupabaseAuth("Supabase sign-in failed unexpectedly", error, {
@@ -69,12 +86,24 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
         error: "",
         authStrength: "password_only",
         authSource: "local_fallback",
+        authDiagnostics: {
+          supabaseOk: false,
+          localFallbackOk: true,
+          domainUserFound: Boolean(findActiveDomainUserByEmail(users, safeEmail)),
+          supabaseError: error?.message || String(error || ""),
+        },
       };
     }
     return {
       user: null,
       empresa: null,
       error: "Supabase Auth no respondió correctamente en el laboratorio.",
+      authDiagnostics: {
+        supabaseOk: false,
+        localFallbackOk: false,
+        domainUserFound: Boolean(findActiveDomainUserByEmail(users, safeEmail)),
+        supabaseError: error?.message || String(error || ""),
+      },
     };
   }
 }

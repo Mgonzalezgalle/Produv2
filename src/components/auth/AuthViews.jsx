@@ -171,11 +171,19 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setLoad(true);setErr("");
     resetTwoFactorFlow();
     await new Promise(r=>setTimeout(r,400));
-    const { user, error, requiresSecondFactor, updatedUser, authStrength } = await (
+    const { user, error, requiresSecondFactor, updatedUser, authStrength, authSource, authDiagnostics } = await (
       platformApi?.auth?.loginWithPassword
         ? platformApi.auth.loginWithPassword({ email, password: pass })
         : authGateway.authenticate({ users, empresas, email, password: pass })
     );
+    if (!user && authDiagnostics) {
+      console.warn("[auth-login] No pudimos autenticar al usuario", {
+        email: String(email || "").trim().toLowerCase(),
+        authMode: authGateway.strategy,
+        authSource: authSource || "",
+        ...authDiagnostics,
+      });
+    }
     if(updatedUser){
       await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }

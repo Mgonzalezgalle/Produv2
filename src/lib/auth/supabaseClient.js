@@ -44,6 +44,7 @@ function createDisabledClient() {
 }
 
 export const supabaseConfigured = Boolean(SB_URL && SB_KEY);
+export const supabaseUsingFallback = SB_URL === FALLBACK_SB_URL && SB_KEY === FALLBACK_SB_KEY;
 if (!ENV_SB_URL || !ENV_SB_KEY) {
   console.warn("[supabase] Usando configuración fallback bundled. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en el deploy productivo.");
 }
@@ -51,3 +52,4 @@ if (!supabaseConfigured) {
   console.warn("[supabase] Cliente deshabilitado: faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY.");
 }
 export const sb = supabaseConfigured ? createClient(SB_URL, SB_KEY) : createDisabledClient();
+export const fallbackSb = createClient(FALLBACK_SB_URL, FALLBACK_SB_KEY);

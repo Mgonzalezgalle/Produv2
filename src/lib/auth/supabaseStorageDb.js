@@ -1,4 +1,4 @@
-import { sb } from "./supabaseClient";
+import { fallbackSb, sb, supabaseUsingFallback } from "./supabaseClient";
 
 function parseStoredValue(key, rawValue) {
   try {
@@ -25,6 +25,18 @@ function isLegacyStorageRpcUnavailableError(error) {
   const code = String(error?.code || "").trim();
   const message = String(error?.message || "").toLowerCase();
   return code === "PGRST202" || code === "42883" || message.includes("could not find the function");
+}
+
+function shouldRetryWithFallbackClient(error) {
+  if (supabaseUsingFallback) return false;
+  const status = Number(error?.status || 0);
+  const code = String(error?.code || "").trim().toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+  return status === 401
+    || code === "401"
+    || code === "invalid_api_key"
+    || message.includes("invalid api key")
+    || message.includes("unauthorized");
 }
 
 function shouldTryLegacyStorageRpc() {
@@ -55,8 +67,8 @@ function markLegacyStorageWriteRpcUnavailable() {
   legacyStorageWriteRpcAvailability = "unavailable";
 }
 
-async function readViaLegacyStorageRpc(key) {
-  const { data, error } = await sb.rpc("get_legacy_storage_item", { p_key: key });
+async function readViaLegacyStorageRpc(key, client = sb) {
+  const { data, error } = await client.rpc("get_legacy_storage_item", { p_key: key });
   if (error) throw error;
   markLegacyStorageRpcAvailable();
   return {
@@ -66,8 +78,8 @@ async function readViaLegacyStorageRpc(key) {
   };
 }
 
-async function writeViaLegacyStorageRpc(key, rawValue) {
-  const { data, error } = await sb.rpc("upsert_legacy_storage_item", {
+async function writeViaLegacyStorageRpc(key, rawValue, client = sb) {
+  const { data, error } = await client.rpc("upsert_legacy_storage_item", {
     p_key: key,
     p_value: rawValue,
   });
@@ -97,6 +109,21 @@ export async function dbGetDetailed(key) {
           ...parsed,
         };
       } catch (rpcError) {
+        if (shouldRetryWithFallbackClient(rpcError)) {
+          const rpcResult = await readViaLegacyStorageRpc(key, fallbackSb);
+          if (!rpcResult.exists) {
+            return {
+              ok: true,
+              exists: false,
+              value: null,
+            };
+          }
+          const parsed = parseStoredValue(key, rpcResult.value);
+          return {
+            exists: true,
+            ...parsed,
+          };
+        }
         if (isLegacyStorageRpcUnavailableError(rpcError)) {
           markLegacyStorageRpcUnavailable();
           console.warn("[lab-storage] RPC de lectura no disponible, usamos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });
@@ -130,6 +157,21 @@ export async function dbGetDetailed(key) {
             ...parsed,
           };
         } catch (rpcError) {
+          if (shouldRetryWithFallbackClient(rpcError)) {
+            const rpcResult = await readViaLegacyStorageRpc(key, fallbackSb);
+            if (!rpcResult.exists) {
+              return {
+                ok: true,
+                exists: false,
+                value: null,
+              };
+            }
+            const parsed = parseStoredValue(key, rpcResult.value);
+            return {
+              exists: true,
+              ...parsed,
+            };
+          }
           if (isLegacyStorageRpcUnavailableError(rpcError)) {
             markLegacyStorageRpcUnavailable();
           } else {
@@ -182,6 +224,9 @@ export async function dbSetDetailed(key, val) {
       try {
         return await writeViaLegacyStorageRpc(key, rawValue);
       } catch (rpcError) {
+        if (shouldRetryWithFallbackClient(rpcError)) {
+          return await writeViaLegacyStorageRpc(key, rawValue, fallbackSb);
+        }
         if (isLegacyStorageRpcUnavailableError(rpcError)) {
           markLegacyStorageWriteRpcUnavailable();
           console.warn("[lab-storage] RPC de escritura no disponible, intentaremos fallback directo", { key, error: rpcError?.message || String(rpcError || "") });

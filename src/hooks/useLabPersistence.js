@@ -16,8 +16,16 @@ export function useLabPersistence({
 }) {
   const saveUsers = useCallback(async nextUsers => {
     const normalized = await normalizeUsersAuth(nextUsers);
+    if (!normalized.length) {
+      console.warn("[users] Bloqueamos un guardado vacío para proteger accesos existentes.");
+      ntf?.("No guardamos usuarios vacíos para proteger los accesos existentes.", "warn");
+      throw new Error("No pudimos guardar usuarios: la lista venía vacía.");
+    }
     setUsersRaw(normalized);
-    await dbSet("produ:users", normalized);
+    const persisted = await dbSet("produ:users", normalized);
+    if (!persisted) {
+      throw new Error("No pudimos persistir usuarios.");
+    }
 
     if (curEmp?.id) {
       const scopedUsers = normalized.filter(user => user?.empId === curEmp.id);

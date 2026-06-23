@@ -94,8 +94,6 @@ export function createLabDb() {
     if (
       LAB_DATA_CONFIG.releaseMode
       && canonicalKey === "produ:users"
-      && Array.isArray(previousValue)
-      && previousValue.length > 0
       && Array.isArray(resolved)
       && resolved.length === 0
     ) {

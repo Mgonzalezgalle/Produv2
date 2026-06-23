@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
+import { normalizeUsersAuth } from "../../lib/auth/authCrypto";
 import { completeLocalPasswordReset, requestLocalPasswordReset } from "../../lib/auth/localAuthProvider";
 import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
 import QRCode from "qrcode";
@@ -16,6 +17,15 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from "../../lib/auth/localTwoFactor";
+
+function isLocalAuthHost() {
+  try {
+    const host = String(window.location?.hostname || "").toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
 
 class AuthModalErrorBoundary extends React.Component {
   constructor(props) {
@@ -171,10 +181,32 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     setLoad(true);setErr("");
     resetTwoFactorFlow();
     await new Promise(r=>setTimeout(r,400));
+    let authUsers = Array.isArray(users) ? users : [];
+    let authEmpresas = Array.isArray(empresas) ? empresas : [];
+    if (!authUsers.length && dbHelpers?.dbGet) {
+      try {
+        const freshUsers = await dbHelpers.dbGet("produ:users");
+        const freshEmpresas = await dbHelpers.dbGet("produ:empresas");
+        if (Array.isArray(freshUsers) && freshUsers.length) {
+          authUsers = await normalizeUsersAuth(freshUsers);
+        }
+        if (Array.isArray(freshEmpresas)) {
+          authEmpresas = freshEmpresas;
+        }
+      } catch (freshAuthError) {
+        console.warn("[auth-login] No pudimos refrescar usuarios antes de autenticar", freshAuthError);
+      }
+    }
+    if (!authUsers.length && isLocalAuthHost() && Array.isArray(dbHelpers?.SEED_USERS)) {
+      authUsers = await normalizeUsersAuth(dbHelpers.SEED_USERS);
+      if (!authEmpresas.length && Array.isArray(dbHelpers?.SEED_EMPRESAS)) {
+        authEmpresas = dbHelpers.SEED_EMPRESAS;
+      }
+    }
     const { user, error, requiresSecondFactor, updatedUser, authStrength, authSource, authDiagnostics } = await (
-      platformApi?.auth?.loginWithPassword
+      platformApi?.auth?.loginWithPassword && Array.isArray(users) && users.length
         ? platformApi.auth.loginWithPassword({ email, password: pass })
-        : authGateway.authenticate({ users, empresas, email, password: pass })
+        : authGateway.authenticate({ users: authUsers, empresas: authEmpresas, email, password: pass })
     );
     if (!user && authDiagnostics) {
       console.warn("[auth-login] No pudimos autenticar al usuario", {
@@ -185,7 +217,8 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       });
     }
     if(updatedUser){
-      await saveUsers((users || []).map(entry => entry.id === updatedUser.id ? updatedUser : entry));
+      const saveBaseUsers = authUsers.length ? authUsers : (users || []);
+      await saveUsers(saveBaseUsers.map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
     if(user && authGateway.supportsTwoFactorSetup() && requiresSecondFactor) startSecondFactorFlow(user);
     else if(user) onLogin(user, { authStrength: authStrength || (authGateway.strategy === "supabase" ? "supabase" : "password_only"), requiresSecondFactor: false });

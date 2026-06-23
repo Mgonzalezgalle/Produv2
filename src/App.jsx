@@ -1720,7 +1720,7 @@ export default function App(){
   }), [navigationProps, VP, viewRendererContexts, viewRendererRegistry]);
 
   // Screens
-  if(!globalInitReady || !empresas||!users) return <AppBootScreen css={APP_SHELL_CSS} />;
+  if(!globalInitReady) return <AppBootScreen css={APP_SHELL_CSS} />;
   if(publicFinancePortalDescriptor) return <>
     <StyleTag css={APP_SHELL_CSS}/>
     <Suspense fallback={<AppBootScreen css={APP_SHELL_CSS} />}>

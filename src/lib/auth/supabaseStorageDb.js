@@ -18,7 +18,7 @@ function parseStoredValue(key, rawValue) {
 }
 
 const LEGACY_STORAGE_READ_RPC_ENABLED = String(import.meta.env?.VITE_SUPABASE_LEGACY_STORAGE_READ_RPC || "false").toLowerCase() === "true";
-let legacyStorageReadRpcAvailability = LEGACY_STORAGE_READ_RPC_ENABLED ? "unknown" : "unavailable";
+let legacyStorageReadRpcAvailability = LEGACY_STORAGE_READ_RPC_ENABLED ? "preferred" : "unknown";
 let legacyStorageWriteRpcAvailability = "unknown";
 
 function isLegacyStorageRpcUnavailableError(error) {
@@ -28,6 +28,10 @@ function isLegacyStorageRpcUnavailableError(error) {
 }
 
 function shouldTryLegacyStorageRpc() {
+  return legacyStorageReadRpcAvailability === "preferred" || legacyStorageReadRpcAvailability === "available";
+}
+
+function shouldFallbackToLegacyStorageRpc() {
   return legacyStorageReadRpcAvailability !== "unavailable";
 }
 
@@ -110,6 +114,29 @@ export async function dbGetDetailed(key) {
     }
     const { data, error } = await sb.from("storage").select("value").eq("key", key).maybeSingle();
     if (error) {
+      if (shouldFallbackToLegacyStorageRpc()) {
+        try {
+          const rpcResult = await readViaLegacyStorageRpc(key);
+          if (!rpcResult.exists) {
+            return {
+              ok: true,
+              exists: false,
+              value: null,
+            };
+          }
+          const parsed = parseStoredValue(key, rpcResult.value);
+          return {
+            exists: true,
+            ...parsed,
+          };
+        } catch (rpcError) {
+          if (isLegacyStorageRpcUnavailableError(rpcError)) {
+            markLegacyStorageRpcUnavailable();
+          } else {
+            console.error("[lab-storage] Fallback RPC de lectura falló", { key, error: rpcError });
+          }
+        }
+      }
       console.error("[lab-storage] Error leyendo storage", { key, error });
       return {
         ok: false,

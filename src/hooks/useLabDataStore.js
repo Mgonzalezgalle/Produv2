@@ -112,8 +112,8 @@ function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
 }
 
 export function useGlobalLabData() {
-  const [empresas, setEmpresasRaw, savEmpRef, , , empresasCtl] = useDB("produ:empresas", null, { deferInitialLoad: true });
-  const [users, setUsersRaw, savUsrRef, , , usersCtl] = useDB("produ:users", null, { deferInitialLoad: true });
+  const [empresas, setEmpresasRaw, savEmpRef, , , empresasCtl] = useDB("produ:empresas", [], { deferInitialLoad: true });
+  const [users, setUsersRaw, savUsrRef, , , usersCtl] = useDB("produ:users", [], { deferInitialLoad: true });
   const [printLayouts, setPrintLayoutsRaw, , , , printLayoutsCtl] = useDB("produ:printLayouts", null, { deferInitialLoad: true });
   const [, setThemeDB, , , , themeCtl] = useDB("produ:theme", null, { deferInitialLoad: true });
 
@@ -127,13 +127,13 @@ export function useGlobalLabData() {
     ])
       .then(([empresasResult, usersResult]) => {
         if (!alive) return;
-        empresasCtl.hydrate(empresasResult.status === "fulfilled" ? empresasResult.value : null);
-        usersCtl.hydrate(usersResult.status === "fulfilled" ? usersResult.value : null);
+        empresasCtl.hydrate(empresasResult.status === "fulfilled" && Array.isArray(empresasResult.value) ? empresasResult.value : []);
+        usersCtl.hydrate(usersResult.status === "fulfilled" && Array.isArray(usersResult.value) ? usersResult.value : []);
       })
       .catch(() => {
         if (!alive) return;
-        empresasCtl.hydrate(null);
-        usersCtl.hydrate(null);
+        empresasCtl.hydrate([]);
+        usersCtl.hydrate([]);
       });
     Promise.allSettled([
       dbGet("produ:printLayouts"),

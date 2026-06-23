@@ -17,8 +17,8 @@ function parseStoredValue(key, rawValue) {
   }
 }
 
-const LEGACY_STORAGE_READ_RPC_ENABLED = String(import.meta.env?.VITE_SUPABASE_LEGACY_STORAGE_READ_RPC || "false").toLowerCase() === "true";
-let legacyStorageReadRpcAvailability = LEGACY_STORAGE_READ_RPC_ENABLED ? "preferred" : "unknown";
+// RLS intentionally hides public.storage from anon direct reads; the RPC is the supported read path.
+let legacyStorageReadRpcAvailability = "preferred";
 let legacyStorageWriteRpcAvailability = "unknown";
 
 function isLegacyStorageRpcUnavailableError(error) {

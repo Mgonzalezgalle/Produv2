@@ -183,7 +183,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
     await new Promise(r=>setTimeout(r,400));
     let authUsers = Array.isArray(users) ? users : [];
     let authEmpresas = Array.isArray(empresas) ? empresas : [];
-    if (!authUsers.length && dbHelpers?.dbGet) {
+    if (dbHelpers?.dbGet) {
       try {
         const freshUsers = await dbHelpers.dbGet("produ:users");
         const freshEmpresas = await dbHelpers.dbGet("produ:empresas");
@@ -203,11 +203,17 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
         authEmpresas = dbHelpers.SEED_EMPRESAS;
       }
     }
-    const { user, error, requiresSecondFactor, updatedUser, authStrength, authSource, authDiagnostics } = await (
-      platformApi?.auth?.loginWithPassword && Array.isArray(users) && users.length
-        ? platformApi.auth.loginWithPassword({ email, password: pass })
-        : authGateway.authenticate({ users: authUsers, empresas: authEmpresas, email, password: pass })
-    );
+    if (!authUsers.length) {
+      setErr("No pudimos cargar los usuarios de Produ. Intenta nuevamente en unos segundos.");
+      setLoad(false);
+      return;
+    }
+    const { user, error, requiresSecondFactor, updatedUser, authStrength, authSource, authDiagnostics } = await authGateway.authenticate({
+      users: authUsers,
+      empresas: authEmpresas,
+      email,
+      password: pass,
+    });
     if (!user && authDiagnostics) {
       console.warn("[auth-login] No pudimos autenticar al usuario", {
         email: String(email || "").trim().toLowerCase(),

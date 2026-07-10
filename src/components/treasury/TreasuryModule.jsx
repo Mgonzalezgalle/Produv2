@@ -11,7 +11,7 @@ import {
   TD,
   TH,
 } from "../../lib/ui/components";
-import { fmtD, fmtM, fmtMonthPeriod, openWhatsApp } from "../../lib/utils/helpers";
+import { fmtD, fmtM, fmtMonthPeriod, openWhatsApp, today, uid } from "../../lib/utils/helpers";
 import { useLabTreasuryModule } from "../../hooks/useLabTreasuryModule";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
@@ -22,11 +22,56 @@ import { TreasuryPayableModal } from "./TreasuryPayableModal";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
 import { TreasuryPurchaseOrderModal } from "./TreasuryPurchaseOrderModal";
 import { TreasuryPayablesSection, TreasuryReceivablesSection } from "./TreasurySections";
+import { TreasuryBulkImporterModal } from "./TreasuryBulkImporterModal";
 import { TreasuryStyles, SectionCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
 import { formatTreasuryMoney, normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
+
+function normalizeImportLookupValue(value = "") {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeRutLookup(value = "") {
+  return String(value || "").replace(/[^0-9kK]/g, "").toLowerCase();
+}
+
+function findClientForImport(clients = [], row = {}) {
+  const wantedRut = normalizeRutLookup(row.clientRut || row.rut);
+  const wantedName = normalizeImportLookupValue(row.clientName || row.name);
+  return (clients || []).find(client => {
+    const rutMatch = wantedRut && normalizeRutLookup(client?.rut) === wantedRut;
+    const nameMatch = wantedName && normalizeImportLookupValue(client?.nom || client?.name || client?.razonSocial) === wantedName;
+    return rutMatch || nameMatch;
+  }) || null;
+}
+
+function findProviderForImport(providers = [], row = {}) {
+  const wantedRut = normalizeRutLookup(row.providerRut || row.rut);
+  const wantedName = normalizeImportLookupValue(row.providerName || row.name);
+  return (providers || []).find(provider => {
+    const rutMatch = wantedRut && normalizeRutLookup(provider?.rut) === wantedRut;
+    const nameMatch = wantedName && normalizeImportLookupValue(provider?.name || provider?.razonSocial) === wantedName;
+    return rutMatch || nameMatch;
+  }) || null;
+}
+
+function findPayableDocForImport(rows = [], row = {}) {
+  const wantedFolio = normalizeImportLookupValue(row.folio);
+  const wantedRut = normalizeRutLookup(row.providerRut);
+  const wantedProvider = normalizeImportLookupValue(row.providerName);
+  return (rows || []).find(doc => {
+    const folioMatch = wantedFolio && normalizeImportLookupValue(doc?.folio || doc?.number) === wantedFolio;
+    const rutMatch = !wantedRut || normalizeRutLookup(doc?.rut || doc?.providerRut) === wantedRut;
+    const providerMatch = !wantedProvider || normalizeImportLookupValue(doc?.supplier || doc?.providerName) === wantedProvider;
+    return folioMatch && (rutMatch || providerMatch);
+  }) || null;
+}
 
 function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null, wide = false }) {
   return (
@@ -108,6 +153,8 @@ export function TreasuryModule(props) {
   const [emailComposerDraft, setEmailComposerDraft] = useState(null);
   const [emailComposerSending, setEmailComposerSending] = useState(false);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(null);
+  const [importerMode, setImporterMode] = useState(null);
+  const [importingTreasury, setImportingTreasury] = useState(false);
   const openPortfolioDetail = item => { setPortfolioItem(item); setPortfolioOpen(true); };
   const openIssuedOrderDetail = React.useCallback(item => {
     setIssuedDetailItem(item);
@@ -133,6 +180,10 @@ export function TreasuryModule(props) {
   });
   const { clientes = [], facturas = [] } = props;
   const saveFacturaDoc = props.saveFacturaDoc;
+  const openTreasuryImporter = React.useCallback(mode => setImporterMode(mode), []);
+  const closeTreasuryImporter = React.useCallback(() => {
+    if (!importingTreasury) setImporterMode(null);
+  }, [importingTreasury]);
   const {
     createBillingEmailDraft,
     createPaymentLinkEmailDraft,
@@ -542,6 +593,222 @@ export function TreasuryModule(props) {
     );
   };
 
+  const applyTreasuryImport = React.useCallback(async (payload = {}) => {
+    if (!canManageTreasury || !payload?.mode) return;
+    setImportingTreasury(true);
+    try {
+      const empId = props.empresa?.id || "";
+      const counters = { clients: 0, providers: 0, documents: 0, payments: 0, skippedPayments: 0 };
+      if (payload.mode === "receivables") {
+        const clientRows = [
+          ...(Array.isArray(payload.clients) ? payload.clients : []),
+          ...(Array.isArray(payload.documents) ? payload.documents : []).map(row => ({
+            rut: row.clientRut,
+            name: row.clientName,
+          })),
+        ];
+        const clientMap = new Map((clientes || []).map(client => [client.id, client]));
+        clientRows.forEach(row => {
+          if (!row?.rut && !row?.name) return;
+          const existing = findClientForImport(Array.from(clientMap.values()), { clientRut: row.rut, clientName: row.name });
+          const id = existing?.id || uid();
+          clientMap.set(id, {
+            ...(existing || {}),
+            id,
+            empId,
+            nom: row.name || existing?.nom || existing?.name || "Cliente sin nombre",
+            rut: row.rut || existing?.rut || "",
+            ema: row.email || existing?.ema || existing?.email || "",
+            tel: row.phone || existing?.tel || existing?.telefono || "",
+            creditLimit: Number(row.creditLimit || existing?.creditLimit || 0) || 0,
+            cr: existing?.cr || today(),
+          });
+          if (!existing) counters.clients += 1;
+        });
+        const nextClients = Array.from(clientMap.values());
+        if (typeof props.setClientes === "function") await props.setClientes(nextClients);
+
+        const facturaMap = new Map((facturas || []).map(doc => [doc.id, doc]));
+        const importedDocs = [];
+        for (const row of Array.isArray(payload.documents) ? payload.documents : []) {
+          const client = findClientForImport(nextClients, row);
+          if (!client || !row.folio || !row.total) continue;
+          const existing = (facturas || []).find(doc => {
+            if (doc?.empId !== empId) return false;
+            const folioMatch = normalizeImportLookupValue(doc?.correlativo || doc?.folio) === normalizeImportLookupValue(row.folio);
+            const clientMatch = doc?.entidadId === client.id;
+            return folioMatch && clientMatch;
+          });
+          const id = existing?.id || uid();
+          const nextDoc = {
+            ...(existing || {}),
+            id,
+            empId,
+            tipo: "cliente",
+            entidadId: client.id,
+            tipoDoc: row.docType || existing?.tipoDoc || "Factura Afecta",
+            documentTypeCode: row.documentTypeCode || existing?.documentTypeCode || "invoice_taxable",
+            tipoDocumento: row.documentTypeCode || existing?.tipoDocumento || "invoice_taxable",
+            correlativo: row.folio,
+            fecha: row.issueDate || existing?.fecha || existing?.fechaEmision || today(),
+            fechaEmision: row.issueDate || existing?.fechaEmision || existing?.fecha || today(),
+            fechaVencimiento: row.dueDate || existing?.fechaVencimiento || "",
+            total: Number(row.total || existing?.total || 0),
+            montoNeto: Number(row.total || existing?.montoNeto || existing?.total || 0),
+            estado: existing?.estado || "Emitida",
+            cobranzaEstado: row.status || existing?.cobranzaEstado || "Pendiente de pago",
+            obs: row.notes || existing?.obs || "",
+            cr: existing?.cr || today(),
+          };
+          facturaMap.set(id, nextDoc);
+          importedDocs.push(nextDoc);
+          counters.documents += 1;
+        }
+        if (typeof props.setFacturas === "function" && importedDocs.length) await props.setFacturas(Array.from(facturaMap.values()));
+
+        const facturaList = Array.from(facturaMap.values());
+        for (const row of Array.isArray(payload.payments) ? payload.payments : []) {
+          const target = facturaList.find(doc => {
+            if (doc?.empId !== empId) return false;
+            const folioMatch = normalizeImportLookupValue(doc?.correlativo || doc?.folio) === normalizeImportLookupValue(row.folio);
+            if (!folioMatch) return false;
+            if (!row.clientRut) return true;
+            const client = nextClients.find(item => item.id === doc.entidadId);
+            return normalizeRutLookup(client?.rut) === normalizeRutLookup(row.clientRut);
+          });
+          if (!target) {
+            counters.skippedPayments += 1;
+            continue;
+          }
+          const ok = await saveReceipt({
+            id: uid(),
+            empId,
+            invoiceId: target.id,
+            date: row.date || today(),
+            amount: Number(row.amount || 0),
+            method: row.method || "Transferencia",
+            reference: row.reference || row.folio || "",
+            notes: row.notes || "",
+          });
+          counters.payments += ok ? 1 : 0;
+        }
+      } else {
+        const providerRows = [
+          ...(Array.isArray(payload.providers) ? payload.providers : []),
+          ...(Array.isArray(payload.documents) ? payload.documents : []).map(row => ({
+            rut: row.providerRut,
+            name: row.providerName,
+            currency: row.currency,
+            email: row.providerEmail,
+            paymentEmail: row.providerPaymentEmail,
+            bank: row.providerBank,
+            accountType: row.providerAccountType,
+            accountNumber: row.providerAccountNumber,
+          })),
+        ];
+        const providerMap = new Map((providers || []).map(provider => [provider.id, provider]));
+        providerRows.forEach(row => {
+          if (!row?.rut && !row?.name) return;
+          const existing = findProviderForImport(Array.from(providerMap.values()), { providerRut: row.rut, providerName: row.name });
+          const id = existing?.id || uid();
+          const contactEmail = row.email || row.paymentEmail || "";
+          const bankAccount = row.bank || row.accountNumber
+            ? [{
+                id: existing?.bankAccounts?.[0]?.id || uid(),
+                banco: row.bank || existing?.bankAccounts?.[0]?.banco || "",
+                titular: row.name || existing?.bankAccounts?.[0]?.titular || existing?.name || "",
+                rut: row.rut || existing?.bankAccounts?.[0]?.rut || existing?.rut || "",
+                tipoCuenta: row.accountType || existing?.bankAccounts?.[0]?.tipoCuenta || "",
+                numeroCuenta: row.accountNumber || existing?.bankAccounts?.[0]?.numeroCuenta || "",
+                emailPago: row.paymentEmail || contactEmail || existing?.bankAccounts?.[0]?.emailPago || "",
+              }]
+            : (existing?.bankAccounts || []);
+          const contactos = contactEmail || row.phone
+            ? [{
+                id: existing?.contactos?.[0]?.id || uid(),
+                nombre: existing?.contactos?.[0]?.nombre || "Contacto principal",
+                cargo: existing?.contactos?.[0]?.cargo || "",
+                email: contactEmail || existing?.contactos?.[0]?.email || "",
+                telefono: row.phone || existing?.contactos?.[0]?.telefono || "",
+              }]
+            : (existing?.contactos || []);
+          providerMap.set(id, {
+            ...(existing || {}),
+            id,
+            empId,
+            name: row.name || existing?.name || existing?.razonSocial || "Proveedor sin nombre",
+            razonSocial: row.name || existing?.razonSocial || existing?.name || "Proveedor sin nombre",
+            rut: row.rut || existing?.rut || "",
+            currency: normalizeTreasuryCurrency(row.currency || existing?.currency || "CLP"),
+            contactos,
+            bankAccounts: bankAccount,
+          });
+          if (!existing) counters.providers += 1;
+        });
+        const nextProviders = Array.from(providerMap.values());
+        if (typeof props.treasury?.setProviders === "function") await props.treasury.setProviders(nextProviders);
+
+        const localPayables = [...(payables || [])];
+        for (const row of Array.isArray(payload.documents) ? payload.documents : []) {
+          const provider = findProviderForImport(nextProviders, row);
+          if (!provider || !row.folio || !row.total) continue;
+          const existing = findPayableDocForImport(localPayables, row);
+          const nextDoc = {
+            ...(existing || {}),
+            id: existing?.id || uid(),
+            empId,
+            providerId: provider.id,
+            supplier: provider.name || row.providerName || "Proveedor sin nombre",
+            rut: row.providerRut || provider.rut || existing?.rut || "",
+            currency: normalizeTreasuryCurrency(row.currency || provider.currency || existing?.currency || "CLP"),
+            docType: row.docType || existing?.docType || "Factura Afecta",
+            folio: row.folio,
+            category: row.category || existing?.category || "Servicio",
+            issueDate: row.issueDate || existing?.issueDate || today(),
+            dueDate: row.dueDate || existing?.dueDate || "",
+            paymentDate: row.paymentDate || existing?.paymentDate || "",
+            total: Number(row.total || existing?.total || 0),
+            status: row.status || existing?.status || "Pendiente",
+            notes: row.notes || existing?.notes || "",
+          };
+          const currentIndex = localPayables.findIndex(item => item.id === nextDoc.id);
+          if (currentIndex >= 0) localPayables[currentIndex] = nextDoc;
+          else localPayables.push(nextDoc);
+          const ok = await savePayable(nextDoc);
+          counters.documents += ok ? 1 : 0;
+        }
+
+        for (const row of Array.isArray(payload.payments) ? payload.payments : []) {
+          const target = findPayableDocForImport(localPayables, row);
+          if (!target) {
+            counters.skippedPayments += 1;
+            continue;
+          }
+          const ok = await saveDisbursement({
+            id: uid(),
+            empId,
+            payableId: target.id,
+            date: row.date || today(),
+            amount: Number(row.amount || 0),
+            method: row.method || "Transferencia",
+            reference: row.reference || row.folio || "",
+            notes: row.notes || "",
+          });
+          counters.payments += ok ? 1 : 0;
+        }
+      }
+      const entityCount = payload.mode === "receivables" ? counters.clients : counters.providers;
+      const entityLabel = payload.mode === "receivables" ? "cliente(s)" : "proveedor(es)";
+      props.ntf?.(`Importación lista: ${entityCount} ${entityLabel}, ${counters.documents} documento(s), ${counters.payments} pago(s).${counters.skippedPayments ? ` ${counters.skippedPayments} pago(s) sin documento asociado.` : ""}`);
+      setImporterMode(null);
+    } catch (error) {
+      console.error("[treasury-import] Error al importar datos", error);
+      props.ntf?.("No pudimos completar la importación. Revisa la planilla e intenta nuevamente.", "warn");
+    } finally {
+      setImportingTreasury(false);
+    }
+  }, [canManageTreasury, clientes, facturas, payables, props, providers, saveDisbursement, savePayable, saveReceipt]);
+
   const deleteMany = async (ids = [], deleter) => {
     if (!ids.length || !deleter) return;
     setPendingBulkDelete({ ids, deleter });
@@ -649,6 +916,7 @@ export function TreasuryModule(props) {
             closePurchaseOrder={closePurchaseOrder}
             facturas={facturas}
             openPortfolioDetail={openPortfolioDetail}
+            openBulkImporter={() => openTreasuryImporter("receivables")}
             openPurchaseOrderEdit={openPurchaseOrderEdit}
             openReceiptCreate={openReceiptCreate}
             poDraft={poDraft}
@@ -724,6 +992,7 @@ export function TreasuryModule(props) {
             openIssuedOrderEdit={openIssuedOrderEdit}
             openPayableCreate={openPayableCreate}
             openPayableEdit={openPayableEdit}
+            openBulkImporter={() => openTreasuryImporter("payables")}
             openProviderCreate={openProviderCreate}
             openProviderEdit={openProviderEdit}
             payablePeriodFilter={payablePeriodFilter}
@@ -788,6 +1057,13 @@ export function TreasuryModule(props) {
             }
           })();
         }}
+      />
+      <TreasuryBulkImporterModal
+        open={Boolean(importerMode)}
+        mode={importerMode || "payables"}
+        applying={importingTreasury}
+        onClose={closeTreasuryImporter}
+        onApply={applyTreasuryImport}
       />
     </div>
   );

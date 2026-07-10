@@ -114,6 +114,7 @@ export function TreasuryReceivablesSection({
   deleteReceipt,
   facturas,
   openPortfolioDetail,
+  openBulkImporter,
   openPurchaseOrderEdit,
   openReceiptCreate,
   openReceiptEdit,
@@ -166,6 +167,7 @@ export function TreasuryReceivablesSection({
               empresa={props.empresa}
             />
           }
+          createAction={canManageTreasury ? <GBtn onClick={openBulkImporter}>Importar</GBtn> : null}
           canManage={false}
         />
         <ReceivablesTable
@@ -476,6 +478,7 @@ export function TreasuryPayablesSection({
   openDisbursementEdit,
   openIssuedOrderCreate,
   openIssuedOrderEdit,
+  openBulkImporter,
   openPayableCreate,
   openPayableEdit,
   openProviderCreate,
@@ -530,7 +533,12 @@ export function TreasuryPayablesSection({
                   empresa={empresa}
                 />
               }
-              createAction={canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}
+              createAction={canManageTreasury ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <GBtn onClick={openBulkImporter}>Importar</GBtn>
+                  <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn>
+                </div>
+              ) : null}
               canManage={canManageTreasury}
             />
             <PayablesTable
@@ -584,6 +592,7 @@ export function TreasuryPayablesSection({
                 empresa={empresa}
               />
             }
+            importAction={canManageTreasury ? <GBtn onClick={openBulkImporter}>Importar</GBtn> : null}
             isMobile={isMobile}
           />
         )}

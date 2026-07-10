@@ -137,7 +137,7 @@ export function AppViewRenderer({
     case "facturacion":
       return withFullFrame(<ViewFact {...VP} treasury={modules.treasuryProps} setFacturas={modules.setters.setFacturas} setMovimientos={modules.setters.setMovimientos} emitFacturaToBsale={modules.emitFacturaToBsale} syncFacturaWithBsale={modules.syncFacturaWithBsale} inspectFacturaBsaleSync={modules.inspectFacturaBsaleSync} />);
     case treasuryModuleId:
-      return withFullFrame(<TreasuryModule {...VP} treasury={modules.treasuryProps} />);
+      return withFullFrame(<TreasuryModule {...VP} treasury={modules.treasuryProps} setClientes={modules.setters.setClientes} />);
     case "activos":
       return withFullFrame(<ViewActivos {...VP} setActivos={modules.setters.setActivos} setCrew={modules.setters.setCrew} setListas={modules.setters.setListas} fmtM={fmtM} fmtD={fmtD} />);
     default:

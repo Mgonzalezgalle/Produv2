@@ -60,82 +60,6 @@ function summarizeMovementLog(rows = []) {
   };
 }
 
-function buildTreasuryControlSummary({
-  receivables = [],
-  payables = [],
-  receiptLog = [],
-  disbursementLog = [],
-  providers = [],
-} = {}) {
-  const cxcOverdue = receivables.filter(row => {
-    const state = `${row?.bucket || ""} ${row?.cobranza || ""}`.toLowerCase();
-    return state.includes("venc") || state.includes("retras");
-  }).length;
-  const cxpOverdue = payables.filter(row => String(row?.status || "").toLowerCase().includes("venc")).length;
-  const unlinkedReceipts = receiptLog.filter(row => !row?.targetId || String(row?.targetStatus || "").toLowerCase().includes("no encontrado")).length;
-  const unlinkedDisbursements = disbursementLog.filter(row => !row?.targetId || String(row?.targetStatus || "").toLowerCase().includes("no encontrado")).length;
-  const incompleteProviders = providers.filter(provider => {
-    const contacts = Array.isArray(provider?.contactos) ? provider.contactos : [];
-    const bankAccounts = Array.isArray(provider?.bankAccounts) ? provider.bankAccounts : [];
-    return !String(provider?.rut || "").trim() || contacts.length === 0 || bankAccounts.length === 0;
-  }).length;
-  const issues = cxcOverdue + cxpOverdue + unlinkedReceipts + unlinkedDisbursements + incompleteProviders;
-  const score = Math.max(0, 100 - Math.min(85, (cxcOverdue + cxpOverdue) * 10 + (unlinkedReceipts + unlinkedDisbursements) * 14 + incompleteProviders * 4));
-  const status = score >= 90 ? "Sólida" : score >= 75 ? "En control" : score >= 55 ? "Requiere revisión" : "Crítica";
-  const tone = score >= 90 ? "green" : score >= 75 ? "cyan" : score >= 55 ? "yellow" : "red";
-  const nextActions = [
-    unlinkedReceipts || unlinkedDisbursements ? "Conciliar pagos sin documento asociado." : "",
-    cxcOverdue ? "Priorizar cobranza vencida antes de nuevos envíos." : "",
-    cxpOverdue ? "Revisar egresos vencidos y fechas comprometidas." : "",
-    incompleteProviders ? "Completar RUT, contacto y cuenta bancaria de proveedores." : "",
-  ].filter(Boolean);
-  return {
-    score,
-    status,
-    tone,
-    issues,
-    cxcOverdue,
-    cxpOverdue,
-    unlinkedReceipts,
-    unlinkedDisbursements,
-    incompleteProviders,
-    nextActions,
-  };
-}
-
-function TreasuryControlPanel({ summary }) {
-  if (!summary) return null;
-  const cards = [
-    { label: "Salud operativa", value: `${summary.score}%`, sub: summary.status, color: "#2b6df6" },
-    { label: "Pagos por conciliar", value: String(summary.unlinkedReceipts + summary.unlinkedDisbursements), sub: "sin documento asociado", color: summary.unlinkedReceipts + summary.unlinkedDisbursements ? "#ffcc44" : "#00e08a" },
-    { label: "Vencimientos", value: String(summary.cxcOverdue + summary.cxpOverdue), sub: "CxC y CxP con atraso", color: summary.cxcOverdue + summary.cxpOverdue ? "#ff5566" : "#00e08a" },
-    { label: "Proveedores incompletos", value: String(summary.incompleteProviders), sub: "faltan datos maestros", color: summary.incompleteProviders ? "#a78bfa" : "#00e08a" },
-  ];
-  return (
-    <SectionCard
-      title="Control financiero"
-      subtitle="Lectura rápida de calidad operativa para detectar riesgos antes de que lleguen a cobranza, pagos o portales."
-      action={<Badge label={summary.status} color={summary.tone} sm />}
-      emphasis
-    >
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,190px),1fr))", gap: 12 }}>
-        {cards.map(card => (
-          <div key={card.label} style={{ border: "1px solid var(--bdr2)", borderRadius: 16, padding: "14px 15px", background: "linear-gradient(180deg,#ffffff,#f8fbff)", boxShadow: "0 10px 24px rgba(148,163,184,.12)" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.25, textTransform: "uppercase", color: "var(--gr2)", marginBottom: 8 }}>{card.label}</div>
-            <div style={{ fontFamily: "var(--fh)", fontSize: 24, lineHeight: 1, fontWeight: 850, color: card.color }}>{card.value}</div>
-            <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 8 }}>{card.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "rgba(43,109,246,.06)", color: "var(--gr3)", fontSize: 12, lineHeight: 1.6 }}>
-        {summary.nextActions.length
-          ? summary.nextActions.map(action => <div key={action}>• {action}</div>)
-          : "Todo se ve alineado: pagos, vencimientos y datos maestros están en buen estado operativo."}
-      </div>
-    </SectionCard>
-  );
-}
-
 async function openPdfSourceInNewTab(src = "", fallbackName = "documento.pdf") {
   const trimmedSrc = String(src || "").trim();
   if (!trimmedSrc) return false;
@@ -375,16 +299,6 @@ export function TreasuryModule(props) {
   const disbursementSummary = useMemo(() => summarizeMovementLog(disbursementLog), [disbursementLog]);
   const disbursementTable = useTableState(filteredDisbursementLog, { searchFields: [row => row.targetLabel, row => row.counterpartyLabel, row => row.reference, row => row.method], pageSize: 6 });
   const providerTable = useTableState(providers, { searchFields: [row => row.name, row => row.razonSocial, row => row.rut], pageSize: 6 });
-  const treasuryControlSummary = useMemo(
-    () => buildTreasuryControlSummary({
-      receivables: filteredReceivables,
-      payables,
-      receiptLog,
-      disbursementLog,
-      providers,
-    }),
-    [filteredReceivables, payables, receiptLog, disbursementLog, providers],
-  );
   const providerPaymentRows = useMemo(() => {
     if (!providerDraft?.name) return [];
     return (disbursementLog || []).filter(row => row.counterpartyLabel === providerDraft.name);
@@ -722,7 +636,6 @@ export function TreasuryModule(props) {
           </div>
         </div>
       </div>
-      <TreasuryControlPanel summary={treasuryControlSummary} />
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>
         <button className={`treasury-tab ${tab === 1 ? "active" : ""}`} onClick={() => setTab(1)}>Cuentas por Pagar</button>

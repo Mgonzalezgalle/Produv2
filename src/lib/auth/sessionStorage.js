@@ -142,7 +142,7 @@ export function saveStoredJson(storageKey, value) {
     const primary = getSessionStore();
     const legacy = getLegacyStore();
     primary?.setItem(storageKey, raw);
-    legacy?.removeItem(storageKey);
+    legacy?.setItem(storageKey, raw);
   } catch (error) {
     warnSessionStorage("Unable to save session payload", error, { storageKey });
   }

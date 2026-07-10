@@ -184,11 +184,13 @@ export function useLabPlatformFoundation({
             platformGateway,
           })
     ),
-    [platformApiMode, authService, authGateway, users, empresas, platformGateway],
+    [platformApiMode, authService, authGateway, users, empresas, sessionKey, platformGateway],
   );
 
   useEffect(() => {
     if (!storedSession || !Array.isArray(users) || !Array.isArray(empresas)) return;
+    if (!users.length) return;
+    if (storedSession?.empId && !empresas.length) return;
     let cancelled = false;
     const restore = platformApi?.auth?.restoreSession
       ? platformApi.auth.restoreSession({ storedSession })

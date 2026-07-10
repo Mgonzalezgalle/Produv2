@@ -81,14 +81,6 @@ export const PLATFORM_API_CONTRACTS = {
       responseShape: ["sessionRecord", "externalSync"],
     },
   },
-  tax: {
-    fetchSiiRcvReport: {
-      method: "POST",
-      path: "/api/integrations/tax/sii/rcv/report",
-      requestShape: ["tenantId", "operation", "period", "credentials", "certificate"],
-      responseShape: ["provider", "operation", "period", "data", "message"],
-    },
-  },
 };
 
 export function getPlatformApiContracts() {

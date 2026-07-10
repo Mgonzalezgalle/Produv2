@@ -64,21 +64,6 @@ export function createMockPlatformApiAdapter({
       },
     },
 
-    tax: {
-      async fetchSiiRcvReport(payload = {}) {
-        if (!platformGateway?.fetchSiiRcvReport) {
-          return {
-            ok: false,
-            source: "mock",
-            provider: "simpleapi",
-            message: "La consulta RCV del SII no está disponible en modo mock.",
-            payload,
-          };
-        }
-        return platformGateway.fetchSiiRcvReport(payload);
-      },
-    },
-
     notifications: {
       async sendTransactionalEmail(payload = {}) {
         if (!platformGateway?.sendTransactionalEmail) {

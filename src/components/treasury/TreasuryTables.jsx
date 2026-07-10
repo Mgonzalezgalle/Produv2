@@ -8,12 +8,14 @@ export function TableToolbar({
   searchValue,
   onSearchChange,
   searchPlaceholder,
+  filters = [],
   statusValue,
   onStatusChange,
   statusOptions = [],
   selectedCount = 0,
   onDeleteSelected,
   onClearSelection,
+  exportAction,
   createAction,
   canManage = false,
 }) {
@@ -21,7 +23,9 @@ export function TableToolbar({
     <>
       <div className="treasury-toolbar">
         <SearchBar value={searchValue} onChange={onSearchChange} placeholder={searchPlaceholder} />
+        {Array.isArray(filters) ? filters.map(item => item) : null}
         {statusOptions.length ? <FilterSel value={statusValue} onChange={onStatusChange} options={statusOptions} placeholder="Todo estados" /> : null}
+        {exportAction || null}
         {createAction || null}
       </div>
       {selectedCount ? (

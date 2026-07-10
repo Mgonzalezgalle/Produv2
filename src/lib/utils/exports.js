@@ -286,26 +286,122 @@ export async function exportEpisodiosPDF(episodios = [], programa = {}, empresa 
 }
 
 export function exportTreasuryPayablesCSV(rows = [], nombre = "cuentas_por_pagar") {
-  const headers = ["Proveedor", "Tipo documento", "Folio", "Categoria", "Fecha emision", "Fecha vencimiento", "Fecha estimada pago", "Estado", "Total", "Pagado", "Pendiente"];
-  const safeRows = (Array.isArray(rows) ? rows : []).map(row => [
-    String(row?.supplier || "—").replace(/,/g, " "),
-    String(row?.docType || "—").replace(/,/g, " "),
-    String(row?.folio || "—").replace(/,/g, " "),
-    String(row?.category || "—").replace(/,/g, " "),
-    String(row?.issueDate || "—"),
-    String(row?.dueDate || "—"),
-    String(row?.paymentDate || "—"),
-    String(row?.status || "Pendiente").replace(/,/g, " "),
-    Number(row?.total || 0),
-    Number(row?.paid || 0),
-    Number(row?.pending || 0),
-  ]);
-  const csv = [headers, ...safeRows].map(r => r.join(",")).join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${String(nombre || "cuentas_por_pagar").replace(/\s+/g, "_").toLowerCase()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  return exportTreasuryRowsCSV({
+    rows,
+    columns: [
+      { label: "Proveedor", value: row => row?.supplier || "—" },
+      { label: "Tipo documento", value: row => row?.docType || "—" },
+      { label: "Folio", value: row => row?.folio || "—" },
+      { label: "Categoria", value: row => row?.category || "—" },
+      { label: "Fecha emision", value: row => row?.issueDate || "—" },
+      { label: "Fecha vencimiento", value: row => row?.dueDate || "—" },
+      { label: "Fecha estimada pago", value: row => row?.paymentDate || "—" },
+      { label: "Estado", value: row => row?.status || "Pendiente" },
+      { label: "Total", value: row => Number(row?.total || 0) },
+      { label: "Pagado", value: row => Number(row?.paid || 0) },
+      { label: "Pendiente", value: row => Number(row?.pending || 0) },
+    ],
+    fileName: nombre,
+  });
+}
+
+function escapeDelimitedValue(value = "") {
+  const raw = String(value ?? "");
+  if (!/[",\n;]/.test(raw)) return raw;
+  return `"${raw.replace(/"/g, '""')}"`;
+}
+
+function escapeHtmlCell(value = "") {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function normalizeExportFileName(fileName = "produ_export") {
+  return slugFileName(fileName || "produ_export");
+}
+
+function resolveExportCell(column, row) {
+  const raw = typeof column?.value === "function" ? column.value(row) : row?.[column?.key];
+  return raw == null || raw === "" ? "—" : raw;
+}
+
+function exportDelimited({ rows = [], columns = [], fileName = "produ_export", separator = ",", extension = "csv" } = {}) {
+  const safeColumns = Array.isArray(columns) ? columns : [];
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const headers = safeColumns.map(column => escapeDelimitedValue(column.label || column.key || ""));
+  const body = safeRows.map(row => safeColumns.map(column => escapeDelimitedValue(resolveExportCell(column, row))));
+  const csv = [headers, ...body].map(line => line.join(separator)).join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `${normalizeExportFileName(fileName)}.${extension}`);
+}
+
+export function exportTreasuryRowsCSV({ rows = [], columns = [], fileName = "tesoreria" } = {}) {
+  exportDelimited({ rows, columns, fileName, separator: ",", extension: "csv" });
+}
+
+export function exportTreasuryRowsXLS({ rows = [], columns = [], fileName = "tesoreria" } = {}) {
+  const safeColumns = Array.isArray(columns) ? columns : [];
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const html = `<!DOCTYPE html>
+    <html><head><meta charset="UTF-8"></head><body>
+      <table>
+        <thead><tr>${safeColumns.map(column => `<th>${escapeHtmlCell(column.label || column.key || "")}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${safeRows.map(row => `<tr>${safeColumns.map(column => `<td>${escapeHtmlCell(resolveExportCell(column, row))}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+    </body></html>`;
+  const blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  downloadBlob(blob, `${normalizeExportFileName(fileName)}.xls`);
+}
+
+export async function exportTreasuryRowsPDF({
+  rows = [],
+  columns = [],
+  fileName = "tesoreria",
+  title = "Reporte de Tesorería",
+  subtitle = "",
+  empresa = null,
+  accent = "#1a1a2e",
+} = {}) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const safeColumns = Array.isArray(columns) ? columns : [];
+  const buildModernPdf = await getModernPdfRuntime();
+  const bodySections = safeRows.length
+    ? safeRows.map((row, index) => {
+        const primary = safeColumns[0] ? resolveExportCell(safeColumns[0], row) : `Registro ${index + 1}`;
+        const secondary = safeColumns[1] ? resolveExportCell(safeColumns[1], row) : "";
+        return {
+          title: `${String(primary || "Registro")} ${secondary && secondary !== "—" ? `· ${secondary}` : ""}`,
+          rows: safeColumns.slice(2).map(column => ({
+            label: column.label || column.key || "Dato",
+            value: String(resolveExportCell(column, row)),
+          })),
+        };
+      })
+    : [{
+        title: "Sin registros",
+        text: "No hay datos para exportar en esta vista.",
+      }];
+  const file = await buildModernPdf({
+    fileName: `${normalizeExportFileName(fileName)}.pdf`,
+    title,
+    accent,
+    empresa,
+    counterpartTitle: "Vista exportada",
+    counterpartName: subtitle || "Tesorería",
+    counterpartLines: [`Registros: ${safeRows.length}`],
+    metaLines: [
+      `Generado: ${new Date().toLocaleDateString("es-CL")}`,
+      empresa?.nombre || empresa?.nom ? `Empresa: ${empresa?.nombre || empresa?.nom}` : "",
+    ].filter(Boolean),
+    bodySections,
+    footerPrimary: "Hecho con amor por Produ.",
+    footerSecondary: "Plataforma de Gestión de Empresas",
+  });
+  downloadBlob(file, file.name || `${normalizeExportFileName(fileName)}.pdf`);
 }

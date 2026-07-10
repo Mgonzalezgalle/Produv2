@@ -20,6 +20,7 @@ export function ProvidersPanel({
   toggleSelected,
   toggleAll,
   pageIds = [],
+  exportAction,
   isMobile = false,
 }) {
   const [vista, setVista] = useState(() => (isMobile ? "cards" : "list"));
@@ -29,6 +30,7 @@ export function ProvidersPanel({
         <div className="treasury-toolbar">
           <SearchBar value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Buscar proveedor..." />
           <ViewModeToggle value={vista} onChange={setVista} />
+          {exportAction || null}
           {canManage ? <GBtn onClick={onCreate}>+ Nuevo proveedor</GBtn> : null}
         </div>
         <EmptyInsideCard text="Sin proveedores registrados" sub="Crea el primero y luego podrás asociarlo a documentos y órdenes emitidas." />
@@ -40,6 +42,7 @@ export function ProvidersPanel({
       <div className="treasury-toolbar">
         <SearchBar value={query} onChange={value => { setQuery(value); setPage(1); }} placeholder="Buscar proveedor..." />
         <ViewModeToggle value={vista} onChange={setVista} />
+        {exportAction || null}
         {canManage ? <GBtn onClick={onCreate}>+ Nuevo proveedor</GBtn> : null}
       </div>
       {selectedIds.length ? <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)" }}><div style={{ fontSize: 12, fontWeight: 700, color: "var(--wh)" }}>{selectedIds.length} seleccionado{selectedIds.length === 1 ? "" : "s"}</div>{canManage ? <DBtn sm onClick={onDelete}>Eliminar seleccionados</DBtn> : null}</div> : null}

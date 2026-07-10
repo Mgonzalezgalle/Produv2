@@ -1,8 +1,13 @@
 import React from "react";
 import { FilterSel, GBtn, Paginator } from "../../lib/ui/components";
 import { notifyUserFacingError } from "../../lib/ui/userFacingErrors";
-import { exportTreasuryPayablesCSV } from "../../lib/utils/exports";
+import {
+  exportTreasuryRowsCSV,
+  exportTreasuryRowsPDF,
+  exportTreasuryRowsXLS,
+} from "../../lib/utils/exports";
 import { fmtM } from "../../lib/utils/helpers";
+import { formatTreasuryMoney } from "../../lib/utils/treasury";
 import { MiniKpiCard } from "./TreasuryShared";
 import {
   IssuedOrdersTable,
@@ -16,6 +21,92 @@ import {
 import { ProvidersPanel } from "./TreasuryDetails";
 import { SectionCard } from "./TreasuryCore";
 import { TreasuryPaymentModal } from "./TreasuryPaymentModal";
+
+function selectedOrFilteredRows(tableState, getId = row => row?.id) {
+  const selectedIds = Array.isArray(tableState?.selectedIds) ? tableState.selectedIds : [];
+  const rows = Array.isArray(tableState?.filteredRows) ? tableState.filteredRows : [];
+  if (!selectedIds.length) return rows;
+  const selected = new Set(selectedIds);
+  return rows.filter(row => selected.has(getId(row)));
+}
+
+function TreasuryExportActions({ tableState, columns, fileName, title, subtitle, empresa, getId }) {
+  const rows = selectedOrFilteredRows(tableState, getId);
+  const exportLabel = tableState?.selectedIds?.length ? "seleccionados" : "vista";
+  const exportPayload = { rows, columns, fileName, title, subtitle, empresa, accent: "#1a1a2e" };
+  return (
+    <div className="treasury-export-actions" aria-label={`Descargar ${exportLabel}`}>
+      <GBtn sm onClick={() => exportTreasuryRowsXLS(exportPayload)}>XLS</GBtn>
+      <GBtn sm onClick={() => exportTreasuryRowsCSV(exportPayload)}>CSV</GBtn>
+      <GBtn sm onClick={() => { void exportTreasuryRowsPDF(exportPayload); }}>PDF</GBtn>
+    </div>
+  );
+}
+
+const receivableExportColumns = [
+  { label: "Documento", value: row => row?.correlativo || "—" },
+  { label: "Entidad", value: row => row?.entidad || "—" },
+  { label: "Tipo", value: row => row?.tipoDoc || "Documento" },
+  { label: "Emisión", value: row => row?.fechaEmision || "—" },
+  { label: "Vencimiento", value: row => row?.fechaVencimiento || "—" },
+  { label: "Cobranza", value: row => row?.cobranza || "—" },
+  { label: "Total", value: row => fmtM(row?.total || 0) },
+  { label: "Pendiente", value: row => fmtM(row?.pending || 0) },
+];
+
+const purchaseOrderExportColumns = [
+  { label: "OC", value: row => row?.number || "—" },
+  { label: "Cliente", value: row => row?.clientName || "—" },
+  { label: "Fecha", value: row => row?.issueDate || "—" },
+  { label: "Estado OC", value: row => row?.status || "—" },
+  { label: "Estado factura", value: row => row?.billingStatus || "—" },
+  { label: "Monto", value: row => fmtM(row?.amount || 0) },
+  { label: "Pendiente OC", value: row => fmtM(row?.pendingAmount || 0) },
+];
+
+const paymentLogExportColumns = [
+  { label: "Fecha", value: row => row?.date || "—" },
+  { label: "Documento", value: row => row?.targetLabel || "—" },
+  { label: "Contraparte", value: row => row?.counterpartyLabel || "—" },
+  { label: "Método", value: row => row?.method || "—" },
+  { label: "Referencia", value: row => row?.reference || "—" },
+  { label: "Monto", value: row => fmtM(row?.amount || 0) },
+];
+
+const payableExportColumns = [
+  { label: "Proveedor", value: row => row?.supplier || "—" },
+  { label: "Documento", value: row => row?.folio || "—" },
+  { label: "Tipo", value: row => row?.docType || "Documento" },
+  { label: "Categoría", value: row => row?.category || "—" },
+  { label: "Emisión", value: row => row?.issueDate || "—" },
+  { label: "Vencimiento", value: row => row?.dueDate || "—" },
+  { label: "Pago estimado", value: row => row?.paymentDate || "—" },
+  { label: "Estado", value: row => row?.status || "Pendiente" },
+  { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Pagado", value: row => formatTreasuryMoney(row?.paid || 0, row?.currency) },
+  { label: "Pendiente", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency) },
+];
+
+const providerExportColumns = [
+  { label: "Proveedor", value: row => row?.name || "—" },
+  { label: "RUT", value: row => row?.rut || "—" },
+  { label: "Email", value: row => row?.email || row?.contactos?.[0]?.email || row?.contactos?.[0]?.ema || "—" },
+  { label: "Teléfono", value: row => row?.telefono || row?.contactos?.[0]?.telefono || row?.contactos?.[0]?.tel || "—" },
+  { label: "Documentos", value: row => row?.payables?.length || 0 },
+  { label: "OC emitidas", value: row => row?.issuedOrders?.length || 0 },
+  { label: "Cartera proveedor", value: row => fmtM(row?.totalDebt || 0) },
+  { label: "Pendiente", value: row => fmtM(row?.pending || 0) },
+];
+
+const issuedOrderExportColumns = [
+  { label: "OC", value: row => row?.number || "—" },
+  { label: "Proveedor", value: row => row?.supplier || "—" },
+  { label: "Fecha", value: row => row?.issueDate || "—" },
+  { label: "Categoría", value: row => row?.category || "—" },
+  { label: "Centro de costo", value: row => row?.costCenter || "—" },
+  { label: "Monto", value: row => fmtM(row?.amount || 0) },
+  { label: "Enviada a", value: row => row?.lastSentTo || "—" },
+];
 
 export function TreasuryReceivablesSection({
   canManageTreasury,
@@ -65,6 +156,16 @@ export function TreasuryReceivablesSection({
           selectedCount={receivableTable.selectedIds.length}
           onDeleteSelected={null}
           onClearSelection={receivableTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={receivableTable}
+              columns={receivableExportColumns}
+              fileName="cuentas_por_cobrar"
+              title="Cuentas por Cobrar"
+              subtitle="Documentos de cobranza"
+              empresa={props.empresa}
+            />
+          }
           canManage={false}
         />
         <ReceivablesTable
@@ -264,6 +365,16 @@ export function TreasuryReceivablesSection({
           selectedCount={props.poTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await props.deleteMany(props.poTable.selectedIds, props.deletePurchaseOrder); props.poTable.clearSelection(); } : null}
           onClearSelection={props.poTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={props.poTable}
+              columns={purchaseOrderExportColumns}
+              fileName="ordenes_de_compra_recibidas"
+              title="Órdenes de Compra Recibidas"
+              subtitle="Documentos recibidos de clientes"
+              empresa={props.empresa}
+            />
+          }
           canManage={canManageTreasury}
         />
         <PurchaseOrdersTable
@@ -295,6 +406,16 @@ export function TreasuryReceivablesSection({
           selectedCount={receiptTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await deleteMany(receiptTable.selectedIds, deleteReceipt); receiptTable.clearSelection(); } : null}
           onClearSelection={receiptTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={receiptTable}
+              columns={paymentLogExportColumns}
+              fileName="pagos_recibidos"
+              title="Pagos recibidos"
+              subtitle="Pagos registrados en cuentas por cobrar"
+              empresa={props.empresa}
+            />
+          }
           canManage={canManageTreasury}
         />
         <PaymentLogTable
@@ -345,7 +466,6 @@ export function TreasuryPayablesSection({
   handleSupplierEmail,
   handleSupplierStatementEmail,
   handleSupplierWhatsApp,
-  issuedOrderSummary,
   sendIssuedOrderEmail,
   openIssuedOrderPdf,
   openIssuedOrderDetail,
@@ -365,7 +485,6 @@ export function TreasuryPayablesSection({
   payableSupplierFilter,
   payableSupplierOptions,
   payableTable,
-  payablesSummary,
   payablesTab,
   providerTable,
   providers,
@@ -375,6 +494,7 @@ export function TreasuryPayablesSection({
   setPayablePeriodFilter,
   setPayableSupplierFilter,
   setPayablesTab,
+  empresa = null,
   isMobile = false,
 }) {
   return (
@@ -400,7 +520,16 @@ export function TreasuryPayablesSection({
               selectedCount={payableTable.selectedIds.length}
               onDeleteSelected={canManageTreasury ? async () => { await deleteMany(payableTable.selectedIds, deletePayable); payableTable.clearSelection(); } : null}
               onClearSelection={payableTable.clearSelection}
-              exportAction={<GBtn onClick={() => exportTreasuryPayablesCSV(payableTable.filteredRows, "cxp_documentos")}>Descargar Excel / CSV</GBtn>}
+              exportAction={
+                <TreasuryExportActions
+                  tableState={payableTable}
+                  columns={payableExportColumns}
+                  fileName="cuentas_por_pagar"
+                  title="Cuentas por Pagar"
+                  subtitle="Documentos de proveedores"
+                  empresa={empresa}
+                />
+              }
               createAction={canManageTreasury ? <GBtn onClick={openPayableCreate}>+ Nuevo documento</GBtn> : null}
               canManage={canManageTreasury}
             />
@@ -445,6 +574,16 @@ export function TreasuryPayablesSection({
             toggleSelected={providerTable.toggleSelected}
             toggleAll={providerTable.toggleAll}
             pageIds={providerTable.pageIds}
+            exportAction={
+              <TreasuryExportActions
+                tableState={providerTable}
+                columns={providerExportColumns}
+                fileName="proveedores"
+                title="Proveedores"
+                subtitle="Listado de proveedores"
+                empresa={empresa}
+              />
+            }
             isMobile={isMobile}
           />
         )}
@@ -461,6 +600,16 @@ export function TreasuryPayablesSection({
           selectedCount={issuedTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await deleteMany(issuedTable.selectedIds, deleteIssuedOrder); issuedTable.clearSelection(); } : null}
           onClearSelection={issuedTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={issuedTable}
+              columns={issuedOrderExportColumns}
+              fileName="ordenes_de_compra_emitidas"
+              title="Órdenes de Compra Emitidas"
+              subtitle="Documentos emitidos a proveedores"
+              empresa={empresa}
+            />
+          }
           canManage={canManageTreasury}
         />
         <IssuedOrdersTable
@@ -495,6 +644,16 @@ export function TreasuryPayablesSection({
           selectedCount={disbursementTable.selectedIds.length}
           onDeleteSelected={canManageTreasury ? async () => { await deleteMany(disbursementTable.selectedIds, deleteDisbursement); disbursementTable.clearSelection(); } : null}
           onClearSelection={disbursementTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={disbursementTable}
+              columns={paymentLogExportColumns}
+              fileName="pagos_realizados"
+              title="Pagos realizados"
+              subtitle="Pagos registrados en cuentas por pagar"
+              empresa={empresa}
+            />
+          }
           canManage={canManageTreasury}
         />
         <PaymentLogTable

@@ -68,6 +68,7 @@ export function TreasuryStyles() {
       .treasury-provider-meta .meta-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.2px;font-size:10px;margin-bottom:6px}
       .treasury-provider-meta .meta-value{color:var(--wh);font-family:var(--fm);font-size:13px}
       .treasury-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+      .treasury-export-actions{display:inline-flex;align-items:center;gap:6px;padding:4px;border:1px solid var(--bdr2);border-radius:999px;background:rgba(248,251,255,.88);box-shadow:0 8px 18px rgba(148,163,184,.12)}
       .treasury-list{border:1px solid var(--bdr);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#ffffff,var(--card2))}
       .treasury-list-row{display:grid;grid-template-columns:minmax(220px,1.4fr) repeat(4,minmax(0,1fr)) auto;gap:14px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--bdr);transition:.15s ease;cursor:pointer}
       .treasury-list-row:hover{background:var(--sur)}
@@ -94,6 +95,10 @@ export function TreasuryStyles() {
         background:#ffffff;
         border-color:#d7dee8;
         color:var(--gr2);
+      }
+      body.light .treasury-export-actions{
+        background:#ffffff;
+        border-color:#d7dee8;
       }
       body.light .treasury-tab.active,
       body.light .treasury-subtab.active{

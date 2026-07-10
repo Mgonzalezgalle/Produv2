@@ -122,6 +122,11 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       <FG label="Notas">
         <FTA value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Comentarios internos, compromiso de pago, etc." />
       </FG>
+      <FG label="Estado">
+        <FSl value={form.status || "Pendiente"} onChange={e => setField("status", e.target.value)}>
+          {["Pendiente", "Parcial", "Pagada", "Vencida", "Anulada"].map(option => <option key={option} value={option}>{option}</option>)}
+        </FSl>
+      </FG>
       <ValidationBanner title={validationIssue?.title} detail={validationIssue?.detail} />
       <MFoot
         onClose={onClose}
@@ -134,7 +139,7 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
             total: Number(form.total || 0),
             currency: normalizeTreasuryCurrency(form.currency || "CLP"),
             paid: 0,
-            status: "Pendiente",
+            status: form.status || "Pendiente",
           });
         }}
       />

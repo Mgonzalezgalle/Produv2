@@ -227,7 +227,7 @@ export function TreasuryModule(props) {
   }, [createStatementEmailDraft, openEmailComposer]);
   const receivableTable = useTableState(filteredReceivables, {
     searchFields: [row => row.correlativo, row => row.entidad],
-    statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Por vencer", "Vencido", "Ajuste crédito"],
+    statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Anulado", "Por vencer", "Vencido", "Ajuste crédito"],
     getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza,
     isSelectable: row => row?.allowsManualReceipts !== false || row?.collectionEditable !== false,
   });
@@ -269,7 +269,7 @@ export function TreasuryModule(props) {
     () => Array.from(new Set(payables.map(row => String(row.issueDate || row.dueDate || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
     [payables],
   );
-  const payableTable = useTableState(filteredPayables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida"], getStatus: row => row.status, pageSize: 6 });
+  const payableTable = useTableState(filteredPayables, { searchFields: [row => row.supplier, row => row.folio], statusOptions: ["Pendiente", "Parcial", "Pagada", "Vencida", "Anulada"], getStatus: row => row.status, pageSize: 6 });
   const filteredIssuedOrders = useMemo(
     () => issuedOrders.filter(row => !issuedSupplierFilter || row.supplier === issuedSupplierFilter),
     [issuedOrders, issuedSupplierFilter],

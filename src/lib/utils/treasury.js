@@ -134,6 +134,7 @@ export function countPendingTreasury(facturas = [], empId = "") {
       item?.empId === empId
       && requiresProduCollectionTracking(item.documentTypeCode || item.tipoDocumento || item.tipoDoc)
       && cobranzaState(item) !== "Pagado"
+      && cobranzaState(item) !== "Anulado"
     ))
     .length;
 }
@@ -316,9 +317,10 @@ export function recoverTreasuryPayables({ payables = [], providers = [], disburs
 
 function receivableBucket(doc = {}) {
   const dueDate = doc.fechaVencimiento || "";
-  if (!dueDate) return "Sin vencimiento";
   const state = cobranzaState(doc);
+  if (state === "Anulado") return "Anulado";
   if (state === "Pagado") return "Pagado";
+  if (!dueDate) return "Sin vencimiento";
   if (dueDate < today()) return "Vencido";
   return "Por vencer";
 }
@@ -343,9 +345,10 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
       const billingTypeCode = doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc;
       const multiplier = getProduBillingFinancialMultiplier(billingTypeCode);
       const baseTotal = Number(doc?.total || 0);
-      const total = baseTotal * multiplier;
       const state = cobranzaState(doc);
-      const allowsManualReceipts = multiplier > 0 && requiresProduCollectionTracking(billingTypeCode);
+      const isVoided = state === "Anulado";
+      const total = isVoided ? 0 : baseTotal * multiplier;
+      const allowsManualReceipts = !isVoided && multiplier > 0 && requiresProduCollectionTracking(billingTypeCode);
       const paymentHistory = allowsManualReceipts
         ? normalizePayments(receipts, empId, "invoiceId", doc.id, [
           doc.correlativo,
@@ -355,15 +358,15 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         ])
         : [];
       const manualPaid = paymentHistory.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const paidBase = state === "Pagado" ? baseTotal : Math.min(baseTotal, manualPaid);
+      const paidBase = isVoided ? 0 : (state === "Pagado" ? baseTotal : Math.min(baseTotal, manualPaid));
       const paid = paidBase * multiplier;
-      const pending = (baseTotal - paidBase) * multiplier;
-      const cobranza = multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? "Pagado" : state);
+      const pending = isVoided ? 0 : (baseTotal - paidBase) * multiplier;
+      const cobranza = isVoided ? "Anulado" : (multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? "Pagado" : state));
       const entityName = invoiceEntityName(doc, clientes, auspiciadores);
       const relatedClientId = invoiceRelatedClientId(doc, auspiciadores);
       const sponsorName = invoiceSponsorName(doc, auspiciadores);
       const referenceSummary = buildProduBillingReferenceSummary(doc);
-      const bucket = multiplier < 0 ? "Ajuste" : (pending <= 0 ? "Pagado" : (state === "Pagado" ? "Pagado" : receivableBucket(doc)));
+      const bucket = isVoided ? "Anulado" : (multiplier < 0 ? "Ajuste" : (pending <= 0 ? "Pagado" : (state === "Pagado" ? "Pagado" : receivableBucket(doc))));
       return {
         id: doc.id,
         correlativo: doc.correlativo || doc.tipoDoc || "Sin correlativo",
@@ -473,16 +476,18 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
   return (Array.isArray(payables) ? payables : [])
     .filter(item => item?.empId === empId)
     .map(item => {
-      const total = Number(item.total || 0);
+      const savedStatus = String(item?.status || "").trim();
+      const isVoided = savedStatus === "Anulada";
+      const total = isVoided ? 0 : Number(item.total || 0);
       const paymentHistory = normalizePayments(disbursements, empId, "payableId", item.id, [
         item.folio,
         item.number,
         item.documentNumber,
-      ]);
+      ]).filter(() => !isVoided);
       const paid = paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const pending = Math.max(0, total - paid);
       const dueDate = item.dueDate || "";
-      const status = pending <= 0 ? "Pagada" : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente"));
+      const status = isVoided ? "Anulada" : (pending <= 0 ? "Pagada" : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente")));
       return {
         ...item,
         docType: normalizeTreasuryPayableDocumentLabel(item.docType || item.category || ""),

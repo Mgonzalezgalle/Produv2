@@ -5,6 +5,7 @@ import { fmtD, fmtM } from "../../lib/utils/helpers";
 function statusTone(label = "") {
   const value = String(label || "").toLowerCase();
   if (value.includes("pagad")) return "#00e08a";
+  if (value.includes("anulad")) return "#64748b";
   if (value.includes("vencid")) return "#ff5566";
   if (value.includes("pend") || value.includes("parcial") || value.includes("retras")) return "#ffcc44";
   if (value.includes("concili")) return "#00d4e8";

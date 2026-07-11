@@ -1,6 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { diioWebhookCorsHeaders as corsHeaders, handleCors } from "../_shared/cors.ts";
 import { createJsonResponder } from "../_shared/http.ts";
+import {
+  createSupabaseServiceRoleClient,
+  readSupabaseServiceRoleEnv,
+  type SupabaseServiceRoleClient,
+} from "../_shared/supabaseClient.ts";
 
 const json = createJsonResponder(corsHeaders);
 
@@ -420,7 +424,7 @@ async function hmacSha256Hex(secret: string, value: string) {
   return Array.from(new Uint8Array(signature)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function loadStorageJson(client: ReturnType<typeof createClient>, key: string) {
+async function loadStorageJson(client: SupabaseServiceRoleClient, key: string) {
   const { data, error } = await client.from("storage").select("value").eq("key", key).maybeSingle();
   if (error) throw error;
   if (!data?.value) return null;
@@ -431,12 +435,12 @@ async function loadStorageJson(client: ReturnType<typeof createClient>, key: str
   }
 }
 
-async function loadQueue(client: ReturnType<typeof createClient>, key: string) {
+async function loadQueue(client: SupabaseServiceRoleClient, key: string) {
   const parsed = await loadStorageJson(client, key);
   return Array.isArray(parsed) ? parsed : [];
 }
 
-async function loadEmpresas(client: ReturnType<typeof createClient>) {
+async function loadEmpresas(client: SupabaseServiceRoleClient) {
   const parsed = await loadStorageJson(client, getEmpresasStorageKey());
   return Array.isArray(parsed) ? parsed : [];
 }
@@ -491,8 +495,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "invalid_json", message: "El webhook Diio no trae JSON válido." }, 400);
   }
 
-  const supabaseUrl = firstString(Deno.env.get("SUPABASE_URL"));
-  const supabaseServiceRoleKey = firstString(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  const { supabaseUrl, serviceRoleKey } = readSupabaseServiceRoleEnv();
   const timestampHeader = String(req.headers.get("DO-Timestamp") || "").trim();
   const signatureHeader = String(req.headers.get("DO-Signature") || "").trim();
   const tenantIdFromUrl = String(url.searchParams.get("tenantId") || "").trim();
@@ -509,9 +512,9 @@ Deno.serve(async (req) => {
 
   let tenantId = firstString(tenantIdFromUrl, tenantIdFromPayload);
 
-  if (supabaseUrl && supabaseServiceRoleKey) {
+  if (supabaseUrl && serviceRoleKey) {
     try {
-      const client = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false } });
+      const client = createSupabaseServiceRoleClient(supabaseUrl, serviceRoleKey);
       const empresas = await loadEmpresas(client);
       const { empresa, tenantDiio } = resolveTenantDiioConfig(empresas, {
         tenantId,

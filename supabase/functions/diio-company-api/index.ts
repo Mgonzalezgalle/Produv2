@@ -1,6 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { createJsonResponder } from "../_shared/http.ts";
+import {
+  createSupabaseServiceRoleClient,
+  readSupabaseServiceRoleEnv,
+  type SupabaseServiceRoleClient,
+} from "../_shared/supabaseClient.ts";
 
 const json = createJsonResponder(corsHeaders);
 
@@ -36,7 +40,7 @@ function normalizeCompanyUrl(value: unknown) {
   }
 }
 
-async function loadStorageJson(client: ReturnType<typeof createClient>, key: string) {
+async function loadStorageJson(client: SupabaseServiceRoleClient, key: string) {
   const { data, error } = await client.from("storage").select("value").eq("key", key).maybeSingle();
   if (error) throw error;
   if (!data?.value) return null;
@@ -47,7 +51,7 @@ async function loadStorageJson(client: ReturnType<typeof createClient>, key: str
   }
 }
 
-async function saveStorageJson(client: ReturnType<typeof createClient>, key: string, value: unknown) {
+async function saveStorageJson(client: SupabaseServiceRoleClient, key: string, value: unknown) {
   const { error } = await client.from("storage").upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });
   if (error) throw error;
 }
@@ -80,7 +84,7 @@ function upsertQueue(records: Record<string, unknown>[] = [], interaction: Recor
   });
 }
 
-async function loadEmpresas(client: ReturnType<typeof createClient>) {
+async function loadEmpresas(client: SupabaseServiceRoleClient) {
   const parsed = await loadStorageJson(client, getEmpresasStorageKey());
   return Array.isArray(parsed) ? parsed : [];
 }
@@ -725,9 +729,8 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
 
-  const supabaseUrl = firstString(Deno.env.get("SUPABASE_URL"));
-  const supabaseServiceRoleKey = firstString(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
+  const { supabaseUrl, serviceRoleKey } = readSupabaseServiceRoleEnv();
+  if (!supabaseUrl || !serviceRoleKey) {
     return json({ ok: false, error: "missing_supabase_env", message: "Faltan credenciales server-side de Supabase." }, 500);
   }
 
@@ -745,7 +748,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const client = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false } });
+    const client = createSupabaseServiceRoleClient(supabaseUrl, serviceRoleKey);
     const empresas = await loadEmpresas(client);
     const { empresa, tenantDiio } = resolveTenant(empresas, tenantId);
     if (!empresa) {

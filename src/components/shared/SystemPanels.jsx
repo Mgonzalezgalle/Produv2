@@ -3,7 +3,7 @@ import { Badge } from "../../lib/ui/components";
 import { suggestDiioInteractionTargets } from "../../lib/integrations/diioIntegration";
 import diioLogoDark from "../../assets/diio-logo-dark.avif";
 
-export function AlertasPanel({ alertas, leidas = [], resueltas = [], onMarcar, onMarcarTodas, onResolver, onResolverTodas, onOcultar, onOcultarTodas, onClose, fmtD }) {
+export function AlertasPanel({ alertas, leidas = [], resueltas = [], archivedCount = 0, onMarcar, onMarcarTodas, onResolver, onResolverTodas, onOcultar, onOcultarTodas, onRestaurarArchivo, onClose, fmtD }) {
   const activas = alertas.filter(a=>!resueltas.includes(a.id));
   const noLeidas = activas.filter(a=>!leidas.includes(a.id));
   const siLeidas = activas.filter(a=>leidas.includes(a.id));
@@ -29,6 +29,7 @@ export function AlertasPanel({ alertas, leidas = [], resueltas = [], onMarcar, o
           {noLeidas.length>0&&<button onClick={onMarcarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>✓ Marcar todas</button>}
           {activas.length>0&&<button onClick={onResolverTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>Resolver activas</button>}
           {(siLeidas.length>0||resueltasList.length>0)&&<button onClick={onOcultarTodas} style={{fontSize:10,color:"var(--gr2)",background:"transparent",border:"1px solid var(--bdr2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>Archivar cerradas</button>}
+          {archivedCount>0&&<button onClick={onRestaurarArchivo} style={{fontSize:10,color:"var(--cy)",background:"var(--cg)",border:"1px solid var(--cy)",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>Restaurar archivo</button>}
           <button onClick={onClose} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:18,padding:2}}>✕</button>
         </div>
       </div>
@@ -68,12 +69,14 @@ export function AlertasPanel({ alertas, leidas = [], resueltas = [], onMarcar, o
         </div>)}
         {filtro==="resueltas"&&resueltasList.length===0&&<div style={{padding:18,textAlign:"center",color:"var(--gr2)",fontSize:12}}>Aún no hay alertas resueltas.</div>}
       </div>
+      {archivedCount>0&&<div style={{padding:"9px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)",textAlign:"center",fontSize:11,color:"var(--gr2)"}}>{archivedCount} alerta(s) archivada(s). Puedes restaurarlas si necesitas volver a revisarlas.</div>}
       {activas.length===0&&alertas.length>0&&<div style={{padding:"10px 16px",background:"var(--sur)",borderTop:"1px solid var(--bdr)",textAlign:"center",fontSize:12,color:"var(--gr2)"}}>Todas las alertas activas están resueltas</div>}
     </div>
   );
 }
 
 export function SystemMessagesPanel({ empresa, mensajes = [], leidas = [], onMarcar, onMarcarTodas, onClose, fmtD, RichTextBlock }) {
+  const MessageBody = RichTextBlock;
   const noLeidas=(mensajes||[]).filter(m=>!leidas.includes(m.id));
   const leidasMsgs=(mensajes||[]).filter(m=>leidas.includes(m.id));
   const sorted=[...noLeidas,...leidasMsgs].sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
@@ -100,7 +103,7 @@ export function SystemMessagesPanel({ empresa, mensajes = [], leidas = [], onMar
             <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{m.title||"Mensaje del sistema"}</div>
             <div style={{fontSize:10,color:"var(--gr2)",whiteSpace:"nowrap"}}>{m.createdAt?fmtD(m.createdAt):"—"}</div>
           </div>
-          <RichTextBlock text={m.body||""} style={{fontSize:11,color:"var(--gr3)",marginTop:6,lineHeight:1.5}} color="var(--gr3)"/>
+          <MessageBody text={m.body||""} style={{fontSize:11,color:"var(--gr3)",marginTop:6,lineHeight:1.5}} color="var(--gr3)"/>
         </div>
         {!leidas.includes(m.id)&&<button onClick={()=>onMarcar(m.id)} style={{background:"none",border:"1px solid var(--bdr2)",borderRadius:6,color:"var(--gr2)",cursor:"pointer",fontSize:11,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>✓ Leído</button>}
       </div>)}
@@ -164,7 +167,6 @@ function formatDiioCommitmentLabel(item = {}, fmtD = value => value) {
 
 export function DiioInboxPanel({
   empresa,
-  tenantDiioConnection = {},
   interactions = [],
   targets = {},
   onConfirm,

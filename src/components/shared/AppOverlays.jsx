@@ -110,6 +110,12 @@ export function AppOverlays({
           setAlertasLeidas(prev => prev.filter(id => !hiddenIds.includes(id)));
           setAlertasResueltas(prev => prev.filter(id => !hiddenIds.includes(id)));
         }}
+        archivedCount={alertasOcultas.length}
+        onRestaurarArchivo={() => {
+          const restoredAlerts = alertas.filter(a => alertasOcultas.includes(a.id));
+          restoredAlerts.forEach(item => recordAlertLifecycle?.("alert_archive_restored", item));
+          setAlertasOcultas([]);
+        }}
         onClose={() => setAlertasOpen(false)}
         fmtD={fmtD}
       />

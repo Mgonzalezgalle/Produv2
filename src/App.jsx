@@ -137,6 +137,14 @@ const sameIdArray = (a = [], b = []) => (
   && a.length === b.length
   && a.every((value, index) => value === b[index])
 );
+const normalizeStoredIdList = value => {
+  const source = Array.isArray(value) ? value : [];
+  return Array.from(new Set(source
+    .map(item => typeof item === "string" ? item : item?.id)
+    .map(item => String(item || "").trim())
+    .filter(Boolean)));
+};
+const limitStoredIdList = (value = [], limit = 160) => normalizeStoredIdList(value).slice(-limit);
 const fmtM  = n => "$" + Number(n||0).toLocaleString("es-CL");
 const fmtMoney = (n, currency="CLP") => {
   const value = Number(n || 0);
@@ -1321,7 +1329,7 @@ export default function App(){
     try {
       const raw = localStorage.getItem(alertasReadKey) || sessionStorage.getItem(alertasReadKey) || "[]";
       const parsed = JSON.parse(raw);
-      setAlertasLeidas(Array.isArray(parsed) ? parsed : []);
+      setAlertasLeidas(normalizeStoredIdList(parsed));
     } catch {
       setAlertasLeidas([]);
     }
@@ -1335,7 +1343,7 @@ export default function App(){
     try {
       const raw = localStorage.getItem(alertasResolvedKey) || sessionStorage.getItem(alertasResolvedKey) || "[]";
       const parsed = JSON.parse(raw);
-      setAlertasResueltas(Array.isArray(parsed) ? parsed : []);
+      setAlertasResueltas(normalizeStoredIdList(parsed));
     } catch {
       setAlertasResueltas([]);
     }
@@ -1363,7 +1371,7 @@ export default function App(){
     try {
       const raw = localStorage.getItem(alertasHiddenKey) || sessionStorage.getItem(alertasHiddenKey) || "[]";
       const parsed = JSON.parse(raw);
-      setAlertasOcultas(Array.isArray(parsed) ? parsed : []);
+      setAlertasOcultas(normalizeStoredIdList(parsed));
     } catch {
       setAlertasOcultas([]);
     }
@@ -1399,14 +1407,14 @@ export default function App(){
 
   useEffect(() => {
     if (!alertasReadKey) return;
-    const payload = JSON.stringify(Array.isArray(alertasLeidas) ? alertasLeidas : []);
+    const payload = JSON.stringify(limitStoredIdList(alertasLeidas));
     try { localStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
     try { sessionStorage.setItem(alertasReadKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasReadKey, alertasLeidas]);
 
   useEffect(() => {
     if (!alertasResolvedKey) return;
-    const payload = JSON.stringify(Array.isArray(alertasResueltas) ? alertasResueltas : []);
+    const payload = JSON.stringify(limitStoredIdList(alertasResueltas));
     try { localStorage.setItem(alertasResolvedKey, payload); } catch { /* ignore storage write failures */ }
     try { sessionStorage.setItem(alertasResolvedKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasResolvedKey, alertasResueltas]);
@@ -1420,7 +1428,7 @@ export default function App(){
 
   useEffect(() => {
     if (!alertasHiddenKey) return;
-    const payload = JSON.stringify(Array.isArray(alertasOcultas) ? alertasOcultas : []);
+    const payload = JSON.stringify(limitStoredIdList(alertasOcultas));
     try { localStorage.setItem(alertasHiddenKey, payload); } catch { /* ignore storage write failures */ }
     try { sessionStorage.setItem(alertasHiddenKey, payload); } catch { /* ignore storage write failures */ }
   }, [alertasHiddenKey, alertasOcultas]);

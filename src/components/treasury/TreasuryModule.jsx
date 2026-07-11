@@ -28,6 +28,7 @@ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailCom
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
 import { formatTreasuryMoney, normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
+import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
 function normalizeImportLookupValue(value = "") {
   return String(value || "")
@@ -359,6 +360,46 @@ export function TreasuryModule(props) {
     const source = (payables || []).find(item => item.id === row.id) || row;
     await savePayable({ ...source, ...patch });
   };
+  const handleReceivableStatusUpdate = React.useCallback(async (row, nextState) => {
+    if (!canManageTreasury || !saveFacturaDoc || !row?.id) return false;
+    const currentDoc = (facturas || []).find(doc => doc.id === row.id) || row;
+    const previousStatus = String(currentDoc?.cobranzaEstado || row?.cobranza || "").trim();
+    const resolvedNextState = String(nextState || "").trim();
+    if (!resolvedNextState) return false;
+    const nextDoc = {
+      ...currentDoc,
+      cobranzaEstado: resolvedNextState,
+      fechaPago:
+        resolvedNextState === "Pagado"
+          ? (currentDoc?.fechaPago || new Date().toISOString().slice(0, 10))
+          : "",
+    };
+    const saved = await saveFacturaDoc(nextDoc);
+    if (previousStatus !== resolvedNextState) {
+      await appendOperationalAuditEntry({
+        empId: props.empresa?.id || currentDoc?.empId || "",
+        area: "tesoreria",
+        action: "receivable_status_changed",
+        entityType: "treasury_receivable",
+        entityId: row.id || "",
+        actor: props.user || null,
+        payload: {
+          documentNumber: row?.correlativo || currentDoc?.correlativo || currentDoc?.folio || "",
+          counterparty: row?.entidad || "",
+          source: row?.source || currentDoc?.tipo || "facturacion",
+          previousStatus,
+          nextStatus: resolvedNextState,
+          total: Number(row?.total || currentDoc?.total || 0),
+          pending: Number(row?.pending || 0),
+          previousPaymentDate: currentDoc?.fechaPago || "",
+          nextPaymentDate: nextDoc.fechaPago || "",
+          sensitive: ["Pagado", "Anulado"].includes(resolvedNextState),
+        },
+        platformServices: props.platformServices || null,
+      });
+    }
+    return saved;
+  }, [canManageTreasury, facturas, props.empresa?.id, props.platformServices, props.user, saveFacturaDoc]);
   const buildSupplierEmailDraft = React.useCallback((row) => {
     const provider = providers.find(item => item.name === row?.supplier || item.id === row?.providerId);
     const primaryContact = Array.isArray(provider?.contactos) ? provider.contactos[0] : null;
@@ -945,7 +986,7 @@ export function TreasuryModule(props) {
             receiptTable={receiptTable}
             receivableTable={receivableTable}
             openReceiptEdit={openReceiptEdit}
-            saveFacturaDoc={saveFacturaDoc}
+            onUpdateReceivableStatus={handleReceivableStatusUpdate}
             savePurchaseOrder={savePurchaseOrder}
             saveReceipt={saveReceipt}
             sendBillingEmail={openBillingEmailComposer}

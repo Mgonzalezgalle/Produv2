@@ -126,7 +126,7 @@ export function TreasuryReceivablesSection({
   receiptPeriodOptions,
   receiptTable,
   receivableTable,
-  saveFacturaDoc,
+  onUpdateReceivableStatus,
   sendBillingEmail,
   sendBillingWhatsApp,
   sendPaymentLinkEmail,
@@ -173,17 +173,7 @@ export function TreasuryReceivablesSection({
         <ReceivablesTable
           rows={receivableTable.pageRows}
           onAddPayment={canManageTreasury ? openReceiptCreate : () => {}}
-          onUpdateCobranza={canManageTreasury && saveFacturaDoc
-            ? (row, nextState) =>
-              saveFacturaDoc({
-                ...((facturas || []).find(doc => doc.id === row.id) || row),
-                cobranzaEstado: nextState,
-                fechaPago:
-                  nextState === "Pagado"
-                    ? (((facturas || []).find(doc => doc.id === row.id) || row).fechaPago || new Date().toISOString().slice(0, 10))
-                    : "",
-              })
-            : null}
+          onUpdateCobranza={canManageTreasury && onUpdateReceivableStatus ? onUpdateReceivableStatus : null}
           onBillingEmail={row => {
             const doc = (facturas || []).find(item => item.id === row.id);
             const entity = doc?.tipo === "auspiciador"

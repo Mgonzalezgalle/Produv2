@@ -460,12 +460,31 @@ export function useLabTreasuryModule({
       : next;
     const safeNext = sanitizeTreasuryPayable(withEmp(mergedNext), empId);
     const exists = treasuryPayables.some(item => item.id === safeNext.id);
+    const previousStatus = String(currentRecord?.status || "").trim();
+    const nextStatus = String(safeNext.status || "").trim();
+    const statusChanged = Boolean(exists && previousStatus && nextStatus && previousStatus !== nextStatus);
+    const auditAction = statusChanged ? "payable_status_changed" : (exists ? "payable_updated" : "payable_created");
+    const auditPayload = {
+      supplier: safeNext.supplier || "",
+      folio: safeNext.folio || "",
+      docType: safeNext.docType || "",
+      currency: safeNext.currency || "CLP",
+      previousStatus,
+      nextStatus,
+      status: safeNext.status || "",
+      statusChanged,
+      total: Number(safeNext.total || 0),
+      previousTotal: Number(currentRecord?.total || 0),
+      dueDate: safeNext.dueDate || "",
+      issueDate: safeNext.issueDate || "",
+      sensitive: statusChanged && ["Pagada", "Anulada", "Vencida"].includes(nextStatus),
+    };
     await foundationFinancialRegistry.upsertRecord({
       registryName: "payables",
       record: safeNext,
       setRecords: setTreasuryPayables,
       metadata: {
-        reason: exists ? "payable_updated" : "payable_created",
+        reason: auditAction,
         actorUserId: currentUser?.id || "",
         actorUserEmail: currentUser?.email || "",
       },
@@ -473,27 +492,17 @@ export function useLabTreasuryModule({
       sanitizeRecord: sanitizeTreasuryPayable,
       audit: {
         area: "tesoreria",
-        action: exists ? "payable_updated" : "payable_created",
+        action: auditAction,
         entityType: "treasury_payable",
         entityId: safeNext.id || "",
-        payload: {
-          supplier: safeNext.supplier || "",
-          folio: safeNext.folio || "",
-          total: Number(safeNext.total || 0),
-          status: safeNext.status || "",
-        },
+        payload: auditPayload,
       },
       workflow: {
         stream: "payables",
-        eventName: exists ? "payable_updated" : "payable_created",
+        eventName: auditAction,
         entityType: "treasury_payable",
         entityId: safeNext.id || "",
-        payload: {
-          supplier: safeNext.supplier || "",
-          folio: safeNext.folio || "",
-          status: safeNext.status || "",
-          total: Number(safeNext.total || 0),
-        },
+        payload: auditPayload,
       },
     });
     setPayableOpen(false);

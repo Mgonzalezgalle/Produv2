@@ -1,4 +1,5 @@
 import { Resend } from "npm:resend";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { renderTransactionalEmailTemplate } from "../_shared/emailTemplate.ts";
 
 type Recipient = {
@@ -43,11 +44,6 @@ function resolveEmailSubject(payload: Payload) {
   const explicit = String(payload.subject || "").trim();
   return explicit || resolveTenantSubject(payload);
 }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -97,9 +93,8 @@ function normalizeAttachments(input: Payload["attachments"] = []) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);

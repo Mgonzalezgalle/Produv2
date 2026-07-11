@@ -1,12 +1,9 @@
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+
 type Payload = {
   calendarId?: string;
   refreshToken?: string;
   googleEventId?: string;
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 function json(body: unknown, status = 200) {
@@ -58,9 +55,8 @@ async function getGoogleAccessToken(refreshToken: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }

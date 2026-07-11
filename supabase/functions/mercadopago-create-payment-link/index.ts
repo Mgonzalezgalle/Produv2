@@ -1,3 +1,5 @@
+import { handleCors, mercadoPagoCorsHeaders as corsHeaders } from "../_shared/cors.ts";
+
 type PaymentLinkPayload = {
   tenantId?: string;
   invoiceId?: string;
@@ -23,11 +25,6 @@ type PaymentLinkPayload = {
     pendingUrl?: string;
     notificationUrl?: string;
   };
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-signature",
 };
 
 function json(body: unknown, status = 200) {
@@ -151,9 +148,8 @@ function credentialLooksLikeProduction(accessToken: string, credentialEnvironmen
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);

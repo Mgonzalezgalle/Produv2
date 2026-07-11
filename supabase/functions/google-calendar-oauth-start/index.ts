@@ -1,3 +1,5 @@
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+
 type Payload = {
   tenantId?: string;
   userId?: string;
@@ -5,11 +7,6 @@ type Payload = {
   redirectTo?: string;
   scopes?: string[];
   prompt?: string;
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 function json(body: unknown, status = 200) {
@@ -30,9 +27,8 @@ function normalizeScopes(value: unknown) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);

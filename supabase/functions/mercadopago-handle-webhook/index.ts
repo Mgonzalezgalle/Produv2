@@ -1,3 +1,5 @@
+import { handleCors, mercadoPagoCorsHeaders as corsHeaders } from "../_shared/cors.ts";
+
 type WebhookPayload = {
   tenantId?: string;
   invoiceId?: string;
@@ -16,11 +18,6 @@ type WebhookPayload = {
   data?: {
     id?: string | number;
   };
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-signature",
 };
 
 function json(body: unknown, status = 200) {
@@ -181,9 +178,8 @@ function resolveMerchantOrderPayment(data: Record<string, unknown> = {}) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);

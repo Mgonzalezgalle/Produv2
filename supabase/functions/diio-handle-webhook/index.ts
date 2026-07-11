@@ -1,9 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, DO-Signature, DO-Timestamp",
-};
+import { diioWebhookCorsHeaders as corsHeaders, handleCors } from "../_shared/cors.ts";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -481,9 +477,8 @@ function upsertQueue(records: Record<string, unknown>[] = [], interaction: Recor
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   const url = new URL(req.url);
   const echoString = String(url.searchParams.get("echo_string") || "").trim();

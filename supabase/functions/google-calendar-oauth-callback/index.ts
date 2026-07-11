@@ -1,11 +1,8 @@
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
+
 type Payload = {
   code?: string;
   state?: string;
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 function json(body: unknown, status = 200) {
@@ -174,9 +171,8 @@ async function exchangeGoogleCalendarCode(code: string, state: Record<string, un
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCors(req, corsHeaders);
+  if (preflight) return preflight;
 
   if (req.method === "GET") {
     const url = new URL(req.url);

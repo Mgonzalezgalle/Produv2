@@ -1,6 +1,7 @@
 import { Resend } from "npm:resend";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { renderTransactionalEmailTemplate } from "../_shared/emailTemplate.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type Recipient = {
   email?: string;
@@ -45,15 +46,7 @@ function resolveEmailSubject(payload: Payload) {
   return explicit || resolveTenantSubject(payload);
 }
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 function normalizeRecipients(input: Payload["to"] = []) {
   const raw = Array.isArray(input) ? input : [input];

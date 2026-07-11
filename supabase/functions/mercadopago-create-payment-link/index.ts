@@ -1,4 +1,5 @@
 import { handleCors, mercadoPagoCorsHeaders as corsHeaders } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type PaymentLinkPayload = {
   tenantId?: string;
@@ -27,15 +28,7 @@ type PaymentLinkPayload = {
   };
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 async function resolveTenantCredential(legacyEmpId = "") {
   const supabaseUrl = String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");

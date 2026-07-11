@@ -1,4 +1,5 @@
 import { handleCors, mercadoPagoCorsHeaders as corsHeaders } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type WebhookPayload = {
   tenantId?: string;
@@ -20,15 +21,7 @@ type WebhookPayload = {
   };
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 function resolveLegacyTenantId(payload: WebhookPayload = {}) {
   const directTenantId = String(payload?.tenantId || payload?.metadata?.tenantId || "").trim();

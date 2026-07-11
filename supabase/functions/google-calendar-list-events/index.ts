@@ -1,4 +1,5 @@
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type Payload = {
   calendarId?: string;
@@ -7,15 +8,7 @@ type Payload = {
   timeMax?: string;
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 async function getGoogleAccessToken(refreshToken: string) {
   const clientId = Deno.env.get("GOOGLE_CLIENT_ID") || "";

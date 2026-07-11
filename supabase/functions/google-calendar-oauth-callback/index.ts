@@ -1,19 +1,12 @@
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type Payload = {
   code?: string;
   state?: string;
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 function safeParseState(value = "") {
   try {

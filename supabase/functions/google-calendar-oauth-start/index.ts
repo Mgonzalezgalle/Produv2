@@ -1,4 +1,5 @@
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
 type Payload = {
   tenantId?: string;
@@ -9,15 +10,7 @@ type Payload = {
   prompt?: string;
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 function normalizeScopes(value: unknown) {
   const list = Array.isArray(value) ? value : [];

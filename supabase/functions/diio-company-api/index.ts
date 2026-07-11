@@ -1,15 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
+import { createJsonResponder } from "../_shared/http.ts";
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+const json = createJsonResponder(corsHeaders);
 
 function firstString(...values: unknown[]) {
   return values.map((value) => String(value || "").trim()).find(Boolean) || "";

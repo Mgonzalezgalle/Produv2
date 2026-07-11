@@ -3,7 +3,6 @@ import { createJsonResponder } from "../_shared/http.ts";
 import {
   createSupabaseServiceRoleClient,
   readSupabaseServiceRoleEnv,
-  type SupabaseServiceRoleClient,
 } from "../_shared/supabaseClient.ts";
 import {
   buildUsersIndex,
@@ -25,73 +24,16 @@ import {
   listMeetings,
   refreshAccessToken,
 } from "./diioApi.ts";
+import {
+  getEmpresasStorageKey,
+  getIncomingStorageKey,
+  loadEmpresas,
+  loadStorageJson,
+  saveStorageJson,
+  upsertQueue,
+} from "./storage.ts";
 
 const json = createJsonResponder(corsHeaders);
-
-function resolveStorageNamespace() {
-  return firstString(
-    Deno.env.get("APP_STORAGE_NAMESPACE"),
-    Deno.env.get("LAB_STORAGE_NAMESPACE"),
-    "produ-lab",
-  );
-}
-
-function getEmpresasStorageKey() {
-  return `${resolveStorageNamespace()}:produ:empresas`;
-}
-
-function getIncomingStorageKey(tenantId = "") {
-  return `${resolveStorageNamespace()}:produ:diio:${tenantId || "global"}:incoming`;
-}
-
-async function loadStorageJson(client: SupabaseServiceRoleClient, key: string) {
-  const { data, error } = await client.from("storage").select("value").eq("key", key).maybeSingle();
-  if (error) throw error;
-  if (!data?.value) return null;
-  try {
-    return JSON.parse(String(data.value));
-  } catch {
-    return null;
-  }
-}
-
-async function saveStorageJson(client: SupabaseServiceRoleClient, key: string, value: unknown) {
-  const { error } = await client.from("storage").upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });
-  if (error) throw error;
-}
-
-function upsertQueue(records: Record<string, unknown>[] = [], interaction: Record<string, unknown> = {}) {
-  const current = Array.isArray(records) ? records : [];
-  const sourceId = firstString(interaction.sourceId, interaction.id);
-  const existingIndex = current.findIndex((item) =>
-    firstString(item?.id, item?.sourceId) === firstString(interaction.id, sourceId) ||
-    (sourceId && firstString(item?.sourceId) === sourceId)
-  );
-  if (existingIndex < 0) return [interaction, ...current];
-  return current.map((item, index) => {
-    if (index !== existingIndex) return item;
-    const existingStatus = firstString(item?.matchStatus);
-    const nextStatus = firstString(interaction?.matchStatus);
-    const preserveConfirmed = existingStatus === "confirmed" && nextStatus !== "confirmed";
-    return {
-      ...item,
-      ...interaction,
-      matchStatus: preserveConfirmed ? existingStatus : (nextStatus || existingStatus || "pending"),
-      entityType: firstString(item?.entityType) || firstString(interaction?.entityType),
-      entityId: firstString(item?.entityId) || firstString(interaction?.entityId),
-      entityLabel: firstString(item?.entityLabel) || firstString(interaction?.entityLabel),
-      matchConfidence: preserveConfirmed
-        ? Number(item?.matchConfidence || interaction?.matchConfidence || 0)
-        : Number(interaction?.matchConfidence || item?.matchConfidence || 0),
-      confirmedAt: preserveConfirmed ? firstString(item?.confirmedAt, interaction?.confirmedAt) : firstString(interaction?.confirmedAt, item?.confirmedAt),
-    };
-  });
-}
-
-async function loadEmpresas(client: SupabaseServiceRoleClient) {
-  const parsed = await loadStorageJson(client, getEmpresasStorageKey());
-  return Array.isArray(parsed) ? parsed : [];
-}
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req, corsHeaders);

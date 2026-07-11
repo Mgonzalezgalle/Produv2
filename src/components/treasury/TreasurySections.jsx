@@ -146,7 +146,7 @@ export function TreasuryReceivablesSection({
 }) {
   return (
     <>
-      <SectionCard title="Cuentas por Cobrar" subtitle="Gestiona documentos, cobranza, pagos manuales y estado real del cobro desde una sola vista">
+      <SectionCard title="Cuentas por Cobrar" subtitle="Gestiona documentos, cobranza, pagos manuales, anulaciones y estado real del cobro desde una sola vista">
         <TableToolbar
           searchValue={receivableTable.query}
           onSearchChange={receivableTable.setQuery}
@@ -502,7 +502,7 @@ export function TreasuryPayablesSection({
 }) {
   return (
     <>
-      <SectionCard title="Cuentas por Pagar" subtitle="Gestiona tus deudas, tus proveedores y los pagos realizados en un mismo contexto">
+      <SectionCard title="Cuentas por Pagar" subtitle="Gestiona deudas, proveedores, pagos, documentos anulados y salida de caja en un mismo contexto">
         <div className="treasury-subtabs">
           <button className={`treasury-subtab ${payablesTab === "documentos" ? "active" : ""}`} onClick={() => setPayablesTab("documentos")}>Documentos</button>
           <button className={`treasury-subtab ${payablesTab === "proveedores" ? "active" : ""}`} onClick={() => setPayablesTab("proveedores")}>Proveedores</button>

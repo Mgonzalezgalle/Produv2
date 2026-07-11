@@ -478,14 +478,15 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
     .map(item => {
       const savedStatus = String(item?.status || "").trim();
       const isVoided = savedStatus === "Anulada";
+      const isManuallyPaid = savedStatus === "Pagada";
       const total = isVoided ? 0 : Number(item.total || 0);
       const paymentHistory = normalizePayments(disbursements, empId, "payableId", item.id, [
         item.folio,
         item.number,
         item.documentNumber,
       ]).filter(() => !isVoided);
-      const paid = paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      const pending = Math.max(0, total - paid);
+      const paid = isManuallyPaid ? total : paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const pending = isManuallyPaid ? 0 : Math.max(0, total - paid);
       const dueDate = item.dueDate || "";
       const status = isVoided ? "Anulada" : (pending <= 0 ? "Pagada" : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente")));
       return {

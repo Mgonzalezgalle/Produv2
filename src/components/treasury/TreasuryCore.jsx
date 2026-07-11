@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useEffect, useMemo, useState } from "react";
 
 function sameSelection(a = [], b = []) {
@@ -38,6 +39,8 @@ export function TreasuryStyles() {
       .treasury-table tbody tr:hover{background:var(--sur)}
       .treasury-table tbody td{padding:12px 12px;border-bottom:1px solid var(--bdr);color:var(--wh);font-size:13px;vertical-align:top;background:#ffffff}
       .treasury-table tbody tr:last-child td{border-bottom:0}
+      .treasury-table tbody tr.treasury-row-muted td{background:rgba(100,116,139,.045);color:var(--gr2)}
+      .treasury-table tbody tr.treasury-row-muted td .treasury-muted{color:var(--gr3)}
       .treasury-mono{font-family:var(--fm)}
       .treasury-muted{color:var(--gr3)}
       .treasury-pending-paid{color:#00e08a}
@@ -68,7 +71,16 @@ export function TreasuryStyles() {
       .treasury-provider-meta .meta-label{color:var(--gr2);text-transform:uppercase;letter-spacing:1.2px;font-size:10px;margin-bottom:6px}
       .treasury-provider-meta .meta-value{color:var(--wh);font-family:var(--fm);font-size:13px}
       .treasury-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+      .treasury-toolbar .search{flex:1 1 300px;min-width:min(100%,260px)}
       .treasury-export-actions{display:inline-flex;align-items:center;gap:6px;padding:4px;border:1px solid var(--bdr2);border-radius:999px;background:rgba(248,251,255,.88);box-shadow:0 8px 18px rgba(148,163,184,.12)}
+      .treasury-command-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin:-4px 0 18px}
+      .treasury-command-card{position:relative;overflow:hidden;border:1px solid var(--bdr);border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);padding:15px 16px;box-shadow:0 12px 26px rgba(148,163,184,.12)}
+      .treasury-command-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--command-color,var(--cy2));opacity:.92}
+      .treasury-command-label{font-size:10px;text-transform:uppercase;letter-spacing:1.35px;font-weight:800;color:var(--gr2);margin-bottom:8px}
+      .treasury-command-value{font-family:var(--fh);font-size:24px;line-height:1;font-weight:850;letter-spacing:-.03em;color:var(--command-color,var(--wh))}
+      .treasury-command-sub{font-size:11px;color:var(--gr2);line-height:1.45;margin-top:8px}
+      .treasury-state-note{border:1px solid rgba(43,109,246,.16);border-radius:16px;background:linear-gradient(180deg,rgba(43,109,246,.08),rgba(255,255,255,.78));padding:13px 15px;color:#34445f;font-size:12px;line-height:1.55;margin-bottom:16px}
+      .treasury-state-note strong{color:#1a1a2e}
       .treasury-list{border:1px solid var(--bdr);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#ffffff,var(--card2))}
       .treasury-list-row{display:grid;grid-template-columns:minmax(220px,1.4fr) repeat(4,minmax(0,1fr)) auto;gap:14px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--bdr);transition:.15s ease;cursor:pointer}
       .treasury-list-row:hover{background:var(--sur)}
@@ -118,6 +130,7 @@ export function TreasuryStyles() {
       @media (max-width: 1100px){
         .treasury-kpis,.treasury-compact-grid,.treasury-provider-grid,.treasury-detail-grid,.treasury-modal-summary{grid-template-columns:1fr}
         .treasury-list-row{grid-template-columns:1fr;gap:8px}
+        .treasury-shell > div[style*="grid-template-columns"]{grid-template-columns:1fr!important}
       }
     `}</style>
   );

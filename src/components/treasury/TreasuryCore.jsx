@@ -73,12 +73,6 @@ export function TreasuryStyles() {
       .treasury-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
       .treasury-toolbar .search{flex:1 1 300px;min-width:min(100%,260px)}
       .treasury-export-actions{display:inline-flex;align-items:center;gap:6px;padding:4px;border:1px solid var(--bdr2);border-radius:999px;background:rgba(248,251,255,.88);box-shadow:0 8px 18px rgba(148,163,184,.12)}
-      .treasury-command-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin:-4px 0 18px}
-      .treasury-command-card{position:relative;overflow:hidden;border:1px solid var(--bdr);border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);padding:15px 16px;box-shadow:0 12px 26px rgba(148,163,184,.12)}
-      .treasury-command-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--command-color,var(--cy2));opacity:.92}
-      .treasury-command-label{font-size:10px;text-transform:uppercase;letter-spacing:1.35px;font-weight:800;color:var(--gr2);margin-bottom:8px}
-      .treasury-command-value{font-family:var(--fh);font-size:24px;line-height:1;font-weight:850;letter-spacing:-.03em;color:var(--command-color,var(--wh))}
-      .treasury-command-sub{font-size:11px;color:var(--gr2);line-height:1.45;margin-top:8px}
       .treasury-state-note{border:1px solid rgba(43,109,246,.16);border-radius:16px;background:linear-gradient(180deg,rgba(43,109,246,.08),rgba(255,255,255,.78));padding:13px 15px;color:#34445f;font-size:12px;line-height:1.55;margin-bottom:16px}
       .treasury-state-note strong{color:#1a1a2e}
       .treasury-list{border:1px solid var(--bdr);border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#ffffff,var(--card2))}

@@ -83,16 +83,6 @@ function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null, 
   );
 }
 
-function TreasuryCommandMetric({ label, value, sub, color = "#2b6df6" }) {
-  return (
-    <div className="treasury-command-card" style={{ "--command-color": color }}>
-      <div className="treasury-command-label">{label}</div>
-      <div className="treasury-command-value">{value}</div>
-      {sub ? <div className="treasury-command-sub">{sub}</div> : null}
-    </div>
-  );
-}
-
 function summarizeMovementLog(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
   const currencies = TREASURY_CURRENCIES
@@ -886,48 +876,6 @@ export function TreasuryModule(props) {
           ...(otherCurrencyKpi ? [otherCurrencyKpi] : []),
         ],
       };
-  const treasuryCommandMetrics = tab === 0
-    ? [
-        {
-          label: "Cobranza vencida",
-          value: fmtM(receivableSummary.overdue),
-          sub: `${receivableSummary.overdueDocs} documento(s) requieren atención`,
-          color: receivableSummary.overdue > 0 ? "#ff5566" : "#00c781",
-        },
-        {
-          label: "Cartera pendiente",
-          value: fmtM(receivableSummary.pending),
-          sub: "Saldo abierto sin conciliación completa",
-          color: "#ffb020",
-        },
-        {
-          label: "Pagos recibidos",
-          value: fmtM(receiptsSummary.total),
-          sub: `${receiptsSummary.docs} registro(s) en el historial`,
-          color: "#00c781",
-        },
-      ]
-    : [
-        {
-          label: "Egresos vencidos",
-          value: fmtM(payablesSummary.overdue),
-          sub: "No considera documentos anulados",
-          color: payablesSummary.overdue > 0 ? "#ff5566" : "#00c781",
-        },
-        {
-          label: "Por desembolsar",
-          value: fmtM(payablesSummary.pending),
-          sub: `${payablesSummary.docs} cuenta(s) por pagar activas`,
-          color: "#ffb020",
-        },
-        {
-          label: "Pagos realizados",
-          value: fmtM(disbursementSummary.total),
-          sub: `${disbursementSummary.docs} desembolso(s) registrados`,
-          color: "#00c781",
-        },
-      ];
-
   return (
     <div className="treasury-shell">
       <TreasuryStyles />
@@ -957,17 +905,6 @@ export function TreasuryModule(props) {
       <div className="treasury-tabs">
         <button className={`treasury-tab ${tab === 0 ? "active" : ""}`} onClick={() => setTab(0)}>Cuentas por Cobrar</button>
         <button className={`treasury-tab ${tab === 1 ? "active" : ""}`} onClick={() => setTab(1)}>Cuentas por Pagar</button>
-      </div>
-      <div className="treasury-command-strip">
-        {treasuryCommandMetrics.map(metric => (
-          <TreasuryCommandMetric
-            key={metric.label}
-            label={metric.label}
-            value={metric.value}
-            sub={metric.sub}
-            color={metric.color}
-          />
-        ))}
       </div>
       <div className="treasury-state-note">
         <strong>Estado Anulado:</strong> úsalo solo cuando el documento fue emitido con error y se anula desde el emisor. Produ mantiene la trazabilidad, pero el monto no se considera en cartera, deuda, vencidos ni totales operativos.

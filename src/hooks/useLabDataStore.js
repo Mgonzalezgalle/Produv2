@@ -61,7 +61,12 @@ function useDB(key, initial = null, options = {}) {
     return resolved;
   }, [key]);
 
-  if (!controlsRef.current) {
+  // Patrón de inicialización perezosa de ref recomendado por React
+  // (https://react.dev/reference/react/useRef#avoiding-recreating-the-ref-contents):
+  // el objeto se crea una sola vez y nunca se muta después, por lo que es seguro
+  // aunque la regla react-hooks/refs no reconozca esta forma exacta del guard.
+  /* eslint-disable react-hooks/refs */
+  if (controlsRef.current === null) {
     controlsRef.current = {
       hydrate(value) {
         setData(value == null ? initial : value);
@@ -72,8 +77,9 @@ function useDB(key, initial = null, options = {}) {
       },
     };
   }
+  /* eslint-enable react-hooks/refs */
 
-  return [data, save, save, loading, writingRef, controlsRef.current];
+  return [data, save, save, loading, writingRef, controlsRef];
 }
 
 function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
@@ -96,7 +102,11 @@ function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
             return remote;
           });
         }
-      } catch {}
+      } catch {
+        // Fallo de red/lectura remota en el polling en background: se ignora
+        // intencionalmente, el próximo tick reintenta. No hay estado de error
+        // que mostrar aquí sin degradar la UX de una sincronización silenciosa.
+      }
       finally {
         busy = false;
       }
@@ -120,20 +130,20 @@ export function useGlobalLabData() {
   useEffect(() => {
     let alive = true;
     const controls = [empresasCtl, usersCtl, printLayoutsCtl, themeCtl];
-    controls.forEach(control => control.startLoading());
+    controls.forEach(control => control.current.startLoading());
     Promise.allSettled([
       dbGet("produ:empresas"),
       dbGet("produ:users"),
     ])
       .then(([empresasResult, usersResult]) => {
         if (!alive) return;
-        empresasCtl.hydrate(empresasResult.status === "fulfilled" && Array.isArray(empresasResult.value) ? empresasResult.value : []);
-        usersCtl.hydrate(usersResult.status === "fulfilled" && Array.isArray(usersResult.value) ? usersResult.value : []);
+        empresasCtl.current.hydrate(empresasResult.status === "fulfilled" && Array.isArray(empresasResult.value) ? empresasResult.value : []);
+        usersCtl.current.hydrate(usersResult.status === "fulfilled" && Array.isArray(usersResult.value) ? usersResult.value : []);
       })
       .catch(() => {
         if (!alive) return;
-        empresasCtl.hydrate([]);
-        usersCtl.hydrate([]);
+        empresasCtl.current.hydrate([]);
+        usersCtl.current.hydrate([]);
       });
     Promise.allSettled([
       dbGet("produ:printLayouts"),
@@ -141,13 +151,13 @@ export function useGlobalLabData() {
     ])
       .then(([printLayoutsResult, themeResult]) => {
         if (!alive) return;
-        printLayoutsCtl.hydrate(printLayoutsResult.status === "fulfilled" ? printLayoutsResult.value : null);
-        themeCtl.hydrate(themeResult.status === "fulfilled" ? themeResult.value : null);
+        printLayoutsCtl.current.hydrate(printLayoutsResult.status === "fulfilled" ? printLayoutsResult.value : null);
+        themeCtl.current.hydrate(themeResult.status === "fulfilled" ? themeResult.value : null);
       })
       .catch(() => {
         if (!alive) return;
-        printLayoutsCtl.hydrate(null);
-        themeCtl.hydrate(null);
+        printLayoutsCtl.current.hydrate(null);
+        themeCtl.current.hydrate(null);
       });
     return () => {
       alive = false;
@@ -223,7 +233,7 @@ export function useTenantLabData(eId) {
       treasuryDisbursementsCtl,
       activosCtl,
     ];
-    controls.forEach(control => control.startLoading());
+    controls.forEach(control => control.current.startLoading());
     Promise.all([
       dbGet(`produ:${eId}:listas`),
       dbGet(`produ:${eId}:tareas`),
@@ -252,11 +262,11 @@ export function useTenantLabData(eId) {
     ])
       .then(values => {
         if (!alive) return;
-        values.forEach((value, index) => controls[index].hydrate(value));
+        values.forEach((value, index) => controls[index].current.hydrate(value));
       })
       .catch(() => {
         if (!alive) return;
-        controls.forEach(control => control.hydrate(null));
+        controls.forEach(control => control.current.hydrate(null));
       });
     return () => {
       alive = false;

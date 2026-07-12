@@ -3,7 +3,6 @@ import {
   buildProduBillingReferenceSummary,
   evaluateProduBillingBsaleReadiness,
   getProduBillingDocumentTypeLabel,
-  requiresProduCollectionTracking,
   resolveProduBillingDocumentType,
 } from "../../lib/integrations/billingDomain";
 
@@ -160,75 +159,4 @@ export function InvoiceIssuanceSection({
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
     </Card>
   </>;
-}
-
-export function InvoiceCollectionSection({
-  q, setQ, fc, setFc, sortMode, setSortMode, selectedIds, bulkCobranza, setBulkCobranza, applyBulkCobranza,
-  clearSelection, currentPageIds, selectablePageIds, toggleAll, cobranzaDocs, pg, PP, clientes, auspiciadores, invoices,
-  cobranzaState, fmtD, fmtM, Badge, SearchBar, FilterSel, GBtn, FSl, Card, TH, TD, Empty, Paginator,
-  saveFacturaDoc, canEdit, sendBillingEmail, sendBillingWhatsApp, sendStatementEmail, sendStatementWhatsApp,
-  today, toggleSelected, setPg,
-}) {
-  return <Card title="Cobranza" sub="Cuentas por cobrar por factura o invoice emitido">
-    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <SearchBar value={q} onChange={v=>{setQ(v);}} placeholder="Buscar documento o entidad..."/>
-      <FilterSel value={fc} onChange={v=>{setFc(v);}} options={["Pendiente de pago","Pagado","No pagado","Retrasado de pago"]} placeholder="Todo cobro"/>
-      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
-    </div>
-    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
-      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
-      <FSl value={bulkCobranza} onChange={e=>setBulkCobranza(e.target.value)} style={{minWidth:180}}>
-        <option value="">Cambiar cobranza...</option>
-        {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
-      </FSl>
-      <GBtn sm onClick={applyBulkCobranza}>Aplicar estado</GBtn>
-      <GBtn sm onClick={clearSelection}>Limpiar selección</GBtn>
-    </div>}
-    <div style={{overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
-        <tbody>
-          {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
-            const sponsorRecord=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):null;
-            const ent=f.tipo==="auspiciador"
-              ? (clientes||[]).find(x=>x.id===(f.billingClientId||sponsorRecord?.clientId||sponsorRecord?.cliId||sponsorRecord?.linkedClientId)) || sponsorRecord
-              : (clientes||[]).find(x=>x.id===f.entidadId);
-            const cobro=cobranzaState(f);
-            const entityDocs=invoices.filter(doc=>{
-              if (f.tipo === "auspiciador") {
-                return (doc.billingClientId || doc.entidadId) === (f.billingClientId || f.entidadId);
-              }
-              return doc.tipo===f.tipo && doc.entidadId===f.entidadId;
-            });
-            const canTrackCollection = requiresProduCollectionTracking(resolveProduBillingDocumentType(f.documentTypeCode || f.tipoDocumento || f.tipoDoc || "factura_afecta")?.code);
-            return <tr key={f.id}>
-              <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)} disabled={!canTrackCollection} title={canTrackCollection ? "Seleccionar documento" : "Este documento no participa en cobranza masiva"}/></TD>
-              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?"Recurrente":"Único"}</div></TD>
-              <TD>
-                <div style={{display:"grid",gap:4}}>
-                  <span>{invoiceEntityName(f, clientes, auspiciadores)}</span>
-                  {f.tipo==="auspiciador" && <span style={{fontSize:10,color:"var(--cy2)",fontWeight:600}}>Auspicio: {f.sponsorName || ent?.nom || "—"}</span>}
-                </div>
-              </TD>
-              <TD style={{fontSize:11,color:cobro==="Retrasado de pago"?"#ff5566":"var(--gr2)"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"Sin vencimiento"}</TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
-              <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>
-              <TD>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                  {canEdit && canTrackCollection && <FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
-                    {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(st=><option key={st}>{st}</option>)}
-                  </FSl>}
-                  <GBtn sm onClick={()=>sendBillingEmail(f,ent)}>✉ Crear correo</GBtn>
-                  <GBtn sm onClick={()=>sendBillingWhatsApp(f,ent)}>WhatsApp</GBtn>
-                  <GBtn sm onClick={()=>sendStatementEmail(entityDocs,ent,f.tipo)}>✉ Crear estado de cuenta</GBtn>
-                  <GBtn sm onClick={()=>sendStatementWhatsApp(entityDocs,ent,f.tipo)}>Estado cta. WA</GBtn>
-                </div>
-              </TD>
-            </tr>;
-          }) : <tr><td colSpan={7}><Empty text="Sin documentos en cobranza" sub="Emite una factura o un invoice para empezar a gestionar su cobranza."/></td></tr>}
-        </tbody>
-      </table>
-    </div>
-    <Paginator page={pg} total={cobranzaDocs.length} perPage={PP} onChange={setPg}/>
-  </Card>;
 }

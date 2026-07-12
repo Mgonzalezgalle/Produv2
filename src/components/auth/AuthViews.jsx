@@ -78,6 +78,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const [pending2FA, setPending2FA] = useState(null);
   const [otpCode, setOtpCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState([]);
+  const isLocalAuth = (authGateway?.strategy || "local") === "local";
   const [setupSecret, setSetupSecret] = useState("");
   const [setupOtpUrl, setSetupOtpUrl] = useState("");
   const [setupQr, setSetupQr] = useState("");

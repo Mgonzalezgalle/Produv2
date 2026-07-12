@@ -40,7 +40,6 @@ import {
   fmtD,
   fmtM,
   fmtMonthPeriod,
-  hasAddon,
   invoiceEntityName,
   normalizePrintLayouts,
   recurringSummary,
@@ -48,29 +47,18 @@ import {
   uid,
 } from "../../lib/utils/helpers";
 import { useLabBillingTools } from "../../hooks/useLabBillingTools";
-import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
 import { useLabInvoiceList } from "../../hooks/useLabInvoiceList";
 import { dbGet } from "../../hooks/useLabDataStore";
 import { buildTreasuryPurchaseOrders, summarizePurchaseOrders } from "../../lib/utils/treasury";
 import {
   buildProduBillingReferenceSummary,
-  canProduBillingDocumentBeReferenced,
-  evaluateProduBillingBsaleReadiness,
-  getDefaultProduBillingReferenceReason,
-  getProduBillingReferenceCodeLabel,
-  getProduBillingReferenceCodeOptions,
   getProduBillingDocumentTypeLabel,
-  getProduBillingReferenceReasonOptions,
-  getProduBillingDocumentTypeOptions,
-  requiresProduBillingReferences,
   requiresProduCollectionTracking,
   resolveProduBillingDocumentType,
-  supportsProduDocumentHonorarios,
-  supportsProduDocumentVat,
 } from "../../lib/integrations/billingDomain";
 import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderModal";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
-import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
+import { InvoiceIssuanceSection } from "./InvoiceSections";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { requestConfirm } from "../../lib/ui/confirmService";
 import { alertUserFacingError } from "../../lib/ui/userFacingErrors";
@@ -246,7 +234,6 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   };
 
   const {
-    invoices,
     seriesList,
     pauseSeries,
     cutSeries,
@@ -254,9 +241,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     createBillingEmailDraft,
     createStatementEmailDraft,
     deliverEmailDraft,
-    sendBillingEmail,
     sendBillingWhatsApp,
-    sendStatementEmail,
     sendStatementWhatsApp,
   } = useLabBillingTools({
     allDocs,
@@ -330,31 +315,24 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     setQ,
     fe,
     setFe,
-    fc,
-    setFc,
     sortMode,
     setSortMode,
     selectedIds,
     setSelectedIds,
     bulkEstado,
     setBulkEstado,
-    bulkCobranza,
-    setBulkCobranza,
     pg,
     setPg,
     PP,
     fd,
-    cobranzaDocs,
     currentPageIds,
     selectablePageIds,
     toggleSelected,
     toggleAll,
     vencidas,
-    emitidas,
     recurrentes,
     applyBulkEstado,
     deleteSelected,
-    applyBulkCobranza,
   } = useLabInvoiceList({
     empresa,
     facturas,

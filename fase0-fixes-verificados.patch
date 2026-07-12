@@ -1,0 +1,314 @@
+diff --git a/eslint.config.js b/eslint.config.js
+index 4fa125d..7baf18b 100644
+--- a/eslint.config.js
++++ b/eslint.config.js
+@@ -23,7 +23,7 @@ export default defineConfig([
+       },
+     },
+     rules: {
+-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
++      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
+     },
+   },
+ ])
+diff --git a/src/components/auth/AuthViews.jsx b/src/components/auth/AuthViews.jsx
+index a830bee..58746e0 100644
+--- a/src/components/auth/AuthViews.jsx
++++ b/src/components/auth/AuthViews.jsx
+@@ -78,6 +78,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
+   const [pending2FA, setPending2FA] = useState(null);
+   const [otpCode, setOtpCode] = useState("");
+   const [recoveryCodes, setRecoveryCodes] = useState([]);
++  const isLocalAuth = (authGateway?.strategy || "local") === "local";
+   const [setupSecret, setSetupSecret] = useState("");
+   const [setupOtpUrl, setSetupOtpUrl] = useState("");
+   const [setupQr, setSetupQr] = useState("");
+diff --git a/src/components/commercial/InvoiceSections.jsx b/src/components/commercial/InvoiceSections.jsx
+index f6a7b17..876c169 100644
+--- a/src/components/commercial/InvoiceSections.jsx
++++ b/src/components/commercial/InvoiceSections.jsx
+@@ -3,7 +3,6 @@ import {
+   buildProduBillingReferenceSummary,
+   evaluateProduBillingBsaleReadiness,
+   getProduBillingDocumentTypeLabel,
+-  requiresProduCollectionTracking,
+   resolveProduBillingDocumentType,
+ } from "../../lib/integrations/billingDomain";
+ 
+@@ -161,74 +160,3 @@ export function InvoiceIssuanceSection({
+     </Card>
+   </>;
+ }
+-
+-export function InvoiceCollectionSection({
+-  q, setQ, fc, setFc, sortMode, setSortMode, selectedIds, bulkCobranza, setBulkCobranza, applyBulkCobranza,
+-  clearSelection, currentPageIds, selectablePageIds, toggleAll, cobranzaDocs, pg, PP, clientes, auspiciadores, invoices,
+-  cobranzaState, fmtD, fmtM, Badge, SearchBar, FilterSel, GBtn, FSl, Card, TH, TD, Empty, Paginator,
+-  saveFacturaDoc, canEdit, sendBillingEmail, sendBillingWhatsApp, sendStatementEmail, sendStatementWhatsApp,
+-  today, toggleSelected, setPg,
+-}) {
+-  return <Card title="Cobranza" sub="Cuentas por cobrar por factura o invoice emitido">
+-    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+-      <SearchBar value={q} onChange={v=>{setQ(v);}} placeholder="Buscar documento o entidad..."/>
+-      <FilterSel value={fc} onChange={v=>{setFc(v);}} options={["Pendiente de pago","Pagado","No pagado","Retrasado de pago"]} placeholder="Todo cobro"/>
+-      <FilterSel value={sortMode} onChange={v=>{setSortMode(v);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
+-    </div>
+-    {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>
+-      <div style={{fontSize:12,fontWeight:700,color:"var(--wh)"}}>{selectedIds.length} seleccionada{selectedIds.length===1?"":"s"}</div>
+-      <FSl value={bulkCobranza} onChange={e=>setBulkCobranza(e.target.value)} style={{minWidth:180}}>
+-        <option value="">Cambiar cobranza...</option>
+-        {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(opt=><option key={opt} value={opt}>{opt}</option>)}
+-      </FSl>
+-      <GBtn sm onClick={applyBulkCobranza}>Aplicar estado</GBtn>
+-      <GBtn sm onClick={clearSelection}>Limpiar selección</GBtn>
+-    </div>}
+-    <div style={{overflowX:"auto"}}>
+-      <table style={{width:"100%",borderCollapse:"collapse"}}>
+-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Vencimiento</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Monto</TH><TH>Estado de cobro</TH><TH>Acciones</TH></tr></thead>
+-        <tbody>
+-          {cobranzaDocs.length ? cobranzaDocs.slice((pg-1)*PP,pg*PP).map(f=>{
+-            const sponsorRecord=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):null;
+-            const ent=f.tipo==="auspiciador"
+-              ? (clientes||[]).find(x=>x.id===(f.billingClientId||sponsorRecord?.clientId||sponsorRecord?.cliId||sponsorRecord?.linkedClientId)) || sponsorRecord
+-              : (clientes||[]).find(x=>x.id===f.entidadId);
+-            const cobro=cobranzaState(f);
+-            const entityDocs=invoices.filter(doc=>{
+-              if (f.tipo === "auspiciador") {
+-                return (doc.billingClientId || doc.entidadId) === (f.billingClientId || f.entidadId);
+-              }
+-              return doc.tipo===f.tipo && doc.entidadId===f.entidadId;
+-            });
+-            const canTrackCollection = requiresProduCollectionTracking(resolveProduBillingDocumentType(f.documentTypeCode || f.tipoDocumento || f.tipoDoc || "factura_afecta")?.code);
+-            return <tr key={f.id}>
+-              <TD><input type="checkbox" checked={selectedIds.includes(f.id)} onChange={()=>toggleSelected(f.id)} disabled={!canTrackCollection} title={canTrackCollection ? "Seleccionar documento" : "Este documento no participa en cobranza masiva"}/></TD>
+-              <TD><div style={{fontWeight:700}}>{f.correlativo||"—"}</div><div style={{fontSize:10,color:"var(--gr2)"}}>{f.recurring?"Recurrente":"Único"}</div></TD>
+-              <TD>
+-                <div style={{display:"grid",gap:4}}>
+-                  <span>{invoiceEntityName(f, clientes, auspiciadores)}</span>
+-                  {f.tipo==="auspiciador" && <span style={{fontSize:10,color:"var(--cy2)",fontWeight:600}}>Auspicio: {f.sponsorName || ent?.nom || "—"}</span>}
+-                </div>
+-              </TD>
+-              <TD style={{fontSize:11,color:cobro==="Retrasado de pago"?"#ff5566":"var(--gr2)"}}>{f.fechaVencimiento?fmtD(f.fechaVencimiento):"Sin vencimiento"}</TD>
+-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:12,fontWeight:600}}>{fmtM(f.total||0)}</TD>
+-              <TD><Badge label={cobro} color={cobro==="Pagado"?"green":cobro==="Retrasado de pago"?"red":cobro==="No pagado"?"gray":"yellow"}/></TD>
+-              <TD>
+-                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+-                  {canEdit && canTrackCollection && <FSl value={cobro} onChange={e=>saveFacturaDoc({...f,cobranzaEstado:e.target.value,fechaPago:e.target.value==="Pagado"?(f.fechaPago||today()):"",})} style={{minWidth:170}}>
+-                    {["Pendiente de pago","Pagado","No pagado","Retrasado de pago"].map(st=><option key={st}>{st}</option>)}
+-                  </FSl>}
+-                  <GBtn sm onClick={()=>sendBillingEmail(f,ent)}>✉ Crear correo</GBtn>
+-                  <GBtn sm onClick={()=>sendBillingWhatsApp(f,ent)}>WhatsApp</GBtn>
+-                  <GBtn sm onClick={()=>sendStatementEmail(entityDocs,ent,f.tipo)}>✉ Crear estado de cuenta</GBtn>
+-                  <GBtn sm onClick={()=>sendStatementWhatsApp(entityDocs,ent,f.tipo)}>Estado cta. WA</GBtn>
+-                </div>
+-              </TD>
+-            </tr>;
+-          }) : <tr><td colSpan={7}><Empty text="Sin documentos en cobranza" sub="Emite una factura o un invoice para empezar a gestionar su cobranza."/></td></tr>}
+-        </tbody>
+-      </table>
+-    </div>
+-    <Paginator page={pg} total={cobranzaDocs.length} perPage={PP} onChange={setPg}/>
+-  </Card>;
+-}
+diff --git a/src/components/commercial/InvoiceViews.jsx b/src/components/commercial/InvoiceViews.jsx
+index a3d8cc8..4712812 100644
+--- a/src/components/commercial/InvoiceViews.jsx
++++ b/src/components/commercial/InvoiceViews.jsx
+@@ -40,7 +40,6 @@ import {
+   fmtD,
+   fmtM,
+   fmtMonthPeriod,
+-  hasAddon,
+   invoiceEntityName,
+   normalizePrintLayouts,
+   recurringSummary,
+@@ -48,29 +47,18 @@ import {
+   uid,
+ } from "../../lib/utils/helpers";
+ import { useLabBillingTools } from "../../hooks/useLabBillingTools";
+-import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
+ import { useLabInvoiceList } from "../../hooks/useLabInvoiceList";
+ import { dbGet } from "../../hooks/useLabDataStore";
+ import { buildTreasuryPurchaseOrders, summarizePurchaseOrders } from "../../lib/utils/treasury";
+ import {
+   buildProduBillingReferenceSummary,
+-  canProduBillingDocumentBeReferenced,
+-  evaluateProduBillingBsaleReadiness,
+-  getDefaultProduBillingReferenceReason,
+-  getProduBillingReferenceCodeLabel,
+-  getProduBillingReferenceCodeOptions,
+   getProduBillingDocumentTypeLabel,
+-  getProduBillingReferenceReasonOptions,
+-  getProduBillingDocumentTypeOptions,
+-  requiresProduBillingReferences,
+   requiresProduCollectionTracking,
+   resolveProduBillingDocumentType,
+-  supportsProduDocumentHonorarios,
+-  supportsProduDocumentVat,
+ } from "../../lib/integrations/billingDomain";
+ import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderModal";
+ import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+-import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
++import { InvoiceIssuanceSection } from "./InvoiceSections";
+ import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
+ import { requestConfirm } from "../../lib/ui/confirmService";
+ import { alertUserFacingError } from "../../lib/ui/userFacingErrors";
+@@ -246,7 +234,6 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
+   };
+ 
+   const {
+-    invoices,
+     seriesList,
+     pauseSeries,
+     cutSeries,
+@@ -254,9 +241,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
+     createBillingEmailDraft,
+     createStatementEmailDraft,
+     deliverEmailDraft,
+-    sendBillingEmail,
+     sendBillingWhatsApp,
+-    sendStatementEmail,
+     sendStatementWhatsApp,
+   } = useLabBillingTools({
+     allDocs,
+@@ -330,31 +315,24 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
+     setQ,
+     fe,
+     setFe,
+-    fc,
+-    setFc,
+     sortMode,
+     setSortMode,
+     selectedIds,
+     setSelectedIds,
+     bulkEstado,
+     setBulkEstado,
+-    bulkCobranza,
+-    setBulkCobranza,
+     pg,
+     setPg,
+     PP,
+     fd,
+-    cobranzaDocs,
+     currentPageIds,
+     selectablePageIds,
+     toggleSelected,
+     toggleAll,
+     vencidas,
+-    emitidas,
+     recurrentes,
+     applyBulkEstado,
+     deleteSelected,
+-    applyBulkCobranza,
+   } = useLabInvoiceList({
+     empresa,
+     facturas,
+diff --git a/src/hooks/useLabDataStore.js b/src/hooks/useLabDataStore.js
+index 314a776..3185bed 100644
+--- a/src/hooks/useLabDataStore.js
++++ b/src/hooks/useLabDataStore.js
+@@ -61,7 +61,12 @@ function useDB(key, initial = null, options = {}) {
+     return resolved;
+   }, [key]);
+ 
+-  if (!controlsRef.current) {
++  // Patrón de inicialización perezosa de ref recomendado por React
++  // (https://react.dev/reference/react/useRef#avoiding-recreating-the-ref-contents):
++  // el objeto se crea una sola vez y nunca se muta después, por lo que es seguro
++  // aunque la regla react-hooks/refs no reconozca esta forma exacta del guard.
++  /* eslint-disable react-hooks/refs */
++  if (controlsRef.current === null) {
+     controlsRef.current = {
+       hydrate(value) {
+         setData(value == null ? initial : value);
+@@ -72,8 +77,9 @@ function useDB(key, initial = null, options = {}) {
+       },
+     };
+   }
++  /* eslint-enable react-hooks/refs */
+ 
+-  return [data, save, save, loading, writingRef, controlsRef.current];
++  return [data, save, save, loading, writingRef, controlsRef];
+ }
+ 
+ function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
+@@ -96,7 +102,11 @@ function usePoll(key, setData, saveFn, writingRef, ms = 20000) {
+             return remote;
+           });
+         }
+-      } catch {}
++      } catch {
++        // Fallo de red/lectura remota en el polling en background: se ignora
++        // intencionalmente, el próximo tick reintenta. No hay estado de error
++        // que mostrar aquí sin degradar la UX de una sincronización silenciosa.
++      }
+       finally {
+         busy = false;
+       }
+@@ -120,20 +130,20 @@ export function useGlobalLabData() {
+   useEffect(() => {
+     let alive = true;
+     const controls = [empresasCtl, usersCtl, printLayoutsCtl, themeCtl];
+-    controls.forEach(control => control.startLoading());
++    controls.forEach(control => control.current.startLoading());
+     Promise.allSettled([
+       dbGet("produ:empresas"),
+       dbGet("produ:users"),
+     ])
+       .then(([empresasResult, usersResult]) => {
+         if (!alive) return;
+-        empresasCtl.hydrate(empresasResult.status === "fulfilled" && Array.isArray(empresasResult.value) ? empresasResult.value : []);
+-        usersCtl.hydrate(usersResult.status === "fulfilled" && Array.isArray(usersResult.value) ? usersResult.value : []);
++        empresasCtl.current.hydrate(empresasResult.status === "fulfilled" && Array.isArray(empresasResult.value) ? empresasResult.value : []);
++        usersCtl.current.hydrate(usersResult.status === "fulfilled" && Array.isArray(usersResult.value) ? usersResult.value : []);
+       })
+       .catch(() => {
+         if (!alive) return;
+-        empresasCtl.hydrate([]);
+-        usersCtl.hydrate([]);
++        empresasCtl.current.hydrate([]);
++        usersCtl.current.hydrate([]);
+       });
+     Promise.allSettled([
+       dbGet("produ:printLayouts"),
+@@ -141,13 +151,13 @@ export function useGlobalLabData() {
+     ])
+       .then(([printLayoutsResult, themeResult]) => {
+         if (!alive) return;
+-        printLayoutsCtl.hydrate(printLayoutsResult.status === "fulfilled" ? printLayoutsResult.value : null);
+-        themeCtl.hydrate(themeResult.status === "fulfilled" ? themeResult.value : null);
++        printLayoutsCtl.current.hydrate(printLayoutsResult.status === "fulfilled" ? printLayoutsResult.value : null);
++        themeCtl.current.hydrate(themeResult.status === "fulfilled" ? themeResult.value : null);
+       })
+       .catch(() => {
+         if (!alive) return;
+-        printLayoutsCtl.hydrate(null);
+-        themeCtl.hydrate(null);
++        printLayoutsCtl.current.hydrate(null);
++        themeCtl.current.hydrate(null);
+       });
+     return () => {
+       alive = false;
+@@ -223,7 +233,7 @@ export function useTenantLabData(eId) {
+       treasuryDisbursementsCtl,
+       activosCtl,
+     ];
+-    controls.forEach(control => control.startLoading());
++    controls.forEach(control => control.current.startLoading());
+     Promise.all([
+       dbGet(`produ:${eId}:listas`),
+       dbGet(`produ:${eId}:tareas`),
+@@ -252,11 +262,11 @@ export function useTenantLabData(eId) {
+     ])
+       .then(values => {
+         if (!alive) return;
+-        values.forEach((value, index) => controls[index].hydrate(value));
++        values.forEach((value, index) => controls[index].current.hydrate(value));
+       })
+       .catch(() => {
+         if (!alive) return;
+-        controls.forEach(control => control.hydrate(null));
++        controls.forEach(control => control.current.hydrate(null));
+       });
+     return () => {
+       alive = false;

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
-import { normalizeTreasuryCurrency } from "../../lib/utils/treasury";
+import { normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
 
 function buildPaymentForm(data = {}) {
   return {
@@ -77,11 +77,13 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
           <ValidationHint>{validationIssue?.key === "amount" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
-      <div style={{ margin: "-2px 0 12px", padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)", fontSize: 12, color: "var(--gr3)", display: "flex", justifyContent: "space-between", gap: 10 }}>
-        <span>Moneda del documento asociado</span>
-        <strong style={{ color: "var(--wh)", letterSpacing: ".08em" }}>{currency}</strong>
-      </div>
       <R2>
+        <FG label="Moneda">
+          <FSl value={currency} onChange={e => setField("currency", normalizeTreasuryCurrency(e.target.value))}>
+            {TREASURY_CURRENCIES.map(option => <option key={option} value={option}>{option}</option>)}
+          </FSl>
+          <ValidationHint>Por defecto usa la moneda del documento asociado, pero puedes corregirla al editar el pago.</ValidationHint>
+        </FG>
         <FG label="Método">
           <FSl value={form.method || "Transferencia"} onChange={e => setField("method", e.target.value)}>
             {["Transferencia", "Depósito", "Cheque", "Efectivo", "Tarjeta", "Otro"].map(option => <option key={option}>{option}</option>)}

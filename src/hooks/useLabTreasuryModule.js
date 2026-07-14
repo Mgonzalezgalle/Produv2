@@ -699,7 +699,7 @@ export function useLabTreasuryModule({
     const targetInvoice = receivables.find(item => item.id === next?.invoiceId)
       || (Array.isArray(facturas) ? facturas : []).find(item => item?.id === next?.invoiceId)
       || null;
-    const targetCurrency = normalizeTreasuryCurrency(targetInvoice?.currency || targetInvoice?.moneda || targetInvoice?.monedaOrigen || next?.currency || "CLP");
+    const targetCurrency = normalizeTreasuryCurrency(next?.currency || targetInvoice?.currency || targetInvoice?.moneda || targetInvoice?.monedaOrigen || "CLP");
     const safeNext = sanitizeTreasuryReceipt({ ...next, empId, currency: targetCurrency }, empId);
     const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);
@@ -757,7 +757,7 @@ export function useLabTreasuryModule({
       || treasuryPayables.find(item => item.id === next?.payableId)
       || treasuryPayablesRecovered.find(item => item.id === next?.payableId)
       || null;
-    const targetCurrency = normalizeTreasuryCurrency(targetPayable?.currency || next?.currency || "CLP");
+    const targetCurrency = normalizeTreasuryCurrency(next?.currency || targetPayable?.currency || "CLP");
     const safeNext = sanitizeTreasuryDisbursement({ ...next, empId, currency: targetCurrency }, empId);
     const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);

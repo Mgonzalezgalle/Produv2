@@ -668,6 +668,12 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     const rawCurrency = rawCurrencyValue(row);
     const rawStatus = String(row.estado || row.estado_cobranza || "").trim();
     const fallbackStatus = mode === "receivables" ? "Pendiente de pago" : "Pendiente";
+    const rawEstimatedPaymentDate = row.fecha_estimada_pago || row.fecha_pago_estimada;
+    const rawTotal = row.total || row.monto || "";
+    const shiftedTotal = !parseImportNumber(rawTotal) && rawEstimatedPaymentDate && !isValidIsoDateValue(rawEstimatedPaymentDate)
+      ? rawEstimatedPaymentDate
+      : "";
+    const safeEstimatedPaymentDate = shiftedTotal ? "" : rawEstimatedPaymentDate;
     return {
       rowNumber: row.__rowNumber,
       clientRut: String(row.rut_cliente || row.rut || "").trim(),
@@ -685,15 +691,15 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
       category: String(row.categoria || row.category || "Servicio").trim() || "Servicio",
       issueDate: normalizeDateValue(row.fecha_emision || row.fecha_de_emision),
       dueDate: normalizeDateValue(row.fecha_vencimiento || row.fecha_de_vencimiento),
-      paymentDate: normalizeDateValue(row.fecha_estimada_pago || row.fecha_pago_estimada),
-      total: parseImportNumber(row.total || row.monto || 0),
+      paymentDate: normalizeDateValue(safeEstimatedPaymentDate),
+      total: parseImportNumber(shiftedTotal || rawTotal || 0),
       rawCurrency,
       currency: normalizeTreasuryCurrency(rawCurrency || "CLP"),
       rawStatus,
       status: canonicalStatusValue(rawStatus, mode) || rawStatus || fallbackStatus,
       rawIssueDate: row.fecha_emision || row.fecha_de_emision,
       rawDueDate: row.fecha_vencimiento || row.fecha_de_vencimiento,
-      rawPaymentDate: row.fecha_estimada_pago || row.fecha_pago_estimada,
+      rawPaymentDate: safeEstimatedPaymentDate,
       notes: String(row.notas || row.comentario || "").trim(),
     };
   }).filter(row => row.folio || row.total || row.clientRut || row.providerRut || row.clientName || row.providerName);

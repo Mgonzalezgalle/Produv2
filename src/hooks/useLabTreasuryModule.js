@@ -39,6 +39,7 @@ function sanitizeTreasuryReceipt(next = {}, empId = "") {
     id: String(next?.id || "").trim(),
     empId: String(next?.empId || empId || "").trim(),
     invoiceId: String(next?.invoiceId || "").trim(),
+    currency: normalizeTreasuryCurrency(next?.currency || "CLP"),
     amount: Number.isFinite(amount) ? amount : 0,
     method: String(next?.method || "").trim(),
     reference: String(next?.reference || "").trim(),
@@ -53,6 +54,7 @@ function sanitizeTreasuryDisbursement(next = {}, empId = "") {
     id: String(next?.id || "").trim(),
     empId: String(next?.empId || empId || "").trim(),
     payableId: String(next?.payableId || "").trim(),
+    currency: normalizeTreasuryCurrency(next?.currency || "CLP"),
     amount: Number.isFinite(amount) ? amount : 0,
     method: String(next?.method || "").trim(),
     reference: String(next?.reference || "").trim(),
@@ -694,7 +696,11 @@ export function useLabTreasuryModule({
   const saveReceipt = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = sanitizeTreasuryReceipt({ ...next, empId }, empId);
+    const targetInvoice = receivables.find(item => item.id === next?.invoiceId)
+      || (Array.isArray(facturas) ? facturas : []).find(item => item?.id === next?.invoiceId)
+      || null;
+    const targetCurrency = normalizeTreasuryCurrency(targetInvoice?.currency || targetInvoice?.moneda || targetInvoice?.monedaOrigen || next?.currency || "CLP");
+    const safeNext = sanitizeTreasuryReceipt({ ...next, empId, currency: targetCurrency }, empId);
     const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);
     if (!nextAmount || nextAmount <= 0) return false;
@@ -719,6 +725,7 @@ export function useLabTreasuryModule({
         entityId: safeNext.id || "",
         payload: {
           invoiceId: safeNext.invoiceId || "",
+          currency: safeNext.currency || "",
           amount: Number(safeNext.amount || 0),
           method: safeNext.method || "",
           reference: safeNext.reference || "",
@@ -731,6 +738,7 @@ export function useLabTreasuryModule({
         entityId: safeNext.id || "",
         payload: {
           invoiceId: safeNext.invoiceId || "",
+          currency: safeNext.currency || "",
           amount: Number(safeNext.amount || 0),
           method: safeNext.method || "",
           reference: safeNext.reference || "",
@@ -745,7 +753,12 @@ export function useLabTreasuryModule({
   const saveDisbursement = async next => {
     if (!canManageTreasury) return false;
     if (!empId) return false;
-    const safeNext = sanitizeTreasuryDisbursement({ ...next, empId }, empId);
+    const targetPayable = payables.find(item => item.id === next?.payableId)
+      || treasuryPayables.find(item => item.id === next?.payableId)
+      || treasuryPayablesRecovered.find(item => item.id === next?.payableId)
+      || null;
+    const targetCurrency = normalizeTreasuryCurrency(targetPayable?.currency || next?.currency || "CLP");
+    const safeNext = sanitizeTreasuryDisbursement({ ...next, empId, currency: targetCurrency }, empId);
     const nextAmount = Number(safeNext.amount || 0);
     const maxAmount = Number(next.maxAmount || 0);
     if (!nextAmount || nextAmount <= 0) return false;
@@ -770,6 +783,7 @@ export function useLabTreasuryModule({
         entityId: safeNext.id || "",
         payload: {
           payableId: safeNext.payableId || "",
+          currency: safeNext.currency || "",
           amount: Number(safeNext.amount || 0),
           method: safeNext.method || "",
           reference: safeNext.reference || "",
@@ -782,6 +796,7 @@ export function useLabTreasuryModule({
         entityId: safeNext.id || "",
         payload: {
           payableId: safeNext.payableId || "",
+          currency: safeNext.currency || "",
           amount: Number(safeNext.amount || 0),
           method: safeNext.method || "",
           reference: safeNext.reference || "",
@@ -943,6 +958,7 @@ export function useLabTreasuryModule({
     setReceiptDraft({
       empId,
       invoiceId: row.id,
+      currency: normalizeTreasuryCurrency(row.currency || "CLP"),
       reference: row.correlativo,
       maxAmount: Math.max(0, Number(row.pending || 0)),
       amount: Math.max(0, Number(row.pending || 0)) || "",
@@ -955,6 +971,7 @@ export function useLabTreasuryModule({
     setDisbursementDraft({
       empId,
       payableId: row.id,
+      currency: normalizeTreasuryCurrency(row.currency || "CLP"),
       reference: row.folio || row.supplier,
       maxAmount: Math.max(0, Number(row.pending || 0)),
       amount: Math.max(0, Number(row.pending || 0)) || "",

@@ -1,24 +1,35 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { today, uid } from "../../lib/utils/helpers";
+import { normalizeTreasuryCurrency } from "../../lib/utils/treasury";
+
+function buildPaymentForm(data = {}) {
+  return {
+    id: uid(),
+    date: today(),
+    amount: "",
+    method: "Transferencia",
+    reference: "",
+    notes: "",
+    receiptName: "",
+    receiptUrl: "",
+    ...(data || {}),
+  };
+}
 
 export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onSave }) {
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(() => buildPaymentForm(data));
   const fileRef = useRef(null);
 
   useEffect(() => {
-    setForm({
-      id: uid(),
-      date: today(),
-      amount: "",
-      method: "Transferencia",
-      reference: "",
-      notes: "",
-      receiptName: "",
-      receiptUrl: "",
-      ...(data || {}),
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setForm(buildPaymentForm(data));
     });
     if (fileRef.current) fileRef.current.value = "";
+    return () => {
+      cancelled = true;
+    };
   }, [data, open]);
 
   const setField = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -37,6 +48,7 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
   };
   const maxAmount = Number(form.maxAmount || 0);
   const currentAmount = Number(form.amount || 0);
+  const currency = normalizeTreasuryCurrency(form.currency || "CLP");
   const amountExceeded = maxAmount > 0 && currentAmount > maxAmount;
   const validationIssue = !currentAmount
     ? {
@@ -65,6 +77,10 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
           <ValidationHint>{validationIssue?.key === "amount" ? validationIssue.inline : ""}</ValidationHint>
         </FG>
       </R2>
+      <div style={{ margin: "-2px 0 12px", padding: "10px 12px", border: "1px solid var(--bdr2)", borderRadius: 12, background: "var(--sur)", fontSize: 12, color: "var(--gr3)", display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <span>Moneda del documento asociado</span>
+        <strong style={{ color: "var(--wh)", letterSpacing: ".08em" }}>{currency}</strong>
+      </div>
       <R2>
         <FG label="Método">
           <FSl value={form.method || "Transferencia"} onChange={e => setField("method", e.target.value)}>
@@ -87,6 +103,7 @@ export function TreasuryPaymentModal({ open, title, subtitle, data, onClose, onS
           if (!canSubmit) return;
           onSave({
             ...form,
+            currency,
             amount: Number(form.amount || 0),
           });
         }}

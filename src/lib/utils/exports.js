@@ -20,7 +20,7 @@ export function exportComentariosCSV(items, nombre = "comentarios") {
 }
 
 let simplePdfBlobRuntimePromise = null;
-let modernPdfRuntimePromise = null;
+let treasuryTablePdfRuntimePromise = null;
 let episodeStatusPdfRuntimePromise = null;
 
 async function getSimplePdfBlobRuntime() {
@@ -30,11 +30,11 @@ async function getSimplePdfBlobRuntime() {
   return simplePdfBlobRuntimePromise;
 }
 
-async function getModernPdfRuntime() {
-  if (!modernPdfRuntimePromise) {
-    modernPdfRuntimePromise = import("./pdf").then(module => module.buildModernPdf);
+async function getTreasuryTablePdfRuntime() {
+  if (!treasuryTablePdfRuntimePromise) {
+    treasuryTablePdfRuntimePromise = import("./pdf").then(module => module.buildTreasuryTablePdf);
   }
-  return modernPdfRuntimePromise;
+  return treasuryTablePdfRuntimePromise;
 }
 
 async function getEpisodeStatusPdfRuntime() {
@@ -370,36 +370,15 @@ export async function exportTreasuryRowsPDF({
 } = {}) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
-  const buildModernPdf = await getModernPdfRuntime();
-  const bodySections = safeRows.length
-    ? safeRows.map((row, index) => {
-        const primary = safeColumns[0] ? resolveExportCell(safeColumns[0], row) : `Registro ${index + 1}`;
-        const secondary = safeColumns[1] ? resolveExportCell(safeColumns[1], row) : "";
-        return {
-          title: `${String(primary || "Registro")} ${secondary && secondary !== "—" ? `· ${secondary}` : ""}`,
-          rows: safeColumns.slice(2).map(column => ({
-            label: column.label || column.key || "Dato",
-            value: String(resolveExportCell(column, row)),
-          })),
-        };
-      })
-    : [{
-        title: "Sin registros",
-        text: "No hay datos para exportar en esta vista.",
-      }];
-  const file = await buildModernPdf({
+  const buildTreasuryTablePdf = await getTreasuryTablePdfRuntime();
+  const file = await buildTreasuryTablePdf({
     fileName: `${normalizeExportFileName(fileName)}.pdf`,
     title,
+    subtitle,
     accent,
     empresa,
-    counterpartTitle: "Vista exportada",
-    counterpartName: subtitle || "Tesorería",
-    counterpartLines: [`Registros: ${safeRows.length}`],
-    metaLines: [
-      `Generado: ${new Date().toLocaleDateString("es-CL")}`,
-      empresa?.nombre || empresa?.nom ? `Empresa: ${empresa?.nombre || empresa?.nom}` : "",
-    ].filter(Boolean),
-    bodySections,
+    columns: safeColumns,
+    rows: safeRows,
     footerPrimary: "Hecho con amor por Produ.",
     footerSecondary: "Plataforma de Gestión de Empresas",
   });

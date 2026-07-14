@@ -214,11 +214,9 @@ export async function buildModernPdf({
   const muted = hexToRgb("#64748b");
   const panel = hexToRgb("#f8fafc");
   const white = hexToRgb("#ffffff");
-  const border = hexToRgb("#cbd5e1");
   const pageWidth = 612;
   const pageHeight = 792;
   let page = null;
-  let width = pageWidth;
   let height = pageHeight;
 
   const drawRoundedBlock = (targetPage, x, y, w, h, color) => {
@@ -272,7 +270,7 @@ export async function buildModernPdf({
   };
   const createPage = () => {
     page = pdf.addPage([pageWidth, pageHeight]);
-    ({ width, height } = page.getSize());
+    ({ height } = page.getSize());
     drawPageHeader(page);
     drawFooter(page);
     return page;
@@ -338,6 +336,155 @@ export async function buildModernPdf({
       totalY -= 18;
     });
   }
+  const bytes = await pdf.save();
+  return new File([bytes], fileName, { type: "application/pdf" });
+}
+
+export async function buildTreasuryTablePdf({
+  fileName = "tesoreria.pdf",
+  title = "Reporte de Tesorería",
+  subtitle = "",
+  empresa = null,
+  columns = [],
+  rows = [],
+  accent = "#1a1a2e",
+  footerPrimary = "Hecho con amor por Produ.",
+  footerSecondary = "Plataforma de Gestión de Empresas",
+} = {}) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const accentColor = hexToRgb(accent);
+  const textColor = hexToRgb("#111827");
+  const muted = hexToRgb("#64748b");
+  const border = hexToRgb("#d7e0ed");
+  const soft = hexToRgb("#f6f9fd");
+  const white = hexToRgb("#ffffff");
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const marginX = 32;
+  const topY = pageHeight - 32;
+  const bottomY = 54;
+  const tableWidth = pageWidth - marginX * 2;
+  const safeColumns = (Array.isArray(columns) ? columns : []).slice(0, 9);
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const logo = await loadPdfImage(pdf, empresa?.logo || "");
+
+  const fitText = (text = "", maxWidth = 80, targetFont = font, size = 7) => {
+    const safe = String(text || "—").replace(/\s+/g, " ").trim() || "—";
+    if (targetFont.widthOfTextAtSize(safe, size) <= maxWidth) return safe;
+    let output = safe;
+    while (output.length > 1 && targetFont.widthOfTextAtSize(`${output}…`, size) > maxWidth) {
+      output = output.slice(0, -1).trimEnd();
+    }
+    return output ? `${output}…` : "…";
+  };
+
+  const drawFooter = page => {
+    page.drawLine({ start: { x: marginX, y: 38 }, end: { x: pageWidth - marginX, y: 38 }, thickness: 0.6, color: border });
+    const primaryWidth = font.widthOfTextAtSize(footerPrimary, 8.4);
+    page.drawText(footerPrimary, { x: (pageWidth - primaryWidth) / 2, y: 24, size: 8.4, font, color: muted });
+    if (footerSecondary) {
+      const secondaryWidth = font.widthOfTextAtSize(footerSecondary, 7.4);
+      page.drawText(footerSecondary, { x: (pageWidth - secondaryWidth) / 2, y: 13, size: 7.4, font, color: muted });
+    }
+  };
+
+  const drawHeader = (page, pageNumber = 1) => {
+    page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: white });
+    drawRoundedPdfBox(page, marginX, pageHeight - 98, tableWidth, 66, accentColor, accentColor, 1);
+    if (logo) {
+      const dims = fitPdfImageDimensions(logo, 78, 32);
+      page.drawImage(logo, { x: marginX + 16, y: pageHeight - 76, width: dims?.width || 64, height: dims?.height || 26 });
+    } else {
+      page.drawText(empresa?.nombre || "Produ", { x: marginX + 16, y: pageHeight - 64, size: 15, font: bold, color: white });
+    }
+    page.drawText(fitText(title, 285, bold, 16), { x: pageWidth - marginX - 300, y: pageHeight - 60, size: 16, font: bold, color: white });
+    page.drawText(fitText(subtitle || empresa?.nombre || empresa?.nom || "Tesorería", 285, font, 8.8), { x: pageWidth - marginX - 300, y: pageHeight - 75, size: 8.8, font, color: white });
+    page.drawText(`Página ${pageNumber}`, { x: pageWidth - marginX - 52, y: pageHeight - 92, size: 7.2, font, color: white });
+    drawFooter(page);
+  };
+
+  const weights = safeColumns.map((column, index) => {
+    const label = String(column?.label || column?.key || "").toLowerCase();
+    if (index === 0) return 1.45;
+    if (index === 1) return 1.25;
+    if (label.includes("monto") || label.includes("total") || label.includes("pendiente")) return 1.05;
+    if (label.includes("fecha") || label.includes("emisión") || label.includes("vencimiento")) return 0.86;
+    if (label.includes("estado")) return 0.9;
+    return 1;
+  });
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0) || 1;
+  const colWidths = weights.map(value => Math.max(42, (tableWidth - 16) * value / weightTotal));
+  const colXs = colWidths.reduce((acc, width, index) => {
+    acc.push(index === 0 ? marginX + 8 : acc[index - 1] + colWidths[index - 1]);
+    return acc;
+  }, []);
+  const tableRight = marginX + tableWidth - 8;
+  const headerHeight = 26;
+  const rowHeight = 28;
+  let pageNumber = 1;
+  let page = pdf.addPage([pageWidth, pageHeight]);
+  drawHeader(page, pageNumber);
+
+  let y = topY - 96;
+  drawRoundedPdfBox(page, marginX, y - 58, tableWidth, 42, soft, border, 1);
+  page.drawText("Resumen de descarga", { x: marginX + 14, y: y - 34, size: 9, font: bold, color: textColor });
+  page.drawText(`Registros incluidos: ${safeRows.length}`, { x: marginX + 160, y: y - 34, size: 8.2, font, color: muted });
+  page.drawText(`Generado: ${new Date().toLocaleDateString("es-CL")}`, { x: marginX + 315, y: y - 34, size: 8.2, font, color: muted });
+  y -= 78;
+
+  const drawTableHeader = () => {
+    drawRoundedPdfBox(page, marginX, y - headerHeight + 2, tableWidth, headerHeight, accentColor, accentColor, 1);
+    safeColumns.forEach((column, index) => {
+      const label = fitText(column?.label || column?.key || "Dato", colWidths[index] - 8, bold, 6.8).toUpperCase();
+      page.drawText(label, { x: colXs[index] + 4, y: y - 14, size: 6.8, font: bold, color: white });
+    });
+    y -= headerHeight + 2;
+  };
+
+  const newPage = () => {
+    pageNumber += 1;
+    page = pdf.addPage([pageWidth, pageHeight]);
+    drawHeader(page, pageNumber);
+    y = topY - 96;
+    drawTableHeader();
+  };
+
+  if (!safeColumns.length) {
+    page.drawText("No hay columnas disponibles para este reporte.", { x: marginX, y, size: 10, font, color: muted });
+  } else {
+    drawTableHeader();
+    const printableRows = safeRows.length ? safeRows : [{}];
+    printableRows.forEach((row, rowIndex) => {
+      if (y - rowHeight < bottomY) newPage();
+      const rowY = y - rowHeight + 4;
+      page.drawRectangle({
+        x: marginX,
+        y: rowY,
+        width: tableWidth,
+        height: rowHeight,
+        color: rowIndex % 2 === 0 ? white : soft,
+        borderColor: border,
+        borderWidth: 0.45,
+      });
+      safeColumns.forEach((column, index) => {
+        const rawValue = safeRows.length
+          ? (typeof column.value === "function" ? column.value(row) : row?.[column.key])
+          : (index === 0 ? "Sin registros" : "—");
+        const value = fitText(rawValue, colWidths[index] - 8, index <= 1 ? bold : font, index <= 1 ? 7.4 : 7);
+        page.drawText(value, {
+          x: Math.min(colXs[index] + 4, tableRight - colWidths[index]),
+          y: rowY + 10,
+          size: index <= 1 ? 7.4 : 7,
+          font: index <= 1 ? bold : font,
+          color: index <= 1 ? textColor : muted,
+        });
+      });
+      y -= rowHeight;
+    });
+  }
+
   const bytes = await pdf.save();
   return new File([bytes], fileName, { type: "application/pdf" });
 }

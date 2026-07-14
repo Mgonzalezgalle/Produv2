@@ -39,7 +39,35 @@ function normalizeImportLookupValue(value = "") {
 }
 
 function normalizeRutLookup(value = "") {
-  return String(value || "").replace(/[^0-9kK]/g, "").toLowerCase();
+  const raw = String(value || "").replace(/[^0-9kK]/g, "").toLowerCase();
+  if (raw.length <= 1) return raw;
+  const body = raw.slice(0, -1).replace(/^0+/, "") || "0";
+  return `${body}${raw.slice(-1)}`;
+}
+
+function rutCandidatesFrom(...values) {
+  return values.map(value => normalizeRutLookup(value)).filter(Boolean);
+}
+
+function providerRutCandidates(provider = {}) {
+  return rutCandidatesFrom(provider?.rut, provider?.rutProveedor, provider?.supplierRut, provider?.taxId, provider?.tax_id);
+}
+
+function findProviderByPayable(providers = [], doc = {}) {
+  const byId = doc?.providerId
+    ? (providers || []).find(provider => String(provider?.id || "") === String(doc.providerId || ""))
+    : null;
+  if (byId) return byId;
+  const docRut = normalizeRutLookup(doc?.rut || doc?.providerRut || doc?.supplierRut);
+  if (docRut) {
+    const byRut = (providers || []).find(provider => providerRutCandidates(provider).includes(docRut));
+    if (byRut) return byRut;
+  }
+  const docProviderName = normalizeImportLookupValue(doc?.supplier || doc?.providerName || doc?.name);
+  if (!docProviderName) return null;
+  return (providers || []).find(provider => (
+    normalizeImportLookupValue(provider?.name || provider?.razonSocial) === docProviderName
+  )) || null;
 }
 
 function findClientForImport(clients = [], row = {}) {
@@ -55,22 +83,32 @@ function findClientForImport(clients = [], row = {}) {
 function findProviderForImport(providers = [], row = {}) {
   const wantedRut = normalizeRutLookup(row.providerRut || row.rut);
   const wantedName = normalizeImportLookupValue(row.providerName || row.name);
+  if (wantedRut) {
+    return (providers || []).find(provider => providerRutCandidates(provider).includes(wantedRut)) || null;
+  }
+  if (!wantedName) return null;
   return (providers || []).find(provider => {
-    const rutMatch = wantedRut && normalizeRutLookup(provider?.rut) === wantedRut;
     const nameMatch = wantedName && normalizeImportLookupValue(provider?.name || provider?.razonSocial) === wantedName;
-    return rutMatch || nameMatch;
+    return nameMatch;
   }) || null;
 }
 
-function findPayableDocForImport(rows = [], row = {}) {
+function findPayableDocForImport(rows = [], row = {}, providers = []) {
   const wantedFolio = normalizeImportLookupValue(row.folio);
   const wantedRut = normalizeRutLookup(row.providerRut);
   const wantedProvider = normalizeImportLookupValue(row.providerName);
   return (rows || []).find(doc => {
     const folioMatch = wantedFolio && normalizeImportLookupValue(doc?.folio || doc?.number) === wantedFolio;
-    const rutMatch = !wantedRut || normalizeRutLookup(doc?.rut || doc?.providerRut) === wantedRut;
-    const providerMatch = !wantedProvider || normalizeImportLookupValue(doc?.supplier || doc?.providerName) === wantedProvider;
-    return folioMatch && (rutMatch || providerMatch);
+    if (!folioMatch) return false;
+    if (wantedRut) {
+      const provider = findProviderByPayable(providers, doc);
+      return rutCandidatesFrom(doc?.rut, doc?.providerRut, doc?.supplierRut, provider?.rut).includes(wantedRut);
+    }
+    if (wantedProvider) {
+      const provider = findProviderByPayable(providers, doc);
+      return normalizeImportLookupValue(doc?.supplier || doc?.providerName || provider?.name || provider?.razonSocial) === wantedProvider;
+    }
+    return true;
   }) || null;
 }
 
@@ -354,7 +392,7 @@ export function TreasuryModule(props) {
   const providerPaymentRows = useMemo(() => {
     if (!providerDraft?.name) return [];
     return (disbursementLog || []).filter(row => row.counterpartyLabel === providerDraft.name);
-  }, [disbursementLog, providerDraft?.name]);
+  }, [disbursementLog, providerDraft]);
   const handlePayableUpdate = async (row, patch = {}) => {
     if (!canManageTreasury || !row?.id) return;
     const source = (payables || []).find(item => item.id === row.id) || row;
@@ -793,7 +831,7 @@ export function TreasuryModule(props) {
         for (const row of Array.isArray(payload.documents) ? payload.documents : []) {
           const provider = findProviderForImport(nextProviders, row);
           if (!provider || !row.folio || !row.total) continue;
-          const existing = findPayableDocForImport(localPayables, row);
+          const existing = findPayableDocForImport(localPayables, row, nextProviders);
           const nextDoc = {
             ...(existing || {}),
             id: existing?.id || uid(),
@@ -820,7 +858,7 @@ export function TreasuryModule(props) {
         }
 
         for (const row of Array.isArray(payload.payments) ? payload.payments : []) {
-          const target = findPayableDocForImport(localPayables, row);
+          const target = findPayableDocForImport(localPayables, row, nextProviders);
           if (!target) {
             counters.skippedPayments += 1;
             continue;

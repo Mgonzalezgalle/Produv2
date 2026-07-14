@@ -51,6 +51,86 @@ function normalizeHeader(value = "") {
   return HEADER_ALIASES[key] || key;
 }
 
+const RECEIVABLE_IMPORT_FIELDS = [
+  "tipo_registro",
+  "rut_cliente",
+  "nombre_cliente",
+  "email",
+  "telefono",
+  "limite_credito",
+  "folio_documento",
+  "tipo_documento",
+  "fecha_emision",
+  "fecha_vencimiento",
+  "total",
+  "estado",
+  "fecha_pago",
+  "monto_pago",
+  "metodo_pago",
+  "referencia_pago",
+  "notas",
+];
+
+const PAYABLE_IMPORT_FIELDS = [
+  "tipo_registro",
+  "rut_proveedor",
+  "nombre_proveedor",
+  "email",
+  "telefono",
+  "banco",
+  "tipo_cuenta",
+  "numero_cuenta",
+  "email_pago",
+  "moneda",
+  "folio_documento",
+  "tipo_documento",
+  "categoria",
+  "fecha_emision",
+  "fecha_vencimiento",
+  "fecha_estimada_pago",
+  "total",
+  "estado",
+  "fecha_pago",
+  "monto_pago",
+  "metodo_pago",
+  "referencia_pago",
+  "notas",
+];
+
+const IMPORT_FIELD_LABELS = {
+  tipo_registro: "Tipo de registro",
+  rut_cliente: "RUT cliente",
+  nombre_cliente: "Nombre cliente",
+  rut_proveedor: "RUT proveedor",
+  nombre_proveedor: "Nombre proveedor",
+  email: "Email",
+  telefono: "Teléfono",
+  limite_credito: "Límite de crédito",
+  banco: "Banco",
+  tipo_cuenta: "Tipo de cuenta",
+  numero_cuenta: "Número de cuenta",
+  email_pago: "Email de pago",
+  moneda: "Moneda",
+  folio_documento: "Folio documento",
+  tipo_documento: "Tipo documento",
+  categoria: "Categoría",
+  fecha_emision: "Fecha emisión",
+  fecha_vencimiento: "Fecha vencimiento",
+  fecha_estimada_pago: "Fecha estimada de pago",
+  total: "Total documento",
+  estado: "Estado",
+  fecha_pago: "Fecha pago",
+  monto_pago: "Monto pago",
+  metodo_pago: "Método pago",
+  referencia_pago: "Referencia pago",
+  notas: "Notas",
+};
+
+export function getTreasuryImportFieldOptions(mode = "payables") {
+  const fields = mode === "receivables" ? RECEIVABLE_IMPORT_FIELDS : PAYABLE_IMPORT_FIELDS;
+  return fields.map(value => ({ value, label: IMPORT_FIELD_LABELS[value] || value }));
+}
+
 function decodeXmlEntities(value = "") {
   return String(value || "")
     .replace(/&quot;/g, "\"")
@@ -189,11 +269,16 @@ export function parseImportNumber(value = "") {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function objectRowsFromSheet(sheet) {
+function objectRowsFromSheet(sheet, headerMapping = null) {
   if (!sheet) return [];
   const rows = Array.isArray(sheet?.data) ? sheet.data : Array.isArray(sheet) ? sheet : [];
   const [headers = [], ...body] = rows;
-  const normalizedHeaders = headers.map(normalizeHeader);
+  const normalizedHeaders = headers.map(header => {
+    const rawHeader = String(header || "").trim();
+    const mapped = headerMapping?.[rawHeader];
+    if (mapped === "__skip") return "";
+    return mapped || normalizeHeader(rawHeader);
+  });
   return body
     .map((row, rowIndex) => {
       const item = { __rowNumber: rowIndex + 2 };
@@ -230,6 +315,38 @@ function firstImportableSheet(workbook) {
       "fecha_pago",
     ].includes(header));
   }) || null;
+}
+
+function getImportSheet(workbook) {
+  return findSheet(workbook, ["template", "importador", "carga masiva"]) || firstImportableSheet(workbook);
+}
+
+function guessTreasuryImportMapping(headers = [], mode = "payables") {
+  const allowed = new Set((mode === "receivables" ? RECEIVABLE_IMPORT_FIELDS : PAYABLE_IMPORT_FIELDS));
+  return (headers || []).reduce((acc, header) => {
+    const rawHeader = String(header || "").trim();
+    if (!rawHeader) return acc;
+    const normalized = normalizeHeader(rawHeader);
+    acc[rawHeader] = allowed.has(normalized) ? normalized : "__skip";
+    return acc;
+  }, {});
+}
+
+export async function inspectTreasuryImportFile(file, mode = "payables") {
+  const isCsv = String(file?.name || "").toLowerCase().endsWith(".csv");
+  const workbook = isCsv
+    ? sheetFromCsv(await file.text())
+    : await parseWorkbookFromFile(file);
+  const importSheet = getImportSheet(workbook);
+  const rows = Array.isArray(importSheet?.data) ? importSheet.data : [];
+  const headers = (rows[0] || []).map(value => String(value || "").trim());
+  const sampleRows = rows.slice(1, 6).map(row => headers.map((_header, index) => row[index] ?? ""));
+  return {
+    sheetName: importSheet?.name || "Importador",
+    headers,
+    sampleRows,
+    mapping: guessTreasuryImportMapping(headers, mode),
+  };
 }
 
 function downloadBlob(blob, fileName) {
@@ -620,13 +737,13 @@ function canonicalStatusValue(status = "", mode = "payables") {
   return "";
 }
 
-export async function parseTreasuryImportFile(file, mode = "payables") {
+export async function parseTreasuryImportFile(file, mode = "payables", headerMapping = null) {
   const isCsv = String(file?.name || "").toLowerCase().endsWith(".csv");
   const workbook = isCsv
     ? sheetFromCsv(await file.text())
     : await parseWorkbookFromFile(file);
-  const importSheet = findSheet(workbook, ["template", "importador", "carga masiva"]) || firstImportableSheet(workbook);
-  const unifiedRows = objectRowsFromSheet(importSheet);
+  const importSheet = getImportSheet(workbook);
+  const unifiedRows = objectRowsFromSheet(importSheet, headerMapping);
   const unified = splitUnifiedRows(unifiedRows, mode);
   const clients = unified.clients.length ? unified.clients : mode === "receivables"
     ? objectRowsFromSheet(findSheet(workbook, SHEET_ALIASES.clients))

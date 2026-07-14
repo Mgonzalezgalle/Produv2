@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react";
 import { GBtn, MFoot, Modal } from "../../lib/ui/components";
 import {
   downloadTreasuryImportTemplate,
+  getTreasuryImportFieldOptions,
+  inspectTreasuryImportFile,
   parseTreasuryImportFile,
 } from "../../lib/utils/treasuryBulkImport";
 
@@ -54,12 +56,19 @@ export function TreasuryBulkImporterModal({
   applying = false,
 }) {
   const fileRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [inspection, setInspection] = useState(null);
+  const [mapping, setMapping] = useState({});
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState("");
   const [downloadNotice, setDownloadNotice] = useState("");
   const copy = modeCopy(mode);
+  const fieldOptions = getTreasuryImportFieldOptions(mode);
 
   const reset = () => {
+    setSelectedFile(null);
+    setInspection(null);
+    setMapping({});
     setParsed(null);
     setError("");
     setDownloadNotice("");
@@ -76,12 +85,32 @@ export function TreasuryBulkImporterModal({
     setParsed(null);
     if (!file) return;
     try {
-      const result = await parseTreasuryImportFile(file, mode);
+      const nextInspection = await inspectTreasuryImportFile(file, mode);
+      setSelectedFile(file);
+      setInspection(nextInspection);
+      setMapping(nextInspection.mapping || {});
+      const result = await parseTreasuryImportFile(file, mode, nextInspection.mapping || {});
       setParsed(result);
     } catch (err) {
       console.warn("[treasury-import] No pudimos leer la planilla", err);
       setError("No pudimos leer la planilla. Revisa que sea un archivo .xlsx o .csv válido.");
     }
+  };
+  const refreshParsedWithMapping = async (nextMapping = mapping) => {
+    if (!selectedFile) return;
+    setError("");
+    try {
+      const result = await parseTreasuryImportFile(selectedFile, mode, nextMapping);
+      setParsed(result);
+    } catch (err) {
+      console.warn("[treasury-import] No pudimos aplicar el mapeo", err);
+      setError("No pudimos aplicar el mapeo. Revisa las columnas seleccionadas.");
+    }
+  };
+  const handleMappingChange = (header, field) => {
+    const nextMapping = { ...mapping, [header]: field || "__skip" };
+    setMapping(nextMapping);
+    refreshParsedWithMapping(nextMapping);
   };
   const handleDownloadTemplate = () => {
     setError("");
@@ -125,6 +154,39 @@ export function TreasuryBulkImporterModal({
 
         {error ? <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(255,85,102,.28)", background: "rgba(255,85,102,.08)", color: "var(--red)", fontSize: 12 }}>{error}</div> : null}
         {downloadNotice ? <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(0,224,138,.25)", background: "rgba(0,224,138,.08)", color: "#0f9f68", fontSize: 12, fontWeight: 800 }}>{downloadNotice}</div> : null}
+
+        {inspection?.headers?.length ? (
+          <div style={{ display: "grid", gap: 10, padding: 12, border: "1px solid var(--bdr2)", borderRadius: 16, background: "#fff" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 850, color: "var(--wh)" }}>Relaciona columnas antes de importar</div>
+                <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 3 }}>
+                  Hoja detectada: {inspection.sheetName}. Si una columna no corresponde, déjala como “No importar”.
+                </div>
+              </div>
+              <GBtn sm onClick={() => refreshParsedWithMapping(mapping)}>Actualizar lectura</GBtn>
+            </div>
+            <div style={{ maxHeight: 260, overflow: "auto", border: "1px solid var(--bdr2)", borderRadius: 14 }}>
+              {inspection.headers.map((header, index) => {
+                const samples = (inspection.sampleRows || [])
+                  .map(row => row[index])
+                  .filter(value => String(value || "").trim())
+                  .slice(0, 3)
+                  .join(" · ");
+                return (
+                  <div key={`${header}-${index}`} style={{ display: "grid", gridTemplateColumns: "minmax(150px,.8fr) minmax(180px,1fr) minmax(160px,1fr)", gap: 10, alignItems: "center", padding: "10px 12px", borderBottom: index === inspection.headers.length - 1 ? 0 : "1px solid var(--bdr2)", fontSize: 12 }}>
+                    <strong style={{ color: "var(--wh)" }}>{header || `Columna ${index + 1}`}</strong>
+                    <select value={mapping[header] || "__skip"} onChange={event => handleMappingChange(header, event.target.value)} style={{ width: "100%", border: "1px solid var(--bdr2)", borderRadius: 10, padding: "8px 10px", background: "#f8fbff", color: "var(--wh)", fontWeight: 700 }}>
+                      <option value="__skip">No importar</option>
+                      {fieldOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <span style={{ color: "var(--gr2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{samples || "Sin muestra"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {parsed ? (
           <>

@@ -74,10 +74,9 @@ const paymentLogExportColumns = [
 ];
 
 const payableExportColumns = [
-  { label: "Proveedor", value: row => row?.supplier || "—" },
-  { label: "Documento", value: row => row?.folio || "—" },
-  { label: "Tipo", value: row => row?.docType || "Documento" },
-  { label: "Categoría", value: row => row?.category || "—" },
+  { label: "Proveedor", value: row => row?.supplier || "—", widthWeight: 1.45 },
+  { label: "Documento", value: row => row?.folio || "—", widthWeight: 1.75, noTruncate: true },
+  { label: "Tipo", value: row => row?.docType || "Documento", widthWeight: 0.95 },
   { label: "Emisión", value: row => row?.issueDate || "—" },
   { label: "Vencimiento", value: row => row?.dueDate || "—" },
   { label: "Pago estimado", value: row => row?.paymentDate || "—" },

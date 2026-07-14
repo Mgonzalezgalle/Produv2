@@ -379,6 +379,15 @@ export async function buildTreasuryTablePdf({
     }
     return output ? `${output}…` : "…";
   };
+  const fitCellText = (text = "", maxWidth = 80, targetFont = font, size = 7, options = {}) => {
+    const safe = String(text || "—").replace(/\s+/g, " ").trim() || "—";
+    if (!options.noTruncate) return { text: fitText(safe, maxWidth, targetFont, size), size };
+    let nextSize = size;
+    while (nextSize > 5.2 && targetFont.widthOfTextAtSize(safe, nextSize) > maxWidth) {
+      nextSize -= 0.2;
+    }
+    return { text: safe, size: nextSize };
+  };
 
   const drawFooter = page => {
     page.drawLine({ start: { x: marginX, y: 38 }, end: { x: pageWidth - marginX, y: 38 }, thickness: 0.6, color: border });
@@ -406,9 +415,11 @@ export async function buildTreasuryTablePdf({
   };
 
   const weights = safeColumns.map((column, index) => {
+    if (Number(column?.widthWeight || 0) > 0) return Number(column.widthWeight);
     const label = String(column?.label || column?.key || "").toLowerCase();
     if (index === 0) return 1.45;
     if (index === 1) return 1.25;
+    if (label.includes("documento") || label.includes("folio") || label.includes("número") || label.includes("numero")) return 1.45;
     if (label.includes("monto") || label.includes("total") || label.includes("pendiente")) return 1.05;
     if (label.includes("fecha") || label.includes("emisión") || label.includes("vencimiento")) return 0.86;
     if (label.includes("estado")) return 0.9;
@@ -472,12 +483,13 @@ export async function buildTreasuryTablePdf({
         const rawValue = safeRows.length
           ? (typeof column.value === "function" ? column.value(row) : row?.[column.key])
           : (index === 0 ? "Sin registros" : "—");
-        const value = fitText(rawValue, colWidths[index] - 8, index <= 1 ? bold : font, index <= 1 ? 7.4 : 7);
-        page.drawText(value, {
+        const cellFont = index <= 1 ? bold : font;
+        const fitted = fitCellText(rawValue, colWidths[index] - 8, cellFont, index <= 1 ? 7.4 : 7, { noTruncate: column?.noTruncate });
+        page.drawText(fitted.text, {
           x: Math.min(colXs[index] + 4, tableRight - colWidths[index]),
           y: rowY + 10,
-          size: index <= 1 ? 7.4 : 7,
-          font: index <= 1 ? bold : font,
+          size: fitted.size,
+          font: cellFont,
           color: index <= 1 ? textColor : muted,
         });
       });

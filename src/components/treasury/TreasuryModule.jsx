@@ -677,7 +677,7 @@ export function TreasuryModule(props) {
     setImportingTreasury(true);
     try {
       const empId = props.empresa?.id || "";
-      const counters = { clients: 0, providers: 0, documents: 0, payments: 0, skippedPayments: 0 };
+      const counters = { clients: 0, providers: 0, documents: 0, payments: 0, skippedDocuments: 0, skippedPayments: 0 };
       if (payload.mode === "receivables") {
         const clientRows = [
           ...(Array.isArray(payload.clients) ? payload.clients : []),
@@ -772,19 +772,7 @@ export function TreasuryModule(props) {
           counters.payments += ok ? 1 : 0;
         }
       } else {
-        const providerRows = [
-          ...(Array.isArray(payload.providers) ? payload.providers : []),
-          ...(Array.isArray(payload.documents) ? payload.documents : []).map(row => ({
-            rut: row.providerRut,
-            name: row.providerName,
-            currency: row.currency,
-            email: row.providerEmail,
-            paymentEmail: row.providerPaymentEmail,
-            bank: row.providerBank,
-            accountType: row.providerAccountType,
-            accountNumber: row.providerAccountNumber,
-          })),
-        ];
+        const providerRows = Array.isArray(payload.providers) ? payload.providers : [];
         const providerMap = new Map((providers || []).map(provider => [provider.id, provider]));
         providerRows.forEach(row => {
           if (!row?.rut && !row?.name) return;
@@ -830,7 +818,10 @@ export function TreasuryModule(props) {
         const localPayables = [...(payables || [])];
         for (const row of Array.isArray(payload.documents) ? payload.documents : []) {
           const provider = findProviderForImport(nextProviders, row);
-          if (!provider || !row.folio || !row.total) continue;
+          if (!provider || !row.folio || !row.total) {
+            counters.skippedDocuments += 1;
+            continue;
+          }
           const existing = findPayableDocForImport(localPayables, row, nextProviders);
           const nextDoc = {
             ...(existing || {}),
@@ -878,7 +869,10 @@ export function TreasuryModule(props) {
       }
       const entityCount = payload.mode === "receivables" ? counters.clients : counters.providers;
       const entityLabel = payload.mode === "receivables" ? "cliente(s)" : "proveedor(es)";
-      props.ntf?.(`Importación lista: ${entityCount} ${entityLabel}, ${counters.documents} documento(s), ${counters.payments} pago(s).${counters.skippedPayments ? ` ${counters.skippedPayments} pago(s) sin documento asociado.` : ""}`);
+      props.ntf?.(
+        `Importación lista: ${entityCount} ${entityLabel}, ${counters.documents} documento(s), ${counters.payments} pago(s).${counters.skippedDocuments ? ` ${counters.skippedDocuments} documento(s) no se cargaron porque no encontramos la contraparte creada en Produ.` : ""}${counters.skippedPayments ? ` ${counters.skippedPayments} pago(s) no se cargaron porque no encontramos un documento con el mismo folio y RUT.` : ""}`,
+        counters.skippedDocuments || counters.skippedPayments ? "warn" : undefined,
+      );
       setImporterMode(null);
     } catch (error) {
       console.error("[treasury-import] Error al importar datos", error);

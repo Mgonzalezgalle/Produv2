@@ -579,6 +579,13 @@ function rawCurrencyValue(row = {}) {
   return String(row.moneda || row.currency || "").trim().toUpperCase();
 }
 
+function sanitizeCounterpartyName(value = "") {
+  const name = String(value || "").trim();
+  if (!name) return "";
+  if (/^\d+([.,]\d+)?$/.test(name)) return "";
+  return name;
+}
+
 function isValidCurrencyValue(value = "") {
   return !value || TREASURY_CURRENCIES.includes(String(value || "").trim().toUpperCase());
 }
@@ -640,7 +647,7 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
   const normalizedClients = clients.map(row => ({
     rowNumber: row.__rowNumber,
     rut: String(row.rut_cliente || row.rut || "").trim(),
-    name: String(row.nombre_cliente || row.nombre || "").trim(),
+    name: sanitizeCounterpartyName(row.nombre_cliente || row.nombre),
     email: String(row.email || "").trim(),
     phone: String(row.telefono || row.phone || "").trim(),
     creditLimit: parseImportNumber(row.limite_credito || row.credit_limit || 0),
@@ -651,7 +658,7 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     return {
       rowNumber: row.__rowNumber,
       rut: String(row.rut_proveedor || row.rut || "").trim(),
-      name: String(row.nombre_proveedor || row.nombre || "").trim(),
+      name: sanitizeCounterpartyName(row.nombre_proveedor || row.nombre),
       email: String(row.email || row.email_pago || "").trim(),
       phone: String(row.telefono || row.phone || "").trim(),
       bank: String(row.banco || "").trim(),
@@ -681,9 +688,9 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     return {
       rowNumber: row.__rowNumber,
       clientRut: String(row.rut_cliente || row.rut || "").trim(),
-      clientName: String(row.nombre_cliente || row.nombre || "").trim(),
+      clientName: sanitizeCounterpartyName(row.nombre_cliente || row.nombre),
       providerRut: String(row.rut_proveedor || row.rut || "").trim(),
-      providerName: String(row.nombre_proveedor || row.nombre || "").trim(),
+      providerName: sanitizeCounterpartyName(row.nombre_proveedor || row.nombre),
       providerEmail: String(row.email || row.email_pago || "").trim(),
       providerBank: String(row.banco || "").trim(),
       providerAccountType: String(row.tipo_cuenta || "").trim(),
@@ -713,7 +720,7 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     folio: String(row.folio_documento || row.folio || row.documento || "").trim(),
     clientRut: String(row.rut_cliente || row.rut || "").trim(),
     providerRut: String(row.rut_proveedor || row.rut || "").trim(),
-    providerName: String(row.nombre_proveedor || row.nombre || "").trim(),
+    providerName: sanitizeCounterpartyName(row.nombre_proveedor || row.nombre),
     date: normalizeDateValue(row.fecha_pago || row.fecha || ""),
     rawDate: row.fecha_pago || row.fecha || "",
     amount: parseImportNumber(row.monto || row.total || 0),

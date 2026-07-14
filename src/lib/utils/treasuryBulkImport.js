@@ -1,6 +1,6 @@
-import { strFromU8, unzipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { resolveProduBillingDocumentType } from "../integrations/billingDomain";
-import { normalizeTreasuryCurrency } from "./treasury";
+import { normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "./treasury";
 
 const SHEET_ALIASES = {
   clients: ["clientes", "cliente", "clients"],
@@ -25,6 +25,12 @@ const HEADER_ALIASES = {
   nombre: "nombre_proveedor",
   tipo_cuenta_destino: "tipo_cuenta",
 };
+
+const RECEIVABLE_STATUS_OPTIONS = ["Pendiente de pago", "Pagado", "No pagado", "Retrasado de pago", "Anulado"];
+const PAYABLE_STATUS_OPTIONS = ["Pendiente", "Parcial", "Pagada", "Vencida", "Anulada"];
+const PAYMENT_METHOD_OPTIONS = ["Transferencia", "Depósito", "Tarjeta", "Cheque", "Efectivo", "Mercado Pago", "Otro"];
+const DOCUMENT_TYPE_OPTIONS = ["Factura Afecta", "Factura Exenta", "Boleta", "Nota de cobro", "Honorarios", "Otro"];
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 function normalizeKey(value = "") {
   return String(value || "")
@@ -171,23 +177,202 @@ function findSheet(workbook, aliases = []) {
 }
 
 function downloadBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return { ok: false, error: "browser_unavailable" };
+  }
+  if (!blob || !(blob instanceof Blob)) {
+    return { ok: false, error: "invalid_blob" };
+  }
+  const safeName = String(fileName || "produ_importador.xlsx").trim() || "produ_importador.xlsx";
+  const nav = window.navigator || {};
+  try {
+    if (typeof nav.msSaveOrOpenBlob === "function") {
+      nav.msSaveOrOpenBlob(blob, safeName);
+      return { ok: true, fileName: safeName };
+    }
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = safeName;
+    anchor.rel = "noopener";
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { ok: true, fileName: safeName };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message || "download_failed",
+    };
+  }
 }
 
-function csvEscape(value = "") {
-  const raw = String(value ?? "");
-  return /[";\n\r]/.test(raw) ? `"${raw.replace(/"/g, "\"\"")}"` : raw;
+function xmlEscape(value = "") {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function csvFromRows(rows = []) {
-  return rows.map(row => row.map(csvEscape).join(";")).join("\n");
+function columnName(index = 0) {
+  let dividend = index + 1;
+  let name = "";
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    name = String.fromCharCode(65 + modulo) + name;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+  return name;
+}
+
+function worksheetDimension(rows = []) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const rowCount = Math.max(safeRows.length, 1);
+  const colCount = Math.max(...safeRows.map(row => Array.isArray(row) ? row.length : 0), 1);
+  return `A1:${columnName(colCount - 1)}${rowCount}`;
+}
+
+function worksheetXml(rows = []) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const rowXml = safeRows.map((row, rowIndex) => {
+    const cells = (Array.isArray(row) ? row : []).map((value, colIndex) => {
+      const ref = `${columnName(colIndex)}${rowIndex + 1}`;
+      return `<c r="${ref}" t="inlineStr"><is><t>${xmlEscape(value)}</t></is></c>`;
+    }).join("");
+    return `<row r="${rowIndex + 1}">${cells}</row>`;
+  }).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="${worksheetDimension(safeRows)}"/>
+  <sheetData>${rowXml}</sheetData>
+</worksheet>`;
+}
+
+function workbookXml(sheetNames = []) {
+  const sheets = sheetNames.map((name, index) => `<sheet name="${xmlEscape(name).slice(0, 31)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${sheets}</sheets>
+</workbook>`;
+}
+
+function workbookRelsXml(sheetNames = []) {
+  const sheetRels = sheetNames.map((_name, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("");
+  const stylesRelId = `rId${sheetNames.length + 1}`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${sheetRels}
+  <Relationship Id="${stylesRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+}
+
+function contentTypesXml(sheetNames = []) {
+  const sheetOverrides = sheetNames.map((_name, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  ${sheetOverrides}
+</Types>`;
+}
+
+function packageRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+}
+
+function stylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Inter"/></font></fonts>
+  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+function appPropsXml(sheetNames = []) {
+  const headingPairs = sheetNames.map(name => `<vt:variant><vt:lpstr>${xmlEscape(name)}</vt:lpstr></vt:variant>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Produ</Application>
+  <DocSecurity>0</DocSecurity>
+  <ScaleCrop>false</ScaleCrop>
+  <HeadingPairs><vt:vector size="2" baseType="variant"><vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant><vt:variant><vt:i4>${sheetNames.length}</vt:i4></vt:variant></vt:vector></HeadingPairs>
+  <TitlesOfParts><vt:vector size="${sheetNames.length}" baseType="variant">${headingPairs}</vt:vector></TitlesOfParts>
+</Properties>`;
+}
+
+function corePropsXml() {
+  const createdAt = new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>Plantilla de importación Produ</dc:title>
+  <dc:creator>Produ</dc:creator>
+  <cp:lastModifiedBy>Produ</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${createdAt}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${createdAt}</dcterms:modified>
+</cp:coreProperties>`;
+}
+
+function xlsxBlobFromSheets(sheets = []) {
+  const sheetNames = sheets.map(sheet => sheet.name);
+  const entries = {
+    "[Content_Types].xml": strToU8(contentTypesXml(sheetNames)),
+    "_rels/.rels": strToU8(packageRelsXml()),
+    "docProps/app.xml": strToU8(appPropsXml(sheetNames)),
+    "docProps/core.xml": strToU8(corePropsXml()),
+    "xl/workbook.xml": strToU8(workbookXml(sheetNames)),
+    "xl/_rels/workbook.xml.rels": strToU8(workbookRelsXml(sheetNames)),
+    "xl/styles.xml": strToU8(stylesXml()),
+  };
+  sheets.forEach((sheet, index) => {
+    entries[`xl/worksheets/sheet${index + 1}.xml`] = strToU8(worksheetXml(sheet.rows));
+  });
+  return new Blob([zipSync(entries)], { type: XLSX_MIME });
+}
+
+function templateGuideRows(mode = "payables") {
+  const isReceivables = mode === "receivables";
+  return [
+    ["Produ", isReceivables ? "Importador masivo Cuentas por Cobrar" : "Importador masivo Cuentas por Pagar"],
+    ["Cómo usar", "Completa la hoja Importador. Cada fila debe indicar tipo_registro: cliente/proveedor, documento o pago."],
+    ["Orden sugerido", isReceivables ? "1) clientes, 2) documentos, 3) pagos recibidos." : "1) proveedores, 2) documentos, 3) pagos realizados."],
+    ["Fechas", "Usa formato AAAA-MM-DD. Ejemplo: 2026-07-31."],
+    ["Montos", "Escribe números sin símbolos. Puedes usar 1250000 o 1.250.000."],
+    ["Moneda", `Usa una de estas monedas: ${TREASURY_CURRENCIES.join(", ")}.`],
+    ["Estados", isReceivables ? RECEIVABLE_STATUS_OPTIONS.join(", ") : PAYABLE_STATUS_OPTIONS.join(", ")],
+    ["Pagos", "Para asociar un pago, el folio_documento debe coincidir exactamente con el folio del documento."],
+    ["Anulados", "El estado Anulada mantiene trazabilidad, pero el monto no se considera en totales."],
+    ["Validación", "Produ revisa folios, montos, fechas, moneda, estado y relación con contraparte antes de importar."],
+  ];
+}
+
+function catalogRows(mode = "payables") {
+  const statusOptions = mode === "receivables" ? RECEIVABLE_STATUS_OPTIONS : PAYABLE_STATUS_OPTIONS;
+  return [
+    ["catálogo", "valor", "uso"],
+    ...TREASURY_CURRENCIES.map(value => ["moneda", value, "Campo moneda"]),
+    ...statusOptions.map(value => ["estado", value, "Campo estado en documentos"]),
+    ...DOCUMENT_TYPE_OPTIONS.map(value => ["tipo_documento", value, "Campo tipo_documento"]),
+    ...PAYMENT_METHOD_OPTIONS.map(value => ["metodo_pago", value, "Campo metodo_pago"]),
+    ...(mode === "payables"
+      ? [["tipo_cuenta", "Corriente", "Datos bancarios proveedor"], ["tipo_cuenta", "Vista", "Datos bancarios proveedor"], ["tipo_cuenta", "Ahorro", "Datos bancarios proveedor"]]
+      : []),
+  ];
 }
 
 function unifiedTemplateRows(mode = "payables") {
@@ -197,6 +382,7 @@ function unifiedTemplateRows(mode = "payables") {
       ["cliente", "76.000.000-0", "Cliente Ejemplo SpA", "finanzas@cliente.cl", "+56 9 0000 0000", "5000000", "", "", "", "", "", "", "", "", "", "", "Alta o actualización del cliente"],
       ["documento", "76.000.000-0", "Cliente Ejemplo SpA", "", "", "", "F-1001", "Factura Afecta", "2026-07-01", "2026-07-31", "1250000", "Pendiente de pago", "", "", "", "", "Servicio mensual"],
       ["pago", "76.000.000-0", "", "", "", "", "F-1001", "", "", "", "", "", "2026-07-15", "500000", "Transferencia", "TRX-001", "Abono inicial"],
+      ["documento", "76.000.000-0", "Cliente Ejemplo SpA", "", "", "", "F-1002", "Factura Exenta", "2026-07-10", "2026-08-10", "350000", "Anulado", "", "", "", "", "Documento anulado por error de emisión"],
     ];
   }
   return [
@@ -204,12 +390,27 @@ function unifiedTemplateRows(mode = "payables") {
     ["proveedor", "77.000.000-0", "Proveedor Ejemplo SpA", "cobranza@proveedor.cl", "+56 9 1111 1111", "Banco de Chile", "Corriente", "123456789", "pagos@proveedor.cl", "CLP", "", "", "", "", "", "", "", "", "", "", "", "", "Alta o actualización del proveedor"],
     ["documento", "77.000.000-0", "Proveedor Ejemplo SpA", "", "", "", "", "", "", "CLP", "P-2001", "Factura Afecta", "Servicio", "2026-07-01", "2026-07-30", "2026-07-28", "850000", "Pendiente", "", "", "", "", "Servicio externo"],
     ["pago", "77.000.000-0", "Proveedor Ejemplo SpA", "", "", "", "", "", "", "CLP", "P-2001", "", "", "", "", "", "", "", "2026-07-20", "300000", "Transferencia", "EG-001", "Abono proveedor"],
+    ["documento", "77.000.000-0", "Proveedor Ejemplo SpA", "", "", "", "", "", "", "PEN", "P-2002", "Factura Exenta", "Licencia", "2026-07-05", "2026-08-05", "2026-08-01", "1200", "Anulada", "", "", "", "", "Documento anulado por el emisor"],
   ];
 }
 
+export function buildTreasuryImportTemplateFile(mode = "payables") {
+  const suffix = mode === "receivables" ? "cxc" : "cxp";
+  const sheets = [
+    { name: "Guia", rows: templateGuideRows(mode) },
+    { name: "Importador", rows: unifiedTemplateRows(mode) },
+    { name: "Catalogos", rows: catalogRows(mode) },
+  ];
+  return {
+    blob: xlsxBlobFromSheets(sheets),
+    fileName: `produ_importador_${suffix}.xlsx`,
+    sheets,
+  };
+}
+
 export function downloadTreasuryImportTemplate(mode = "payables") {
-  const csv = csvFromRows(unifiedTemplateRows(mode));
-  downloadBlob(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }), `produ_importador_${mode === "receivables" ? "cxc" : "cxp"}.csv`);
+  const file = buildTreasuryImportTemplateFile(mode);
+  return downloadBlob(file.blob, file.fileName);
 }
 
 function parseCsvLine(line = "") {
@@ -275,6 +476,44 @@ function splitUnifiedRows(rows = [], mode = "payables") {
   return { clients, providers, documents, payments };
 }
 
+function rawCurrencyValue(row = {}) {
+  return String(row.moneda || row.currency || "").trim().toUpperCase();
+}
+
+function isValidCurrencyValue(value = "") {
+  return !value || TREASURY_CURRENCIES.includes(String(value || "").trim().toUpperCase());
+}
+
+function isValidStatusValue(status = "", mode = "payables") {
+  if (!status) return true;
+  const options = mode === "receivables" ? RECEIVABLE_STATUS_OPTIONS : PAYABLE_STATUS_OPTIONS;
+  return !!canonicalStatusValue(status, mode) || options.some(option => normalizeKey(option) === normalizeKey(status));
+}
+
+function isValidPaymentMethodValue(method = "") {
+  if (!method) return true;
+  return PAYMENT_METHOD_OPTIONS.some(option => normalizeKey(option) === normalizeKey(method));
+}
+
+function isValidIsoDateValue(value = "") {
+  if (!value) return true;
+  const normalized = normalizeDateValue(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) && !Number.isNaN(new Date(`${normalized}T00:00:00Z`).getTime());
+}
+
+function canonicalStatusValue(status = "", mode = "payables") {
+  const raw = String(status || "").trim();
+  if (!raw) return "";
+  const key = normalizeKey(raw);
+  const options = mode === "receivables" ? RECEIVABLE_STATUS_OPTIONS : PAYABLE_STATUS_OPTIONS;
+  const exact = options.find(option => normalizeKey(option) === key);
+  if (exact) return exact;
+  if (mode === "receivables" && key === normalizeKey("Anulada")) return "Anulado";
+  if (mode === "payables" && key === normalizeKey("Anulado")) return "Anulada";
+  if (mode === "payables" && key === normalizeKey("Pagado")) return "Pagada";
+  return "";
+}
+
 export async function parseTreasuryImportFile(file, mode = "payables") {
   const isCsv = String(file?.name || "").toLowerCase().endsWith(".csv");
   const workbook = isCsv
@@ -307,21 +546,28 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     creditLimit: parseImportNumber(row.limite_credito || row.credit_limit || 0),
   })).filter(row => row.rut || row.name);
 
-  const normalizedProviders = providers.map(row => ({
-    rowNumber: row.__rowNumber,
-    rut: String(row.rut_proveedor || row.rut || "").trim(),
-    name: String(row.nombre_proveedor || row.nombre || "").trim(),
-    email: String(row.email || row.email_pago || "").trim(),
-    phone: String(row.telefono || row.phone || "").trim(),
-    bank: String(row.banco || "").trim(),
-    accountType: String(row.tipo_cuenta || "").trim(),
-    accountNumber: String(row.numero_cuenta || "").trim(),
-    paymentEmail: String(row.email_pago || row.email || "").trim(),
-    currency: normalizeTreasuryCurrency(row.moneda || "CLP"),
-  })).filter(row => row.rut || row.name);
+  const normalizedProviders = providers.map(row => {
+    const rawCurrency = rawCurrencyValue(row);
+    return {
+      rowNumber: row.__rowNumber,
+      rut: String(row.rut_proveedor || row.rut || "").trim(),
+      name: String(row.nombre_proveedor || row.nombre || "").trim(),
+      email: String(row.email || row.email_pago || "").trim(),
+      phone: String(row.telefono || row.phone || "").trim(),
+      bank: String(row.banco || "").trim(),
+      accountType: String(row.tipo_cuenta || "").trim(),
+      accountNumber: String(row.numero_cuenta || "").trim(),
+      paymentEmail: String(row.email_pago || row.email || "").trim(),
+      rawCurrency,
+      currency: normalizeTreasuryCurrency(rawCurrency || "CLP"),
+    };
+  }).filter(row => row.rut || row.name);
 
   const normalizedDocuments = documents.map(row => {
     const documentType = resolveProduBillingDocumentType(row.tipo_documento || row.doc_type || row.tipo || row.docType || "Factura Afecta");
+    const rawCurrency = rawCurrencyValue(row);
+    const rawStatus = String(row.estado || row.estado_cobranza || "").trim();
+    const fallbackStatus = mode === "receivables" ? "Pendiente de pago" : "Pendiente";
     return {
       rowNumber: row.__rowNumber,
       clientRut: String(row.rut_cliente || row.rut || "").trim(),
@@ -341,8 +587,13 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
       dueDate: normalizeDateValue(row.fecha_vencimiento || row.fecha_de_vencimiento),
       paymentDate: normalizeDateValue(row.fecha_estimada_pago || row.fecha_pago_estimada),
       total: parseImportNumber(row.total || row.monto || 0),
-      currency: normalizeTreasuryCurrency(row.moneda || "CLP"),
-      status: String(row.estado || row.estado_cobranza || (mode === "receivables" ? "Pendiente de pago" : "Pendiente")).trim(),
+      rawCurrency,
+      currency: normalizeTreasuryCurrency(rawCurrency || "CLP"),
+      rawStatus,
+      status: canonicalStatusValue(rawStatus, mode) || rawStatus || fallbackStatus,
+      rawIssueDate: row.fecha_emision || row.fecha_de_emision,
+      rawDueDate: row.fecha_vencimiento || row.fecha_de_vencimiento,
+      rawPaymentDate: row.fecha_estimada_pago || row.fecha_pago_estimada,
       notes: String(row.notas || row.comentario || "").trim(),
     };
   }).filter(row => row.folio || row.total || row.clientRut || row.providerRut || row.clientName || row.providerName);
@@ -354,6 +605,7 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
     providerRut: String(row.rut_proveedor || row.rut || "").trim(),
     providerName: String(row.nombre_proveedor || row.nombre || "").trim(),
     date: normalizeDateValue(row.fecha_pago || row.fecha || ""),
+    rawDate: row.fecha_pago || row.fecha || "",
     amount: parseImportNumber(row.monto || row.total || 0),
     method: String(row.metodo || row.method || "Transferencia").trim() || "Transferencia",
     reference: String(row.referencia || row.reference || "").trim(),
@@ -361,15 +613,25 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
   })).filter(row => row.folio || row.amount || row.reference);
 
   const issues = [];
+  normalizedProviders.forEach(row => {
+    if (row.rawCurrency && !isValidCurrencyValue(row.rawCurrency)) issues.push(`Proveedor fila ${row.rowNumber}: moneda no válida (${row.rawCurrency}). Usa ${TREASURY_CURRENCIES.join(", ")}.`);
+  });
   normalizedDocuments.forEach(row => {
     if (!row.folio) issues.push(`Fila ${row.rowNumber}: falta folio del documento.`);
-    if (!row.total) issues.push(`Fila ${row.rowNumber}: falta monto total del documento.`);
+    if (!row.total || row.total <= 0) issues.push(`Fila ${row.rowNumber}: el monto total debe ser mayor a cero.`);
     if (mode === "receivables" && !row.clientRut && !row.clientName) issues.push(`Fila ${row.rowNumber}: falta cliente.`);
     if (mode === "payables" && !row.providerRut && !row.providerName) issues.push(`Fila ${row.rowNumber}: falta proveedor.`);
+    if (row.rawCurrency && !isValidCurrencyValue(row.rawCurrency)) issues.push(`Fila ${row.rowNumber}: moneda no válida (${row.rawCurrency}). Usa ${TREASURY_CURRENCIES.join(", ")}.`);
+    if (!isValidStatusValue(row.rawStatus || row.status, mode)) issues.push(`Fila ${row.rowNumber}: estado no válido (${row.status}). Revisa la hoja Catálogos.`);
+    if (!isValidIsoDateValue(row.rawIssueDate)) issues.push(`Fila ${row.rowNumber}: fecha_emision debe usar formato AAAA-MM-DD.`);
+    if (!isValidIsoDateValue(row.rawDueDate)) issues.push(`Fila ${row.rowNumber}: fecha_vencimiento debe usar formato AAAA-MM-DD.`);
+    if (!isValidIsoDateValue(row.rawPaymentDate)) issues.push(`Fila ${row.rowNumber}: fecha_estimada_pago debe usar formato AAAA-MM-DD.`);
   });
   normalizedPayments.forEach(row => {
     if (!row.folio) issues.push(`Pago fila ${row.rowNumber}: falta folio_documento.`);
-    if (!row.amount) issues.push(`Pago fila ${row.rowNumber}: falta monto.`);
+    if (!row.amount || row.amount <= 0) issues.push(`Pago fila ${row.rowNumber}: el monto debe ser mayor a cero.`);
+    if (!isValidIsoDateValue(row.rawDate)) issues.push(`Pago fila ${row.rowNumber}: fecha_pago debe usar formato AAAA-MM-DD.`);
+    if (!isValidPaymentMethodValue(row.method)) issues.push(`Pago fila ${row.rowNumber}: método de pago no reconocido. Revisa la hoja Catálogos.`);
   });
 
   return {

@@ -10,13 +10,13 @@ function modeCopy(mode = "payables") {
     ? {
         title: "Importar cuentas por cobrar",
         subtitle: "Carga clientes, documentos emitidos y pagos recibidos desde una planilla.",
-        templateLabel: "Descargar plantilla CxC",
+        templateLabel: "Descargar plantilla Excel CxC",
         entityLabel: "clientes",
       }
     : {
         title: "Importar cuentas por pagar",
         subtitle: "Carga proveedores, documentos por pagar y pagos realizados desde una planilla.",
-        templateLabel: "Descargar plantilla CxP",
+        templateLabel: "Descargar plantilla Excel CxP",
         entityLabel: "proveedores",
       };
 }
@@ -56,11 +56,13 @@ export function TreasuryBulkImporterModal({
   const fileRef = useRef(null);
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState("");
+  const [downloadNotice, setDownloadNotice] = useState("");
   const copy = modeCopy(mode);
 
   const reset = () => {
     setParsed(null);
     setError("");
+    setDownloadNotice("");
     if (fileRef.current) fileRef.current.value = "";
   };
   const handleClose = () => {
@@ -81,6 +83,21 @@ export function TreasuryBulkImporterModal({
       setError("No pudimos leer la planilla. Revisa que sea un archivo .xlsx o .csv válido.");
     }
   };
+  const handleDownloadTemplate = () => {
+    setError("");
+    setDownloadNotice("");
+    try {
+      const result = downloadTreasuryImportTemplate(mode);
+      if (!result?.ok) {
+        setError("No pudimos iniciar la descarga de la plantilla. Intenta nuevamente.");
+        return;
+      }
+      setDownloadNotice(`Plantilla Excel generada: ${result.fileName}.`);
+    } catch (err) {
+      console.warn("[treasury-import] No pudimos descargar la plantilla", err);
+      setError("No pudimos generar la plantilla. Intenta nuevamente o avísame para revisar el navegador.");
+    }
+  };
   const entityCount = countDocumentCounterparties(parsed, mode);
   const hasRows = !!parsed && (entityCount > 0 || parsed.documents.length > 0 || parsed.payments.length > 0);
   const canApply = !!parsed && hasRows && !applying && !parsed.issues?.length;
@@ -95,7 +112,7 @@ export function TreasuryBulkImporterModal({
     <Modal open={open} onClose={handleClose} title={copy.title} sub={copy.subtitle}>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <GBtn onClick={() => { void downloadTreasuryImportTemplate(mode); }}>{copy.templateLabel}</GBtn>
+          <GBtn onClick={handleDownloadTemplate}>{copy.templateLabel}</GBtn>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 12, border: "1px solid var(--bdr2)", background: "var(--sur)", color: "var(--wh)", cursor: "pointer", fontWeight: 800 }}>
             Seleccionar archivo
             <input ref={fileRef} type="file" accept=".xlsx,.csv" onChange={handleFile} style={{ display: "none" }} />
@@ -103,10 +120,11 @@ export function TreasuryBulkImporterModal({
         </div>
 
         <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--bdr2)", background: "rgba(43,109,246,.06)", color: "var(--gr3)", fontSize: 12, lineHeight: 1.55 }}>
-          La plantilla tiene hojas separadas para {copy.entityLabel}, documentos y pagos. Si hay errores, Produ te los mostrará antes de importar para evitar cargas incompletas.
+          La plantilla Excel incluye una guía, el importador y catálogos de estados, monedas, tipos de documento y métodos de pago. Si hay errores, Produ te los mostrará antes de importar para evitar cargas incompletas.
         </div>
 
         {error ? <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(255,85,102,.28)", background: "rgba(255,85,102,.08)", color: "var(--red)", fontSize: 12 }}>{error}</div> : null}
+        {downloadNotice ? <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(0,224,138,.25)", background: "rgba(0,224,138,.08)", color: "#0f9f68", fontSize: 12, fontWeight: 800 }}>{downloadNotice}</div> : null}
 
         {parsed ? (
           <>

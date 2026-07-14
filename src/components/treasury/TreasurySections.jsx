@@ -70,7 +70,7 @@ const paymentLogExportColumns = [
   { label: "Contraparte", value: row => row?.counterpartyLabel || "—" },
   { label: "Método", value: row => row?.method || "—" },
   { label: "Referencia", value: row => row?.reference || "—" },
-  { label: "Monto", value: row => fmtM(row?.amount || 0) },
+  { label: "Monto", value: row => formatTreasuryMoney(row?.amount || 0, row?.currency) },
 ];
 
 const payableExportColumns = [

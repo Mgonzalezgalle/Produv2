@@ -9,11 +9,12 @@ import {
 
 export function InvoiceIssuanceSection({
   q, setQ, fe, setFe, sortMode, setSortMode, openM, canEdit,
+  onOpenBulkImporter,
   selectedIds, bulkEstado, setBulkEstado, applyBulkEstado, deleteSelected, clearSelection,
-  currentPageIds, selectablePageIds, toggleAll, fd, pg, PP, clientes, auspiciadores, producciones, programas, piezas,
-  presupuestos, contratos, recurringSummary, today, invoiceEntityName, fmtM, fmtD, Badge,
+  selectablePageIds, toggleAll, fd, pg, PP, clientes, auspiciadores, producciones, programas, piezas,
+  presupuestos, recurringSummary, today, invoiceEntityName, fmtM, fmtD, Badge,
   SearchBar, FilterSel, GBtn, DBtn, FSl, Card, TH, TD, Empty, Paginator, setPg, toggleSelected, onEditDoc, onDeleteDoc,
-  onOpenPdf, sendInvoiceManualEmail, canPres, canContracts, onEmitBsale, onSyncBsale, onInspectBsale, onCreateCreditNote, onCreateDebitNote,
+  onOpenPdf, sendInvoiceManualEmail, canPres, onEmitBsale, onSyncBsale, onInspectBsale, onCreateCreditNote, onCreateDebitNote,
 }) {
   const actionChipStyle = {
     padding: "6px 9px",
@@ -58,6 +59,7 @@ export function InvoiceIssuanceSection({
       <SearchBar value={q} onChange={v=>{setQ(v);}} placeholder="Buscar invoice o entidad..."/>
       <FilterSel value={fe} onChange={v=>{setFe(v);}} options={["Borrador","Emitida","Anulada"]} placeholder="Todo estados"/>
       <FilterSel value={sortMode} onChange={v=>{setSortMode(v);}} options={[{value:"recent",label:"Más reciente"},{value:"oldest",label:"Más antiguo"},{value:"az",label:"A-Z entidad"},{value:"za",label:"Z-A entidad"},{value:"amount-desc",label:"Mayor monto"},{value:"amount-asc",label:"Menor monto"}]} placeholder="Ordenar"/>
+      {canEdit&&<GBtn onClick={onOpenBulkImporter}>Importar emisión</GBtn>}
       {canEdit&&<button onClick={()=>openM("fact",{tipoDoc:"Factura Afecta",documentTypeCode:"factura_afecta",tipoDocumento:"factura_afecta"})} style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--cy)",background:"var(--cy)",color:"#ffffff",fontWeight:800,cursor:"pointer",boxShadow:"0 12px 24px rgba(26,26,46,.12)"}}>+ Nuevo documento</button>}
     </div>
     {!!selectedIds.length&&<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:12,background:"var(--sur)"}}>

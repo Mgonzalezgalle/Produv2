@@ -70,6 +70,7 @@ import {
 } from "../../lib/integrations/billingDomain";
 import { TreasuryPurchaseOrderModal } from "../treasury/TreasuryPurchaseOrderModal";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
+import { InvoiceBulkImporterModal } from "./InvoiceBulkImporterModal";
 import { InvoiceCollectionSection, InvoiceIssuanceSection } from "./InvoiceSections";
 import { resolveTransactionalEmailTemplate } from "../../lib/integrations/transactionalEmailTemplates";
 import { requestConfirm } from "../../lib/ui/confirmService";
@@ -174,6 +175,8 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
   const [bsaleSyncTarget, setBsaleSyncTarget] = React.useState(null);
   const [bsaleSyncSessions, setBsaleSyncSessions] = React.useState([]);
   const [bsaleSyncLoading, setBsaleSyncLoading] = React.useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = React.useState(false);
+  const [bulkImportApplying, setBulkImportApplying] = React.useState(false);
   const filteredPurchaseOrders = React.useMemo(() => {
     const term = String(poQuery || "").trim().toLowerCase();
     return purchaseOrders.filter(row => {
@@ -372,6 +375,87 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
     today,
   });
 
+  const applyBillingBulkImport = React.useCallback(async (parsed) => {
+    const rows = parsed?.documents || [];
+    if (!canEdit || !rows.length) return false;
+    setBulkImportApplying(true);
+    try {
+      const createdDocs = rows.map((row) => {
+        const documentId = uid();
+        const isPaid = row.cobranzaEstado === "Pagado";
+        return {
+          id: documentId,
+          empId: empresa?.id || "",
+          cr: today(),
+          tipo: "cliente",
+          entidadId: row.client?.id || "",
+          tipoDoc: row.documentType?.label || "Factura Afecta",
+          documentTypeCode: row.documentType?.code || "factura_afecta",
+          tipoDocumento: row.documentType?.code || "factura_afecta",
+          correlativo: row.folio,
+          estado: row.estado || "Emitida",
+          cobranzaEstado: row.estado === "Anulada" ? "Anulado" : (row.cobranzaEstado || "Pendiente de pago"),
+          fechaEmision: row.issueDate || today(),
+          fechaVencimiento: row.dueDate || "",
+          fechaPago: isPaid ? (row.dueDate || row.issueDate || today()) : "",
+          montoNeto: Number(row.net || 0),
+          subtotal: Number(row.net || 0),
+          neto: Number(row.net || 0),
+          iva: !!row.iva,
+          ivaVal: Number(row.ivaVal || 0),
+          honorarios: false,
+          total: Number(row.total || 0),
+          saldo: isPaid || row.estado === "Anulada" ? 0 : Number(row.total || 0),
+          moneda: empresa?.moneda || "CLP",
+          items: [{
+            id: uid(),
+            desc: row.detail || "Servicio",
+            qty: 1,
+            precio: Number(row.net || row.total || 0),
+            und: "Unidad",
+          }],
+          obs: row.obs || "Documento creado por importación masiva",
+          referenceKind: row.relatedDocumentFolio ? "purchase_order" : "",
+          referenceCodeSii: row.relatedDocumentFolio ? "801" : "",
+          relatedDocumentFolio: row.relatedDocumentFolio || "",
+          relatedDocumentTypeCode: row.relatedDocumentFolio ? "orden_compra" : "",
+          relatedDocumentDate: row.relatedDocumentDate || "",
+          relatedDocumentReason: row.relatedDocumentFolio ? `Orden de Compra ${row.relatedDocumentFolio}` : "",
+        };
+      });
+      await setFacturas((current = []) => {
+        const list = Array.isArray(current) ? current : [];
+        const createdIds = new Set(createdDocs.map(doc => doc.id));
+        return [...list.filter(doc => !createdIds.has(doc.id)), ...createdDocs];
+      });
+      const paidMovements = createdDocs
+        .filter(doc => doc.cobranzaEstado === "Pagado")
+        .map(doc => ({
+          id: uid(),
+          empId: empresa?.id || "",
+          eid: "",
+          et: "",
+          tipo: "ingreso",
+          cat: "Facturación",
+          des: `${doc.tipoDoc || "Documento"}${doc.correlativo ? ` ${doc.correlativo}` : ""}`,
+          mon: Number(doc.total || 0),
+          fec: doc.fechaPago || doc.fechaEmision || today(),
+          facturaId: doc.id,
+        }));
+      if (paidMovements.length) {
+        await setMovimientos((current = []) => [...(Array.isArray(current) ? current : []), ...paidMovements]);
+      }
+      ntf?.(`Importación lista: ${createdDocs.length} documento(s) creado(s) en Facturación ✓`);
+      setBulkImportOpen(false);
+      return true;
+    } catch (error) {
+      alertUserFacingError(error, "No pudimos completar la importación masiva.");
+      return false;
+    } finally {
+      setBulkImportApplying(false);
+    }
+  }, [canEdit, empresa?.id, empresa?.moneda, ntf, setFacturas, setMovimientos]);
+
   const openBillingEmailComposer = React.useCallback((doc, entity) => {
     openEmailComposer(createBillingEmailDraft(doc, entity));
   }, [createBillingEmailDraft, openEmailComposer]);
@@ -455,6 +539,7 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       fe={fe} setFe={(v)=>{setFe(v);setPg(1);}}
       sortMode={sortMode} setSortMode={(v)=>{setSortMode(v);setPg(1);}}
       openM={openM} canEdit={canEdit}
+      onOpenBulkImporter={()=>setBulkImportOpen(true)}
       selectedIds={selectedIds} bulkEstado={bulkEstado} setBulkEstado={setBulkEstado}
       applyBulkEstado={applyBulkEstado} deleteSelected={deleteSelected} clearSelection={()=>setSelectedIds([])}
       currentPageIds={currentPageIds} selectablePageIds={selectablePageIds} toggleAll={toggleAll} toggleSelected={toggleSelected}
@@ -703,6 +788,14 @@ export function ViewFact({ empresa, facturas, movimientos, clientes, auspiciador
       sending={emailComposerSending}
       onClose={closeEmailComposer}
       onSend={handleSendComposedEmail}
+    />
+    <InvoiceBulkImporterModal
+      open={bulkImportOpen}
+      clientes={clientes}
+      existingInvoices={allDocs}
+      applying={bulkImportApplying}
+      onClose={()=>setBulkImportOpen(false)}
+      onApply={applyBillingBulkImport}
     />
   </div>;
 }

@@ -51,7 +51,7 @@ export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canMana
   );
 }
 
-export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierStatementEmail, onSupplierWhatsApp, onClose, onSave, empresa = null, platformApi = null, currentUser = null, ntf = null }) {
+export function ProviderDetailModal({ open, provider, paymentRows = [], canManage = false, onUpdatePayable, onSupplierEmail, onSupplierStatementEmail, onSupplierStatementPdf, onSupplierWhatsApp, onClose, onSave, empresa = null, platformApi = null, currentUser = null, ntf = null }) {
   const [tab, setTab] = useState("documentos");
   const [draft, setDraft] = useState(null);
   const [portalEmailOpen, setPortalEmailOpen] = useState(false);
@@ -207,6 +207,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {onSupplierStatementEmail ? <GBtn onClick={() => onSupplierStatementEmail(provider)}>Estado de cuenta</GBtn> : null}
+            {onSupplierStatementPdf ? <GBtn onClick={() => onSupplierStatementPdf(provider)}>PDF interno</GBtn> : null}
             <GBtn onClick={onClose}>Cerrar</GBtn>
             <GBtn onClick={submit}>Guardar</GBtn>
           </div>

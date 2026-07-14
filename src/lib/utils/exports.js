@@ -1,3 +1,5 @@
+import { formatTreasuryMoney } from "./treasury";
+
 export function exportComentariosCSV(items, nombre = "comentarios") {
   const headers = ["Fecha", "Autor", "Tipo", "Importante", "Comentario", "Asignados", "Adjuntos"];
   const rows = (items || []).map(it => [
@@ -383,4 +385,57 @@ export async function exportTreasuryRowsPDF({
     footerSecondary: "Plataforma de Gestión de Empresas",
   });
   downloadBlob(file, file.name || `${normalizeExportFileName(fileName)}.pdf`);
+}
+
+function summarizeSupplierStatementByCurrency(payables = []) {
+  const totals = new Map();
+  (Array.isArray(payables) ? payables : []).forEach(doc => {
+    const currency = doc?.currency || "CLP";
+    const current = totals.get(currency) || { total: 0, paid: 0, pending: 0 };
+    totals.set(currency, {
+      total: current.total + Number(doc?.total || 0),
+      paid: current.paid + Number(doc?.paid || 0),
+      pending: current.pending + Number(doc?.pending || 0),
+    });
+  });
+  return Array.from(totals.entries()).map(([currency, values]) => ({
+    currency,
+    ...values,
+  }));
+}
+
+export async function exportSupplierStatementPDF({
+  provider = {},
+  empresa = null,
+  fileName = "",
+  accent = "#1a1a2e",
+} = {}) {
+  const supplierName = provider?.name || provider?.razonSocial || "Proveedor";
+  const payables = Array.isArray(provider?.payables) ? provider.payables : [];
+  const totalsByCurrency = summarizeSupplierStatementByCurrency(payables);
+  const totalsLabel = totalsByCurrency.length
+    ? totalsByCurrency.map(item => `${item.currency}: total ${formatTreasuryMoney(item.total, item.currency)} · pagado ${formatTreasuryMoney(item.paid, item.currency)} · saldo ${formatTreasuryMoney(item.pending, item.currency)}`).join(" | ")
+    : "Sin documentos registrados";
+  const buildTreasuryTablePdf = await getTreasuryTablePdfRuntime();
+  const file = await buildTreasuryTablePdf({
+    fileName: `${normalizeExportFileName(fileName || `estado_cuenta_${supplierName}`)}.pdf`,
+    title: `Estado de cuenta proveedor`,
+    subtitle: `${supplierName}${provider?.rut ? ` · RUT ${provider.rut}` : ""} · ${totalsLabel}`,
+    accent,
+    empresa,
+    columns: [
+      { label: "Documento", value: row => row?.folio || "—", widthWeight: 1.25, noTruncate: true },
+      { label: "Tipo", value: row => row?.docType || "Documento", widthWeight: 1.1 },
+      { label: "Emisión", value: row => row?.issueDate || "—", widthWeight: 0.82 },
+      { label: "Vencimiento", value: row => row?.dueDate || "—", widthWeight: 0.88 },
+      { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency || provider?.currency), widthWeight: 1.05 },
+      { label: "Pagado", value: row => formatTreasuryMoney(row?.paid || 0, row?.currency || provider?.currency), widthWeight: 1.05 },
+      { label: "Saldo", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency || provider?.currency), widthWeight: 1.05 },
+      { label: "Estado", value: row => row?.status || "Pendiente", widthWeight: 0.9 },
+    ],
+    rows: payables,
+    footerPrimary: "Hecho con amor por Produ.",
+    footerSecondary: "Plataforma de Gestión de Empresas",
+  });
+  downloadBlob(file, file.name || `${normalizeExportFileName(fileName || `estado_cuenta_${supplierName}`)}.pdf`);
 }

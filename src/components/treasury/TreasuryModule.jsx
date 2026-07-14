@@ -27,6 +27,7 @@ import { TreasuryStyles, SectionCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
+import { exportSupplierStatementPDF } from "../../lib/utils/exports";
 import { formatTreasuryMoney, normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
 import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
@@ -239,6 +240,8 @@ export function TreasuryModule(props) {
   });
   const { clientes = [], facturas = [] } = props;
   const saveFacturaDoc = props.saveFacturaDoc;
+  const tenantEmpresa = props.empresa;
+  const notify = props.ntf;
   const openTreasuryImporter = React.useCallback(mode => setImporterMode(mode), []);
   const closeTreasuryImporter = React.useCallback(() => {
     if (!importingTreasury) setImporterMode(null);
@@ -647,6 +650,23 @@ export function TreasuryModule(props) {
   const handleSupplierStatementEmail = React.useCallback((source) => {
     openEmailComposer(buildSupplierStatementEmailDraft(source));
   }, [buildSupplierStatementEmailDraft, openEmailComposer]);
+  const handleSupplierStatementPdf = React.useCallback(async (source) => {
+    const provider = providers.find(item => item.id === source?.id || item.id === source?.providerId || item.name === source?.supplier || item.name === source?.name);
+    if (!provider) {
+      notify?.("No encontramos el proveedor para generar el PDF.", "warn");
+      return;
+    }
+    if (!Array.isArray(provider.payables) || !provider.payables.length) {
+      notify?.("El proveedor no tiene documentos registrados para generar estado de cuenta.", "warn");
+      return;
+    }
+    await exportSupplierStatementPDF({
+      provider,
+      empresa: tenantEmpresa,
+      fileName: `estado_cuenta_proveedor_${provider.name || provider.rut || provider.id || "proveedor"}`,
+      accent: "#1a1a2e",
+    });
+  }, [notify, tenantEmpresa, providers]);
   const handleIssuedOrderEmail = React.useCallback(async (row) => {
     openEmailComposer(await buildIssuedOrderEmailDraft(row));
   }, [buildIssuedOrderEmailDraft, openEmailComposer]);
@@ -1086,7 +1106,7 @@ export function TreasuryModule(props) {
         </>
       )}
       <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
-      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} empresa={props.empresa} platformApi={props.platformApi} currentUser={props.user} ntf={props.ntf} />
+      <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierStatementPdf={handleSupplierStatementPdf} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} empresa={props.empresa} platformApi={props.platformApi} currentUser={props.user} ntf={props.ntf} />
       <IssuedOrderDetailModal
         open={issuedDetailOpen}
         order={issuedDetailItem}

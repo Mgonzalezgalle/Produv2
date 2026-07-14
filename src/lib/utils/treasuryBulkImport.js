@@ -98,6 +98,14 @@ function parseSheetXml(xml = "", sharedStrings = []) {
   }).filter(row => row.some(value => String(value || "").trim()));
 }
 
+function resolveWorkbookTarget(target = "") {
+  const clean = String(target || "").replace(/^\//, "");
+  if (!clean) return "";
+  if (clean.startsWith("xl/")) return clean;
+  if (clean.startsWith("worksheets/") || clean.startsWith("chartsheets/") || clean.startsWith("sharedStrings")) return `xl/${clean}`;
+  return `xl/${clean.replace(/^(\.\.\/)+/, "")}`;
+}
+
 function parseXlsxWorkbook(buffer) {
   const zip = unzipSync(new Uint8Array(buffer));
   const readEntry = path => zip[path] ? strFromU8(zip[path]) : "";
@@ -112,7 +120,7 @@ function parseXlsxWorkbook(buffer) {
     const attrs = parseXmlAttributes(match[1]);
     const relTarget = rels.get(attrs["r:id"]);
     const target = relTarget
-      ? `xl/${String(relTarget).replace(/^\//, "").replace(/^xl\//, "")}`
+      ? resolveWorkbookTarget(relTarget)
       : `xl/worksheets/sheet${attrs.sheetId || 1}.xml`;
     return {
       name: attrs.name || `Hoja ${attrs.sheetId || ""}`.trim(),
@@ -120,6 +128,36 @@ function parseXlsxWorkbook(buffer) {
     };
   });
   return { worksheets };
+}
+
+function parseTextSpreadsheet(text = "") {
+  const raw = String(text || "").trim();
+  if (!raw) return { worksheets: [] };
+  if (/<table[\s>]/i.test(raw)) {
+    const rows = Array.from(raw.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)).map(rowMatch => (
+      Array.from(rowMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)).map(cellMatch => (
+        decodeXmlEntities(String(cellMatch[1] || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
+      ))
+    )).filter(row => row.some(value => String(value || "").trim()));
+    return { worksheets: [{ name: "Importador", data: rows }] };
+  }
+  if (!/[,\t;\n\r]/.test(raw.slice(0, 4096))) return { worksheets: [] };
+  return sheetFromCsv(raw);
+}
+
+async function parseWorkbookFromFile(file) {
+  const buffer = await file.arrayBuffer();
+  try {
+    const workbook = parseXlsxWorkbook(buffer);
+    if ((workbook.worksheets || []).length) return workbook;
+  } catch (error) {
+    const text = await file.text().catch(() => "");
+    const fallback = parseTextSpreadsheet(text);
+    if ((fallback.worksheets || []).some(sheet => (sheet.data || []).length)) return fallback;
+    throw error;
+  }
+  const text = await file.text().catch(() => "");
+  return parseTextSpreadsheet(text);
 }
 
 function normalizeDateValue(value = "") {
@@ -173,6 +211,24 @@ function findSheet(workbook, aliases = []) {
   return (workbook.worksheets || workbook.sheets || []).find(sheet => {
     const normalized = normalizeSheetName(sheet?.name || sheet?.sheet);
     return wanted.some(alias => normalized === alias || normalized.includes(alias));
+  }) || null;
+}
+
+function firstImportableSheet(workbook) {
+  const worksheets = workbook.worksheets || workbook.sheets || [];
+  if (worksheets.length === 1) return worksheets[0];
+  return worksheets.find(sheet => {
+    const rows = Array.isArray(sheet?.data) ? sheet.data : [];
+    const headers = (rows[0] || []).map(normalizeHeader);
+    return headers.some(header => [
+      "tipo_registro",
+      "rut_proveedor",
+      "rut_cliente",
+      "folio_documento",
+      "id_beneficiario",
+      "monto",
+      "fecha_pago",
+    ].includes(header));
   }) || null;
 }
 
@@ -447,13 +503,59 @@ function sheetFromCsv(text = "", name = "Template") {
   return { worksheets: [{ name, data }] };
 }
 
+function rowHasEmbeddedPayment(row = {}) {
+  return Boolean(row.fecha_pago || row.monto_pago || row.metodo_pago || row.referencia_pago);
+}
+
+function paymentRowFromImportRow(row = {}) {
+  return {
+    ...row,
+    folio_documento: row.folio_documento || row.folio,
+    monto: row.monto_pago || row.monto,
+    metodo: row.metodo_pago || row.metodo,
+    referencia: row.referencia_pago || row.referencia,
+  };
+}
+
 function splitUnifiedRows(rows = [], mode = "payables") {
   const clients = [];
   const providers = [];
   const documents = [];
   const payments = [];
+  const recordTypeAliases = {
+    cliente: "cliente",
+    clientes: "cliente",
+    customer: "cliente",
+    customers: "cliente",
+    proveedor: "proveedor",
+    proveedores: "proveedor",
+    provider: "proveedor",
+    providers: "proveedor",
+    documento: "documento",
+    documentos: "documento",
+    document: "documento",
+    documents: "documento",
+    factura: "documento",
+    facturas: "documento",
+    pago: "pago",
+    pagos: "pago",
+    pago_realizado: "pago",
+    pagos_realizados: "pago",
+    pago_recibido: "pago",
+    pagos_recibidos: "pago",
+    abono: "pago",
+    abonos: "pago",
+    egreso: "pago",
+    egresos: "pago",
+    desembolso: "pago",
+    desembolsos: "pago",
+    ingreso: "pago",
+    ingresos: "pago",
+    cobro: "pago",
+    cobros: "pago",
+  };
   rows.forEach(row => {
-    const type = normalizeKey(row.tipo_registro || row.tipo || "");
+    const type = recordTypeAliases[normalizeKey(row.tipo_registro || row.tipo || "")] || "";
     if (!type) return;
     if (mode === "receivables" && type === "cliente") clients.push(row);
     if (mode === "payables" && type === "proveedor") providers.push(row);
@@ -462,15 +564,12 @@ function splitUnifiedRows(rows = [], mode = "payables") {
         ...row,
         folio: row.folio || row.folio_documento,
       });
+      if (rowHasEmbeddedPayment(row)) {
+        payments.push(paymentRowFromImportRow(row));
+      }
     }
     if (type === "pago") {
-      payments.push({
-        ...row,
-        folio_documento: row.folio_documento || row.folio,
-        monto: row.monto_pago || row.monto,
-        metodo: row.metodo_pago || row.metodo,
-        referencia: row.referencia_pago || row.referencia,
-      });
+      payments.push(paymentRowFromImportRow(row));
     }
   });
   return { clients, providers, documents, payments };
@@ -518,8 +617,9 @@ export async function parseTreasuryImportFile(file, mode = "payables") {
   const isCsv = String(file?.name || "").toLowerCase().endsWith(".csv");
   const workbook = isCsv
     ? sheetFromCsv(await file.text())
-    : parseXlsxWorkbook(await file.arrayBuffer());
-  const unifiedRows = objectRowsFromSheet(findSheet(workbook, ["template", "importador", "carga masiva"]));
+    : await parseWorkbookFromFile(file);
+  const importSheet = findSheet(workbook, ["template", "importador", "carga masiva"]) || firstImportableSheet(workbook);
+  const unifiedRows = objectRowsFromSheet(importSheet);
   const unified = splitUnifiedRows(unifiedRows, mode);
   const clients = unified.clients.length ? unified.clients : mode === "receivables"
     ? objectRowsFromSheet(findSheet(workbook, SHEET_ALIASES.clients))

@@ -664,7 +664,11 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
   }).filter(row => row.rut || row.name);
 
   const normalizedDocuments = documents.map(row => {
-    const documentType = resolveProduBillingDocumentType(row.tipo_documento || row.doc_type || row.tipo || row.docType || "Factura Afecta");
+    const rawDocumentType = String(row.tipo_documento || row.doc_type || row.tipo || row.docType || "Factura Afecta").trim() || "Factura Afecta";
+    const documentType = resolveProduBillingDocumentType(rawDocumentType) || {
+      code: normalizeKey(rawDocumentType || "otro"),
+      label: rawDocumentType || "Otro",
+    };
     const rawCurrency = rawCurrencyValue(row);
     const rawStatus = String(row.estado || row.estado_cobranza || "").trim();
     const fallbackStatus = mode === "receivables" ? "Pendiente de pago" : "Pendiente";
@@ -686,7 +690,7 @@ export function normalizeTreasuryImportData({ mode, clients = [], providers = []
       providerAccountNumber: String(row.numero_cuenta || "").trim(),
       providerPaymentEmail: String(row.email_pago || row.email || "").trim(),
       folio: String(row.folio || row.folio_documento || row.documento || "").trim(),
-      docType: mode === "receivables" ? documentType.label : String(row.tipo_documento || row.doc_type || row.tipo || "Factura Afecta").trim(),
+      docType: mode === "receivables" ? documentType.label : rawDocumentType,
       documentTypeCode: documentType.code,
       category: String(row.categoria || row.category || "Servicio").trim() || "Servicio",
       issueDate: normalizeDateValue(row.fecha_emision || row.fecha_de_emision),

@@ -347,6 +347,7 @@ export async function buildTreasuryTablePdf({
   empresa = null,
   columns = [],
   rows = [],
+  summaryItems = [],
   accent = "#1a1a2e",
   footerPrimary = "Hecho con amor por Produ.",
   footerSecondary = "Plataforma de Gestión de Empresas",
@@ -368,6 +369,7 @@ export async function buildTreasuryTablePdf({
   const tableWidth = pageWidth - marginX * 2;
   const safeColumns = (Array.isArray(columns) ? columns : []).slice(0, 9);
   const safeRows = Array.isArray(rows) ? rows : [];
+  const safeSummaryItems = Array.isArray(summaryItems) ? summaryItems : [];
   const logo = await loadPdfImage(pdf, empresa?.logo || "");
 
   const fitText = (text = "", maxWidth = 80, targetFont = font, size = 7) => {
@@ -439,11 +441,17 @@ export async function buildTreasuryTablePdf({
   drawHeader(page, pageNumber);
 
   let y = topY - 96;
-  drawRoundedPdfBox(page, marginX, y - 58, tableWidth, 42, soft, border, 1);
+  const summaryHeight = safeSummaryItems.length ? Math.min(116, 44 + safeSummaryItems.length * 15) : 42;
+  drawRoundedPdfBox(page, marginX, y - summaryHeight - 16, tableWidth, summaryHeight, soft, border, 1);
   page.drawText("Resumen de descarga", { x: marginX + 14, y: y - 34, size: 9, font: bold, color: textColor });
   page.drawText(`Registros incluidos: ${safeRows.length}`, { x: marginX + 160, y: y - 34, size: 8.2, font, color: muted });
   page.drawText(`Generado: ${new Date().toLocaleDateString("es-CL")}`, { x: marginX + 315, y: y - 34, size: 8.2, font, color: muted });
-  y -= 78;
+  safeSummaryItems.slice(0, 5).forEach((item, index) => {
+    const lineY = y - 53 - index * 15;
+    page.drawText(fitText(item?.label || "Resumen", 105, bold, 7.8), { x: marginX + 14, y: lineY, size: 7.8, font: bold, color: textColor });
+    page.drawText(fitText(item?.value || "", tableWidth - 135, font, 7.6), { x: marginX + 122, y: lineY, size: 7.6, font, color: muted });
+  });
+  y -= summaryHeight + 36;
 
   const drawTableHeader = () => {
     drawRoundedPdfBox(page, marginX, y - headerHeight + 2, tableWidth, headerHeight, accentColor, accentColor, 1);

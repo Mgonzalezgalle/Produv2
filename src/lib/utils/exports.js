@@ -389,13 +389,21 @@ export async function exportTreasuryRowsPDF({
 
 function summarizeSupplierStatementByCurrency(payables = []) {
   const totals = new Map();
+  const today = new Date().toISOString().slice(0, 10);
   (Array.isArray(payables) ? payables : []).forEach(doc => {
     const currency = doc?.currency || "CLP";
-    const current = totals.get(currency) || { total: 0, paid: 0, pending: 0 };
+    const current = totals.get(currency) || { total: 0, paid: 0, pending: 0, dueSoon: 0, overdue: 0 };
+    const pending = Number(doc?.pending || 0);
+    const paid = Number(doc?.paid || 0);
+    const isVoided = String(doc?.status || "").trim().toLowerCase() === "anulada";
+    const isPaid = pending <= 0 || String(doc?.status || "").trim().toLowerCase() === "pagada";
+    const isOverdue = !isVoided && !isPaid && (String(doc?.status || "").trim().toLowerCase() === "vencida" || (doc?.dueDate && String(doc.dueDate) < today));
     totals.set(currency, {
       total: current.total + Number(doc?.total || 0),
-      paid: current.paid + Number(doc?.paid || 0),
-      pending: current.pending + Number(doc?.pending || 0),
+      paid: current.paid + paid,
+      pending: current.pending + pending,
+      dueSoon: current.dueSoon + (!isVoided && !isOverdue && !isPaid ? pending : 0),
+      overdue: current.overdue + (isOverdue ? pending : 0),
     });
   });
   return Array.from(totals.entries()).map(([currency, values]) => ({
@@ -414,8 +422,12 @@ export async function exportSupplierStatementPDF({
   const payables = Array.isArray(provider?.payables) ? provider.payables : [];
   const totalsByCurrency = summarizeSupplierStatementByCurrency(payables);
   const totalsLabel = totalsByCurrency.length
-    ? totalsByCurrency.map(item => `${item.currency}: total ${formatTreasuryMoney(item.total, item.currency)} · pagado ${formatTreasuryMoney(item.paid, item.currency)} · saldo ${formatTreasuryMoney(item.pending, item.currency)}`).join(" | ")
+    ? totalsByCurrency.map(item => `${item.currency}: total ${formatTreasuryMoney(item.total, item.currency)} · por vencer ${formatTreasuryMoney(item.dueSoon, item.currency)} · vencido ${formatTreasuryMoney(item.overdue, item.currency)} · pagado ${formatTreasuryMoney(item.paid, item.currency)}`).join(" | ")
     : "Sin documentos registrados";
+  const summaryItems = totalsByCurrency.map(item => ({
+    label: item.currency,
+    value: `Total ${formatTreasuryMoney(item.total, item.currency)} · Por vencer ${formatTreasuryMoney(item.dueSoon, item.currency)} · Vencido ${formatTreasuryMoney(item.overdue, item.currency)} · Pagado ${formatTreasuryMoney(item.paid, item.currency)}`,
+  }));
   const buildTreasuryTablePdf = await getTreasuryTablePdfRuntime();
   const file = await buildTreasuryTablePdf({
     fileName: `${normalizeExportFileName(fileName || `estado_cuenta_${supplierName}`)}.pdf`,
@@ -434,6 +446,7 @@ export async function exportSupplierStatementPDF({
       { label: "Estado", value: row => row?.status || "Pendiente", widthWeight: 0.9 },
     ],
     rows: payables,
+    summaryItems,
     footerPrimary: "Hecho con amor por Produ.",
     footerSecondary: "Plataforma de Gestión de Empresas",
   });

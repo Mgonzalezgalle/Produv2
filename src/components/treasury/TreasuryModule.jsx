@@ -122,6 +122,26 @@ function TreasurySurfaceMetric({ label, value, tone = "var(--cy)", hint = null, 
   );
 }
 
+function TreasuryCurrencyBreakdown({ rows = [], field = "total", tone = "var(--cy)" }) {
+  const visibleRows = (Array.isArray(rows) ? rows : [])
+    .filter(row => Number(row?.[field] || 0) !== 0 || Number(row?.docs || 0) > 0);
+  const safeRows = visibleRows.length ? visibleRows : [{ currency: "CLP", [field]: 0 }];
+  return (
+    <div style={{ display: "grid", gap: 5, lineHeight: 1.05 }}>
+      {safeRows.map(row => (
+        <div key={`${row.currency}-${field}`} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 11, letterSpacing: ".08em", color: "var(--gr2)", fontWeight: 800 }}>{row.currency}</span>
+          <span style={{ color: tone, textAlign: "right" }}>{formatTreasuryMoney(row?.[field] || 0, row.currency)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function treasuryCurrencyMetric(summary = {}, field = "total", tone = "var(--cy)") {
+  return <TreasuryCurrencyBreakdown rows={summary.currencies || []} field={field} tone={tone} />;
+}
+
 function summarizeMovementLog(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
   const currencies = TREASURY_CURRENCIES
@@ -886,48 +906,22 @@ export function TreasuryModule(props) {
     if (!ids.length || !deleter) return;
     setPendingBulkDelete({ ids, deleter });
   };
-  const otherCurrencyBalances = (payablesSummary.otherCurrencies || [])
-    .map(item => formatTreasuryMoney(item.pending, item.currency))
-    .join(" · ");
-  const otherCurrencyPayments = (disbursementSummary.otherCurrencies || [])
-    .map(item => formatTreasuryMoney(item.total, item.currency))
-    .join(" · ");
-  const otherCurrencyMetric = otherCurrencyBalances
-    ? {
-        label: "Otras monedas",
-        value: otherCurrencyBalances,
-        tone: "#2b6df6",
-        wide: true,
-        hint: otherCurrencyPayments
-          ? `Pagos realizados: ${otherCurrencyPayments}. Montos sin convertir a CLP.`
-          : "Saldos pendientes separados, sin convertir a CLP.",
-      }
-    : null;
-  const otherCurrencyKpi = otherCurrencyBalances
-    ? {
-        color: "#2b6df6",
-        label: "Otras monedas",
-        value: otherCurrencyBalances,
-        sub: "Saldos sin convertir a CLP",
-        scope: "CxP",
-      }
-    : null;
   const treasuryHero = tab === 0
     ? {
         badge: { label: "Foco en cobranza", color: "cyan" },
         secondaryBadge: { label: `${receivableSummary.overdueDocs} docs vencidos`, color: receivableSummary.overdueDocs ? "yellow" : "green" },
         tertiaryBadge: { label: `${receiptsSummary.docs} pagos recibidos`, color: "gray" },
         metrics: [
-          { label: "Cartera total", value: fmtM(receivableSummary.total), tone: "var(--cy2)", hint: "Lectura consolidada de cuentas por cobrar." },
-          { label: "Pendiente", value: fmtM(receivableSummary.pending), tone: "#ffcc44", hint: "Monto abierto aún no conciliado." },
-          { label: "Vencido", value: fmtM(receivableSummary.overdue), tone: "var(--red)", hint: `${receivableSummary.overdueDocs} documento(s) con atraso.` },
-          { label: "Pagos recibidos", value: fmtM(receiptsSummary.total), tone: "#00e08a", hint: `${receiptsSummary.docs} registro(s) conciliados manualmente.` },
+          { label: "Cartera total", value: treasuryCurrencyMetric(receivableSummary, "total", "var(--cy2)"), tone: "var(--cy2)", hint: "Lectura por moneda, sin convertir saldos entre monedas." },
+          { label: "Pendiente", value: treasuryCurrencyMetric(receivableSummary, "pending", "#ffcc44"), tone: "#ffcc44", hint: "Monto abierto aún no conciliado por moneda." },
+          { label: "Vencido", value: treasuryCurrencyMetric(receivableSummary, "overdue", "var(--red)"), tone: "var(--red)", hint: `${receivableSummary.overdueDocs} documento(s) con atraso.` },
+          { label: "Pagos recibidos", value: treasuryCurrencyMetric(receiptsSummary, "total", "#00e08a"), tone: "#00e08a", hint: `${receiptsSummary.docs} registro(s) conciliados manualmente.` },
         ],
         kpis: [
-          { color: "var(--cy2)", label: "Cartera total", value: fmtM(receivableSummary.total), scope: "CxC" },
-          { color: "#ffcc44", label: "Pendiente", value: fmtM(receivableSummary.pending), scope: "CxC" },
-          { color: "var(--red)", label: "Vencido", value: fmtM(receivableSummary.overdue), sub: `${receivableSummary.overdueDocs} docs con atraso`, scope: "CxC" },
-          { color: "#00e08a", label: "Pagos recibidos", value: fmtM(receiptsSummary.total), sub: `${receiptsSummary.docs} conciliación(es)`, scope: "CxC" },
+          { color: "var(--cy2)", label: "Cartera total", value: receivableSummary.currencies?.length || 0, sub: "moneda(s)", scope: "CxC" },
+          { color: "#ffcc44", label: "Pendiente", value: receivableSummary.currencies?.length || 0, sub: "moneda(s)", scope: "CxC" },
+          { color: "var(--red)", label: "Vencido", value: receivableSummary.overdueDocs, sub: "docs con atraso", scope: "CxC" },
+          { color: "#00e08a", label: "Pagos recibidos", value: receiptsSummary.currencies?.length || 0, sub: `${receiptsSummary.docs} conciliación(es)`, scope: "CxC" },
         ],
       }
     : {
@@ -935,18 +929,16 @@ export function TreasuryModule(props) {
         secondaryBadge: { label: `${payablesSummary.docs} cuentas por pagar`, color: "gray" },
         tertiaryBadge: { label: `${issuedOrderSummary.docs} OC emitidas`, color: "cyan" },
         metrics: [
-          { label: "Documentos por pagar", value: fmtM(payablesSummary.total), tone: "#a78bfa", hint: `${payablesSummary.docs} documento(s) registrados en cuentas por pagar.` },
-          { label: "Pendiente de pago", value: fmtM(payablesSummary.pending), tone: "#ffcc44", hint: "Saldo aún no desembolsado." },
-          { label: "Vencido", value: fmtM(payablesSummary.overdue), tone: "var(--red)", hint: "Documentos atrasados dentro de la salida de caja." },
-          { label: "Pagos realizados", value: fmtM(disbursementSummary.total), tone: "#00e08a", hint: `${disbursementSummary.docs} desembolso(s) registrados.` },
-          ...(otherCurrencyMetric ? [otherCurrencyMetric] : []),
+          { label: "Documentos por pagar", value: treasuryCurrencyMetric(payablesSummary, "total", "#a78bfa"), tone: "#a78bfa", hint: `${payablesSummary.docs} documento(s) registrados en cuentas por pagar.` },
+          { label: "Pendiente de pago", value: treasuryCurrencyMetric(payablesSummary, "pending", "#ffcc44"), tone: "#ffcc44", hint: "Saldo aún no desembolsado por moneda." },
+          { label: "Vencido", value: treasuryCurrencyMetric(payablesSummary, "overdue", "var(--red)"), tone: "var(--red)", hint: "Documentos atrasados dentro de la salida de caja." },
+          { label: "Pagos realizados", value: treasuryCurrencyMetric(disbursementSummary, "total", "#00e08a"), tone: "#00e08a", hint: `${disbursementSummary.docs} desembolso(s) registrados.` },
         ],
         kpis: [
-          { color: "#a78bfa", label: "Documentos por pagar", value: fmtM(payablesSummary.total), sub: `${payablesSummary.docs} registrados`, scope: "CxP" },
-          { color: "#ffcc44", label: "Pendiente", value: fmtM(payablesSummary.pending), scope: "CxP" },
-          { color: "var(--red)", label: "Vencido", value: fmtM(payablesSummary.overdue), sub: "saldo con atraso", scope: "CxP" },
-          { color: "#00e08a", label: "Pagos realizados", value: fmtM(disbursementSummary.total), sub: `${disbursementSummary.docs} desembolso(s)`, scope: "CxP" },
-          ...(otherCurrencyKpi ? [otherCurrencyKpi] : []),
+          { color: "#a78bfa", label: "Documentos por pagar", value: payablesSummary.currencies?.length || 0, sub: `${payablesSummary.docs} registrados`, scope: "CxP" },
+          { color: "#ffcc44", label: "Pendiente", value: payablesSummary.currencies?.length || 0, sub: "moneda(s)", scope: "CxP" },
+          { color: "var(--red)", label: "Vencido", value: payablesSummary.currencies?.filter(item => Number(item.overdue || 0) > 0).length || 0, sub: "moneda(s) con atraso", scope: "CxP" },
+          { color: "#00e08a", label: "Pagos realizados", value: disbursementSummary.currencies?.length || 0, sub: `${disbursementSummary.docs} desembolso(s)`, scope: "CxP" },
         ],
       };
   return (

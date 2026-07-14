@@ -371,6 +371,7 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         id: doc.id,
         correlativo: doc.correlativo || doc.tipoDoc || "Sin correlativo",
         tipoDoc: getProduBillingDocumentTypeLabel(billingTypeCode),
+        currency: normalizeTreasuryCurrency(doc.currency || doc.moneda || doc.monedaOrigen || doc.currencyCode || "CLP"),
         entidadId: relatedClientId || doc.entidadId || "",
         entidadTipo: "cliente",
         entidad: entityName,
@@ -405,19 +406,42 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
 
 export function summarizeTreasuryReceivables(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
-  const total = list.reduce((sum, row) => sum + Number(row.total || 0), 0);
-  const pending = list.reduce((sum, row) => sum + Number(row.pending || 0), 0);
-  const paid = list.reduce((sum, row) => sum + Number(row.paid || 0), 0);
-  const overdue = list
-    .filter(row => row.bucket === "Vencido")
-    .reduce((sum, row) => sum + Number(row.pending || 0), 0);
+  const currencies = TREASURY_CURRENCIES
+    .map(currency => {
+      const currencyRows = list.filter(row => normalizeTreasuryCurrency(row?.currency) === currency);
+      return {
+        currency,
+        docs: currencyRows.length,
+        total: currencyRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+        pending: currencyRows.reduce((sum, row) => sum + Number(row.pending || 0), 0),
+        paid: currencyRows.reduce((sum, row) => sum + Number(row.paid || 0), 0),
+        overdue: currencyRows
+          .filter(row => row.bucket === "Vencido")
+          .reduce((sum, row) => sum + Number(row.pending || 0), 0),
+        overdueDocs: currencyRows.filter(row => row.bucket === "Vencido").length,
+      };
+    })
+    .filter(item => item.docs > 0);
+  const primary = currencies.find(item => item.currency === "CLP") || {
+    currency: "CLP",
+    docs: 0,
+    total: 0,
+    pending: 0,
+    paid: 0,
+    overdue: 0,
+    overdueDocs: 0,
+  };
   return {
-    total,
-    pending,
-    paid,
-    overdue,
+    total: primary.total,
+    pending: primary.pending,
+    paid: primary.paid,
+    overdue: primary.overdue,
     docs: list.length,
     overdueDocs: list.filter(row => row.bucket === "Vencido").length,
+    currency: "CLP",
+    currencies,
+    otherCurrencies: currencies.filter(item => item.currency !== "CLP"),
+    hasMultipleCurrencies: currencies.length > 1,
   };
 }
 
@@ -654,6 +678,7 @@ export function buildTreasuryReceiptLog({ receipts = [], facturas = [], clientes
       return {
         ...item,
         amount: Number(item.amount || 0),
+        currency: normalizeTreasuryCurrency(item.currency || invoice?.currency || invoice?.moneda || invoice?.monedaOrigen || "CLP"),
         targetLabel: invoice?.correlativo || invoice?.tipoDoc || item.reference || "Documento",
         counterpartyLabel: invoice ? invoiceEntityName(invoice, clientes, auspiciadores) : "—",
         counterpartyId: invoice ? invoiceRelatedClientId(invoice, auspiciadores) : "",

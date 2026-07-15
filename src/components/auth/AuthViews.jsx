@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Badge, Btn, FG, FI, GBtn, SearchBar } from "../../lib/ui/components";
 import { normalizeUsersAuth } from "../../lib/auth/authCrypto";
 import { completeLocalPasswordReset, requestLocalPasswordReset } from "../../lib/auth/localAuthProvider";
+import { loadStoredJson } from "../../lib/auth/sessionStorage";
 import { useLabSelfServeAccess } from "../../hooks/useLabSelfServeAccess";
 import QRCode from "qrcode";
 import {
@@ -82,7 +83,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const [setupOtpUrl, setSetupOtpUrl] = useState("");
   const [setupQr, setSetupQr] = useState("");
   const [acceptedRecovery, setAcceptedRecovery] = useState(false);
-  const [tenantChoice, setTenantChoice] = useState(null);
   const isLocalAuth = (authGateway?.strategy || "local") === "local";
   const platformApi = dbHelpers?.platformApi || null;
 
@@ -97,7 +97,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   };
 
   const resetForgotFlow = () => {
-    setTenantChoice(null);
     setForgotMode(false);
     setForgotEmail("");
     setResetCode("");
@@ -183,7 +182,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   const login=async()=>{
     setLoad(true);setErr("");
     resetTwoFactorFlow();
-    setTenantChoice(null);
     await new Promise(r=>setTimeout(r,400));
     let authUsers = Array.isArray(users) ? users : [];
     let authEmpresas = Array.isArray(empresas) ? empresas : [];
@@ -238,7 +236,9 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       .filter(item => item.empresa);
     const sessionOptions = { authStrength: authStrength || (authGateway.strategy === "supabase" ? "supabase" : "password_only"), requiresSecondFactor: false };
     if(user && membershipChoices.length > 1 && !requiresSecondFactor) {
-      setTenantChoice({ user, choices: membershipChoices, options: sessionOptions });
+      const storedSession = dbHelpers?.sessionKey ? loadStoredJson(dbHelpers.sessionKey) : null;
+      const preferred = membershipChoices.find(item => item.empresa.id === storedSession?.empId) || membershipChoices[0];
+      onLogin(user, { ...sessionOptions, empresa: preferred.empresa, empId: preferred.empresa.id });
     }
     else if(user && authGateway.supportsTwoFactorSetup() && requiresSecondFactor) startSecondFactorFlow(user);
     else if(user) onLogin(user, sessionOptions);
@@ -438,7 +438,6 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       <form
         onSubmit={e => {
           e.preventDefault();
-          if (tenantChoice) return;
           if (pending2FA) submitSecondFactor();
           else if (forgotMode) {
             if (isLocalAuth) submitPasswordReset();
@@ -451,25 +450,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       <div className="login-logo" style={{textAlign:"center",marginBottom:32}}>
         <BrandLockup size="md" align="center" />
       </div>
-        {tenantChoice && <>
-        <div style={{fontSize:20,fontWeight:800,fontFamily:"var(--fh)",marginBottom:6,textAlign:"center",color:"#152033"}}>Elige tu empresa</div>
-        <div className="login-subcopy" style={{fontSize:12,color:"#66748d",textAlign:"center",marginBottom:20}}>Este correo tiene acceso a más de una empresa en Produ.</div>
-        <div style={{display:"grid",gap:10,marginBottom:18}}>
-          {tenantChoice.choices.map(({ membership, empresa }) => (
-            <button
-              key={`${membership.userId}-${membership.empId}`}
-              type="button"
-              onClick={() => onLogin(tenantChoice.user, { ...(tenantChoice.options || {}), empresa, empId: empresa.id })}
-              style={{width:"100%",textAlign:"left",padding:"14px 16px",borderRadius:16,border:"1px solid var(--bdr2)",background:"#f8fbff",color:"#1a1a2e",cursor:"pointer",boxShadow:"0 10px 24px rgba(15,23,42,.06)"}}
-            >
-              <div style={{fontSize:14,fontWeight:800,marginBottom:4}}>{empresa.nombre || empresa.nom || "Empresa"}</div>
-              <div style={{fontSize:11,color:"#66748d"}}>{membership.role || "usuario"} · {membership.email}</div>
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => setTenantChoice(null)} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline",width:"100%"}}>Volver al ingreso</button>
-      </>}
-        {!tenantChoice && !pending2FA && !forgotMode && <>
+        {!pending2FA && !forgotMode && <>
         <div style={{fontSize:20,fontWeight:800,fontFamily:"var(--fh)",marginBottom:6,textAlign:"center",color:"#152033"}}>Bienvenido de vuelta</div>
         <div className="login-subcopy" style={{fontSize:12,color:"#66748d",textAlign:"center",marginBottom:24}}>Ingresa a tu espacio de trabajo con la misma experiencia clara y moderna de Produ.</div>
         <FG label="Email"><FI type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.cl" onKeyDown={e=>e.key==="Enter"&&login()}/></FG>
@@ -557,8 +538,8 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
         </div>
       </>}
       {err&&<div style={{background:"#ff556615",border:"1px solid #ff556635",borderRadius:12,padding:"10px 12px",color:"var(--red)",fontSize:12,marginBottom:12}}>{err}</div>}
-      {!tenantChoice && !forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
-      {!tenantChoice && forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
+      {!forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Verificando...":pending2FA?"Verificar segundo factor →":"Ingresar →"}</button>}
+      {forgotMode && <button type="submit" disabled={load} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"#1a1a2e",color:"#fff",cursor:"pointer",fontSize:14,fontWeight:800,opacity:load?.7:1,marginBottom:16,boxShadow:"0 16px 30px rgba(26,26,46,.22)"}}>{load?"Procesando...":isLocalAuth?"Actualizar contraseña →":"Enviar instrucciones →"}</button>}
       {pending2FA
         ? <div style={{textAlign:"center"}}>
             {pending2FA.mode === "verify" && (
@@ -570,7 +551,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
             <button type="button" onClick={resetTwoFactorFlow} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Volver al ingreso</button>
             </div>
           </div>
-        : !tenantChoice && <div style={{textAlign:"center"}}>
+        : <div style={{textAlign:"center"}}>
             {!forgotMode && <>
               {authGateway.supportsPasswordReset() && <button type="button" onClick={()=>{setErr("");setResetInfo("");setResetRevealCode("");setForgotEmail(email);setForgotMode(true);}} style={{background:"none",border:"none",color:"var(--gr2)",cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline",marginBottom:10}}>Olvidé mi contraseña</button>}
               <div>

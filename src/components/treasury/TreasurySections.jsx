@@ -489,6 +489,16 @@ export function TreasuryPayablesSection({
   empresa = null,
   isMobile = false,
 }) {
+  const downloadPayablePdf = row => exportTreasuryRowsPDF({
+    rows: [row],
+    columns: payableExportColumns,
+    fileName: `cuenta_por_pagar_${row?.folio || row?.id || "documento"}`,
+    title: "Documento por pagar",
+    subtitle: `${row?.supplier || "Proveedor"} · ${row?.folio || "Documento"}`,
+    empresa,
+    accent: "#1a1a2e",
+  });
+
   return (
     <>
       <SectionCard title="Cuentas por Pagar" subtitle="Gestiona deudas, proveedores, pagos, documentos anulados y salida de caja en un mismo contexto">
@@ -540,6 +550,7 @@ export function TreasuryPayablesSection({
               onSupplierEmail={handleSupplierEmail}
               onSupplierStatementEmail={handleSupplierStatementEmail}
               onSupplierWhatsApp={handleSupplierWhatsApp}
+              onDownloadPdf={downloadPayablePdf}
               canManage={canManageTreasury}
               selectedIds={payableTable.selectedIds}
               toggleSelected={payableTable.toggleSelected}

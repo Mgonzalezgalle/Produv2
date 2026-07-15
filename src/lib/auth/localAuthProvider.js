@@ -1,6 +1,6 @@
 import { isStoredSessionExpired, removeStoredJson, saveStoredJson, sessionPayload, validateStoredSessionBinding } from "./sessionStorage";
 import { isPasswordHash, sha256Hex } from "./authCrypto";
-import { findActiveDomainUserByEmail, findActiveDomainUserById, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
+import { buildMultiTenantDomainUser, findActiveDomainUserByEmail, findActiveDomainUsersByEmail, findActiveDomainUserById, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 import { requiresLocalTwoFactor } from "./localTwoFactor";
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -22,7 +22,8 @@ function createResetCode() {
 
 export async function authenticateLocalUser({ users = [], email = "", password = "" }) {
   const safeEmail = normalizeAuthEmail(email);
-  const userByEmail = findActiveDomainUserByEmail(users, safeEmail);
+  const userMatches = findActiveDomainUsersByEmail(users, safeEmail);
+  const userByEmail = userMatches[0] || null;
   if (userByEmail?.loginLockedUntil && Number(userByEmail.loginLockedUntil) > Date.now()) {
     return {
       user: null,
@@ -32,27 +33,31 @@ export async function authenticateLocalUser({ users = [], email = "", password =
     };
   }
   const hashedPass = await sha256Hex(password);
-  const storedHash = String(userByEmail?.passwordHash || "").trim();
-  const valid = !!(userByEmail && (
-    (isPasswordHash(storedHash) && storedHash.toLowerCase() === hashedPass) ||
-    (!isPasswordHash(storedHash) && storedHash && storedHash === password) ||
-    (!storedHash && userByEmail.password === password)
-  ));
+  const validUser = userMatches.find(candidate => {
+    const storedHash = String(candidate?.passwordHash || "").trim();
+    return (
+      (isPasswordHash(storedHash) && storedHash.toLowerCase() === hashedPass) ||
+      (!isPasswordHash(storedHash) && storedHash && storedHash === password) ||
+      (!storedHash && candidate.password === password)
+    );
+  }) || null;
+  const valid = !!validUser;
   if (valid) {
+    const sessionUser = buildMultiTenantDomainUser(validUser, users);
     return {
-      user: userByEmail,
+      user: sessionUser,
       error: "",
-      requiresSecondFactor: requiresLocalTwoFactor(userByEmail),
-      updatedUser: userByEmail.loginFailures || userByEmail.loginLockedUntil
+      requiresSecondFactor: requiresLocalTwoFactor(validUser),
+      updatedUser: validUser.loginFailures || validUser.loginLockedUntil
         ? {
-            ...userByEmail,
+            ...validUser,
             loginFailures: 0,
             loginLockedUntil: 0,
             lastFailedLoginAt: "",
             lastSuccessfulLoginAt: new Date().toISOString(),
           }
         : {
-            ...userByEmail,
+            ...validUser,
             lastSuccessfulLoginAt: new Date().toISOString(),
           },
     };
@@ -92,17 +97,18 @@ export function resolveSessionState({ storedSession, users = [], empresas = [], 
     removeStoredJson(sessionKey);
     return { user: null, empresa: null, clearSession: true };
   }
+  const sessionUser = buildMultiTenantDomainUser(freshUser, users);
   if (isStoredSessionExpired(storedSession)) {
     removeStoredJson(sessionKey);
     return { user: null, empresa: null, clearSession: true };
   }
-  const sessionBinding = validateStoredSessionBinding(storedSession, freshUser, empresas);
+  const sessionBinding = validateStoredSessionBinding(storedSession, sessionUser, empresas);
   if (!sessionBinding.ok) {
     removeStoredJson(sessionKey);
     return { user: null, empresa: null, clearSession: true, invalidReason: sessionBinding.reason };
   }
-  const freshEmp = resolveTenantForUser(freshUser, empresas, storedSession);
-  return { user: freshUser, empresa: freshEmp || null, clearSession: false };
+  const freshEmp = resolveTenantForUser(sessionUser, empresas, storedSession);
+  return { user: sessionUser, empresa: freshEmp || null, clearSession: false };
 }
 
 export function persistSession({ sessionKey, user, empresa, options }) {

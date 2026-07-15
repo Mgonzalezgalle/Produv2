@@ -1,5 +1,5 @@
 import { sb } from "./supabaseClient";
-import { findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
+import { buildMultiTenantDomainUser, findActiveDomainUserByEmail, normalizeAuthEmail, resolveTenantForUser } from "./authIdentity";
 import { authenticateLocalUser } from "./localAuthProvider";
 import { isStoredSessionExpired, validateStoredSessionBinding } from "./sessionStorage";
 
@@ -62,9 +62,10 @@ export async function authenticateSupabaseUser({ users = [], empresas = [], emai
         error: "El usuario autenticado no está vinculado todavía al dominio de Produ.",
       };
     }
+    const sessionUser = buildMultiTenantDomainUser(linkedUser, users);
     return {
-      user: linkedUser,
-      empresa: resolveTenantForUser(linkedUser, empresas, null),
+      user: sessionUser,
+      empresa: resolveTenantForUser(sessionUser, empresas, null),
       error: "",
       authStrength: "supabase",
       authSource: "supabase",
@@ -177,18 +178,19 @@ export async function restoreSupabaseSession({ users = [], empresas = [], stored
     if (!domainUser) {
       return { user: null, empresa: null, clearSession: true, invalidReason: "user_not_linked" };
     }
+    const sessionUser = buildMultiTenantDomainUser(domainUser, users);
     const sessionBinding = validateStoredSessionBinding(storedSession || {
-      userId: domainUser.id,
-      role: domainUser.role,
-      empId: domainUser.role === "superadmin" ? storedSession?.empId || null : domainUser.empId,
+      userId: sessionUser.id,
+      role: sessionUser.role,
+      empId: sessionUser.role === "superadmin" ? storedSession?.empId || null : sessionUser.empId,
       authStrength: storedSession?.authStrength || "password_only",
-    }, domainUser, empresas, { enforceLocalMfa: false });
+    }, sessionUser, empresas, { enforceLocalMfa: false });
     if (!sessionBinding.ok) {
       return { user: null, empresa: null, clearSession: true, invalidReason: sessionBinding.reason };
     }
     return {
-      user: domainUser,
-      empresa: resolveTenantForUser(domainUser, empresas, storedSession),
+      user: sessionUser,
+      empresa: resolveTenantForUser(sessionUser, empresas, storedSession),
       clearSession: false,
     };
   } catch (error) {

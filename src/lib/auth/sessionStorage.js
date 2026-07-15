@@ -80,8 +80,11 @@ export function validateStoredSessionBinding(session = null, user = null, empres
     return { ok: false, reason: "role_mismatch" };
   }
   if (user?.role !== "superadmin") {
-    if (!user?.empId) return { ok: false, reason: "missing_tenant_binding" };
-    if (String(user.empId) !== String(session?.empId || "")) {
+    const memberships = Array.isArray(user?.tenantMemberships) ? user.tenantMemberships : [];
+    const sessionEmpId = String(session?.empId || "");
+    const hasSessionMembership = memberships.some(item => String(item?.empId || "") === sessionEmpId);
+    if (!user?.empId && !memberships.length) return { ok: false, reason: "missing_tenant_binding" };
+    if (String(user.empId || "") !== sessionEmpId && !hasSessionMembership) {
       return { ok: false, reason: "tenant_mismatch" };
     }
   }

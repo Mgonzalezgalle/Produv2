@@ -2,6 +2,21 @@ import { useCallback } from "react";
 import { touchStoredSession } from "../lib/auth/sessionStorage";
 import { LAB_DATA_CONFIG } from "../lib/lab/labStorageConfig";
 
+function resolveUserForEmpresa(user = null, empresa = null) {
+  if (!user || !empresa?.id) return user;
+  const membership = (Array.isArray(user.tenantMemberships) ? user.tenantMemberships : [])
+    .find(item => item.empId === empresa.id);
+  if (!membership) return user;
+  return {
+    ...user,
+    id: membership.userId || user.id,
+    empId: membership.empId,
+    role: membership.role || user.role,
+    name: membership.name || user.name,
+    email: membership.email || user.email,
+  };
+}
+
 export function useLabShell({
   setToast,
   setSyncPulse,
@@ -62,10 +77,14 @@ export function useLabShell({
       return;
     }
     const domainEmpresas = LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS);
-    const empresa = domainEmpresas.find(item => item.id === user.empId);
-    setCurUser(user);
+    const requestedEmpId = options?.empresa?.id || options?.empId || user.empId;
+    const empresa = domainEmpresas.find(item => item.id === requestedEmpId)
+      || domainEmpresas.find(item => (user.tenantMemberships || []).some(membership => membership.empId === item.id))
+      || null;
+    const scopedUser = resolveUserForEmpresa(user, empresa);
+    setCurUser(scopedUser);
     setCurEmp(empresa || null);
-    setStoredSession(authService.persistSession({ user, empresa: empresa || null, options }));
+    setStoredSession(authService.persistSession({ user: scopedUser, empresa: empresa || null, options }));
   }, [authService, setCurUser, setCurEmp, setStoredSession, empresas, SEED_EMPRESAS]);
 
   const logout = useCallback(() => {
@@ -88,9 +107,11 @@ export function useLabShell({
       return;
     }
     setSuperPanel(false);
+    const scopedUser = resolveUserForEmpresa(curUser, empresa);
+    setCurUser(scopedUser);
     setCurEmp(empresa);
-    setStoredSession(authService.persistSession({ user: curUser, empresa, options: storedSession || {} }));
-  }, [authService, setSuperPanel, setCurEmp, setStoredSession, curUser, storedSession]);
+    setStoredSession(authService.persistSession({ user: scopedUser, empresa, options: storedSession || {} }));
+  }, [authService, setSuperPanel, setCurUser, setCurEmp, setStoredSession, curUser, storedSession]);
 
   const refreshSessionActivity = useCallback((patch = {}) => {
     const next = touchStoredSession(sessionKey, storedSession, patch);

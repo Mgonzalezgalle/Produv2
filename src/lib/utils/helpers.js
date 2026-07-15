@@ -29,11 +29,12 @@ export function normalizeEmailValue(v = "") {
 
 export function ensureRequiredSystemUsers(users = [], requiredUsers = REQUIRED_SYSTEM_USERS) {
   const base = Array.isArray(users) ? [...users] : [];
-  const byEmail = new Map(base.filter(Boolean).map(u => [normalizeEmailValue(u.email), u]));
+  const next = base.filter(Boolean);
   requiredUsers.forEach(req => {
     const key = normalizeEmailValue(req.email);
-    const existing = byEmail.get(key);
-    const nextUser = existing
+    const existingIndex = next.findIndex(u => normalizeEmailValue(u.email) === key && (!req.empId || u.empId === req.empId));
+    const existing = existingIndex >= 0 ? next[existingIndex] : null;
+    const requiredUser = existing
       ? {
           ...existing,
           name: existing.name || req.name,
@@ -49,9 +50,10 @@ export function ensureRequiredSystemUsers(users = [], requiredUsers = REQUIRED_S
           id: uid(),
           ...req,
         };
-    byEmail.set(key, nextUser);
+    if (existingIndex >= 0) next[existingIndex] = requiredUser;
+    else next.push(requiredUser);
   });
-  return Array.from(byEmail.values());
+  return next;
 }
 
 function crewUserId(userId = "") {

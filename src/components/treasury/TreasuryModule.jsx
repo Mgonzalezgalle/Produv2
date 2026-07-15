@@ -667,6 +667,18 @@ export function TreasuryModule(props) {
       accent: "#1a1a2e",
     });
   }, [notify, tenantEmpresa, providers]);
+  const handleOpenPayablePdf = React.useCallback(async (row) => {
+    if (!String(row?.pdfUrl || "").trim()) {
+      notify?.("Este documento no tiene un PDF adjunto.", "warn");
+      return;
+    }
+    try {
+      await openPdfSourceInNewTab(row.pdfUrl, row.pdfName || `${row?.folio || "documento"}.pdf`);
+    } catch (error) {
+      console.warn("[treasury-payable-pdf] No pudimos abrir el PDF adjunto", error);
+      notify?.("No pudimos abrir el PDF adjunto de este documento.", "error");
+    }
+  }, [notify]);
   const handleIssuedOrderEmail = React.useCallback(async (row) => {
     openEmailComposer(await buildIssuedOrderEmailDraft(row));
   }, [buildIssuedOrderEmailDraft, openEmailComposer]);
@@ -1079,6 +1091,7 @@ export function TreasuryModule(props) {
             openIssuedOrderEdit={openIssuedOrderEdit}
             openPayableCreate={openPayableCreate}
             openPayableEdit={openPayableEdit}
+            openPayablePdf={handleOpenPayablePdf}
             openBulkImporter={() => openTreasuryImporter("payables")}
             openProviderCreate={openProviderCreate}
             openProviderEdit={openProviderEdit}

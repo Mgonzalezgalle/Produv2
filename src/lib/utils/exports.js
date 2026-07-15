@@ -421,9 +421,6 @@ export async function exportSupplierStatementPDF({
   const supplierName = provider?.name || provider?.razonSocial || "Proveedor";
   const payables = Array.isArray(provider?.payables) ? provider.payables : [];
   const totalsByCurrency = summarizeSupplierStatementByCurrency(payables);
-  const totalsLabel = totalsByCurrency.length
-    ? totalsByCurrency.map(item => `${item.currency}: total ${formatTreasuryMoney(item.total, item.currency)} · por vencer ${formatTreasuryMoney(item.dueSoon, item.currency)} · vencido ${formatTreasuryMoney(item.overdue, item.currency)} · pagado ${formatTreasuryMoney(item.paid, item.currency)}`).join(" | ")
-    : "Sin documentos registrados";
   const summaryItems = totalsByCurrency.map(item => ({
     label: item.currency,
     value: `Total ${formatTreasuryMoney(item.total, item.currency)} · Por vencer ${formatTreasuryMoney(item.dueSoon, item.currency)} · Vencido ${formatTreasuryMoney(item.overdue, item.currency)} · Pagado ${formatTreasuryMoney(item.paid, item.currency)}`,
@@ -432,7 +429,7 @@ export async function exportSupplierStatementPDF({
   const file = await buildTreasuryTablePdf({
     fileName: `${normalizeExportFileName(fileName || `estado_cuenta_${supplierName}`)}.pdf`,
     title: `Estado de cuenta proveedor`,
-    subtitle: `${supplierName}${provider?.rut ? ` · RUT ${provider.rut}` : ""} · ${totalsLabel}`,
+    subtitle: `${supplierName}${provider?.rut ? ` · RUT ${provider.rut}` : ""}`,
     accent,
     empresa,
     columns: [

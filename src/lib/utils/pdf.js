@@ -441,16 +441,11 @@ export async function buildTreasuryTablePdf({
   drawHeader(page, pageNumber);
 
   let y = topY - 96;
-  const summaryHeight = safeSummaryItems.length ? Math.min(116, 44 + safeSummaryItems.length * 15) : 42;
+  const summaryHeight = 42;
   drawRoundedPdfBox(page, marginX, y - summaryHeight - 16, tableWidth, summaryHeight, soft, border, 1);
   page.drawText("Resumen de descarga", { x: marginX + 14, y: y - 34, size: 9, font: bold, color: textColor });
   page.drawText(`Registros incluidos: ${safeRows.length}`, { x: marginX + 160, y: y - 34, size: 8.2, font, color: muted });
   page.drawText(`Generado: ${new Date().toLocaleDateString("es-CL")}`, { x: marginX + 315, y: y - 34, size: 8.2, font, color: muted });
-  safeSummaryItems.slice(0, 5).forEach((item, index) => {
-    const lineY = y - 53 - index * 15;
-    page.drawText(fitText(item?.label || "Resumen", 105, bold, 7.8), { x: marginX + 14, y: lineY, size: 7.8, font: bold, color: textColor });
-    page.drawText(fitText(item?.value || "", tableWidth - 135, font, 7.6), { x: marginX + 122, y: lineY, size: 7.6, font, color: muted });
-  });
   y -= summaryHeight + 36;
 
   const drawTableHeader = () => {
@@ -468,6 +463,29 @@ export async function buildTreasuryTablePdf({
     drawHeader(page, pageNumber);
     y = topY - 96;
     drawTableHeader();
+  };
+
+  const newSummaryPage = () => {
+    pageNumber += 1;
+    page = pdf.addPage([pageWidth, pageHeight]);
+    drawHeader(page, pageNumber);
+    y = topY - 96;
+  };
+
+  const drawTotalsSummary = () => {
+    if (!safeSummaryItems.length) return;
+    const visibleItems = safeSummaryItems.slice(0, 6);
+    const boxHeight = Math.min(126, 44 + visibleItems.length * 15);
+    if (y - boxHeight - 18 < bottomY) newSummaryPage();
+    y -= 18;
+    drawRoundedPdfBox(page, marginX, y - boxHeight, tableWidth, boxHeight, soft, border, 1);
+    page.drawText("Totalizados por moneda", { x: marginX + 14, y: y - 19, size: 9.2, font: bold, color: textColor });
+    visibleItems.forEach((item, index) => {
+      const lineY = y - 38 - index * 15;
+      page.drawText(fitText(item?.label || "Moneda", 74, bold, 7.8), { x: marginX + 14, y: lineY, size: 7.8, font: bold, color: accentColor });
+      page.drawText(fitText(item?.value || "", tableWidth - 108, font, 7.6), { x: marginX + 94, y: lineY, size: 7.6, font, color: muted });
+    });
+    y -= boxHeight + 10;
   };
 
   if (!safeColumns.length) {
@@ -504,6 +522,8 @@ export async function buildTreasuryTablePdf({
       y -= rowHeight;
     });
   }
+
+  drawTotalsSummary();
 
   const bytes = await pdf.save();
   return new File([bytes], fileName, { type: "application/pdf" });

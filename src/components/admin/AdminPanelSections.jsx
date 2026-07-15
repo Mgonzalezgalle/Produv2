@@ -890,7 +890,7 @@ export function TransactionalEmailTemplatesPanel({
 }
 
 export function UsersAdminSection({
-  uq, setUq, uRole, setURole, uState, setUState, roleOptions, empresa, filteredUsers, ini, getRoleConfig,
+  uq, setUq, uRole, setURole, uState, setUState, roleOptions, empresa, empresas = [], users = [], filteredUsers, ini, getRoleConfig,
   userGoogleCalendar, setUid2, setUf, resetAccess, toggleUserActive, deleteUser, uid2, uf, editableRoleOptions,
   saveUser,
   canManageAdmin = true,
@@ -900,6 +900,19 @@ export function UsersAdminSection({
   const activeCount = filteredUsers.filter(u => u.active).length;
   const connectedCalendarCount = filteredUsers.filter(u => userGoogleCalendar(u).connected).length;
   const crewCount = filteredUsers.filter(u => u.isCrew).length;
+  const activeEmpresas = (Array.isArray(empresas) ? empresas : []).filter(item => item?.active !== false);
+  const selectedTenantIds = Array.isArray(uf.tenantIds) && uf.tenantIds.length
+    ? uf.tenantIds
+    : [uf.empId || empresa?.id].filter(Boolean);
+  const toggleTenantSelection = tenantId => {
+    setUf(prev => {
+      const current = new Set(Array.isArray(prev.tenantIds) && prev.tenantIds.length ? prev.tenantIds : [prev.empId || empresa?.id].filter(Boolean));
+      if (current.has(tenantId)) current.delete(tenantId);
+      else current.add(tenantId);
+      if (!current.size && empresa?.id) current.add(empresa.id);
+      return { ...prev, tenantIds: Array.from(current), empId: Array.from(current)[0] || prev.empId || empresa?.id };
+    });
+  };
 
   return <div>
     <AdminPanelCard
@@ -929,7 +942,7 @@ export function UsersAdminSection({
             <Badge label={u.active?"Activo":"Inactivo"} color={u.active?"green":"red"} sm/>
             <Badge label={userGoogleCalendar(u).connected?"Google conectado":"Sin Google"} color={userGoogleCalendar(u).connected?"cyan":"gray"} sm/>
             {restrictedBySuper ? <Badge label="Gestiona Torre de Control" color="purple" sm/> : <>
-              <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:""});}} disabled={!canManageAdmin} s={{minWidth:74}}>Editar</GBtn>
+              <GBtn sm onClick={()=>{setUid2(u.id);setUf({...u,password:"",tenantIds:(users || []).filter(candidate => String(candidate.email || "").trim().toLowerCase() === String(u.email || "").trim().toLowerCase()).map(candidate => candidate.empId).filter(Boolean)});}} disabled={!canManageAdmin} s={{minWidth:74}}>Editar</GBtn>
               <GBtn sm onClick={()=>resetAccess(u)} disabled={!canManageAdmin}>🔐 Reset</GBtn>
               <GBtn sm onClick={()=>toggleUserActive(u)} disabled={!canManageAdmin}>{u.active?"Desactivar":"Activar"}</GBtn>
               {u.role!=="superadmin"&&<DBtn onClick={()=>setPendingDeleteUser(u)} disabled={!canManageAdmin} sm>Eliminar</DBtn>}
@@ -949,6 +962,17 @@ export function UsersAdminSection({
         <div style={{fontSize:11,color:"var(--gr2)"}}>Las cuentas `Admin` y `Super Admin` se crean y gobiernan desde `Torre de Control &gt; Usuarios del sistema`.</div>
       </div>
       <R2><FG label="Nombre"><FI value={uf.name||""} onChange={e=>setUf(p=>({...p,name:e.target.value}))} placeholder="Juan Pérez"/></FG><FG label="Email"><FI type="email" value={uf.email||""} onChange={e=>setUf(p=>({...p,email:e.target.value}))} placeholder="juan@empresa.cl"/></FG></R2>
+      <FG label="Empresas asociadas">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--sur)",marginBottom:10}}>
+          {activeEmpresas.map(item => (
+            <label key={item.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",cursor:"pointer"}}>
+              <input type="checkbox" checked={selectedTenantIds.includes(item.id)} onChange={() => toggleTenantSelection(item.id)} />
+              <span>{item.nombre || item.nom || "Empresa"}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginTop:-4,marginBottom:8}}>El mismo correo podrá ingresar a cualquiera de estas empresas. Al iniciar sesión verá un selector de tenant.</div>
+      </FG>
       <R3><FG label="Contraseña"><FI type="password" value={uf.password||""} onChange={e=>setUf(p=>({...p,password:e.target.value}))} placeholder={uid2?"Nueva contraseña opcional":"Contraseña inicial"}/></FG><FG label="Rol"><FSl value={editableRoleOptions.some(o=>o.value===(uf.role||"viewer"))?(uf.role||"viewer"):(editableRoleOptions[0]?.value||"viewer")} onChange={e=>setUf(p=>({...p,role:e.target.value}))}>{editableRoleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</FSl></FG><FG label="Estado"><FSl value={uf.active===false?"false":"true"} onChange={e=>setUf(p=>({...p,active:e.target.value==="true"}))}><option value="true">Activo</option><option value="false">Inactivo</option></FSl></FG></R3>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
         <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",paddingTop:10}}>

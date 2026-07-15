@@ -240,7 +240,7 @@ export function AdminPanel(rawProps) {
     {activeAdminTab==="Colores"&&<ThemeSettingsPanel lt={lt} setLt={setLt} themePresets={themePresets} onSaveTheme={onSaveTheme} ntf={ntf} />}
     {activeAdminTab==="Usuarios"&&<UsersAdminSection
       uq={uq} setUq={setUq} uRole={uRole} setURole={setURole} uState={uState} setUState={setUState}
-      roleOptions={roleOptions} empresa={empresa} empresas={empresas} users={users} filteredUsers={filteredUsers} ini={ini} getRoleConfig={getRoleConfig}
+      roleOptions={roleOptions} empresa={empresa} filteredUsers={filteredUsers} ini={ini} getRoleConfig={getRoleConfig}
       userGoogleCalendar={userGoogleCalendar} setUid2={setUid2} setUf={setUf} resetAccess={resetAccess}
       toggleUserActive={toggleUserActive} deleteUser={deleteUser} uid2={uid2} uf={uf}
       editableRoleOptions={editableRoleOptions} saveUser={saveUser} canManageAdmin={canManageAdmin}

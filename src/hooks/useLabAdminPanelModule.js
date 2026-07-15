@@ -620,72 +620,46 @@ export function useLabAdminPanelModule({
     if (!uf.name || !uf.email) return unauthorizedResult();
     const id = uid2 || uid();
     const prev = (users || []).find(x => x.id === id);
-    const normalizedEmail = String(uf.email || "").trim().toLowerCase();
-    const previousEmail = String(prev?.email || uf.email || "").trim().toLowerCase();
-    const selectedTenantIds = Array.from(new Set(
-      (Array.isArray(uf.tenantIds) && uf.tenantIds.length ? uf.tenantIds : [empresa?.id])
-        .filter(Boolean),
-    ));
-    if (!selectedTenantIds.length) return unauthorizedResult();
     const nextRole = sanitizeAssignableRole(
       uf.role || prev?.role || "viewer",
       empresa,
       user,
       prev?.role && ["admin", "superadmin"].includes(prev.role) ? prev.role : "viewer",
     );
-    const buildMembershipUser = async tenantId => {
-      const existing = (users || []).find(item =>
-        String(item?.empId || "") === String(tenantId || "") &&
-        [previousEmail, normalizedEmail].includes(String(item?.email || "").trim().toLowerCase())
-      );
-      const passwordHash = uf.password
-        ? await sha256Hex(uf.password)
-        : existing?.passwordHash || prev?.passwordHash || (existing?.password ? await sha256Hex(existing.password) : "");
-      return {
-        ...(existing || {}),
-        id: existing?.id || (tenantId === empresa?.id ? id : uid()),
-        name: uf.name,
-        email: uf.email,
-        passwordHash,
-        password: "",
-        role: nextRole,
-        empId: tenantId,
-        active: uf.active !== false,
-        isCrew: uf.isCrew === true,
-        crewRole: uf.isCrew === true ? (uf.crewRole || "Crew interno") : "",
-      };
+    const passwordHash = uf.password
+      ? await sha256Hex(uf.password)
+      : prev?.passwordHash || (prev?.password ? await sha256Hex(prev.password) : "");
+    const obj = {
+      id,
+      name: uf.name,
+      email: uf.email,
+      passwordHash,
+      password: "",
+      role: nextRole,
+      empId: empresa?.id || null,
+      active: uf.active !== false,
+      isCrew: uf.isCrew === true,
+      crewRole: uf.isCrew === true ? (uf.crewRole || "Crew interno") : "",
     };
-    const membershipUsers = await Promise.all(selectedTenantIds.map(buildMembershipUser));
-    const relatedEmails = new Set([previousEmail, normalizedEmail].filter(Boolean));
-    const nextUsers = [
-      ...(users || []).filter(item => {
-        const itemEmail = String(item?.email || "").trim().toLowerCase();
-        if (!relatedEmails.has(itemEmail)) return true;
-        if (!item?.empId) return true;
-        return false;
-      }),
-      ...membershipUsers,
-    ];
-    const obj = membershipUsers.find(item => item.empId === empresa?.id) || membershipUsers[0];
+    const nextUsers = uid2
+      ? (users || []).map(u => u.id === uid2 ? obj : u)
+      : [...(users || []), obj];
     const shouldSendAccessEmail = Boolean(String(uf.password || "").trim());
     if (platformServices?.updateTenantUser && platformServices?.createTenantUser) {
-      await Promise.all(membershipUsers.map(async member => {
-        const existed = (users || []).some(item => item.id === member.id);
-        if (existed) {
-          await platformServices.updateTenantUser(member.id, { ...member, password: uf.password || "" });
-          return;
-        }
+      if (uid2) {
+        await platformServices.updateTenantUser(id, { ...obj, password: uf.password || "" });
+      } else {
         await platformServices.createTenantUser({
-          tenantId: member.empId || null,
-          name: member.name,
-          email: member.email,
-          role: member.role,
-          active: member.active,
+          tenantId: empresa?.id || null,
+          name: obj.name,
+          email: obj.email,
+          role: obj.role,
+          active: obj.active,
           password: uf.password || "",
-          isCrew: member.isCrew,
-          crewRole: member.crewRole,
+          isCrew: obj.isCrew,
+          crewRole: obj.crewRole,
         });
-      }));
+      }
     }
     await saveUsers(nextUsers);
     if (shouldSendAccessEmail) {

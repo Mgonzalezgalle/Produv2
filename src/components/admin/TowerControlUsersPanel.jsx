@@ -27,9 +27,23 @@ export function SystemUsersPanel({
   userGoogleCalendar,
 }) {
   const [pendingDeleteUser, setPendingDeleteUser] = React.useState(null);
+  const activeEmpresas = (Array.isArray(empresas) ? empresas : []).filter(item => item?.active !== false);
+  const selectedTenantIds = Array.isArray(sysUf.tenantIds) && sysUf.tenantIds.length
+    ? sysUf.tenantIds
+    : [sysUf.empId].filter(Boolean);
+  const toggleTenantSelection = tenantId => {
+    setSysUf(prev => {
+      const current = new Set(Array.isArray(prev.tenantIds) && prev.tenantIds.length ? prev.tenantIds : [prev.empId].filter(Boolean));
+      if (current.has(tenantId)) current.delete(tenantId);
+      else current.add(tenantId);
+      const nextTenantIds = Array.from(current);
+      return { ...prev, tenantIds: nextTenantIds, empId: nextTenantIds[0] || "" };
+    });
+  };
+
   return <div>
     <div style={{ fontSize: 12, color: "var(--gr3)", marginBottom: 12 }}>
-      Usuarios del sistema. Cada empresa gestiona sus propios usuarios desde Torre de Control.
+      Usuarios del sistema. Desde aquí se gobierna el acceso entre empresas; el panel administrador solo gestiona el tenant actual.
     </div>
     <div style={{ background: "var(--sur)", border: "1px solid var(--bdr2)", borderRadius: 16, padding: 16, marginBottom: 16, boxShadow: "0 10px 24px rgba(15,23,42,.05)" }}>
       <div style={{ display:"flex", justifyContent:"space-between", gap:12, alignItems:"center", marginBottom: 12, flexWrap:"wrap" }}>
@@ -46,7 +60,7 @@ export function SystemUsersPanel({
       <R3>
         <FG label={sysUid ? "Nueva contraseña opcional" : "Contraseña inicial"}><FI type="password" value={sysUf.password || ""} onChange={e => setSysUf(p => ({ ...p, password: e.target.value }))} placeholder={sysUid ? "Solo si quieres reemplazar la clave" : "Contraseña temporal o final"} /></FG>
         <FG label="Rol">
-          <FSl value={sysUf.role || "admin"} onChange={e => setSysUf(p => ({ ...p, role: e.target.value, empId: e.target.value === "superadmin" ? "" : p.empId }))}>
+          <FSl value={sysUf.role || "admin"} onChange={e => setSysUf(p => ({ ...p, role: e.target.value, empId: e.target.value === "superadmin" ? "" : p.empId, tenantIds: e.target.value === "superadmin" ? [] : p.tenantIds }))}>
             {systemRoleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </FSl>
         </FG>
@@ -57,18 +71,23 @@ export function SystemUsersPanel({
           </FSl>
         </FG>
       </R3>
-      {sysUf.role !== "superadmin" && <FG label="Empresa">
-        <FSl value={sysUf.empId || ""} onChange={e => setSysUf(p => ({ ...p, empId: e.target.value }))}>
-          <option value="">Sin empresa</option>
-          {(empresas || []).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </FSl>
+      {sysUf.role !== "superadmin" && <FG label="Empresas asociadas">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:8,padding:"10px 12px",border:"1px solid var(--bdr2)",borderRadius:14,background:"var(--card)",marginBottom:10}}>
+          {activeEmpresas.map(item => (
+            <label key={item.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",cursor:"pointer"}}>
+              <input type="checkbox" checked={selectedTenantIds.includes(item.id)} onChange={() => toggleTenantSelection(item.id)} />
+              <span>{item.nombre || item.nom || "Empresa"}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"var(--gr2)",marginTop:-4,marginBottom:8}}>Si seleccionas más de una empresa, este usuario verá un selector de tenant al iniciar sesión.</div>
       </FG>}
       <div style={{ fontSize: 11, color: "var(--gr2)", marginBottom: 10 }}>
         Desde Torre de Control se crean, actualizan y resguardan estas cuentas administrativas del sistema.
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <Btn onClick={saveSystemUser}>{sysUid ? "Guardar cambios" : "Guardar usuario sistema"}</Btn>
-        {sysUid && <GBtn onClick={() => { setSysUid(null); setSysUf({ active: true, role: "admin", empId: "", password: "" }); }}>Cancelar</GBtn>}
+        {sysUid && <GBtn onClick={() => { setSysUid(null); setSysUf({ active: true, role: "admin", empId: "", tenantIds: [], password: "" }); }}>Cancelar</GBtn>}
       </div>
     </div>
     <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>

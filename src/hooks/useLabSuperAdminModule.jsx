@@ -265,26 +265,97 @@ export function useLabSuperAdminModule({
     if (!sysUf.name?.trim() || !sysUf.email?.trim() || (!sysUid && !sysUf.password?.trim())) return;
     const normalizedEmail = normalizeEmailValue(sysUf.email);
     const existing = (users || []).find(u => u.id === sysUid) || (users || []).find(u => normalizeEmailValue(u.email) === normalizedEmail);
-    const duplicateByEmail = (users || []).find(u => normalizeEmailValue(u.email) === normalizedEmail && u.id !== existing?.id);
-    if (duplicateByEmail) return false;
+    const previousEmail = normalizeEmailValue(existing?.email || sysUf.email);
+    const role = sanitizeAssignableRole(sysUf.role, null, { role: "superadmin" }, "admin");
+    const selectedTenantIds = role === "superadmin"
+      ? []
+      : Array.from(new Set((Array.isArray(sysUf.tenantIds) && sysUf.tenantIds.length ? sysUf.tenantIds : [sysUf.empId]).filter(Boolean)));
+    if (role !== "superadmin" && !selectedTenantIds.length) return false;
+    const passwordHash = sysUf.password?.trim() ? await sha256Hex(sysUf.password) : existing?.passwordHash;
+
+    if (role === "superadmin") {
+      const payload = {
+        id: existing?.id || uid(),
+        name: sysUf.name.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        role,
+        empId: null,
+        active: sysUf.active !== false,
+        isCrew: false,
+        crewRole: "",
+      };
+      const next = existing
+        ? (users || []).map(u => u.id === existing.id ? { ...u, ...payload } : u)
+        : [...(users || []), payload];
+      guardedOnSave("users", next);
+      await syncTenantUserGovernanceForTenants({
+        nextUsers: next,
+        tenantIds: [existing?.empId],
+        action: existing ? "system_user_updated" : "system_user_created",
+        payload: {
+          targetUserId: payload.id,
+          targetEmail: payload.email,
+        },
+      });
+      if (payload.email && sysUf.password?.trim()) {
+        await sendAccessEmail({
+          tenant: null,
+          user: payload,
+          password: sysUf.password.trim(),
+          mode: existing ? "access_updated" : "tenant_activated",
+        });
+      }
+      setSysUid(null);
+      setSysUf({ active: true, role: "admin", empId: "", tenantIds: [], password: "" });
+      return true;
+    }
+
+    const relatedEmails = new Set([previousEmail, normalizedEmail].filter(Boolean));
+    const buildTenantUser = tenantId => {
+      const current = (users || []).find(u =>
+        String(u.empId || "") === String(tenantId || "") &&
+        relatedEmails.has(normalizeEmailValue(u.email))
+      );
+      return {
+        ...(current || {}),
+        id: current?.id || (String(tenantId) === String(sysUf.empId || existing?.empId || "") ? (existing?.id || uid()) : uid()),
+        name: sysUf.name.trim(),
+        email: normalizedEmail,
+        passwordHash: passwordHash || current?.passwordHash || existing?.passwordHash || "",
+        password: "",
+        role,
+        empId: tenantId,
+        active: sysUf.active !== false,
+        isCrew: false,
+        crewRole: "",
+      };
+    };
+    const membershipUsers = selectedTenantIds.map(buildTenantUser);
+    const next = [
+      ...(users || []).filter(u => {
+        if (!relatedEmails.has(normalizeEmailValue(u.email))) return true;
+        if (!u.empId) return true;
+        return false;
+      }),
+      ...membershipUsers,
+    ];
+    const primaryUser = membershipUsers.find(u => u.id === existing?.id) || membershipUsers[0];
     const payload = {
-      id: existing?.id || uid(),
+      id: primaryUser.id,
       name: sysUf.name.trim(),
       email: normalizedEmail,
-      passwordHash: sysUf.password?.trim() ? await sha256Hex(sysUf.password) : existing?.passwordHash,
-      role: sanitizeAssignableRole(sysUf.role, null, { role: "superadmin" }, "admin"),
-      empId: sysUf.role === "superadmin" ? null : (sysUf.empId || null),
+      passwordHash: primaryUser.passwordHash,
+      role,
+      empId: primaryUser.empId,
       active: sysUf.active !== false,
       isCrew: false,
       crewRole: "",
     };
-    const next = existing
-      ? (users || []).map(u => u.id === existing.id ? { ...u, ...payload } : u)
-      : [...(users || []), payload];
     guardedOnSave("users", next);
     await syncTenantUserGovernanceForTenants({
       nextUsers: next,
-      tenantIds: [existing?.empId, payload.empId],
+      tenantIds: [...selectedTenantIds, existing?.empId],
       action: existing ? "system_user_updated" : "system_user_created",
       payload: {
         targetUserId: payload.id,
@@ -302,11 +373,16 @@ export function useLabSuperAdminModule({
       });
     }
     setSysUid(null);
-    setSysUf({ active: true, role: "admin", empId: "", password: "" });
+    setSysUf({ active: true, role: "admin", empId: "", tenantIds: [], password: "" });
+    return true;
   };
 
   const editSystemUser = user => {
     if (!canWriteGlobal() || !user) return false;
+    const email = normalizeEmailValue(user.email);
+    const tenantIds = (users || [])
+      .filter(candidate => normalizeEmailValue(candidate.email) === email && candidate.empId)
+      .map(candidate => candidate.empId);
     setSysUid(user.id);
     setSysUf({
       name: user.name || "",
@@ -314,6 +390,7 @@ export function useLabSuperAdminModule({
       password: "",
       role: user.role || "admin",
       empId: user.empId || "",
+      tenantIds,
       active: user.active !== false,
     });
     return true;

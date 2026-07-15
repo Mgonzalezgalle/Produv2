@@ -1185,6 +1185,13 @@ export default function App(){
   const useBal = useLabBalance;
   const domainUsers = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (users || []) : (users || SEED_USERS), [users]);
   const domainEmpresas = useMemo(() => LAB_DATA_CONFIG.releaseMode ? (empresas || []) : (empresas || SEED_EMPRESAS), [empresas]);
+  const currentUserTenantOptions = useMemo(() => {
+    if (!curUser?.canSwitchTenant) return [];
+    const memberships = Array.isArray(curUser.tenantMemberships) ? curUser.tenantMemberships : [];
+    const allowedIds = new Set(memberships.map(item => item?.empId).filter(Boolean));
+    return (domainEmpresas || []).filter(item => item?.active !== false && allowedIds.has(item.id));
+  }, [curUser, domainEmpresas]);
+  const canSwitchCurrentTenant = canManageSuperAdminPanel(curUser) || currentUserTenantOptions.length > 1;
   const ef = useCallback(arr => (arr || []).filter(x => x.empId === empId), [empId]);
   const socialCampaigns = useMemo(() => normalizeSocialCampaigns(piezas), [piezas]);
   const normalizedCrmStages = useMemo(() => normalizeCrmStages(CRM_STAGE_SEED), []);
@@ -1586,7 +1593,7 @@ export default function App(){
       closeMobileSidebar();
     },
     onLogout: logout,
-    onChangeEmp: canManageSuperAdminPanel(curUser) ? () => { selectEmp(null); closeMobileSidebar(); } : null,
+    onChangeEmp: canSwitchCurrentTenant ? () => { selectEmp(null); closeMobileSidebar(); } : null,
     counts,
     collapsed: sidebarCollapsed,
     onToggle: () => { if (isMobile) closeMobileSidebar(); else setCollapsed(v => !v); },
@@ -1594,7 +1601,7 @@ export default function App(){
     isMobile,
     ini,
     includeTreasury: treasuryEnabled,
-  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, treasuryEnabled, ntf]);
+  }), [curUser, curEmp, superPanel, view, mobileSidebarOpen, navTo, closeMobileSidebar, logout, selectEmp, counts, sidebarCollapsed, syncPulse, isMobile, treasuryEnabled, ntf, canSwitchCurrentTenant]);
   const alertsPanelProps = useMemo(() => ({
     open: alertasOpen,
     AlertasPanelView,
@@ -1743,6 +1750,7 @@ export default function App(){
   </>;
   if(!curUser) return <AppLoginScreen css={APP_SHELL_CSS} LoginView={LoginView} domainUsers={domainUsers} domainEmpresas={domainEmpresas} login={login} saveUsers={saveUsers} BrandLockup={BrandLockup} sha256Hex={sha256Hex} dbHelpers={loginDbHelpers} authGateway={authGateway} authModeLabel={getLabAuthModeLabel(authGateway.strategy)} releaseMode={LAB_DATA_CONFIG.releaseMode} />;
   if(canManageSuperAdminPanel(curUser)&&!curEmp&&!superPanel) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={domainEmpresas} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} />;
+  if(curUser?.canSwitchTenant && !curEmp && currentUserTenantOptions.length > 1) return <AppSuperAdminSelectorScreen css={APP_SHELL_CSS} EmpresaSelectorView={EmpresaSelectorView} domainEmpresas={currentUserTenantOptions} selectEmp={selectEmp} setAdminOpen={setAdminOpen} BrandLockup={BrandLockup} ini={ini} allowSuperAdmin={false} />;
 
   return <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
     <StyleTag css={APP_SHELL_CSS}/>

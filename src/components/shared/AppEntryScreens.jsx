@@ -50,6 +50,7 @@ export function AppSuperAdminSelectorScreen({
   setAdminOpen,
   BrandLockup,
   ini,
+  allowSuperAdmin = true,
 }) {
   return <>
     <StyleTag css={css} />
@@ -63,6 +64,7 @@ export function AppSuperAdminSelectorScreen({
         }}
         BrandLockup={BrandLockup}
         ini={ini}
+        allowSuperAdmin={allowSuperAdmin}
       />
     </Suspense>
   </>;

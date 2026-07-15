@@ -148,7 +148,7 @@ export function Sidebar({user,empresa,view,onNav,onAdmin,onLogout,onChangeEmp,co
             : <span style={{fontFamily:"var(--fh)",fontSize:10,fontWeight:800,color:empresa.color}}>{ini(empresa.nombre)}</span>}
         </div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:700,color:sbText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{empresa.nombre}</div><div style={{fontSize:9,color:sbMuted}}>{empresa.rut}</div></div>
-        {user?.role==="superadmin"&&<button onClick={onChangeEmp} title="Cambiar empresa" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:13,padding:2}}>⇄</button>}
+        {onChangeEmp&&<button onClick={onChangeEmp} title="Cambiar empresa" style={{background:"none",border:"none",color:sbMuted,cursor:"pointer",fontSize:13,padding:2}}>⇄</button>}
       </div>
     </div>}
     <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>

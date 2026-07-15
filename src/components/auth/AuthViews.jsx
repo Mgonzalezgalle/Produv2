@@ -594,7 +594,7 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
   </>;
 }
 
-export function EmpresaSelector({ empresas, onSelect, onSelectSuperAdmin, BrandLockup, ini }) {
+export function EmpresaSelector({ empresas, onSelect, onSelectSuperAdmin, BrandLockup, ini, allowSuperAdmin = true }) {
   const [q,setQ]=useState("");
   const fd=(empresas||[]).filter(e=>e.nombre.toLowerCase().includes(q.toLowerCase()));
   return <div className="company-shell" style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -625,10 +625,10 @@ export function EmpresaSelector({ empresas, onSelect, onSelectSuperAdmin, BrandL
           </div>
         ))}
       </div>
-      <div style={{marginTop:12,padding:"14px 16px",background:"#f8fbff",border:"1px solid var(--bdr)",borderRadius:18,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      {allowSuperAdmin && <div style={{marginTop:12,padding:"14px 16px",background:"#f8fbff",border:"1px solid var(--bdr)",borderRadius:18,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{fontSize:12,color:"#66748d"}}>Panel de control global</span>
         <Btn onClick={()=>onSelectSuperAdmin ? onSelectSuperAdmin() : onSelect("__super__")} sm>⚙ Panel SuperAdmin</Btn>
-      </div>
+      </div>}
     </div>
   </div>;
 }

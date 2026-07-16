@@ -27,6 +27,52 @@ function isLocalAuthHost() {
   }
 }
 
+function normalizeLoginEmail(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function buildLoginTenantChoices(user = null, authUsers = [], authEmpresas = []) {
+  if (!user?.email) return { user, choices: [] };
+  const safeEmail = normalizeLoginEmail(user.email);
+  const membershipsByTenant = new Map();
+  (Array.isArray(user.tenantMemberships) ? user.tenantMemberships : []).forEach(membership => {
+    if (!membership?.empId) return;
+    membershipsByTenant.set(membership.empId, {
+      userId: membership.userId || user.id,
+      empId: membership.empId,
+      role: membership.role || user.role || "user",
+      name: membership.name || user.name || "",
+      email: membership.email || user.email || "",
+    });
+  });
+  (Array.isArray(authUsers) ? authUsers : [])
+    .filter(candidate => candidate?.active !== false && normalizeLoginEmail(candidate?.email) === safeEmail && candidate?.empId)
+    .forEach(candidate => {
+      membershipsByTenant.set(candidate.empId, {
+        userId: candidate.id,
+        empId: candidate.empId,
+        role: candidate.role || user.role || "user",
+        name: candidate.name || user.name || "",
+        email: candidate.email || user.email || "",
+      });
+    });
+  const choices = Array.from(membershipsByTenant.values())
+    .map(membership => ({
+      membership,
+      empresa: (Array.isArray(authEmpresas) ? authEmpresas : []).find(item => item.id === membership.empId && item.active !== false) || null,
+    }))
+    .filter(item => item.empresa);
+  if (choices.length <= 1) return { user, choices };
+  const nextUser = {
+    ...user,
+    empId: choices[0].membership.empId,
+    role: choices[0].membership.role || user.role,
+    tenantMemberships: choices.map(item => item.membership),
+    canSwitchTenant: true,
+  };
+  return { user: nextUser, choices };
+}
+
 class AuthModalErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -230,18 +276,15 @@ export function Login({ users, onLogin, saveUsers, empresas = [], BrandLockup, s
       const saveBaseUsers = authUsers.length ? authUsers : (users || []);
       await saveUsers(saveBaseUsers.map(entry => entry.id === updatedUser.id ? updatedUser : entry));
     }
-    const membershipChoices = (user?.tenantMemberships || [])
-      .map(membership => ({
-        membership,
-        empresa: authEmpresas.find(item => item.id === membership.empId && item.active !== false) || null,
-      }))
-      .filter(item => item.empresa);
+    const tenantSelection = buildLoginTenantChoices(user, authUsers, authEmpresas);
+    const sessionUser = tenantSelection.user || user;
+    const membershipChoices = tenantSelection.choices;
     const sessionOptions = { authStrength: authStrength || (authGateway.strategy === "supabase" ? "supabase" : "password_only"), requiresSecondFactor: false };
-    if(user && membershipChoices.length > 1 && !requiresSecondFactor) {
-      setTenantChoice({ user, choices: membershipChoices, options: sessionOptions });
+    if(sessionUser && membershipChoices.length > 1 && !requiresSecondFactor) {
+      setTenantChoice({ user: sessionUser, choices: membershipChoices, options: sessionOptions });
     }
-    else if(user && authGateway.supportsTwoFactorSetup() && requiresSecondFactor) startSecondFactorFlow(user);
-    else if(user) onLogin(user, sessionOptions);
+    else if(sessionUser && authGateway.supportsTwoFactorSetup() && requiresSecondFactor) startSecondFactorFlow(sessionUser);
+    else if(sessionUser) onLogin(sessionUser, sessionOptions);
     else setErr(error || "Email o contraseña incorrectos");
     setLoad(false);
   };

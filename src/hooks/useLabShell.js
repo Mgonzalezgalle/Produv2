@@ -107,6 +107,10 @@ export function useLabShell({
       return;
     }
     setSuperPanel(false);
+    if (!empresa && curUser?.canSwitchTenant && curUser?.role !== "superadmin") {
+      setCurEmp(null);
+      return;
+    }
     const scopedUser = resolveUserForEmpresa(curUser, empresa);
     setCurUser(scopedUser);
     setCurEmp(empresa);

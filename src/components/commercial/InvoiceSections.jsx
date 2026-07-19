@@ -6,6 +6,19 @@ import {
   requiresProduCollectionTracking,
   resolveProduBillingDocumentType,
 } from "../../lib/integrations/billingDomain";
+import { getBillingTaxLabel } from "../../lib/billing/fiscalProfile";
+import { formatTreasuryMoney, normalizeTreasuryCurrency } from "../../lib/utils/treasury";
+
+function invoiceCurrency(row = {}) {
+  return normalizeTreasuryCurrency(row.currency || row.moneda || row.monedaOrigen || row.currencyCode || "CLP");
+}
+
+function invoiceTaxLabel(row = {}) {
+  if (row.honorarios) return "Boleta Honorarios 15,25%";
+  if (row.taxLabel) return row.taxLabel;
+  if (row.iva) return getBillingTaxLabel(row.taxCode || "iva_19");
+  return "Sin impuesto";
+}
 
 export function InvoiceIssuanceSection({
   q, setQ, fe, setFe, sortMode, setSortMode, openM, canEdit,
@@ -74,7 +87,7 @@ export function InvoiceIssuanceSection({
     </div>}
     <Card>
       <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Total</TH><TH>Origen</TH><TH>Fechas</TH><TH style={{textAlign:"right",minWidth:170}}>Acciones</TH></tr></thead>
+        <thead><tr><TH style={{width:36}}><input type="checkbox" checked={selectablePageIds.length>0 && selectablePageIds.every(id=>selectedIds.includes(id))} onChange={e=>toggleAll(e.target.checked)} disabled={!selectablePageIds.length}/></TH><TH onClick={()=>setSortMode(sortMode==="oldest"?"recent":"oldest")} active={sortMode==="recent"||sortMode==="oldest"} dir={sortMode==="recent"?"desc":"asc"}>Documento</TH><TH onClick={()=>setSortMode(sortMode==="az"?"za":"az")} active={sortMode==="az"||sortMode==="za"} dir={sortMode==="za"?"desc":"asc"}>Entidad</TH><TH>Referencia</TH><TH>Estado</TH><TH>Impuesto</TH><TH onClick={()=>setSortMode(sortMode==="amount-desc"?"amount-asc":"amount-desc")} active={sortMode==="amount-desc"||sortMode==="amount-asc"} dir={sortMode==="amount-desc"?"desc":"asc"}>Total</TH><TH>Origen</TH><TH>Fechas</TH><TH style={{textAlign:"right",minWidth:170}}>Acciones</TH></tr></thead>
         <tbody>
           {fd.slice((pg-1)*PP,pg*PP).map(f=>{
             const sponsorRecord=f.tipo==="auspiciador"?(auspiciadores||[]).find(x=>x.id===f.entidadId):null;
@@ -120,7 +133,13 @@ export function InvoiceIssuanceSection({
               </TD>
               <TD style={{fontSize:11,color:"var(--gr3)",lineHeight:1.4,minWidth:128}}>{ref?`${f.tipoRef==="produccion"?"📽":f.tipoRef==="contenido"?"📱":"📺"} ${ref.nom}`:"—"}</TD>
               <TD><Badge label={f.estado||"Emitida"}/></TD>
-              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:14,fontWeight:700,whiteSpace:"nowrap"}}>{fmtM(f.total||0)}</TD>
+              <TD style={{fontSize:11,color:"var(--gr3)",lineHeight:1.35,minWidth:112}}>
+                <div style={{fontWeight:700}}>{invoiceTaxLabel(f)}</div>
+                <div style={{fontFamily:"var(--fm)",color:Number(f.ivaVal || 0) > 0 ? "var(--cy)" : "var(--gr2)",marginTop:4}}>
+                  {Number(f.ivaVal || 0) > 0 ? formatTreasuryMoney(f.ivaVal || 0, invoiceCurrency(f)) : "—"}
+                </div>
+              </TD>
+              <TD style={{color:"var(--cy)",fontFamily:"var(--fm)",fontSize:14,fontWeight:700,whiteSpace:"nowrap"}}>{formatTreasuryMoney(f.total||0, invoiceCurrency(f))}</TD>
               <TD style={{fontSize:11,color:"var(--gr2)",lineHeight:1.4,minWidth:96}}>{canPres?(pres?.correlativo||pres?.titulo||"—"):"—"}</TD>
               <TD style={{fontSize:11,minWidth:110}}>
                 <div style={{fontWeight:600}}>{f.fechaEmision?fmtD(f.fechaEmision):"—"}</div>
@@ -156,7 +175,7 @@ export function InvoiceIssuanceSection({
               </TD>
             </tr>;
           })}
-          {!fd.length&&<tr><td colSpan={9}><Empty text="Sin órdenes de factura"/></td></tr>}
+          {!fd.length&&<tr><td colSpan={10}><Empty text="Sin órdenes de factura"/></td></tr>}
         </tbody>
       </table></div>
       <Paginator page={pg} total={fd.length} perPage={PP} onChange={setPg}/>
@@ -167,7 +186,7 @@ export function InvoiceIssuanceSection({
 export function InvoiceCollectionSection({
   q, setQ, fc, setFc, sortMode, setSortMode, selectedIds, bulkCobranza, setBulkCobranza, applyBulkCobranza,
   clearSelection, currentPageIds, selectablePageIds, toggleAll, cobranzaDocs, pg, PP, clientes, auspiciadores, invoices,
-  cobranzaState, fmtD, fmtM, Badge, SearchBar, FilterSel, GBtn, FSl, Card, TH, TD, Empty, Paginator,
+  cobranzaState, invoiceEntityName, fmtD, fmtM, Badge, SearchBar, FilterSel, GBtn, FSl, Card, TH, TD, Empty, Paginator,
   saveFacturaDoc, canEdit, sendBillingEmail, sendBillingWhatsApp, sendStatementEmail, sendStatementWhatsApp,
   today, toggleSelected, setPg,
 }) {

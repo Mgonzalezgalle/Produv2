@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   DEFAULT_LISTAS,
-  fmtD,
   fmtM,
   hasAddon,
   today,
@@ -21,6 +20,8 @@ import {
 } from "../../lib/integrations/billingDomain";
 import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
 import { FSl, FG, FI, FTA, GBtn, MFoot, Modal, R2, R3, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
+import { BILLING_FISCAL_COUNTRIES, normalizeBillingTaxCode } from "../../lib/billing/fiscalProfile";
+import { formatTreasuryMoney, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
 
 const VALIDATION_COPY = {
   entity: {
@@ -39,6 +40,27 @@ const VALIDATION_COPY = {
     inline: "Falta completar la referencia obligatoria de este documento.",
   },
 };
+
+function taxOptionFromListLabel(label = "") {
+  const raw = String(label || "").trim();
+  const key = raw.toLowerCase();
+  if (!raw) return null;
+  if (key.includes("honorario")) return { value: "hon", label: raw };
+  if (key.includes("sin") || key === "none") return { value: "none", label: raw };
+  if (key.includes("igv")) return { value: "igv_18", label: raw };
+  if (key.includes("iva")) return { value: "iva_19", label: raw };
+  const normalized = normalizeBillingTaxCode(raw, "");
+  return normalized ? { value: normalized, label: raw } : null;
+}
+
+function uniqueTaxOptions(options = []) {
+  const seen = new Set();
+  return options.filter(option => {
+    if (!option?.value || seen.has(option.value)) return false;
+    seen.add(option.value);
+    return true;
+  });
+}
 
 export function MFact({
   open,
@@ -70,6 +92,9 @@ export function MFact({
     updItem,
     delItem,
     mn,
+    effectiveCurrency,
+    effectiveTaxCode,
+    effectiveTaxLabel,
     total,
     projectedTotal,
     ausValidos,
@@ -130,11 +155,25 @@ export function MFact({
       resolveProduBillingDocumentType(item.documentTypeCode || item.tipoDocumento || item.tipoDoc)?.code,
     )
   ));
-  const taxOptions = [
+  const configuredTaxOptions = ((listas?.impuestos || DEFAULT_LISTAS.impuestos) || [])
+    .map(taxOptionFromListLabel)
+    .filter(Boolean);
+  const countryTaxOption = BILLING_FISCAL_COUNTRIES.find(country => country.taxCode === effectiveTaxCode || country.code === f.billingCountry);
+  const taxOptions = uniqueTaxOptions([
     { value: "none", label: "Sin impuesto" },
-    ...(supportsProduDocumentVat(selectedBillingType.code) ? [{ value: "iva", label: "IVA 19%" }] : []),
-    ...(supportsProduDocumentHonorarios(selectedBillingType.code) ? [{ value: "hon", label: "Boleta Honorarios 15,25%" }] : []),
-  ];
+    ...(supportsProduDocumentVat(selectedBillingType.code)
+      ? [
+        ...configuredTaxOptions.filter(option => option.value !== "hon"),
+        ...(countryTaxOption ? [{ value: countryTaxOption.taxCode, label: countryTaxOption.taxLabel }] : []),
+      ]
+      : []),
+    ...(supportsProduDocumentHonorarios(selectedBillingType.code)
+      ? configuredTaxOptions.filter(option => option.value === "hon").length
+        ? configuredTaxOptions.filter(option => option.value === "hon")
+        : [{ value: "hon", label: "Boleta Honorarios 15,25%" }]
+      : []),
+  ]);
+  const displayedTaxLabel = f.honorarios ? "Boleta Honorarios 15,25%" : effectiveTaxLabel;
   const isElectronicDocumentLocked = !!data?.externalSync;
   useEffect(() => {
     if (open) setSaving(false);
@@ -285,7 +324,7 @@ export function MFact({
           }));
         }}>
           <option value="">— Seleccionar OC —</option>
-          {relatedPurchaseOrderOptions.map((item)=><option key={item.id} value={item.id}>{item.number} · {item.clientName || "Cliente"} · {fmtM(item.amount || 0)}</option>)}
+          {relatedPurchaseOrderOptions.map((item)=><option key={item.id} value={item.id}>{item.number} · {item.clientName || "Cliente"} · {formatTreasuryMoney(item.amount || 0, item.currency || effectiveCurrency)}</option>)}
         </FSl>
       </FG>
       <R2>
@@ -366,7 +405,7 @@ export function MFact({
                       <FI type="number" min="0" step="0.01" value={item.precio ?? 0} onChange={(e)=>updItem(index, "precio", e.target.value)} placeholder="0" />
                     </td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontFamily:"var(--fm)",fontSize:13,fontWeight:700,color:"var(--gr3)"}}>
-                      {fmtM(lineTotal)}
+                      {formatTreasuryMoney(lineTotal, effectiveCurrency)}
                     </td>
                     <td style={{padding:10}}>
                       <button type="button" onClick={()=>delItem(index)} style={{width:34,height:34,borderRadius:10,border:"1px solid #ffb8b8",background:"#fff",color:"#ff5c5c",fontWeight:800,cursor:"pointer"}} aria-label="Eliminar ítem">×</button>
@@ -384,17 +423,27 @@ export function MFact({
       )}
     </div>
     <R3>
+      <FG label="Moneda">
+        <FSl value={effectiveCurrency} onChange={(e)=>setF(prev => ({ ...prev, currency: e.target.value, moneda: e.target.value }))}>
+          {TREASURY_CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+        </FSl>
+        <ValidationHint>{f.billingCountry === "PE" ? "Perú usa Sol peruano (S/) por defecto." : ""}</ValidationHint>
+      </FG>
       <FG label="Monto Neto *">
         <FI type="number" value={(f.items||[]).length ? String(mn || 0) : (f.montoNeto||"")} onChange={(e)=>u("montoNeto",e.target.value)} placeholder="0" min="0" disabled={!!(f.items||[]).length} style={hasAmountError ? VALIDATION_FIELD_STYLE : undefined} />
         <ValidationHint>{hasAmountError ? validationIssue.inline : ""}</ValidationHint>
       </FG>
       <FG label="Impuesto">
         <FSl
-          value={selectedBillingType.code==="invoice"?"none":f.honorarios?"hon":f.iva?"iva":"none"}
+          value={selectedBillingType.code==="invoice"?"none":f.honorarios?"hon":f.iva?effectiveTaxCode:"none"}
           onChange={(e)=>{
             const value=e.target.value;
-            u("iva", value==="iva");
-            u("honorarios", value==="hon");
+            setF(prev => ({
+              ...prev,
+              iva: value !== "none" && value !== "hon",
+              honorarios: value === "hon",
+              taxCode: value === "hon" ? prev.taxCode : value,
+            }));
           }}
           disabled={taxOptions.length <= 1}
         >
@@ -402,8 +451,8 @@ export function MFact({
         </FSl>
       </FG>
       <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:6,padding:"9px 12px"}}>
-        <div style={{fontSize:10,color:"var(--gr2)",marginBottom:4,fontWeight:600}}>TOTAL</div>
-        <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{fmtM(total)}</div>
+        <div style={{fontSize:10,color:"var(--gr2)",marginBottom:4,fontWeight:600}}>TOTAL · {displayedTaxLabel}</div>
+        <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{formatTreasuryMoney(total, effectiveCurrency)}</div>
       </div>
     </R3>
     <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
@@ -431,7 +480,7 @@ export function MFact({
           {Array.from({length:24},(_,i)=>String(i+1)).map((m)=><option key={m} value={m}>{m} mes{m==="1"?"":"es"}</option>)}
         </FSl></FG>
       </R2>}
-      {f.recurring && <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>Proyección de la serie: <span style={{fontFamily:"var(--fm)",color:"#00e08a"}}>{fmtM(projectedTotal)}</span></div>}
+      {f.recurring && <div style={{marginTop:8,fontSize:12,color:"var(--gr2)"}}>Proyección de la serie: <span style={{fontFamily:"var(--fm)",color:"#00e08a"}}>{formatTreasuryMoney(projectedTotal, effectiveCurrency)}</span></div>}
     </div>
     <R2>
       <FG label="Fecha Emisión"><FI type="date" value={f.fechaEmision||""} onChange={(e)=>u("fechaEmision",e.target.value)}/></FG>

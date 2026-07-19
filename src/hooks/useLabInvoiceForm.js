@@ -7,6 +7,13 @@ import {
   supportsProduDocumentHonorarios,
   supportsProduDocumentVat,
 } from "../lib/integrations/billingDomain";
+import {
+  getBillingFiscalProfileForClient,
+  getBillingTaxLabel,
+  getBillingTaxRate,
+  normalizeBillingTaxCode,
+} from "../lib/billing/fiscalProfile";
+import { normalizeTreasuryCurrency } from "../lib/utils/treasury";
 
 export function useLabInvoiceForm({
   open,
@@ -63,6 +70,10 @@ export function useLabInvoiceForm({
       relatedExternalReturnId: "",
       obs: "",
       obs2: "",
+      billingCountry: "",
+      currency: "",
+      moneda: "",
+      taxCode: "",
       recurring: false,
       recMonths: "6",
       recStart: today(),
@@ -80,6 +91,9 @@ export function useLabInvoiceForm({
       tipoDocumento: effectiveType.code,
       iva: supportsProduDocumentVat(effectiveType.code) ? !!initial.iva : false,
       honorarios: supportsProduDocumentHonorarios(effectiveType.code) ? !!initial.honorarios : false,
+      taxCode: initial.taxCode || "",
+      currency: initial.currency || initial.moneda || "",
+      moneda: initial.moneda || initial.currency || "",
       relatedDocumentReason: requiresProduBillingReferences(effectiveType.code)
         ? (initial.relatedDocumentReason || getDefaultProduBillingReferenceReason(effectiveType.code))
         : (initial.relatedDocumentReason || ""),
@@ -107,6 +121,9 @@ export function useLabInvoiceForm({
       montoNeto: Number(pres.subtotal || pres.total || 0),
       iva: supportsProduDocumentVat(currentType.code) ? !!pres.iva : false,
       honorarios: supportsProduDocumentHonorarios(currentType.code) ? !!pres.honorarios : false,
+      currency: pres.moneda || pres.currency || prev.currency,
+      moneda: pres.moneda || pres.currency || prev.moneda,
+      taxCode: pres.taxCode || prev.taxCode,
       contratoId: pres.contratoId || prev.contratoId,
       items: Array.isArray(pres.items) ? pres.items.map((it) => ({
         id: it.id || itemFactory().id,
@@ -135,15 +152,6 @@ export function useLabInvoiceForm({
     items: (p.items || []).filter((_, idx) => idx !== i),
   }));
 
-  const itemsSubtotal = (f.items || []).reduce((sum, item) => (
-    sum + (Number(item.qty || 0) * Number(item.precio || 0))
-  ), 0);
-  const mn = (f.items || []).length ? itemsSubtotal : Number(f.montoNeto || 0);
-  const ivaV = f.iva ? Math.round(mn * 0.19) : f.honorarios ? Math.round(mn * 0.1525) : 0;
-  const total = mn + ivaV;
-  const recurringMonths = Math.max(1, Number(f.recMonths || 1));
-  const projectedTotal = f.recurring ? total * recurringMonths : total;
-
   const ausValidos = useMemo(
     () => (auspiciadores || []).filter((a) => ["Auspiciador Principal", "Auspiciador Secundario"].includes(a.tip)),
     [auspiciadores],
@@ -160,6 +168,53 @@ export function useLabInvoiceForm({
     () => (clientes || []).find(item => item.id === sponsorClientId) || null,
     [clientes, sponsorClientId],
   );
+  const billingClient = useMemo(
+    () => (f.tipo === "auspiciador" ? sponsorClient : (clientes || []).find(item => item.id === f.entidadId)) || null,
+    [clientes, f.entidadId, f.tipo, sponsorClient],
+  );
+  const fiscalProfile = useMemo(
+    () => getBillingFiscalProfileForClient(billingClient, empresa?.billingCountry || empresa?.pais || "CL"),
+    [billingClient, empresa?.billingCountry, empresa?.pais],
+  );
+  useEffect(() => {
+    if (!open || !billingClient?.id) return;
+    const profile = getBillingFiscalProfileForClient(billingClient, empresa?.billingCountry || empresa?.pais || "CL");
+    setF(prev => {
+      const shouldSyncFiscal = prev.billingCountry !== profile.code || !prev.currency || !prev.moneda;
+      const nextCurrency = shouldSyncFiscal ? profile.currency : normalizeTreasuryCurrency(prev.currency || prev.moneda);
+      const shouldApplyTax = shouldSyncFiscal || !prev.taxCode || prev.taxCode === "iva_19" || prev.taxCode === "igv_18";
+      const nextTaxCode = shouldApplyTax ? profile.taxCode : prev.taxCode;
+      const nextIva = supportsProduDocumentVat(prev.documentTypeCode || prev.tipoDocumento || prev.tipoDoc) && nextTaxCode !== "none";
+      if (
+        prev.billingCountry === profile.code &&
+        prev.currency === nextCurrency &&
+        prev.moneda === nextCurrency &&
+        prev.taxCode === nextTaxCode &&
+        prev.iva === nextIva
+      ) return prev;
+      return {
+        ...prev,
+        billingCountry: profile.code,
+        currency: nextCurrency,
+        moneda: nextCurrency,
+        taxCode: nextTaxCode,
+        iva: nextIva,
+        honorarios: nextTaxCode === "none" ? false : prev.honorarios,
+      };
+    });
+  }, [billingClient, empresa?.billingCountry, empresa?.pais, open]);
+  const effectiveCurrency = normalizeTreasuryCurrency(f.currency || f.moneda || fiscalProfile.currency || "CLP");
+  const effectiveTaxCode = normalizeBillingTaxCode(f.taxCode || fiscalProfile.taxCode, fiscalProfile.taxCode);
+  const effectiveTaxRate = effectiveTaxCode === "none" ? 0 : getBillingTaxRate(effectiveTaxCode);
+  const effectiveTaxLabel = effectiveTaxCode === "none" ? "Sin impuesto" : getBillingTaxLabel(effectiveTaxCode);
+  const itemsSubtotal = (f.items || []).reduce((sum, item) => (
+    sum + (Number(item.qty || 0) * Number(item.precio || 0))
+  ), 0);
+  const mn = (f.items || []).length ? itemsSubtotal : Number(f.montoNeto || 0);
+  const ivaV = f.iva ? Math.round(mn * effectiveTaxRate) : f.honorarios ? Math.round(mn * 0.1525) : 0;
+  const total = mn + ivaV;
+  const recurringMonths = Math.max(1, Number(f.recMonths || 1));
+  const projectedTotal = f.recurring ? total * recurringMonths : total;
   const contratosEntidad = useMemo(
     () => contractsForReference(contratos || [], f.tipo === "auspiciador" ? sponsorClientId : f.entidadId, f.tipoRef, f.proId),
     [contratos, f.entidadId, f.proId, f.tipo, f.tipoRef, sponsorClientId],
@@ -224,6 +279,12 @@ export function useLabInvoiceForm({
     ) ? (f.relatedExternalReturnId || "") : "",
     billingClientId: f.tipo === "auspiciador" ? sponsorClientId : String(f.entidadId || "").trim(),
     sponsorName: f.tipo === "auspiciador" ? String(selectedSponsor?.nom || "") : "",
+    billingCountry: fiscalProfile.code,
+    currency: effectiveCurrency,
+    moneda: effectiveCurrency,
+    taxCode: effectiveTaxCode,
+    taxLabel: f.honorarios ? "Boleta Honorarios 15,25%" : effectiveTaxLabel,
+    taxRate: f.honorarios ? 0.1525 : effectiveTaxRate,
     items: (f.items || []).map((item) => ({
       ...item,
       qty: Number(item.qty || 0),
@@ -248,6 +309,10 @@ export function useLabInvoiceForm({
     delItem,
     mn,
     ivaV,
+    effectiveCurrency,
+    effectiveTaxCode,
+    effectiveTaxLabel,
+    effectiveTaxRate,
     total,
     recurringMonths,
     projectedTotal,

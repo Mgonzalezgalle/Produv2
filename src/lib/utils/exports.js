@@ -369,6 +369,7 @@ export async function exportTreasuryRowsPDF({
   subtitle = "",
   empresa = null,
   accent = "#1a1a2e",
+  summaryItems = [],
 } = {}) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
@@ -381,6 +382,7 @@ export async function exportTreasuryRowsPDF({
     empresa,
     columns: safeColumns,
     rows: safeRows,
+    summaryItems,
     footerPrimary: "Hecho con amor por Produ.",
     footerSecondary: "Plataforma de Gestión de Empresas",
   });

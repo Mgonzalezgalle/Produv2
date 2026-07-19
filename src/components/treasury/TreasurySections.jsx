@@ -30,10 +30,10 @@ function selectedOrFilteredRows(tableState, getId = row => row?.id) {
   return rows.filter(row => selected.has(getId(row)));
 }
 
-function TreasuryExportActions({ tableState, columns, fileName, title, subtitle, empresa, getId }) {
+function TreasuryExportActions({ tableState, columns, fileName, title, subtitle, empresa, getId, summaryItems = [] }) {
   const rows = selectedOrFilteredRows(tableState, getId);
   const exportLabel = tableState?.selectedIds?.length ? "seleccionados" : "vista";
-  const exportPayload = { rows, columns, fileName, title, subtitle, empresa, accent: "#1a1a2e" };
+  const exportPayload = { rows, columns, fileName, title, subtitle, empresa, accent: "#1a1a2e", summaryItems };
   return (
     <div className="treasury-export-actions" aria-label={`Descargar ${exportLabel}`}>
       <GBtn sm onClick={() => exportTreasuryRowsXLS(exportPayload)}>XLS</GBtn>
@@ -50,9 +50,43 @@ const receivableExportColumns = [
   { label: "Emisión", value: row => row?.fechaEmision || "—" },
   { label: "Vencimiento", value: row => row?.fechaVencimiento || "—" },
   { label: "Cobranza", value: row => row?.cobranza || "—" },
-  { label: "Total", value: row => fmtM(row?.total || 0) },
-  { label: "Pendiente", value: row => fmtM(row?.pending || 0) },
+  { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Pendiente", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency) },
 ];
+
+function summarizeReceivablesForPdf(rows = []) {
+  const totals = new Map();
+  const today = new Date().toISOString().slice(0, 10);
+  (Array.isArray(rows) ? rows : []).forEach(row => {
+    const currency = row?.currency || "CLP";
+    const current = totals.get(currency) || { total: 0, dueSoon: 0, overdue: 0, paid: 0, voided: 0 };
+    const status = String(row?.cobranza || row?.bucket || row?.estado || "").trim().toLowerCase();
+    const total = Number(row?.total || 0);
+    const pendingSource = row?.pending == null ? total : row.pending;
+    const pending = Math.max(0, Number(pendingSource || 0));
+    const paidSource = row?.paid == null ? total - pending : row.paid;
+    const paid = Math.max(0, Number(paidSource || 0));
+    const isVoided = status.includes("anulad");
+    const isPaid = !isVoided && (pending <= 0 || status.includes("pagad"));
+    const isOverdue = !isVoided && !isPaid && (
+      status.includes("venc") ||
+      status.includes("retras") ||
+      String(row?.bucket || "").toLowerCase() === "vencido" ||
+      (row?.fechaVencimiento && String(row.fechaVencimiento) < today)
+    );
+    totals.set(currency, {
+      total: current.total + (isVoided ? 0 : total),
+      dueSoon: current.dueSoon + (!isVoided && !isOverdue && !isPaid ? pending : 0),
+      overdue: current.overdue + (isOverdue ? pending : 0),
+      paid: current.paid + (isPaid ? (paid || total) : paid),
+      voided: current.voided + (isVoided ? total : 0),
+    });
+  });
+  return Array.from(totals.entries()).map(([currency, values]) => ({
+    label: currency,
+    value: `Total ${formatTreasuryMoney(values.total, currency)} · Por vencer ${formatTreasuryMoney(values.dueSoon, currency)} · Vencido ${formatTreasuryMoney(values.overdue, currency)} · Pagado ${formatTreasuryMoney(values.paid, currency)} · Anulado ${formatTreasuryMoney(values.voided, currency)}`,
+  }));
+}
 
 const purchaseOrderExportColumns = [
   { label: "OC", value: row => row?.number || "—" },
@@ -164,6 +198,7 @@ export function TreasuryReceivablesSection({
               title="Cuentas por Cobrar"
               subtitle="Documentos de cobranza"
               empresa={props.empresa}
+              summaryItems={summarizeReceivablesForPdf(selectedOrFilteredRows(receivableTable))}
             />
           }
           createAction={canManageTreasury ? <GBtn onClick={openBulkImporter}>Importar</GBtn> : null}

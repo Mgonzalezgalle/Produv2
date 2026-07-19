@@ -153,6 +153,10 @@ export function TreasuryReceivablesSection({
   openReceiptEdit,
   props,
   purchaseOrderSummary,
+  receivableClientFilter,
+  receivableClientOptions,
+  receivablePeriodFilter,
+  receivablePeriodOptions,
   receiptClientFilter,
   receiptClientOptions,
   receiptPeriodFilter,
@@ -169,6 +173,8 @@ export function TreasuryReceivablesSection({
   simulateMercadoPagoPayment,
   sendStatementEmail,
   sendStatementWhatsApp,
+  setReceivableClientFilter,
+  setReceivablePeriodFilter,
   setReceiptClientFilter,
   setReceiptPeriodFilter,
   portfolioTable,
@@ -184,6 +190,10 @@ export function TreasuryReceivablesSection({
           searchValue={receivableTable.query}
           onSearchChange={receivableTable.setQuery}
           searchPlaceholder="Buscar documento o cliente..."
+          filters={[
+            <FilterSel key="receivable-client" value={receivableClientFilter} onChange={setReceivableClientFilter} options={receivableClientOptions} placeholder="Todos los clientes" />,
+            <FilterSel key="receivable-period" value={receivablePeriodFilter} onChange={setReceivablePeriodFilter} options={receivablePeriodOptions} placeholder="Mes del documento" />,
+          ]}
           statusValue={receivableTable.status}
           onStatusChange={receivableTable.setStatus}
           statusOptions={receivableTable.statusOptions}

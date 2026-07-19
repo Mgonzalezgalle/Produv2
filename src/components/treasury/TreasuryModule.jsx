@@ -202,6 +202,8 @@ export function TreasuryModule(props) {
   const [portfolioItem, setPortfolioItem] = useState(null);
   const [issuedDetailOpen, setIssuedDetailOpen] = useState(false);
   const [issuedDetailItem, setIssuedDetailItem] = useState(null);
+  const [receivableClientFilter, setReceivableClientFilter] = useState("");
+  const [receivablePeriodFilter, setReceivablePeriodFilter] = useState("");
   const [receiptClientFilter, setReceiptClientFilter] = useState("");
   const [receiptPeriodFilter, setReceiptPeriodFilter] = useState("");
   const [payableSupplierFilter, setPayableSupplierFilter] = useState("");
@@ -225,7 +227,7 @@ export function TreasuryModule(props) {
     setIssuedDetailItem(null);
   }, []);
   const {
-    tab, setTab, filteredReceivables, receivableSummary, portfolio,
+    tab, setTab, filteredReceivables: receivables, receivableSummary, portfolio,
     providers, payables, payablesSummary, purchaseOrders, purchaseOrderSummary, issuedOrders, issuedOrderSummary,
     receiptLog, disbursementLog, canManageTreasury, payableOpen, payableDraft, poOpen, poDraft, issuedOpen, issuedDraft,
     receiptOpen, receiptDraft, disbursementOpen, disbursementDraft, providerOpen, providerDraft, savePayable, deletePayable,
@@ -338,6 +340,23 @@ export function TreasuryModule(props) {
   const openStatementEmailComposer = React.useCallback((docs, entity, type) => {
     openEmailComposer(createStatementEmailDraft(docs, entity, type));
   }, [createStatementEmailDraft, openEmailComposer]);
+  const filteredReceivables = useMemo(
+    () => (receivables || []).filter(row => {
+      const rowPeriod = String(row.fechaEmision || row.fechaVencimiento || "").slice(0, 7);
+      const matchesClient = !receivableClientFilter || row.entidad === receivableClientFilter;
+      const matchesPeriod = !receivablePeriodFilter || rowPeriod === receivablePeriodFilter;
+      return matchesClient && matchesPeriod;
+    }),
+    [receivables, receivableClientFilter, receivablePeriodFilter],
+  );
+  const receivableClientOptions = useMemo(
+    () => Array.from(new Set((receivables || []).map(row => row.entidad).filter(Boolean).filter(label => label !== "—"))).sort((a, b) => a.localeCompare(b)),
+    [receivables],
+  );
+  const receivablePeriodOptions = useMemo(
+    () => Array.from(new Set((receivables || []).map(row => String(row.fechaEmision || row.fechaVencimiento || "").slice(0, 7)).filter(Boolean))).sort().reverse().map(period => ({ value: period, label: fmtMonthPeriod(`${period}-01`) })),
+    [receivables],
+  );
   const receivableTable = useTableState(filteredReceivables, {
     searchFields: [row => row.correlativo, row => row.entidad],
     statusOptions: ["Pendiente de pago", "Retrasado de pago", "Pagado", "Anulado", "Por vencer", "Vencido", "Ajuste crédito"],
@@ -1033,6 +1052,10 @@ export function TreasuryModule(props) {
             purchaseOrderSummary={purchaseOrderSummary}
             deleteMany={deleteMany}
             deleteReceipt={deleteReceipt}
+            receivableClientFilter={receivableClientFilter}
+            receivableClientOptions={receivableClientOptions}
+            receivablePeriodFilter={receivablePeriodFilter}
+            receivablePeriodOptions={receivablePeriodOptions}
             receiptClientFilter={receiptClientFilter}
             receiptClientOptions={receiptClientOptions}
             receiptDraft={receiptDraft}
@@ -1055,6 +1078,8 @@ export function TreasuryModule(props) {
             sendStatementEmail={openStatementEmailComposer}
             sendStatementWhatsApp={sendStatementWhatsApp}
             closeReceipt={closeReceipt}
+            setReceivableClientFilter={setReceivableClientFilter}
+            setReceivablePeriodFilter={setReceivablePeriodFilter}
             setReceiptClientFilter={setReceiptClientFilter}
             setReceiptPeriodFilter={setReceiptPeriodFilter}
           />

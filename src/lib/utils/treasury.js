@@ -33,6 +33,49 @@ export function formatTreasuryMoney(value = 0, currency = "CLP") {
     maximumFractionDigits: safeCurrency === "CLP" ? 0 : 2,
   }).format(amount);
 }
+
+export const TREASURY_DETRACTION_STATUSES = ["Pendiente", "Depositada", "Observada", "No aplica"];
+
+function normalizePercent(value = 0) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return number > 100 ? 100 : number;
+}
+
+function roundTreasuryAmount(value = 0, currency = "CLP") {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return 0;
+  return normalizeTreasuryCurrency(currency) === "CLP" ? Math.round(number) : Math.round(number * 100) / 100;
+}
+
+export function normalizeTreasuryDetractionStatus(value = "") {
+  const raw = String(value || "").trim();
+  return TREASURY_DETRACTION_STATUSES.includes(raw) ? raw : "Pendiente";
+}
+
+export function buildTreasuryDetraction(source = {}, total = 0, currency = "CLP") {
+  const safeCurrency = normalizeTreasuryCurrency(currency || source?.currency || source?.moneda || "CLP");
+  const explicitEnabled = source?.detractionEnabled ?? source?.detraccionEnabled ?? source?.aplicaDetraccion;
+  const rawRate = source?.detractionRate ?? source?.detraccionRate ?? source?.porcentajeDetraccion ?? source?.detraccionPct ?? 0;
+  const rate = normalizePercent(rawRate);
+  const rawAmount = source?.detractionAmount ?? source?.detraccionAmount ?? source?.montoDetraccion ?? source?.detraccionMonto;
+  const amount = roundTreasuryAmount(rawAmount !== undefined && rawAmount !== "" ? rawAmount : Number(total || 0) * (rate / 100), safeCurrency);
+  const enabled = Boolean(explicitEnabled) || rate > 0 || amount > 0;
+  const status = enabled ? normalizeTreasuryDetractionStatus(source?.detractionStatus || source?.detraccionStatus || source?.estadoDetraccion) : "No aplica";
+  const pending = enabled && status !== "Depositada" ? amount : 0;
+  const netDirectAmount = enabled ? Math.max(0, roundTreasuryAmount(Number(total || 0) - amount, safeCurrency)) : roundTreasuryAmount(total, safeCurrency);
+  return {
+    enabled,
+    rate,
+    amount: enabled ? amount : 0,
+    netDirectAmount,
+    status,
+    pending,
+    code: source?.detractionCode || source?.detraccionCode || source?.constanciaDetraccion || "",
+    date: source?.detractionDate || source?.detraccionDate || source?.fechaDetraccion || "",
+    notes: source?.detractionNotes || source?.detraccionNotes || "",
+  };
+}
 export const TREASURY_MODULE_ICON = "🏦";
 export const TREASURY_STORE_KEYS = [
   "treasuryProviders",
@@ -345,6 +388,9 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
       const billingTypeCode = doc.documentTypeCode || doc.tipoDocumento || doc.tipoDoc;
       const multiplier = getProduBillingFinancialMultiplier(billingTypeCode);
       const baseTotal = Number(doc?.total || 0);
+      const currency = normalizeTreasuryCurrency(doc.currency || doc.moneda || doc.monedaOrigen || doc.currencyCode || "CLP");
+      const detraction = buildTreasuryDetraction(doc, baseTotal, currency);
+      const directBaseTotal = detraction.enabled ? detraction.netDirectAmount : baseTotal;
       const state = cobranzaState(doc);
       const isVoided = state === "Anulado";
       const total = isVoided ? 0 : baseTotal * multiplier;
@@ -358,10 +404,10 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         ])
         : [];
       const manualPaid = paymentHistory.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const paidBase = isVoided ? 0 : (state === "Pagado" ? baseTotal : Math.min(baseTotal, manualPaid));
+      const paidBase = isVoided ? 0 : (state === "Pagado" ? directBaseTotal : Math.min(directBaseTotal, manualPaid));
       const paid = paidBase * multiplier;
-      const pending = isVoided ? 0 : (baseTotal - paidBase) * multiplier;
-      const cobranza = isVoided ? "Anulado" : (multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? "Pagado" : state));
+      const pending = isVoided ? 0 : (directBaseTotal - paidBase) * multiplier;
+      const cobranza = isVoided ? "Anulado" : (multiplier < 0 ? "Ajuste crédito" : (pending <= 0 ? (detraction.pending > 0 ? "Detracción pendiente" : "Pagado") : state));
       const entityName = invoiceEntityName(doc, clientes, auspiciadores);
       const relatedClientId = invoiceRelatedClientId(doc, auspiciadores);
       const sponsorName = invoiceSponsorName(doc, auspiciadores);
@@ -371,12 +417,18 @@ export function buildTreasuryReceivables({ facturas = [], clientes = [], auspici
         id: doc.id,
         correlativo: doc.correlativo || doc.tipoDoc || "Sin correlativo",
         tipoDoc: getProduBillingDocumentTypeLabel(billingTypeCode),
-        currency: normalizeTreasuryCurrency(doc.currency || doc.moneda || doc.monedaOrigen || doc.currencyCode || "CLP"),
+        currency,
         entidadId: relatedClientId || doc.entidadId || "",
         entidadTipo: "cliente",
         entidad: entityName,
         sponsorName,
         total,
+        documentTotal: total,
+        directAmount: directBaseTotal * multiplier,
+        detraction,
+        detractionAmount: detraction.amount * multiplier,
+        detractionPending: detraction.pending * multiplier,
+        detractionStatus: detraction.status,
         pending,
         paid,
         estado: doc.estado || "Emitida",
@@ -503,20 +555,31 @@ export function buildTreasuryPayables({ payables = [], disbursements = [], empId
       const savedStatus = String(item?.status || "").trim();
       const isVoided = savedStatus === "Anulada";
       const isManuallyPaid = savedStatus === "Pagada";
-      const total = isVoided ? 0 : Number(item.total || 0);
+      const baseTotal = Number(item.total || 0);
+      const currency = normalizeTreasuryCurrency(item.currency || "CLP");
+      const detraction = buildTreasuryDetraction(item, baseTotal, currency);
+      const directBaseTotal = detraction.enabled ? detraction.netDirectAmount : baseTotal;
+      const total = isVoided ? 0 : baseTotal;
       const paymentHistory = normalizePayments(disbursements, empId, "payableId", item.id, [
         item.folio,
         item.number,
         item.documentNumber,
       ]).filter(() => !isVoided);
-      const paid = isManuallyPaid ? total : paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      const pending = isManuallyPaid ? 0 : Math.max(0, total - paid);
+      const paid = isManuallyPaid ? directBaseTotal : paymentHistory.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const pending = isManuallyPaid ? 0 : Math.max(0, directBaseTotal - paid);
       const dueDate = item.dueDate || "";
-      const status = isVoided ? "Anulada" : (pending <= 0 ? "Pagada" : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente")));
+      const status = isVoided ? "Anulada" : (pending <= 0 ? (detraction.pending > 0 ? "Detracción pendiente" : "Pagada") : (paid > 0 ? "Parcial" : (dueDate && dueDate < today() ? "Vencida" : "Pendiente")));
       return {
         ...item,
         docType: normalizeTreasuryPayableDocumentLabel(item.docType || item.category || ""),
+        currency,
         total,
+        documentTotal: total,
+        directAmount: directBaseTotal,
+        detraction,
+        detractionAmount: detraction.amount,
+        detractionPending: detraction.pending,
+        detractionStatus: detraction.status,
         paid,
         pending,
         status,

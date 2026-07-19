@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FG, FI, FSl, FTA, MFoot, Modal, R2, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { DEFAULT_LISTAS, today, uid } from "../../lib/utils/helpers";
-import { TREASURY_CURRENCIES, normalizeTreasuryCurrency } from "../../lib/utils/treasury";
+import { TREASURY_CURRENCIES, TREASURY_DETRACTION_STATUSES, buildTreasuryDetraction, formatTreasuryMoney, normalizeTreasuryCurrency } from "../../lib/utils/treasury";
 
 export function TreasuryPayableModal({ open, data, providers = [], listas = {}, onClose, onSave }) {
   const [form, setForm] = useState({});
@@ -42,6 +42,13 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
       dueDate: "",
       total: "",
       status: "Pendiente",
+      detractionEnabled: false,
+      detractionRate: "",
+      detractionAmount: "",
+      detractionStatus: "Pendiente",
+      detractionCode: "",
+      detractionDate: "",
+      detractionNotes: "",
       pdfName: "",
       pdfUrl: "",
       notes: "",
@@ -72,6 +79,8 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
     };
     reader.readAsDataURL(file);
   };
+  const detraction = buildTreasuryDetraction(form, Number(form.total || 0), form.currency || "CLP");
+  const showDetractionFields = normalizeTreasuryCurrency(form.currency || "CLP") === "PEN" || detraction.enabled;
 
   return (
     <Modal open={open} onClose={onClose} title={data?.id ? "Editar cuenta por pagar" : "Nueva cuenta por pagar"} sub="Registra un documento manual y adjunta su respaldo PDF">
@@ -112,6 +121,56 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
           </FSl>
         </FG>
       </R2>
+      {showDetractionFields && (
+        <div style={{ background:"#f8fbff", border:"1px solid var(--bdr2)", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:detraction.enabled ? 12 : 0, flexWrap:"wrap" }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:800, color:"#1a1a2e" }}>Detracción Perú</div>
+              <div style={{ fontSize:11, color:"var(--gr2)", marginTop:4 }}>Registra el monto depositado por detracción y separa el neto que se pagará al proveedor.</div>
+            </div>
+            <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, color:"var(--gr3)", fontWeight:700 }}>
+              <input
+                type="checkbox"
+                checked={!!detraction.enabled}
+                onChange={e => setForm(prev => ({
+                  ...prev,
+                  detractionEnabled: e.target.checked,
+                  detractionRate: e.target.checked ? (prev.detractionRate || 12) : "",
+                  detractionAmount: e.target.checked ? prev.detractionAmount : "",
+                  detractionStatus: e.target.checked ? (prev.detractionStatus || "Pendiente") : "No aplica",
+                }))}
+              />
+              Aplica detracción
+            </label>
+          </div>
+          {detraction.enabled ? (
+            <>
+              <R2>
+                <FG label="% detracción">
+                  <FI type="number" min="0" max="100" step="0.01" value={form.detractionRate || ""} onChange={e => setForm(prev => ({ ...prev, detractionRate:e.target.value, detractionAmount:"" }))} placeholder="12" />
+                </FG>
+                <FG label="Monto detracción">
+                  <FI type="number" min="0" step="0.01" value={form.detractionAmount || ""} onChange={e => setField("detractionAmount", e.target.value)} placeholder="Calculado automáticamente" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Estado detracción">
+                  <FSl value={detraction.status} onChange={e => setField("detractionStatus", e.target.value)}>
+                    {TREASURY_DETRACTION_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
+                  </FSl>
+                </FG>
+                <FG label="Constancia">
+                  <FI value={form.detractionCode || ""} onChange={e => setField("detractionCode", e.target.value)} placeholder="Número de constancia" />
+                </FG>
+              </R2>
+              <R2>
+                <FG label="Fecha depósito"><FI type="date" value={form.detractionDate || ""} onChange={e => setField("detractionDate", e.target.value)} /></FG>
+                <FG label="Neto a pagar"><FI value={formatTreasuryMoney(detraction.netDirectAmount, form.currency || "CLP")} disabled /></FG>
+              </R2>
+            </>
+          ) : null}
+        </div>
+      )}
       <FG label="Adjuntar PDF">
         <input ref={fileRef} type="file" accept="application/pdf" onChange={onFileChange} style={{ ...{ width: "100%", color: "var(--gr3)" } }} />
         {!!form.pdfName && <div style={{ fontSize: 11, color: "var(--gr2)", marginTop: 6 }}>Adjunto: {form.pdfName}</div>}
@@ -134,10 +193,27 @@ export function TreasuryPayableModal({ open, data, providers = [], listas = {}, 
         disabled={!canSubmit}
         onSave={() => {
           if (!canSubmit) return;
+          const finalCurrency = normalizeTreasuryCurrency(form.currency || "CLP");
+          const finalDetraction = buildTreasuryDetraction(form, Number(form.total || 0), finalCurrency);
           onSave({
             ...form,
             total: Number(form.total || 0),
-            currency: normalizeTreasuryCurrency(form.currency || "CLP"),
+            currency: finalCurrency,
+            detractionEnabled: !!finalDetraction.enabled,
+            detractionRate: finalDetraction.rate,
+            detractionAmount: finalDetraction.amount,
+            detractionStatus: finalDetraction.status,
+            detractionCode: finalDetraction.code,
+            detractionDate: finalDetraction.date,
+            detractionNotes: finalDetraction.notes,
+            detraccionEnabled: !!finalDetraction.enabled,
+            detraccionRate: finalDetraction.rate,
+            detraccionAmount: finalDetraction.amount,
+            detraccionStatus: finalDetraction.status,
+            constanciaDetraccion: finalDetraction.code,
+            fechaDetraccion: finalDetraction.date,
+            directAmount: finalDetraction.netDirectAmount,
+            netDirectAmount: finalDetraction.netDirectAmount,
             paid: 0,
             status: form.status || "Pendiente",
           });

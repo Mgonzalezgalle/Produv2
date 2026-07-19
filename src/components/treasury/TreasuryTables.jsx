@@ -17,7 +17,7 @@ const TREASURY_SELECT_STYLE = {
   boxShadow: "0 8px 18px rgba(15,23,42,.06)",
 };
 
-const PAYABLE_STATUS_OPTIONS = ["Pendiente", "Parcial", "Pagada", "Vencida", "Anulada"];
+const PAYABLE_STATUS_OPTIONS = ["Pendiente", "Parcial", "Pagada", "Vencida", "Detracción pendiente", "Anulada"];
 
 export function TableToolbar({
   searchValue,
@@ -102,7 +102,7 @@ export function PortfolioTable({ rows = [], onOpen, selectedIds = [], toggleSele
 }
 
 function collectionOptions(current = "") {
-  const base = ["Pendiente de pago", "Pagado", "No pagado", "Retrasado de pago", "Anulado"];
+  const base = ["Pendiente de pago", "Pagado", "No pagado", "Retrasado de pago", "Detracción pendiente", "Anulado"];
   return current && !base.includes(current) ? [current, ...base] : base;
 }
 
@@ -155,8 +155,11 @@ export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, on
                   <td>{row.fechaEmision ? fmtD(row.fechaEmision) : "—"}</td>
                   <td>{row.fechaVencimiento ? fmtD(row.fechaVencimiento) : "—"}</td>
                   <td><StatusBadge label={row.cobranza} /></td>
-                  <td className="treasury-mono">{fmtM(row.total)}</td>
-                  <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{fmtM(row.pending)}</td>
+                  <td className="treasury-mono">
+                    <div>{formatTreasuryMoney(row.total, row.currency)}</div>
+                    {row.detraction?.enabled ? <div className="treasury-muted" style={{ fontSize: 10 }}>Neto {formatTreasuryMoney(row.directAmount, row.currency)}</div> : null}
+                  </td>
+                  <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{formatTreasuryMoney(row.pending, row.currency)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{canRegisterPayment ? <GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn> : null}<GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>
                 </tr>
                 {open ? (
@@ -201,6 +204,15 @@ export function ReceivablesTable({ rows = [], onAddPayment, onUpdateCobranza, on
                         {row.cobranza === "Anulado" ? (
                           <div style={{ marginBottom: 14, padding: "10px 12px", border: "1px solid rgba(100,116,139,.28)", borderRadius: 12, background: "rgba(100,116,139,.08)", color: "var(--gr2)", fontSize: 12, lineHeight: 1.5 }}>
                             Documento anulado: se conserva para trazabilidad, pero no suma cartera, deuda pendiente ni pagos.
+                          </div>
+                        ) : null}
+
+                        {row.detraction?.enabled ? (
+                          <div style={{ marginBottom: 14, padding: "12px", border: "1px solid rgba(43,109,246,.22)", borderRadius: 12, background: "rgba(43,109,246,.06)", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+                            <div><div className="treasury-section-sub" style={{ marginTop:0 }}>Detracción</div><div className="treasury-mono">{formatTreasuryMoney(row.detractionAmount, row.currency)} · {row.detraction.rate}%</div></div>
+                            <div><div className="treasury-section-sub" style={{ marginTop:0 }}>Neto directo</div><div className="treasury-mono treasury-pending-paid">{formatTreasuryMoney(row.directAmount, row.currency)}</div></div>
+                            <div><div className="treasury-section-sub" style={{ marginTop:0 }}>Estado</div><StatusBadge label={row.detractionStatus || row.detraction.status} /></div>
+                            <div><div className="treasury-section-sub" style={{ marginTop:0 }}>Constancia</div><div className="treasury-muted">{row.detraction.code || "Pendiente"}</div></div>
                           </div>
                         ) : null}
 
@@ -335,7 +347,10 @@ export function PayablesTable({
                   <td><div style={{ fontWeight: 700 }}>{row.folio || "—"}</div><div className="treasury-muted" style={{ fontSize: 11 }}>{row.docType || "Documento"}</div></td>
                   <td>{row.dueDate ? fmtD(row.dueDate) : "—"}</td>
                   <td><StatusBadge label={row.status} /></td>
-                  <td className="treasury-mono">{formatTreasuryMoney(row.total, row.currency)}</td>
+                  <td className="treasury-mono">
+                    <div>{formatTreasuryMoney(row.total, row.currency)}</div>
+                    {row.detraction?.enabled ? <div className="treasury-muted" style={{ fontSize: 10 }}>Neto {formatTreasuryMoney(row.directAmount, row.currency)}</div> : null}
+                  </td>
                   <td className="treasury-mono treasury-pending-paid">{formatTreasuryMoney(row.paid, row.currency)}</td>
                   <td className={`treasury-mono ${pendingTone(row.pending, pendingMode)}`}>{formatTreasuryMoney(row.pending, row.currency)}</td>
                   <td><div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>{canRegisterPayment ? <GBtn sm onClick={() => onAddPayment(row)}>Registrar pago</GBtn> : null}{onDownloadPdf ? <GBtn sm title="Descargar PDF" aria-label={`Descargar PDF del documento ${row.folio || "sin folio"}`} onClick={() => { void onDownloadPdf(row); }}>PDF ↓</GBtn> : null}<GBtn sm onClick={() => onEdit(row)}>Editar</GBtn><DBtn sm onClick={() => onDelete(row.id)}>Eliminar</DBtn><GBtn sm onClick={() => setOpenId(open ? "" : row.id)}>{open ? "Ocultar" : "Ver detalle"}</GBtn></div></td>

@@ -13,7 +13,7 @@ import {
   getBillingTaxRate,
   normalizeBillingTaxCode,
 } from "../lib/billing/fiscalProfile";
-import { normalizeTreasuryCurrency } from "../lib/utils/treasury";
+import { buildTreasuryDetraction, normalizeTreasuryCurrency } from "../lib/utils/treasury";
 
 export function useLabInvoiceForm({
   open,
@@ -74,6 +74,13 @@ export function useLabInvoiceForm({
       currency: "",
       moneda: "",
       taxCode: "",
+      detractionEnabled: false,
+      detractionRate: "",
+      detractionAmount: "",
+      detractionStatus: "Pendiente",
+      detractionCode: "",
+      detractionDate: "",
+      detractionNotes: "",
       recurring: false,
       recMonths: "6",
       recStart: today(),
@@ -94,6 +101,13 @@ export function useLabInvoiceForm({
       taxCode: initial.taxCode || "",
       currency: initial.currency || initial.moneda || "",
       moneda: initial.moneda || initial.currency || "",
+      detractionEnabled: !!(initial.detractionEnabled || initial.detraccionEnabled || initial.aplicaDetraccion),
+      detractionRate: initial.detractionRate ?? initial.detraccionRate ?? "",
+      detractionAmount: initial.detractionAmount ?? initial.detraccionAmount ?? "",
+      detractionStatus: initial.detractionStatus || initial.detraccionStatus || "Pendiente",
+      detractionCode: initial.detractionCode || initial.detraccionCode || initial.constanciaDetraccion || "",
+      detractionDate: initial.detractionDate || initial.detraccionDate || initial.fechaDetraccion || "",
+      detractionNotes: initial.detractionNotes || initial.detraccionNotes || "",
       relatedDocumentReason: requiresProduBillingReferences(effectiveType.code)
         ? (initial.relatedDocumentReason || getDefaultProduBillingReferenceReason(effectiveType.code))
         : (initial.relatedDocumentReason || ""),
@@ -213,6 +227,7 @@ export function useLabInvoiceForm({
   const mn = (f.items || []).length ? itemsSubtotal : Number(f.montoNeto || 0);
   const ivaV = f.iva ? Math.round(mn * effectiveTaxRate) : f.honorarios ? Math.round(mn * 0.1525) : 0;
   const total = mn + ivaV;
+  const detraction = buildTreasuryDetraction(f, total, effectiveCurrency);
   const recurringMonths = Math.max(1, Number(f.recMonths || 1));
   const projectedTotal = f.recurring ? total * recurringMonths : total;
   const contratosEntidad = useMemo(
@@ -285,6 +300,23 @@ export function useLabInvoiceForm({
     taxCode: effectiveTaxCode,
     taxLabel: f.honorarios ? "Boleta Honorarios 15,25%" : effectiveTaxLabel,
     taxRate: f.honorarios ? 0.1525 : effectiveTaxRate,
+    detractionEnabled: !!detraction.enabled,
+    detractionRate: detraction.rate,
+    detractionAmount: detraction.amount,
+    detractionStatus: detraction.status,
+    detractionCode: detraction.code,
+    detractionDate: detraction.date,
+    detractionNotes: detraction.notes,
+    detraccionEnabled: !!detraction.enabled,
+    detraccionRate: detraction.rate,
+    detraccionAmount: detraction.amount,
+    detraccionStatus: detraction.status,
+    constanciaDetraccion: detraction.code,
+    fechaDetraccion: detraction.date,
+    directAmount: detraction.netDirectAmount,
+    netDirectAmount: detraction.netDirectAmount,
+    pending: detraction.netDirectAmount,
+    saldoPendiente: detraction.netDirectAmount,
     items: (f.items || []).map((item) => ({
       ...item,
       qty: Number(item.qty || 0),
@@ -314,6 +346,7 @@ export function useLabInvoiceForm({
     effectiveTaxLabel,
     effectiveTaxRate,
     total,
+    detraction,
     recurringMonths,
     projectedTotal,
     ausValidos,

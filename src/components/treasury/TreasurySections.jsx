@@ -51,6 +51,9 @@ const receivableExportColumns = [
   { label: "Vencimiento", value: row => row?.fechaVencimiento || "—" },
   { label: "Cobranza", value: row => row?.cobranza || "—" },
   { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Detracción", value: row => row?.detraction?.enabled ? formatTreasuryMoney(row?.detractionAmount || 0, row?.currency) : "No aplica" },
+  { label: "Neto directo", value: row => row?.detraction?.enabled ? formatTreasuryMoney(row?.directAmount || 0, row?.currency) : formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Estado detracción", value: row => row?.detraction?.enabled ? (row?.detractionStatus || row?.detraction?.status || "Pendiente") : "No aplica" },
   { label: "Pendiente", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency) },
 ];
 
@@ -116,6 +119,9 @@ const payableExportColumns = [
   { label: "Pago estimado", value: row => row?.paymentDate || "—" },
   { label: "Estado", value: row => row?.status || "Pendiente" },
   { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Detracción", value: row => row?.detraction?.enabled ? formatTreasuryMoney(row?.detractionAmount || 0, row?.currency) : "No aplica" },
+  { label: "Neto directo", value: row => row?.detraction?.enabled ? formatTreasuryMoney(row?.directAmount || 0, row?.currency) : formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Estado detracción", value: row => row?.detraction?.enabled ? (row?.detractionStatus || row?.detraction?.status || "Pendiente") : "No aplica" },
   { label: "Pagado", value: row => formatTreasuryMoney(row?.paid || 0, row?.currency) },
   { label: "Pendiente", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency) },
 ];

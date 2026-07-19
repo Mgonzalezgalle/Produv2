@@ -21,7 +21,7 @@ import {
 import { useLabInvoiceForm } from "../../hooks/useLabInvoiceForm";
 import { FSl, FG, FI, FTA, GBtn, MFoot, Modal, R2, R3, VALIDATION_FIELD_STYLE, ValidationBanner, ValidationHint } from "../../lib/ui/components";
 import { BILLING_FISCAL_COUNTRIES, normalizeBillingTaxCode } from "../../lib/billing/fiscalProfile";
-import { formatTreasuryMoney, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
+import { formatTreasuryMoney, TREASURY_CURRENCIES, TREASURY_DETRACTION_STATUSES } from "../../lib/utils/treasury";
 
 const VALIDATION_COPY = {
   entity: {
@@ -96,6 +96,7 @@ export function MFact({
     effectiveTaxCode,
     effectiveTaxLabel,
     total,
+    detraction,
     projectedTotal,
     ausValidos,
     contratosEntidad,
@@ -174,6 +175,7 @@ export function MFact({
       : []),
   ]);
   const displayedTaxLabel = f.honorarios ? "Boleta Honorarios 15,25%" : effectiveTaxLabel;
+  const showDetractionFields = effectiveCurrency === "PEN" || f.billingCountry === "PE" || detraction.enabled;
   const isElectronicDocumentLocked = !!data?.externalSync;
   useEffect(() => {
     if (open) setSaving(false);
@@ -455,6 +457,56 @@ export function MFact({
         <div style={{fontFamily:"var(--fm)",fontSize:16,fontWeight:700,color:"var(--cy)"}}>{formatTreasuryMoney(total, effectiveCurrency)}</div>
       </div>
     </R3>
+    {showDetractionFields && (
+      <div style={{background:"#f8fbff",border:"1px solid var(--bdr2)",borderRadius:12,padding:"12px 14px",margin:"0 0 14px"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:detraction.enabled?12:0,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:800,color:"#1a1a2e"}}>Detracción Perú</div>
+            <div style={{fontSize:11,color:"var(--gr2)",marginTop:4}}>Controla el monto que se deposita en Banco de la Nación y el neto que debe pagar directamente el cliente.</div>
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--gr3)",fontWeight:700}}>
+            <input
+              type="checkbox"
+              checked={!!detraction.enabled}
+              onChange={(e)=>setF(prev => ({
+                ...prev,
+                detractionEnabled:e.target.checked,
+                detractionRate:e.target.checked ? (prev.detractionRate || 12) : "",
+                detractionAmount:e.target.checked ? prev.detractionAmount : "",
+                detractionStatus:e.target.checked ? (prev.detractionStatus || "Pendiente") : "No aplica",
+              }))}
+            />
+            Aplica detracción
+          </label>
+        </div>
+        {detraction.enabled && (
+          <>
+            <R3>
+              <FG label="% detracción">
+                <FI type="number" min="0" max="100" step="0.01" value={f.detractionRate || ""} onChange={(e)=>setF(prev => ({ ...prev, detractionRate:e.target.value, detractionAmount:"" }))} placeholder="12" />
+              </FG>
+              <FG label="Monto detracción">
+                <FI type="number" min="0" step="0.01" value={f.detractionAmount || ""} onChange={(e)=>u("detractionAmount", e.target.value)} placeholder="Calculado automáticamente" />
+              </FG>
+              <FG label="Estado">
+                <FSl value={detraction.status} onChange={(e)=>u("detractionStatus", e.target.value)}>
+                  {TREASURY_DETRACTION_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
+                </FSl>
+              </FG>
+            </R3>
+            <R2>
+              <FG label="Constancia detracción"><FI value={f.detractionCode || ""} onChange={(e)=>u("detractionCode", e.target.value)} placeholder="Número de constancia" /></FG>
+              <FG label="Fecha depósito"><FI type="date" value={f.detractionDate || ""} onChange={(e)=>u("detractionDate", e.target.value)} /></FG>
+            </R2>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10,marginTop:8}}>
+              <div style={{border:"1px solid var(--bdr2)",borderRadius:10,padding:"10px 12px",background:"#fff"}}><div style={{fontSize:10,color:"var(--gr2)",fontWeight:800,letterSpacing:".08em"}}>TOTAL DOCUMENTO</div><div style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:800,color:"#1a1a2e",marginTop:4}}>{formatTreasuryMoney(total, effectiveCurrency)}</div></div>
+              <div style={{border:"1px solid rgba(43,109,246,.22)",borderRadius:10,padding:"10px 12px",background:"rgba(43,109,246,.06)"}}><div style={{fontSize:10,color:"#2b6df6",fontWeight:800,letterSpacing:".08em"}}>DETRACCIÓN</div><div style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:800,color:"#2b6df6",marginTop:4}}>{formatTreasuryMoney(detraction.amount, effectiveCurrency)}</div></div>
+              <div style={{border:"1px solid rgba(22,163,74,.22)",borderRadius:10,padding:"10px 12px",background:"rgba(22,163,74,.06)"}}><div style={{fontSize:10,color:"#15803d",fontWeight:800,letterSpacing:".08em"}}>NETO A COBRAR</div><div style={{fontFamily:"var(--fm)",fontSize:14,fontWeight:800,color:"#15803d",marginTop:4}}>{formatTreasuryMoney(detraction.netDirectAmount, effectiveCurrency)}</div></div>
+            </div>
+          </>
+        )}
+      </div>
+    )}
     <div style={{background:"var(--sur)",border:"1px solid var(--bdr2)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:f.recurring?12:0}}>
         <div>

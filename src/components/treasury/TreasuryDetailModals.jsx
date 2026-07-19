@@ -22,7 +22,7 @@ import {
   StatusBadge,
 } from "./TreasuryShared";
 
-export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canManage = false }) {
+export function PortfolioDetailModal({ open, item, onClose, onEditOrder, onClientStatementPdf, canManage = false }) {
   const [tab, setTab] = useState("documentos");
   if (!item) return null;
   return (
@@ -31,6 +31,7 @@ export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canMana
         <div className="treasury-profile">
           <div className="treasury-avatar" style={{ width: 58, height: 58, fontSize: 18 }}>{getInitials(item.entidad)}</div>
           <div style={{ flex: 1 }}><div className="treasury-profile-title">{item.entidad || "Cliente sin nombre"}</div><div className="treasury-profile-sub">Detalle de cartera, documentos y órdenes de compra vinculadas al cliente.</div></div>
+          {onClientStatementPdf ? <GBtn onClick={() => onClientStatementPdf(item)}>PDF interno</GBtn> : null}
           <GBtn onClick={onClose}>Cerrar</GBtn>
         </div>
         <div className="treasury-modal-tabs">
@@ -39,9 +40,9 @@ export function PortfolioDetailModal({ open, item, onClose, onEditOrder, canMana
           <button className={`treasury-modal-tab ${tab === "resumen" ? "active" : ""}`} onClick={() => setTab("resumen")}>Resumen</button>
         </div>
         <div className="treasury-modal-summary">
-          <MiniKpiCard color="#4f7cff" label="Documentos por paga" value={item.docs || 0} />
-          <MiniKpiCard color="#ffcc44" label="Monto por cobrar" value={fmtM(item.pending || 0)} />
-          <MiniKpiCard color="var(--red)" label="Monto atrasado" value={fmtM(item.overdue || 0)} />
+          <MiniKpiCard color="#4f7cff" label="Documentos por cobrar" value={item.docs || 0} />
+          <MiniKpiCard color="#ffcc44" label="Monto por cobrar" value={formatTreasuryMoney(item.pending || 0, item.currency)} />
+          <MiniKpiCard color="var(--red)" label="Monto atrasado" value={formatTreasuryMoney(item.overdue || 0, item.currency)} />
         </div>
         {tab === "documentos" ? <DetailTable columns={[{ key: "correlativo", label: "Número" }, { key: "fecha", label: "Emisión", render: row => row.fecha ? fmtD(row.fecha) : "—" }, { key: "fechaVencimiento", label: "Vencimiento", render: row => row.fechaVencimiento ? fmtD(row.fechaVencimiento) : "—" }, { key: "total", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.total)}</span> }, { key: "pending", label: "Monto a pagar", render: row => <span className={`treasury-mono ${pendingTone(row.pending, row.pending <= 0 ? "paid" : row.bucket === "Vencido" ? "overdue" : "pending")}`}>{fmtM(row.pending)}</span> }, { key: "cobranza", label: "Estado", render: row => <StatusBadge label={row.cobranza} /> }]} rows={item.documents || []} emptyText="Sin documentos asociados" /> : null}
         {tab === "ordenes" ? <DetailTable columns={[{ key: "number", label: "Número" }, { key: "issueDate", label: "Emisión", render: row => row.issueDate ? fmtD(row.issueDate) : "—" }, { key: "linkedInvoices", label: "Factura asociada", render: row => row.linkedInvoices?.length ? <div style={{ display:"grid", gap:4 }}>{row.linkedInvoices.map(invoice => <div key={invoice.id} style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}><span style={{ fontWeight:700 }}>{invoice.correlativo}</span><StatusBadge label={invoice.cobranza} /></div>)}</div> : <span className="treasury-muted">Sin factura asociada</span> }, { key: "billingStatus", label: "Estado flujo", render: row => <StatusBadge label={row.billingStatus} /> }, { key: "amount", label: "Monto", render: row => <span className="treasury-mono">{fmtM(row.amount)}</span> }, { key: "pendingAmount", label: "Pendiente OC", render: row => <span className={`treasury-mono ${pendingTone(row.pendingAmount, row.pendingAmount <= 0 ? "paid" : "pending")}`}>{fmtM(row.pendingAmount)}</span> }, { key: "edit", label: "", render: row => canManage && onEditOrder ? <GBtn sm onClick={() => onEditOrder(row)}>Asociar factura</GBtn> : null }]} rows={item.purchaseOrders || []} emptyText="Sin órdenes de compra registradas" /> : null}
@@ -58,6 +59,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
   const [portalEmailDraft, setPortalEmailDraft] = useState(null);
   const [portalEmailSending, setPortalEmailSending] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     if (!open) return;
     setDraft({
@@ -76,6 +78,7 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
     });
     setTab("documentos");
   }, [open, provider]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!provider || !draft) return null;
 
@@ -363,7 +366,9 @@ export function ProviderDetailModal({ open, provider, paymentRows = [], canManag
                 <GBtn sm onClick={() => {
                   try {
                     navigator.clipboard.writeText(portalUrl);
-                  } catch {}
+                  } catch {
+                    // Clipboard can be blocked by the browser; copying is a convenience action.
+                  }
                 }}>
                   Copiar enlace
                 </GBtn>

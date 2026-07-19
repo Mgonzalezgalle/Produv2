@@ -27,7 +27,7 @@ import { TreasuryStyles, SectionCard, useTableState } from "./TreasuryCore";
 import { TransactionalEmailComposerModal } from "../shared/TransactionalEmailComposerModal";
 import { ConfirmActionDialog } from "../shared/ConfirmActionDialog";
 import { buildIssuedOrderPdfDataUrl, buildIssuedOrderPdfFile } from "../../lib/utils/treasuryIssuedOrderPdf";
-import { exportSupplierStatementPDF } from "../../lib/utils/exports";
+import { exportClientStatementPDF, exportSupplierStatementPDF } from "../../lib/utils/exports";
 import { formatTreasuryMoney, normalizeTreasuryCurrency, TREASURY_CURRENCIES } from "../../lib/utils/treasury";
 import { appendOperationalAuditEntry } from "../../lib/operations/operationalAudit";
 
@@ -363,7 +363,17 @@ export function TreasuryModule(props) {
     getStatus: row => row.bucket === "Vencido" ? "Vencido" : row.cobranza,
     isSelectable: row => row?.allowsManualReceipts !== false || row?.collectionEditable !== false,
   });
-  const portfolioTable = useTableState(portfolio, { searchFields: [row => row.entidad], getId: row => row.entidadId, pageSize: 6 });
+  const portfolioTable = useTableState(portfolio, {
+    searchFields: [
+      row => row.entidad,
+      row => row.rut,
+      row => (row.documents || []).map(doc => doc?.correlativo).join(" "),
+    ],
+    statusOptions: ["Con saldo pendiente", "Vencido", "Sin saldo"],
+    getStatus: row => Number(row?.overdue || 0) > 0 ? "Vencido" : Number(row?.pending || 0) > 0 ? "Con saldo pendiente" : "Sin saldo",
+    getId: row => row.entidadId,
+    pageSize: 6,
+  });
   const poTable = useTableState(purchaseOrders, { searchFields: [row => row.clientName, row => row.number], statusOptions: ["Pendiente", "Facturada", "Completada", "Sin facturar", "Facturado parcial", "Facturado y pagado"], getStatus: row => row.billingStatus, pageSize: 6 });
   const filteredReceiptLog = useMemo(
     () => receiptLog.filter(row => {
@@ -686,6 +696,29 @@ export function TreasuryModule(props) {
       accent: "#1a1a2e",
     });
   }, [notify, tenantEmpresa, providers]);
+  const handleClientStatementPdf = React.useCallback(async (source) => {
+    const clientPortfolio = portfolio.find(item => (
+      item.entidadId === source?.entidadId ||
+      item.entidadId === source?.id ||
+      item.entidad === source?.entidad ||
+      item.entidad === source?.name ||
+      item.entidad === source?.nom
+    )) || source;
+    if (!clientPortfolio) {
+      notify?.("No encontramos el cliente para generar el PDF.", "warn");
+      return;
+    }
+    if (!Array.isArray(clientPortfolio.documents) || !clientPortfolio.documents.length) {
+      notify?.("El cliente no tiene documentos registrados para generar estado de cuenta.", "warn");
+      return;
+    }
+    await exportClientStatementPDF({
+      client: clientPortfolio,
+      empresa: tenantEmpresa,
+      fileName: `estado_cuenta_cliente_${clientPortfolio.entidad || clientPortfolio.rut || clientPortfolio.entidadId || "cliente"}`,
+      accent: "#1a1a2e",
+    });
+  }, [notify, tenantEmpresa, portfolio]);
   const handleOpenPayablePdf = React.useCallback(async (row) => {
     if (!String(row?.pdfUrl || "").trim()) {
       notify?.("Este documento no tiene un PDF adjunto.", "warn");
@@ -1077,6 +1110,7 @@ export function TreasuryModule(props) {
             simulateMercadoPagoPayment={simulateMercadoPagoPayment}
             sendStatementEmail={openStatementEmailComposer}
             sendStatementWhatsApp={sendStatementWhatsApp}
+            onClientStatementPdf={handleClientStatementPdf}
             closeReceipt={closeReceipt}
             setReceivableClientFilter={setReceivableClientFilter}
             setReceivablePeriodFilter={setReceivablePeriodFilter}
@@ -1143,7 +1177,7 @@ export function TreasuryModule(props) {
           <TreasuryPaymentModal open={disbursementOpen} title="Registrar pago realizado" subtitle="Asocia el pago a la cuenta por pagar correspondiente" data={disbursementDraft} onClose={closeDisbursement} onSave={saveDisbursement} />
         </>
       )}
-      <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} canManage={canManageTreasury} />
+      <PortfolioDetailModal open={portfolioOpen} item={portfolioItem} onClose={() => setPortfolioOpen(false)} onEditOrder={canManageTreasury ? row => { setPortfolioOpen(false); openPurchaseOrderEdit(row); } : null} onClientStatementPdf={handleClientStatementPdf} canManage={canManageTreasury} />
       <ProviderDetailModal open={providerOpen} provider={providerDraft} paymentRows={providerPaymentRows} canManage={canManageTreasury} onUpdatePayable={handlePayableUpdate} onSupplierEmail={handleSupplierEmail} onSupplierStatementEmail={handleSupplierStatementEmail} onSupplierStatementPdf={handleSupplierStatementPdf} onSupplierWhatsApp={handleSupplierWhatsApp} onClose={closeProvider} onSave={saveProvider} empresa={props.empresa} platformApi={props.platformApi} currentUser={props.user} ntf={props.ntf} />
       <IssuedOrderDetailModal
         open={issuedDetailOpen}

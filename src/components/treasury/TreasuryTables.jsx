@@ -54,7 +54,15 @@ export function TableToolbar({
   );
 }
 
-export function PortfolioTable({ rows = [], onOpen, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
+function formatPortfolioCurrencyList(row = {}, key = "pending") {
+  const currencies = Array.isArray(row.currencies) ? row.currencies : [];
+  if (currencies.length) {
+    return currencies.map(item => formatTreasuryMoney(item?.[key] || 0, item?.currency)).join(" · ");
+  }
+  return formatTreasuryMoney(row?.[key] || 0, row?.currency || "CLP");
+}
+
+export function PortfolioTable({ rows = [], onOpen, onDownloadPdf, selectedIds = [], toggleSelected, toggleAll, pageIds = [] }) {
   if (!rows.length) return <EmptyInsideCard text="Sin cartera registrada" sub="Cuando existan facturas emitidas, aquí verás el resumen por cliente." />;
   return (
     <div className="treasury-table-wrap">
@@ -69,7 +77,7 @@ export function PortfolioTable({ rows = [], onOpen, selectedIds = [], toggleSele
             <th>Concentración</th>
             <th>Límite crédito</th>
             <th>Cupo disponible</th>
-            <th></th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -81,17 +89,22 @@ export function PortfolioTable({ rows = [], onOpen, selectedIds = [], toggleSele
                 <td><input type="checkbox" checked={selectedIds.includes(row.entidadId)} onChange={() => toggleSelected(row.entidadId)} /></td>
                 <td style={{ fontWeight: 700 }}>{row.entidad || "Sin entidad"}</td>
                 <td className="treasury-mono">{row.docs}</td>
-                <td className="treasury-mono treasury-pending-alert">{fmtM(row.pending)}</td>
-                <td className={`treasury-mono ${row.overdue > 0 ? "treasury-pending-overdue" : "treasury-pending-idle"}`}>{fmtM(row.overdue)}</td>
+                <td className="treasury-mono treasury-pending-alert">{formatPortfolioCurrencyList(row, "pending")}</td>
+                <td className={`treasury-mono ${row.overdue > 0 ? "treasury-pending-overdue" : "treasury-pending-idle"}`}>{formatPortfolioCurrencyList(row, "overdue")}</td>
                 <td style={{ minWidth: 160 }}>
                   <div className="treasury-concentration">
                     <div className="treasury-mono">{`${concentration.toFixed(1)}%`}</div>
                     <div className="treasury-progress"><div className="treasury-progress-fill" style={{ width: `${Math.max(6, Math.min(concentration, 100))}%` }} /></div>
                   </div>
                 </td>
-                <td className={`treasury-mono ${row.creditLimit ? "treasury-pending-paid" : "treasury-pending-idle"}`}>{row.creditLimit ? fmtM(row.creditLimit) : "No definido"}</td>
-                <td className={`treasury-mono ${availableClass}`}>{row.availableCredit == null ? "—" : fmtM(row.availableCredit)}</td>
-                <td><GBtn sm onClick={() => onOpen(row)}>Ver detalle</GBtn></td>
+                <td className={`treasury-mono ${row.creditLimit ? "treasury-pending-paid" : "treasury-pending-idle"}`}>{row.creditLimit ? formatTreasuryMoney(row.creditLimit, row.currency) : "No definido"}</td>
+                <td className={`treasury-mono ${availableClass}`}>{row.availableCredit == null ? "—" : formatTreasuryMoney(row.availableCredit, row.currency)}</td>
+                <td>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <GBtn sm onClick={() => onOpen(row)}>Ver detalle</GBtn>
+                    {onDownloadPdf ? <GBtn sm onClick={() => onDownloadPdf(row)}>PDF interno</GBtn> : null}
+                  </div>
+                </td>
               </tr>
             );
           })}

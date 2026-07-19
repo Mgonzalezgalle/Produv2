@@ -53,8 +53,7 @@ export function normalizeTreasuryDetractionStatus(value = "") {
   return TREASURY_DETRACTION_STATUSES.includes(raw) ? raw : "Pendiente";
 }
 
-export function buildTreasuryDetraction(source = {}, total = 0, currency = "CLP") {
-  const safeCurrency = normalizeTreasuryCurrency(currency || source?.currency || source?.moneda || "CLP");
+export function buildTreasuryDetraction(source = {}, total = 0) {
   const explicitEnabled = source?.detractionEnabled ?? source?.detraccionEnabled ?? source?.aplicaDetraccion;
   const rawRate = source?.detractionRate ?? source?.detraccionRate ?? source?.porcentajeDetraccion ?? source?.detraccionPct ?? 0;
   const rate = normalizePercent(rawRate);
@@ -528,8 +527,24 @@ export function buildTreasuryPortfolio({ rows = [], clientes = [], purchaseOrder
       const creditLimit = clientCreditLimit(client);
       const clientOrders = (Array.isArray(purchaseOrders) ? purchaseOrders : []).filter(order => order.clientId === entry.entidadId);
       const totalPendingPortfolio = (Array.isArray(rows) ? rows : []).reduce((sum, row) => sum + Number(row.pending || 0), 0);
+      const currencies = TREASURY_CURRENCIES
+        .map(currency => {
+          const currencyRows = entry.documents.filter(row => normalizeTreasuryCurrency(row?.currency) === currency);
+          return {
+            currency,
+            docs: currencyRows.length,
+            total: currencyRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+            pending: currencyRows.reduce((sum, row) => sum + Number(row.pending || 0), 0),
+            paid: currencyRows.reduce((sum, row) => sum + Number(row.paid || 0), 0),
+            overdue: currencyRows.filter(row => row.bucket === "Vencido").reduce((sum, row) => sum + Number(row.pending || 0), 0),
+          };
+        })
+        .filter(item => item.docs > 0);
       return {
         ...entry,
+        rut: client?.rut || "",
+        currency: currencies[0]?.currency || "CLP",
+        currencies,
         creditLimit,
         availableCredit: creditLimit ? creditLimit - entry.pending : null,
         purchaseOrders: clientOrders,

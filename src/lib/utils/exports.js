@@ -451,3 +451,74 @@ export async function exportSupplierStatementPDF({
   });
   downloadBlob(file, file.name || `${normalizeExportFileName(fileName || `estado_cuenta_${supplierName}`)}.pdf`);
 }
+
+function summarizeClientStatementByCurrency(documents = []) {
+  const totals = new Map();
+  const today = new Date().toISOString().slice(0, 10);
+  (Array.isArray(documents) ? documents : []).forEach(doc => {
+    const currency = doc?.currency || "CLP";
+    const current = totals.get(currency) || { total: 0, paid: 0, pending: 0, dueSoon: 0, overdue: 0, voided: 0 };
+    const status = String(doc?.cobranza || doc?.estado || doc?.bucket || "").trim().toLowerCase();
+    const pending = Number(doc?.pending || 0);
+    const paid = Number(doc?.paid || 0);
+    const total = Number(doc?.total || 0);
+    const isVoided = status.includes("anulad");
+    const isPaid = !isVoided && (pending <= 0 || status.includes("pagad"));
+    const isOverdue = !isVoided && !isPaid && (
+      status.includes("venc") ||
+      status.includes("retras") ||
+      String(doc?.bucket || "").trim().toLowerCase() === "vencido" ||
+      (doc?.fechaVencimiento && String(doc.fechaVencimiento) < today)
+    );
+    totals.set(currency, {
+      total: current.total + (isVoided ? 0 : total),
+      paid: current.paid + paid,
+      pending: current.pending + (isVoided ? 0 : pending),
+      dueSoon: current.dueSoon + (!isVoided && !isOverdue && !isPaid ? pending : 0),
+      overdue: current.overdue + (isOverdue ? pending : 0),
+      voided: current.voided + (isVoided ? total : 0),
+    });
+  });
+  return Array.from(totals.entries()).map(([currency, values]) => ({
+    currency,
+    ...values,
+  }));
+}
+
+export async function exportClientStatementPDF({
+  client = {},
+  empresa = null,
+  fileName = "",
+  accent = "#1a1a2e",
+} = {}) {
+  const clientName = client?.entidad || client?.name || client?.nom || client?.razonSocial || "Cliente";
+  const documents = Array.isArray(client?.documents) ? client.documents : [];
+  const totalsByCurrency = summarizeClientStatementByCurrency(documents);
+  const summaryItems = totalsByCurrency.map(item => ({
+    label: item.currency,
+    value: `Total ${formatTreasuryMoney(item.total, item.currency)} · Por vencer ${formatTreasuryMoney(item.dueSoon, item.currency)} · Vencido ${formatTreasuryMoney(item.overdue, item.currency)} · Pagado ${formatTreasuryMoney(item.paid, item.currency)} · Anulado ${formatTreasuryMoney(item.voided, item.currency)}`,
+  }));
+  const buildTreasuryTablePdf = await getTreasuryTablePdfRuntime();
+  const file = await buildTreasuryTablePdf({
+    fileName: `${normalizeExportFileName(fileName || `estado_cuenta_cliente_${clientName}`)}.pdf`,
+    title: "Estado de cuenta cliente",
+    subtitle: `${clientName}${client?.rut ? ` · RUT ${client.rut}` : ""}`,
+    accent,
+    empresa,
+    columns: [
+      { label: "Documento", value: row => row?.correlativo || "—", widthWeight: 1.25, noTruncate: true },
+      { label: "Tipo", value: row => row?.tipoDoc || "Documento", widthWeight: 1.05 },
+      { label: "Emisión", value: row => row?.fechaEmision || "—", widthWeight: 0.82 },
+      { label: "Vencimiento", value: row => row?.fechaVencimiento || "—", widthWeight: 0.88 },
+      { label: "Total", value: row => formatTreasuryMoney(row?.total || 0, row?.currency || client?.currency), widthWeight: 1.05 },
+      { label: "Pagado", value: row => formatTreasuryMoney(row?.paid || 0, row?.currency || client?.currency), widthWeight: 1.05 },
+      { label: "Saldo", value: row => formatTreasuryMoney(row?.pending || 0, row?.currency || client?.currency), widthWeight: 1.05 },
+      { label: "Estado", value: row => row?.cobranza || row?.bucket || "Pendiente", widthWeight: 0.95 },
+    ],
+    rows: documents,
+    summaryItems,
+    footerPrimary: "Hecho con amor por Produ.",
+    footerSecondary: "Plataforma de Gestión de Empresas",
+  });
+  downloadBlob(file, file.name || `${normalizeExportFileName(fileName || `estado_cuenta_cliente_${clientName}`)}.pdf`);
+}

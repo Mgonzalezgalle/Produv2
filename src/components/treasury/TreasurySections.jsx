@@ -137,6 +137,19 @@ const providerExportColumns = [
   { label: "Pendiente", value: row => fmtM(row?.pending || 0) },
 ];
 
+const portfolioExportColumns = [
+  { label: "Cliente", value: row => row?.entidad || "—", widthWeight: 1.45 },
+  { label: "RUT", value: row => row?.rut || "—" },
+  { label: "Documentos", value: row => row?.docs || 0 },
+  { label: "Monedas", value: row => Array.isArray(row?.currencies) && row.currencies.length ? row.currencies.map(item => item.currency).join(", ") : (row?.currency || "CLP") },
+  { label: "Cartera", value: row => Array.isArray(row?.currencies) && row.currencies.length ? row.currencies.map(item => formatTreasuryMoney(item?.total || 0, item?.currency)).join(" · ") : formatTreasuryMoney(row?.total || 0, row?.currency) },
+  { label: "Pagado", value: row => Array.isArray(row?.currencies) && row.currencies.length ? row.currencies.map(item => formatTreasuryMoney(item?.paid || 0, item?.currency)).join(" · ") : formatTreasuryMoney(row?.paid || 0, row?.currency) },
+  { label: "Pendiente", value: row => Array.isArray(row?.currencies) && row.currencies.length ? row.currencies.map(item => formatTreasuryMoney(item?.pending || 0, item?.currency)).join(" · ") : formatTreasuryMoney(row?.pending || 0, row?.currency) },
+  { label: "Vencido", value: row => Array.isArray(row?.currencies) && row.currencies.length ? row.currencies.map(item => formatTreasuryMoney(item?.overdue || 0, item?.currency)).join(" · ") : formatTreasuryMoney(row?.overdue || 0, row?.currency) },
+  { label: "Concentración", value: row => `${Number(row?.concentrationPct || 0).toFixed(1)}%` },
+  { label: "Límite crédito", value: row => row?.creditLimit ? formatTreasuryMoney(row.creditLimit, row?.currency) : "No definido" },
+];
+
 const issuedOrderExportColumns = [
   { label: "OC", value: row => row?.number || "—" },
   { label: "Proveedor", value: row => row?.supplier || "—" },
@@ -184,6 +197,7 @@ export function TreasuryReceivablesSection({
   setReceiptClientFilter,
   setReceiptPeriodFilter,
   portfolioTable,
+  onClientStatementPdf,
   receiptOpen,
   receiptDraft,
   closeReceipt,
@@ -371,13 +385,28 @@ export function TreasuryReceivablesSection({
         <TableToolbar
           searchValue={portfolioTable.query}
           onSearchChange={portfolioTable.setQuery}
-          searchPlaceholder="Buscar cliente..."
+          searchPlaceholder="Buscar cliente, RUT o documento..."
+          statusValue={portfolioTable.status}
+          onStatusChange={portfolioTable.setStatus}
+          statusOptions={portfolioTable.statusOptions}
           selectedCount={portfolioTable.selectedIds.length}
           onClearSelection={portfolioTable.clearSelection}
+          exportAction={
+            <TreasuryExportActions
+              tableState={portfolioTable}
+              columns={portfolioExportColumns}
+              fileName="cartera_clientes"
+              title="Cartera de Clientes"
+              subtitle="Estado interno por cliente"
+              empresa={props.empresa}
+              getId={row => row?.entidadId}
+            />
+          }
         />
         <PortfolioTable
           rows={portfolioTable.pageRows}
           onOpen={openPortfolioDetail}
+          onDownloadPdf={onClientStatementPdf}
           selectedIds={portfolioTable.selectedIds}
           toggleSelected={portfolioTable.toggleSelected}
           toggleAll={portfolioTable.toggleAll}

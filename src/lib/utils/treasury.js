@@ -42,10 +42,10 @@ function normalizePercent(value = 0) {
   return number > 100 ? 100 : number;
 }
 
-function roundTreasuryAmount(value = 0, currency = "CLP") {
+function normalizeTreasuryAmount(value = 0) {
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return 0;
-  return normalizeTreasuryCurrency(currency) === "CLP" ? Math.round(number) : Math.round(number * 100) / 100;
+  return number;
 }
 
 export function normalizeTreasuryDetractionStatus(value = "") {
@@ -59,11 +59,11 @@ export function buildTreasuryDetraction(source = {}, total = 0, currency = "CLP"
   const rawRate = source?.detractionRate ?? source?.detraccionRate ?? source?.porcentajeDetraccion ?? source?.detraccionPct ?? 0;
   const rate = normalizePercent(rawRate);
   const rawAmount = source?.detractionAmount ?? source?.detraccionAmount ?? source?.montoDetraccion ?? source?.detraccionMonto;
-  const amount = roundTreasuryAmount(rawAmount !== undefined && rawAmount !== "" ? rawAmount : Number(total || 0) * (rate / 100), safeCurrency);
+  const amount = normalizeTreasuryAmount(rawAmount !== undefined && rawAmount !== "" ? rawAmount : Number(total || 0) * (rate / 100));
   const enabled = Boolean(explicitEnabled) || rate > 0 || amount > 0;
   const status = enabled ? normalizeTreasuryDetractionStatus(source?.detractionStatus || source?.detraccionStatus || source?.estadoDetraccion) : "No aplica";
   const pending = enabled && status !== "Depositada" ? amount : 0;
-  const netDirectAmount = enabled ? Math.max(0, roundTreasuryAmount(Number(total || 0) - amount, safeCurrency)) : roundTreasuryAmount(total, safeCurrency);
+  const netDirectAmount = enabled ? Math.max(0, normalizeTreasuryAmount(Number(total || 0) - amount)) : normalizeTreasuryAmount(total);
   return {
     enabled,
     rate,
